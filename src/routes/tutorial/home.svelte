@@ -1,9 +1,22 @@
 <script>
     import { get } from 'svelte/store';
-    import { game, orders, gameText, currLocation, logOrder, logBundledOrder, orderList, ordersShown, thinkTime } from "$lib/tutorial.js";
+    import { game, orders, gameText, currLocation, logOrder, logBundledOrder, logOrders, orderList, ordersShown, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed } from "$lib/tutorial.js";
     import { queueNFixedOrders, getDistances } from "$lib/config.js";
     import Order from "./order.svelte";
     import { onMount, onDestroy } from "svelte";
+
+    let waiting = false;
+    $: distances = getDistances($currLocation);
+    let duration = 0;
+    let travelingTo = ""
+    let thinking = false;
+    let thinkRemaining = thinkTime;
+    let thinkInterval;
+
+    // Experiment: Load orders from scenario
+    $: scenario = getCurrentScenario($currentRound);
+    $: maxBundle = scenario.max_bundle ?? 3;
+    $: scenarioOrders = scenario.orders;
 
     let waiting = false;
     $: distances = getDistances($currLocation);
@@ -17,28 +30,34 @@
         const selOrders = get(orders)
         const curGame = get(game)
         const curLoc = get(currLocation)
+        
         if (selOrders.length < 1) {
-            alert("Please select 1 or 2 orders!")
+            alert(`Please select 1 to ${maxBundle} orders!`)
             return;
         }
+        
+        if (selOrders.length > maxBundle) {
+            alert(`You can only select up to ${maxBundle} orders this round!`)
+            return;
+        }
+        
+        // Check all orders are from same store/city
         if (selOrders.length > 1) {
-            if (selOrders[0].store != selOrders[1].store || selOrders[0].city != selOrders[1].city) {
-                alert("Cannot bundle different stores/cities!")
-                return;
+            const firstStore = selOrders[0].store
+            const firstCity = selOrders[0].city
+            for (let order of selOrders) {
+                if (order.store !== firstStore || order.city !== firstCity) {
+                    alert("Cannot bundle orders from different stores/cities!")
+                    return;
+                }
             }
             curGame.bundled = true;
         } else {
             curGame.bundled = false;
         }
 
-        const selOrderIds = selOrders.map(order => order["id"])
-        let temp = $orderList.filter(order => !selOrderIds.includes(order["id"]));
-        temp = temp.map(order => {
-            return { ...order, "expire": order["expire"] - 1 };
-        });
-        temp = temp.filter(order => order.expire > 0);
-        console.log(temp)
-        $orderList = [...temp, ...queueNFixedOrders(ordersShown-temp.length)]
+        // For experiment mode, don't modify orderList - it's fixed per round
+        // Just proceed with the selected orders
 
         if (selOrders[0].city != curLoc) {
             travel(selOrders[0].city, true)
@@ -62,7 +81,8 @@
             if (visitStore) {
                 gameWindow()
             } else {
-                $orders.splice(0, 2)
+                // Clear selected orders but keep orderList intact for experiment
+                $orders = []
                 distances = getDistances(city)
                 $gameText.selector = "None selected"
             }
@@ -71,11 +91,8 @@
 
     function gameWindow() {
         const selOrders = get(orders)
-        if (get(game).bundled) {
-            logBundledOrder(selOrders[0], selOrders[1], selOrders)
-        } else {
-            logOrder(selOrders[0], selOrders)
-        }
+        // Use new logOrders function that handles 1-3 orders
+        logOrders(selOrders, scenarioOrders)
         $game.inStore = true;
         $game.inSelect= false;
     }
@@ -88,6 +105,12 @@
     }
 
     onMount(() => {
+        // Set round start time for tracking
+        roundStartTime.set($elapsed);
+        
+        // Load scenario orders into orderList
+        orderList.set(scenarioOrders);
+        
         thinking = true;
         thinkRemaining = thinkTime;
 
@@ -107,60 +130,63 @@
     });
 </script>
 
-<style>
-
-</style>
 {#if $game.inSelect}
-
-<main class="mx-auto max-w-5xl px-4 space-y-6">
+<section class="mx-auto max-w-5xl px-4 py-6 space-y-4">
     {#if waiting}
-        <div class="rounded-2xl bg-blue-50 border border-blue-200 p-6 text-center space-y-2">
+        <div class="rounded-2xl bg-white shadow-sm border p-6 text-center space-y-2">
             <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-2">
-                <svg class="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                <svg class="w-6 h-6 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
             </div>
-            <h3 class="text-base font-semibold text-blue-900">Traveling to {travelingTo}</h3>
-            <p class="text-sm text-blue-700">Travel time: {duration}s</p>
+            <p class="text-lg font-semibold text-slate-900">Traveling to {travelingTo}</p>
+            <p class="text-sm text-slate-500">Est. travel time: {duration}s</p>
         </div>
     {:else}
         {#if thinking}
-            <div class="rounded-2xl bg-green-50 border border-green-200 p-4 text-center">
-                <p class="text-sm font-semibold text-green-900">You have {thinkRemaining}s to look through available orders</p>
+            <div class="rounded-xl bg-blue-50 border border-blue-200 p-4 mb-4">
+                <p class="text-sm font-medium text-blue-900 text-center">
+                    📋 Review available batches ({thinkRemaining}s remaining)
+                </p>
             </div>
         {/if}
-        
-        <div class="grid md:grid-cols-2 gap-4">
+
+        <div class="flex items-baseline justify-between">
+            <h2 class="text-lg font-semibold text-slate-900">Available batches</h2>
+            <p class="text-xs text-slate-500">Round {$currentRound} • Select up to {maxBundle} {maxBundle === 1 ? 'order' : 'orders'}</p>
+        </div>
+
+        <div class="mt-3 grid gap-4 md:grid-cols-2">
             {#each $orderList as order, i (order.id)}
                 <Order orderData={order} index={i} updateEarnings={updateEarnings}/>
             {/each}
         </div>
-        
+
         {#if !thinking}
-            <div class="flex justify-center py-4">
-                <button 
-                    class="rounded-full bg-green-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition" 
-                    id="startorder" 
+            <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <button
+                    id="startorder"
+                    class="rounded-full bg-green-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                     on:click={start}
+                    disabled={$orders.length === 0}
                 >
                     {$gameText.selector}
                 </button>
-            </div>
-            
-            {#if distances}
-                <div class="flex justify-center gap-3 flex-wrap">
-                    {#each distances["destinations"] as dest}
-                        <button 
-                            class="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-sm" 
-                            id="travel" 
+
+                {#if distances && distances.destinations}
+                    {#each distances.destinations as dest}
+                        <button
+                            class="rounded-full bg-slate-100 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 transition"
+                            id="travel"
                             on:click={() => travel(dest, false)}
                         >
                             Travel to {dest}
                         </button>
                     {/each}
-                </div>
-            {/if}
+                {/if}
+            </div>
         {/if}
     {/if}
-</main>
+</section>
 {/if}

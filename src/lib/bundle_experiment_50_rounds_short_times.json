@@ -1,0 +1,4186 @@
+[
+  {
+    "round": 1,
+    "phase": "A",
+    "scenario_id": "A01",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R1_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R1_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R1_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R1_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R1_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R1_A",
+        "R1_C",
+        "R1_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 2,
+    "phase": "A",
+    "scenario_id": "A02",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R2_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R2_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R2_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R2_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R2_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R2_A",
+        "R2_C",
+        "R2_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 3,
+    "phase": "A",
+    "scenario_id": "A03",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R3_A",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R3_B",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R3_C",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R3_D",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R3_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R3_A",
+        "R3_C",
+        "R3_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 4,
+    "phase": "A",
+    "scenario_id": "A04",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R4_A",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R4_B",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R4_C",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R4_D",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R4_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R4_A",
+        "R4_C",
+        "R4_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 5,
+    "phase": "A",
+    "scenario_id": "A05",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R5_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R5_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R5_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R5_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R5_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R5_A",
+        "R5_C",
+        "R5_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 6,
+    "phase": "A",
+    "scenario_id": "A06",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R6_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R6_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R6_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R6_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R6_A",
+        "R6_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R6_A",
+        "R6_B",
+        "R6_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 7,
+    "phase": "A",
+    "scenario_id": "A07",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R7_A",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R7_B",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R7_C",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R7_D",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R7_A",
+        "R7_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R7_A",
+        "R7_B",
+        "R7_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 8,
+    "phase": "A",
+    "scenario_id": "A08",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R8_A",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R8_B",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R8_C",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R8_D",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R8_A",
+        "R8_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R8_A",
+        "R8_B",
+        "R8_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 9,
+    "phase": "A",
+    "scenario_id": "A09",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R9_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R9_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R9_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R9_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R9_A",
+        "R9_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R9_A",
+        "R9_B",
+        "R9_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 10,
+    "phase": "A",
+    "scenario_id": "A10",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R10_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R10_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R10_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R10_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R10_A",
+        "R10_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R10_A",
+        "R10_B",
+        "R10_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 11,
+    "phase": "A",
+    "scenario_id": "A11",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R11_A",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R11_B",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R11_C",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R11_D",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R11_A",
+        "R11_B",
+        "R11_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R11_A",
+        "R11_B",
+        "R11_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 12,
+    "phase": "A",
+    "scenario_id": "A12",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R12_A",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R12_B",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R12_C",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R12_D",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R12_A",
+        "R12_B",
+        "R12_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R12_A",
+        "R12_B",
+        "R12_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 13,
+    "phase": "A",
+    "scenario_id": "A13",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R13_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R13_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R13_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R13_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R13_A",
+        "R13_B",
+        "R13_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R13_A",
+        "R13_B",
+        "R13_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 14,
+    "phase": "A",
+    "scenario_id": "A14",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R14_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R14_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R14_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R14_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R14_A",
+        "R14_B",
+        "R14_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R14_A",
+        "R14_B",
+        "R14_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 15,
+    "phase": "A",
+    "scenario_id": "A15",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R15_A",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R15_B",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R15_C",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R15_D",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R15_A",
+        "R15_B",
+        "R15_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R15_A",
+        "R15_B",
+        "R15_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 16,
+    "phase": "B",
+    "scenario_id": "B16",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R16_A",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R16_B",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R16_C",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R16_D",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R16_A",
+        "R16_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R16_A",
+        "R16_B",
+        "R16_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 17,
+    "phase": "B",
+    "scenario_id": "B17",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R17_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R17_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R17_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R17_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R17_A",
+        "R17_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R17_A",
+        "R17_B",
+        "R17_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 18,
+    "phase": "B",
+    "scenario_id": "B18",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R18_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R18_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R18_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R18_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R18_A",
+        "R18_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R18_A",
+        "R18_B",
+        "R18_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 19,
+    "phase": "B",
+    "scenario_id": "B19",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R19_A",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R19_B",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R19_C",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R19_D",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R19_A",
+        "R19_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R19_A",
+        "R19_B",
+        "R19_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 20,
+    "phase": "B",
+    "scenario_id": "B20",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R20_A",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R20_B",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R20_C",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R20_D",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R20_A",
+        "R20_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R20_A",
+        "R20_B",
+        "R20_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 21,
+    "phase": "B",
+    "scenario_id": "B21",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R21_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R21_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R21_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R21_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R21_A",
+        "R21_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R21_A",
+        "R21_B",
+        "R21_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 22,
+    "phase": "B",
+    "scenario_id": "B22",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R22_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R22_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R22_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R22_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R22_A",
+        "R22_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R22_A",
+        "R22_B",
+        "R22_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 23,
+    "phase": "B",
+    "scenario_id": "B23",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R23_A",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R23_B",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R23_C",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R23_D",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R23_A",
+        "R23_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R23_A",
+        "R23_B",
+        "R23_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 24,
+    "phase": "B",
+    "scenario_id": "B24",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R24_A",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R24_B",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R24_C",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R24_D",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R24_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R24_A",
+        "R24_C",
+        "R24_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 25,
+    "phase": "B",
+    "scenario_id": "B25",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R25_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R25_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R25_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R25_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R25_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R25_A",
+        "R25_C",
+        "R25_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 26,
+    "phase": "B",
+    "scenario_id": "B26",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R26_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R26_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R26_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R26_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R26_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R26_A",
+        "R26_C",
+        "R26_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 27,
+    "phase": "B",
+    "scenario_id": "B27",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R27_A",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R27_B",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R27_C",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R27_D",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R27_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R27_A",
+        "R27_C",
+        "R27_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 28,
+    "phase": "B",
+    "scenario_id": "B28",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R28_A",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R28_B",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R28_C",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R28_D",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R28_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R28_A",
+        "R28_C",
+        "R28_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 29,
+    "phase": "B",
+    "scenario_id": "B29",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R29_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R29_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R29_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R29_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R29_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R29_A",
+        "R29_C",
+        "R29_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 30,
+    "phase": "B",
+    "scenario_id": "B30",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R30_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R30_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R30_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R30_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R30_A",
+        "R30_B",
+        "R30_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R30_A",
+        "R30_B",
+        "R30_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 31,
+    "phase": "B",
+    "scenario_id": "B31",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R31_A",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R31_B",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R31_C",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R31_D",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R31_A",
+        "R31_B",
+        "R31_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R31_A",
+        "R31_B",
+        "R31_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 32,
+    "phase": "B",
+    "scenario_id": "B32",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R32_A",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R32_B",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R32_C",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R32_D",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R32_A",
+        "R32_B",
+        "R32_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R32_A",
+        "R32_B",
+        "R32_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 33,
+    "phase": "B",
+    "scenario_id": "B33",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R33_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R33_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R33_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R33_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R33_A",
+        "R33_B",
+        "R33_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R33_A",
+        "R33_B",
+        "R33_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 34,
+    "phase": "B",
+    "scenario_id": "B34",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R34_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R34_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R34_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R34_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R34_A",
+        "R34_B",
+        "R34_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R34_A",
+        "R34_B",
+        "R34_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 35,
+    "phase": "B",
+    "scenario_id": "B35",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R35_A",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R35_B",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": true
+      },
+      {
+        "id": "R35_C",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R35_D",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R35_A",
+        "R35_B",
+        "R35_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R35_A",
+        "R35_B",
+        "R35_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 36,
+    "phase": "C",
+    "scenario_id": "C36",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R36_A",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R36_B",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R36_C",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R36_D",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R36_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R36_A",
+        "R36_C",
+        "R36_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 37,
+    "phase": "C",
+    "scenario_id": "C37",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R37_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R37_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R37_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R37_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R37_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R37_A",
+        "R37_C",
+        "R37_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 38,
+    "phase": "C",
+    "scenario_id": "C38",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R38_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R38_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R38_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R38_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R38_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R38_A",
+        "R38_C",
+        "R38_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 39,
+    "phase": "C",
+    "scenario_id": "C39",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R39_A",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R39_B",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R39_C",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R39_D",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R39_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R39_A",
+        "R39_C",
+        "R39_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 40,
+    "phase": "C",
+    "scenario_id": "C40",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R40_A",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 18,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R40_B",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          3,
+          4,
+          5
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R40_C",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          6,
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R40_D",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          3,
+          6,
+          7
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R40_A"
+      ],
+      "bundle_size": 1,
+      "efficiency_earnings_per_s": 1.8,
+      "total_time_s": 10,
+      "total_earnings": 18,
+      "num_aisles": 2
+    },
+    "second_best": {
+      "combo": [
+        "R40_A",
+        "R40_C",
+        "R40_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.444,
+      "total_time_s": 18,
+      "total_earnings": 26,
+      "num_aisles": 6
+    }
+  },
+  {
+    "round": 41,
+    "phase": "C",
+    "scenario_id": "C41",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R41_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R41_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R41_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R41_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R41_A",
+        "R41_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R41_A",
+        "R41_B",
+        "R41_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 42,
+    "phase": "C",
+    "scenario_id": "C42",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R42_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R42_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R42_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R42_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R42_A",
+        "R42_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R42_A",
+        "R42_B",
+        "R42_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 43,
+    "phase": "C",
+    "scenario_id": "C43",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R43_A",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R43_B",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R43_C",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R43_D",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R43_A",
+        "R43_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R43_A",
+        "R43_B",
+        "R43_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 44,
+    "phase": "C",
+    "scenario_id": "C44",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R44_A",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R44_B",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R44_C",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R44_D",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R44_A",
+        "R44_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R44_A",
+        "R44_B",
+        "R44_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 45,
+    "phase": "C",
+    "scenario_id": "C45",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R45_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R45_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 10,
+        "aisles": [
+          1,
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R45_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          4,
+          5,
+          6
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R45_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 4,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R45_A",
+        "R45_B"
+      ],
+      "bundle_size": 2,
+      "efficiency_earnings_per_s": 1.667,
+      "total_time_s": 12,
+      "total_earnings": 20,
+      "num_aisles": 3
+    },
+    "second_best": {
+      "combo": [
+        "R45_A",
+        "R45_B",
+        "R45_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 1.5,
+      "total_time_s": 16,
+      "total_earnings": 24,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 46,
+    "phase": "C",
+    "scenario_id": "C46",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R46_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R46_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R46_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R46_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R46_A",
+        "R46_B",
+        "R46_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R46_A",
+        "R46_B",
+        "R46_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 47,
+    "phase": "C",
+    "scenario_id": "C47",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R47_A",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R47_B",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R47_C",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R47_D",
+        "store": "Sprouts Farmers Market",
+        "city": "Oakland",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R47_A",
+        "R47_B",
+        "R47_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R47_A",
+        "R47_B",
+        "R47_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 48,
+    "phase": "C",
+    "scenario_id": "C48",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R48_A",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R48_B",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R48_C",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R48_D",
+        "store": "Safeway",
+        "city": "Piedmont",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R48_A",
+        "R48_B",
+        "R48_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R48_A",
+        "R48_B",
+        "R48_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 49,
+    "phase": "C",
+    "scenario_id": "C49",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R49_A",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R49_B",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R49_C",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R49_D",
+        "store": "Target",
+        "city": "Emeryville",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R49_A",
+        "R49_B",
+        "R49_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R49_A",
+        "R49_B",
+        "R49_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  },
+  {
+    "round": 50,
+    "phase": "C",
+    "scenario_id": "C50",
+    "max_bundle": 3,
+    "store_travel_time_s": 4,
+    "base_store_time_s": 2,
+    "per_aisle_time_s": 2,
+    "orders": [
+      {
+        "id": "R50_A",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 15,
+        "aisles": [
+          1,
+          2
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R50_B",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 14,
+        "aisles": [
+          2,
+          3
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R50_C",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 14,
+        "aisles": [
+          3,
+          4
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      },
+      {
+        "id": "R50_D",
+        "store": "Berkeley Bowl",
+        "city": "Berkeley",
+        "earnings": 11,
+        "aisles": [
+          7,
+          8
+        ],
+        "travel_time_s": 4,
+        "recommended": false
+      }
+    ],
+    "optimal": {
+      "combo": [
+        "R50_A",
+        "R50_B",
+        "R50_C"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 3.071,
+      "total_time_s": 14,
+      "total_earnings": 43,
+      "num_aisles": 4
+    },
+    "second_best": {
+      "combo": [
+        "R50_A",
+        "R50_B",
+        "R50_D"
+      ],
+      "bundle_size": 3,
+      "efficiency_earnings_per_s": 2.5,
+      "total_time_s": 16,
+      "total_earnings": 40,
+      "num_aisles": 5
+    }
+  }
+]

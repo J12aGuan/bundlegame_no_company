@@ -1,20 +1,18 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario } from "$lib/tutorial.js"
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols } from "$lib/bundle.js"
     import { storeConfig } from "$lib/config.js";
     import emojis from "$lib/emojis.json"
     
     let config = storeConfig($orders[0].store)
     let GameState = 0;
     let curLocation = [0, 0];
-    
-    // Support up to 3 bags
-    let bags = [{}, {}, {}];
-    let selectedBagIndex = 0;
-    let bagInputs = ["", "", ""];
+    let bag1Input = "";
+    let bag2Input = "";
     let wordInput = "";
-    
+    let bag1 = {}
+    let bag2 = {}
     let dist = 0;
     let correct = false;
     let startTimer = $elapsed;
@@ -23,9 +21,9 @@
     let totalEarnings;
     let curTip = 0;
     
-    $: numOrders = $orders.length;
     $: endTimer = $elapsed - startTimer;
-    $: bagCounts = bags.map(bag => Object.values(bag).reduce((a, b) => a + b, 0));
+    $: bag1Count = Object.values(bag1).reduce((a, b) => a + b, 0);
+    $: bag2Count = Object.values(bag2).reduce((a, b) => a + b, 0);
     $: locationLabel = config["locations"]?.[curLocation[0]]?.[curLocation[1]] || "Entrance";
 
     function updateTip() {
@@ -51,7 +49,11 @@
 
     onMount(() => {
         const selOrders = get(orders)
-        startEarnings = selOrders.reduce((sum, order) => sum + order.earnings, 0)
+        if ($game.bundled) {
+            startEarnings = selOrders[0].earnings + selOrders[1].earnings
+        } else {
+            startEarnings = selOrders[0].earnings
+        }
         totalEarnings = startEarnings
         config = storeConfig($orders[0].store)
         curLocation = config["Entrance"]
@@ -82,70 +84,77 @@
     function addBag() {
         const selOrders = get(orders)
         let item = config["locations"][curLocation[0]][curLocation[1]].toLowerCase()
+        let bag1InputInt;
+        let bag2InputInt;
+        let action = {
+            buttonID: "addtobag",
+            buttonContent: "Add to bag",
+            bagInput1: bag1Input,
+            bagInput2: bag2Input,
+            itemInput: wordInput,
+            bag1_: bag1,
+            bag2_: bag2,
+            order1: selOrders[0]
+        }
+        if (!$game.bundled) {
+            bag2Input = "0";
+        } else {
+            action.order2 = selOrders[1]
+        }
         
         if (item == "" || item == "entrance") {
             return;
         }
-
-        // Build action for logging
-        let action = {
-            buttonID: "addtobag",
-            buttonContent: "Add to bag",
-            itemInput: wordInput,
-            selectedBag: selectedBagIndex + 1,
-            bags: bags.map(b => ({...b}))
-        }
-        
-        // Validate item name
-        if (wordInput.toLowerCase() != item.toLowerCase()) {
-            alert("Incorrect! You must type the name of the item")
-            action.mistake = "itemtypo"
+        try {
+            bag1InputInt = parseInt(bag1Input)
+            bag2InputInt = parseInt(bag2Input)
+        } catch {
+            alert("Error: Quantity inputs must be numbers")
+            action.mistake = "numbertypo"
+            bag1Input = "";
+            bag2Input = "";
             wordInput = "";
-            bagInputs = ["", "", ""];
             logAction(action)
             return;
         }
-
-        // Process quantities for each bag
-        let quantities = [];
-        for (let i = 0; i < numOrders; i++) {
-            let inputVal = bagInputs[i].trim();
-            if (inputVal === "") {
-                quantities.push(0);
-            } else {
-                let qty = parseInt(inputVal);
-                if (isNaN(qty)) {
-                    alert("Error: Quantity inputs must be numbers")
-                    action.mistake = "numberempty"
-                    wordInput = "";
-                    bagInputs = ["", "", ""];
-                    logAction(action)
-                    return;
-                }
-                quantities.push(qty);
-            }
+        if (isNaN(bag1InputInt) || isNaN(bag2InputInt)) {
+            alert("Error: Quantity inputs must be numbers")
+            action.mistake = "numberempty"
+            bag1Input = "";
+            bag2Input = "";
+            wordInput = "";
+            logAction(action)
+            return;
         }
-
-        // Add to bags
-        for (let i = 0; i < numOrders; i++) {
-            if (quantities[i] !== 0) {
-                if (Object.keys(bags[i]).includes(item)) {
-                    bags[i][item] += quantities[i];
-                } else {
-                    bags[i][item] = quantities[i];
-                }
-                if (bags[i][item] <= 0) {
-                    delete bags[i][item];
-                }
-            }
+        if (wordInput.toLowerCase() != item.toLowerCase()) {
+            alert("Incorrect! You must type the name of the item")
+            action.mistake = "itemtypo"
+            bag1Input = "";
+            bag2Input = "";
+            wordInput = "";
+            logAction(action)
+            return;
         }
-
+        if (Object.keys(bag1).includes(item)) {
+            bag1[item] += bag1InputInt
+        } else {
+            bag1[item] = bag1InputInt
+        }
+        if (Object.keys(bag2).includes(item)) {
+            bag2[item] += bag2InputInt
+        } else {
+            bag2[item] = bag2InputInt
+        }
+        if (bag1[item] <= 0) {
+            delete bag1[item];
+        }
+        if (bag2[item] <= 0) {
+            delete bag2[item];
+        }
+        bag1Input = "";
+        bag2Input = "";
         wordInput = "";
-        bagInputs = ["", "", ""];
         logAction(action)
-        
-        // Trigger reactivity
-        bags = bags;
     }
 
     function start() {
@@ -161,109 +170,82 @@
         $game.inStore = false;
     }
 
-    function checkoutOrders() {
-        const selOrders = get(orders);
-        const numOrders = selOrders.length;
-        
-        // Generate all possible permutations of bag-to-order mappings
-        function getPermutations(arr) {
-            if (arr.length <= 1) return [arr];
-            const result = [];
-            for (let i = 0; i < arr.length; i++) {
-                const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
-                const perms = getPermutations(rest);
-                for (const perm of perms) {
-                    result.push([arr[i], ...perm]);
-                }
+    function checkoutSingle() {
+        const selOrders = get(orders)
+        let c1 = true;
+        Object.keys(bag1).forEach((key) => {
+            if(selOrders[0].items[key] != bag1[key]) {
+                c1 = false;
             }
-            return result;
+        })
+        if (Object.keys(bag1).length != Object.keys(selOrders[0].items).length) {
+            c1 = false;
         }
-
-        const orderIndices = Array.from({length: numOrders}, (_, i) => i);
-        const permutations = getPermutations(orderIndices);
-        
-        // Check if any permutation matches
-        correct = false;
-        for (const perm of permutations) {
-            let allMatch = true;
-            for (let bagIdx = 0; bagIdx < numOrders; bagIdx++) {
-                const orderIdx = perm[bagIdx];
-                const order = selOrders[orderIdx];
-                const bag = bags[bagIdx];
-                
-                // Check if bag contents match order items
-                if (Object.keys(bag).length !== Object.keys(order.items).length) {
-                    allMatch = false;
-                    break;
-                }
-                
-                for (const item of Object.keys(bag)) {
-                    if (order.items[item] !== bag[item]) {
-                        allMatch = false;
-                        break;
-                    }
-                }
-                
-                if (!allMatch) break;
-            }
-            
-            if (allMatch) {
-                correct = true;
-                break;
-            }
-        }
-
-        // Clear bags
-        bags = [{}, {}, {}];
-
+        correct = c1;
+        bag1 = {}
         if (correct) {
-            // Log round completion
-            logRoundCompletion(true);
-            
             $earned += totalEarnings;
-            $uniqueSets += 1;
-            
-            selOrders.forEach(order => {
-                completeOrder(order.id);
-                $finishedOrders.push(order);
-            });
-            
-            // Remove completed orders
-            for (let i = 0; i < numOrders; i++) {
-                $orders.shift();
-            }
-            
+            $uniqueSets += 1
+            completeOrder(selOrders[0].id)
+            $finishedOrders.push(selOrders[0]);
+            $orders.splice(0, 1)
             GameState = 3;
         } else {
-            logRoundCompletion(false);
             GameState = 4;
         }
     }
 
-    function logRoundCompletion(success) {
-        const scenario = getCurrentScenario($currentRound);
-        const duration = $elapsed - $roundStartTime;
-        const chosenOrderIds = $orders.map(o => o.id);
-        const recommendedOrderIds = scenario.orders.filter(o => o.recommended).map(o => o.id);
-        
-        logAction({
-            type: "round_summary",
-            round_index: $currentRound,
-            phase: scenario.phase,
-            scenario_id: scenario.scenario_id,
-            available_orders: scenario.orders.map(o => o.id),
-            recommended_orders: recommendedOrderIds,
-            chosen_orders: chosenOrderIds,
-            bundle_size: chosenOrderIds.length,
-            round_duration_s: duration,
-            round_earnings: success ? totalEarnings : 0,
-            success: success,
-            gametime_elapsed_s: $elapsed
-        });
+    function checkoutBundle() {
+        const selOrders = get(orders)
+        let c1 = true;
+        let c2 = true;
+        Object.keys(bag1).forEach((key) => {
+            if(selOrders[0].items[key] != bag1[key]) {
+                c1 = false;
+            }
+        })
+        if (Object.keys(bag1).length != Object.keys(selOrders[0].items).length) {
+            c1 = false;
+        }
+        Object.keys(bag2).forEach((key) => {
+            if(selOrders[1].items[key] != bag2[key]) {
+                c1 = false;
+            }
+        })
+        if (Object.keys(bag2).length != Object.keys(selOrders[1].items).length) {
+            c1 = false;
+        }
 
-        if (success) {
-            // Increment round counter
-            currentRound.update(r => r + 1);
+        Object.keys(bag1).forEach((key) => {
+            if(selOrders[1].items[key] != bag1[key]) {
+                c2 = false;
+            }
+        })
+        if (Object.keys(bag1).length != Object.keys(selOrders[1].items).length) {
+            c2 = false;
+        }
+        Object.keys(bag2).forEach((key) => {
+            if(selOrders[0].items[key] != bag2[key]) {
+                c2 = false;
+            }
+        })
+        if (Object.keys(bag2).length != Object.keys(selOrders[0].items).length) {
+            c2 = false;
+        }
+        correct = c1 || c2;
+        bag1 = {}
+        bag2 = {}
+        if (correct) {
+            $earned += totalEarnings;
+            $uniqueSets += 1
+            completeOrder(selOrders[0].id)
+            completeOrder(selOrders[1].id)
+            $finishedOrders.push(selOrders[0]);
+            $finishedOrders.push(selOrders[1]);
+            $orders.splice(0, 2)
+            GameState = 3;
+        } else {
+            GameState = 4;
         }
     }
 </script>
@@ -281,7 +263,7 @@
                 {#if $game.tip && curTip > 0}
                     <p class="text-xs text-green-600">+{curTip}% tip</p>
                 {/if}
-                <p class="text-xs text-slate-500">Orders: {numOrders}</p>
+                <p class="text-xs text-slate-500">Orders: {$orders.length}</p>
             </div>
         </div>
 
@@ -304,9 +286,9 @@
 
         <!-- Order details -->
         <div class="flex flex-wrap gap-2">
-            {#each $orders as order, idx}
-                <div class="flex-1 min-w-[180px] rounded-lg bg-slate-50 p-3 text-xs">
-                    <p class="font-semibold text-slate-900 mb-1">Order {idx + 1} for {order.name}</p>
+            {#each $orders as order}
+                <div class="flex-1 min-w-[200px] rounded-lg bg-slate-50 p-3 text-xs">
+                    <p class="font-semibold text-slate-900 mb-1">Order for {order.name}</p>
                     <p class="text-slate-600 mb-2">Pay: ${order.earnings}</p>
                     <ul class="space-y-0.5 text-slate-600">
                         {#each Object.keys(order.items) as item}
@@ -321,57 +303,64 @@
     {#if GameState == 0}
         <!-- Start picking -->
         <div class="text-center py-8">
-            <button 
-                class="rounded-full bg-green-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition" 
-                id="startpicking" 
-                on:click={start}
-            >
-                Start Picking ({numOrders} {numOrders === 1 ? 'Order' : 'Orders'})
-            </button>
+            {#if $game.bundled}
+                <button 
+                    class="rounded-full bg-green-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition" 
+                    id="startbundle" 
+                    on:click={start}
+                >
+                    Start Bundle Picking
+                </button>
+            {:else}
+                <button 
+                    class="rounded-full bg-green-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition" 
+                    id="startsingle" 
+                    on:click={start}
+                >
+                    Start Picking
+                </button>
+            {/if}
         </div>
         
     {:else if GameState == 1}
         <!-- Active picking -->
         <div class="grid md:grid-cols-[2fr,3fr] gap-4">
-            <!-- Left: Bags with tabs -->
+            <!-- Left: Bags -->
             <section class="rounded-2xl bg-white shadow-sm border p-4 space-y-3">
-                <!-- Bag tabs -->
-                <div class="flex gap-1 border-b pb-2">
-                    {#each Array(numOrders) as _, idx}
-                        <button
-                            class="flex-1 rounded-t-lg px-3 py-1.5 text-xs font-medium transition {selectedBagIndex === idx ? 'bg-green-100 text-green-700' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}"
-                            on:click={() => selectedBagIndex = idx}
-                        >
-                            Bag {idx + 1}
-                            {#if bagCounts[idx] > 0}
-                                <span class="ml-1 rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px]">
-                                    {bagCounts[idx]}
-                                </span>
-                            {/if}
-                        </button>
-                    {/each}
-                </div>
-
-                <!-- Show all bags -->
+                <h3 class="text-sm font-semibold text-slate-900">Your bags</h3>
+                
                 <div class="space-y-3">
-                    {#each Array(numOrders) as _, idx}
+                    <div>
+                        <h5 class="text-xs font-medium text-slate-700 mb-1">{$game.bundled ? 'Bag 1' : 'Bag'}</h5>
+                        <ul class="text-xs text-slate-600 space-y-0.5">
+                            {#each Object.keys(bag1) as key}
+                                <li class="flex justify-between">
+                                    <span>{key}</span>
+                                    <span class="font-medium">{bag1[key]}</span>
+                                </li>
+                            {/each}
+                            {#if Object.keys(bag1).length === 0}
+                                <li class="text-slate-400 italic">Empty</li>
+                            {/if}
+                        </ul>
+                    </div>
+                    
+                    {#if $game.bundled}
                         <div>
-                            <h5 class="text-xs font-medium text-slate-700 mb-1">
-                                Bag {idx + 1} - {$orders[idx].name}
-                            </h5>
-                            <ul class="text-xs text-slate-600 space-y-0.5 pl-2">
-                                {#each Object.keys(bags[idx]) as key}
+                            <h5 class="text-xs font-medium text-slate-700 mb-1">Bag 2</h5>
+                            <ul class="text-xs text-slate-600 space-y-0.5">
+                                {#each Object.keys(bag2) as key}
                                     <li class="flex justify-between">
                                         <span>{key}</span>
-                                        <span class="font-medium">{bags[idx][key]}</span>
+                                        <span class="font-medium">{bag2[key]}</span>
                                     </li>
                                 {/each}
-                                {#if Object.keys(bags[idx]).length === 0}
-                                    <li class="text-slate-400 italic text-[10px]">Empty</li>
+                                {#if Object.keys(bag2).length === 0}
+                                    <li class="text-slate-400 italic">Empty</li>
                                 {/if}
                             </ul>
                         </div>
-                    {/each}
+                    {/if}
                 </div>
 
                 <!-- Add to bag form -->
@@ -381,22 +370,28 @@
                         bind:value={wordInput}
                         placeholder="Item name"
                     />
-                    <div class="grid gap-2" style="grid-template-columns: repeat({numOrders}, 1fr);">
-                        {#each Array(numOrders) as _, idx}
+                    <div class="flex gap-2">
+                        <input 
+                            class="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500" 
+                            bind:value={bag1Input}
+                            placeholder="Qty 1"
+                            type="number"
+                        />
+                        {#if $game.bundled}
                             <input 
-                                class="rounded-lg border border-slate-200 px-2 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500" 
-                                bind:value={bagInputs[idx]}
-                                placeholder="Bag {idx + 1}"
+                                class="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500" 
+                                bind:value={bag2Input}
+                                placeholder="Qty 2"
                                 type="number"
                             />
-                        {/each}
+                        {/if}
                     </div>
                     <button 
                         id="addtobag" 
                         class="w-full rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition" 
                         on:click={addBag}
                     >
-                        Add to bags
+                        Add to bag
                     </button>
                 </div>
             </section>
@@ -427,15 +422,25 @@
         <footer class="sticky bottom-0 mt-4 rounded-2xl border border-slate-200 bg-white/95 backdrop-blur shadow-lg">
             <div class="flex items-center justify-between px-4 py-3">
                 <div class="text-xs text-slate-600">
-                    <p>Items: {#each bagCounts as count, idx}Bag {idx + 1} ({count}){idx < numOrders - 1 ? ' · ' : ''}{/each}</p>
+                    <p>Items: Bag 1 ({bag1Count}) {#if $game.bundled}· Bag 2 ({bag2Count}){/if}</p>
                 </div>
-                <button
-                    id="checkout"
-                    class="rounded-full bg-green-600 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
-                    on:click={checkoutOrders}
-                >
-                    Checkout and Exit
-                </button>
+                {#if $game.bundled}
+                    <button
+                        id="checkout"
+                        class="rounded-full bg-green-600 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
+                        on:click={checkoutBundle}
+                    >
+                        Checkout and Exit
+                    </button>
+                {:else}
+                    <button
+                        id="checkout"
+                        class="rounded-full bg-green-600 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
+                        on:click={checkoutSingle}
+                    >
+                        Checkout and Exit
+                    </button>
+                {/if}
             </div>
         </footer>
 
@@ -462,14 +467,13 @@
             <div>
                 <p class="text-lg font-semibold text-green-900">Order Complete!</p>
                 <p class="text-sm text-green-700">All items collected correctly</p>
-                <p class="text-xs text-slate-500 mt-2">Round {$currentRound - 1} finished</p>
             </div>
             <button 
                 class="rounded-full bg-green-600 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition" 
                 id="ordersuccess" 
                 on:click={exit}
             >
-                Next Round →
+                Back to Batches
             </button>
         </div>
 

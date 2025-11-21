@@ -1,5 +1,5 @@
 <script>
-    import { orders, currLocation, gameText, orderList, game } from "$lib/bundle.js"
+    import { orders, currLocation, gameText, orderList, game, currentRound, getCurrentScenario } from "$lib/bundle.js"
     import { onMount, onDestroy } from 'svelte';
     import { queueNFixedOrders, storeConfig } from "$lib/config.js";
    
@@ -13,6 +13,8 @@
     let config = storeConfig(orderData.store)
 
     $: totalItems = Object.values(orderData.items || {}).reduce((a, b) => a + b, 0);
+    $: scenario = getCurrentScenario($currentRound);
+    $: maxBundle = scenario.max_bundle ?? 3;
 
     function updateTimer() {
         timer += 1;
@@ -61,7 +63,8 @@
     
     function select() {
         if (!selected) {
-            if ($orders.length >= 2) {
+            if ($orders.length >= maxBundle) {
+                // Silently ignore if already at max
                 return;
             }
             $orders.push(orderData)
@@ -77,9 +80,9 @@
         }
         if ($orders.length > 0) {
             if ($orders[0].city == $currLocation) {
-                $gameText.selector = "Go to store"
+                $gameText.selector = `Go to store (${$orders.length} ${$orders.length === 1 ? 'order' : 'orders'})`
             } else {
-                $gameText.selector = "Travel to " + $orders[0].city + ". Then go to store"
+                $gameText.selector = `Travel to ${$orders[0].city} (${$orders.length} ${$orders.length === 1 ? 'order' : 'orders'})`
             }
         } else {
             $gameText.selector = "None selected"
@@ -105,6 +108,14 @@
         class="relative rounded-2xl bg-white shadow-sm border transition cursor-pointer select-none {selected ? 'ring-2 ring-green-500 shadow-md' : 'hover:shadow-md'}"
         on:click={select}
     >
+        <!-- Recommendation badge -->
+        {#if orderData.recommended}
+            <div class="absolute top-3 right-3 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 flex items-center gap-1 shadow-sm">
+                <span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+                Recommended
+            </div>
+        {/if}
+        
         <div class="flex flex-col gap-3 p-4">
             <!-- Header row: store name + chips -->
             <div class="flex items-start justify-between gap-3">
@@ -115,7 +126,7 @@
                     <p class="text-xs text-slate-500">{orderData.city}</p>
                 </div>
 
-                <div class="flex flex-wrap gap-1 justify-end">
+                <div class="flex flex-wrap gap-1 justify-end {orderData.recommended ? 'mr-24' : ''}">
                     <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
                         Batch
                     </span>
