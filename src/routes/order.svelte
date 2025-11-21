@@ -7,14 +7,15 @@
     export let index;
     export let updateEarnings;
     let selected = false;
-    let timer = 0; // Timer value
-    let intervalId; // To store the interval ID for cleanup
+    let timer = 0;
+    let intervalId;
     let taken = false;
     let config = storeConfig(orderData.store)
 
+    $: totalItems = Object.values(orderData.items || {}).reduce((a, b) => a + b, 0);
+
     function updateTimer() {
-        timer += 1; // Increment timer by 1 second (or any other logic)
-        //percent increase based on waiting
+        timer += 1;
         if ($game.waiting) {
             let waitingIndex = Math.floor(timer / config["waitinginterval"])
             let percentIncrease = waitingIndex < config["waiting"].length ? (1 + (config["waiting"][waitingIndex]/100)) : (config["waiting"][config["waiting"].length - 1]/100)
@@ -22,9 +23,6 @@
             updateEarnings(index, orderData.earnings);
         }
         if ($game.refresh && orderData.demand > Math.random()*100) {
-            //order taken!
-
-            //unselect if selected
             if (selected) {
                 for (let i=0; i<$orders.length; i++) {
                     if ($orders[i].id == orderData.id) {
@@ -35,15 +33,13 @@
                 selected = false
             }
             taken = true
-            //remove from orderList and add a new one
-            setTimeout(replaceOrder, config["refresh"]*1000); // TODO: maybe make this amount of time customizable?
+            setTimeout(replaceOrder, config["refresh"]*1000);
         }
     }
 
     function replaceOrder() {
         clearInterval(intervalId);
         $orderList = [...$orderList, ...queueNFixedOrders(1)]
-        
         $orderList.splice(index, 1)
     }
 
@@ -51,8 +47,7 @@
         if ($game.waiting || $game.refresh) {
             timer = 0
             config = storeConfig(orderData.store)
-        
-            intervalId = setInterval(updateTimer, 1000); // Run updateTimer every 1000ms (1 second)
+            intervalId = setInterval(updateTimer, 1000);
         }
     });
 
@@ -66,7 +61,6 @@
     
     function select() {
         if (!selected) {
-            //selects it
             if ($orders.length >= 2) {
                 return;
             }
@@ -81,7 +75,6 @@
             }
             selected = false
         }
-        //change text
         if ($orders.length > 0) {
             if ($orders[0].city == $currLocation) {
                 $gameText.selector = "Go to store"
@@ -95,79 +88,75 @@
     }
 </script>
 
-<style>
-    .order {
-        margin: 2px;
-        display: flex;
-    }
+<!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+{#if taken}
+    <div class="rounded-2xl bg-red-50 border border-red-200 shadow-sm p-4">
+        <p class="text-sm font-semibold text-red-800 text-center">
+            🚫 {orderData.store} batch taken!
+        </p>
+        <p class="text-xs text-red-600 text-center mt-1">
+            Waiting for new order...
+        </p>
+    </div>
+{:else}
+    <div
+        id={index + "Selected" + selected}
+        class="relative rounded-2xl bg-white shadow-sm border transition cursor-pointer select-none {selected ? 'ring-2 ring-green-500 shadow-md' : 'hover:shadow-md'}"
+        on:click={select}
+    >
+        <div class="flex flex-col gap-3 p-4">
+            <!-- Header row: store name + chips -->
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <p class="text-sm font-semibold text-slate-900">
+                        {orderData.store}
+                    </p>
+                    <p class="text-xs text-slate-500">{orderData.city}</p>
+                </div>
 
-    .order-content {
-        width: 300px;
-        height: 180px;
-        text-align: center;
-        border-radius: 3px; /* Rounded corners */
-    }
-    .unselected {
-        background-color: darkgray;
-    }
-    .selected {
-        background-color: gray;
-    }
-    .header {
-        margin-top: 0.5em;
-        margin-bottom: 0em;
-    }
-    .innerText {
-        margin-top: 0.2em;
-        margin-bottom: 0em;
-    }
-    .headerTaken {
-        margin-top: 0.5em;
-        margin-bottom: 0em;
-        color: red;
-    }
-</style>
-
-<div class="order">
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-	<!-- svelte-ignore a11y-no-static-element-interactions -->
-    {#if taken}
-    <div class="order-content unselected">
-        <p class="headerTaken">{orderData.store} for {orderData.name} taken! Please wait for a new order</p>
-        <div style="display: inline;">
-            <div style="float:left">
-                <p class="innerText">$ {orderData.earnings}</p>
-                <p class="innerText">{orderData.city}</p>
+                <div class="flex flex-wrap gap-1 justify-end">
+                    <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
+                        Batch
+                    </span>
+                    {#if orderData.demand > 0}
+                        <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                            High demand
+                        </span>
+                    {/if}
+                </div>
             </div>
-            <div style="float:right">
-                <p class="innerText">
-                {#each Object.keys(orderData.items) as item}
-                    {orderData.items[item]} - {item}<br>
-                {/each}
-                </p>
+
+            <!-- Pay row -->
+            <div class="flex items-baseline gap-2">
+                <p class="text-xs text-slate-500">Pay</p>
+                <p class="text-lg font-semibold text-slate-900">${orderData.earnings}</p>
+            </div>
+
+            <!-- Details -->
+            <div class="flex justify-between gap-4">
+                <div class="space-y-0.5 text-xs text-slate-600 flex-1">
+                    <p>{totalItems} total items</p>
+                    <p>Customer: {orderData.name}</p>
+                    <p>Zone: {$currLocation}</p>
+                </div>
+
+                <div class="text-right text-xs text-slate-600 max-w-[120px]">
+                    {#each Object.keys(orderData.items) as item}
+                        <p class="truncate">{orderData.items[item]}x {item}</p>
+                    {/each}
+                </div>
+            </div>
+
+            <!-- Select button -->
+            <div class="mt-2 flex justify-end">
+                <button
+                    class="rounded-full px-4 py-1.5 text-xs font-semibold transition {selected ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-800 hover:bg-slate-200'}"
+                    type="button"
+                >
+                    {selected ? 'Selected ✓' : 'Select order'}
+                </button>
             </div>
         </div>
     </div>
-    {:else}
-        
-     
-    <div id={index + "Selected" + selected} 
-    class="w-full max-w-sm mx-auto p-4 rounded-md shadow-md cursor-pointer select-none transition-all border border-gray-400" class:bg-gray-400={selected}
-    class:bg-gray-300={!selected} on:click={select}>
-        <p class="text-lg font-semibold text-center mb-2">{orderData.store} for {orderData.name}</p>
-        <div class="flex justify-between text-sm text-gray-800">
-            <div>
-                <p class="mb-1 font-medium">$ {orderData.earnings}</p>
-                <p>{orderData.city}</p>
-            </div>
-            <div class="text-right">
-                <p>
-                {#each Object.keys(orderData.items) as item}
-                    {orderData.items[item]} - {item}<br>
-                {/each}
-                </p>
-            </div>
-        </div>
-    </div>
-    {/if}
-</div>
+{/if}

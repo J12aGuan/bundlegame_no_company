@@ -107,35 +107,63 @@
     });
 </script>
 
-<style>
-
-</style>
 {#if $game.inSelect}
-
-{#if waiting}
-    <p class="text-lg font-medium text-gray-700 my-4">Traveling to {travelingTo}. Travel duration: {duration}</p>
-{:else}
-    {#if thinking}
-    <p class="text-blue-600 font-semibold my-4">You have {thinkRemaining}s to look through the available orders.</p>
-    {/if}
-    <div class="grid grid-cols-2 gap-4 mb-6">
-        {#each $orderList as order, i (order.id)}
-            <Order orderData={order} index={i} updateEarnings={updateEarnings}/>
-        {/each}
-    </div>
-    <div class="flex flex-row justify-center items-center">
-        {#if !thinking}
-        <button class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition" id="startorder" on:click={start}>{$gameText.selector}</button>
+<section class="mx-auto max-w-5xl px-4 py-6 space-y-4">
+    {#if waiting}
+        <div class="rounded-2xl bg-white shadow-sm border p-6 text-center space-y-2">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-2">
+                <svg class="w-6 h-6 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <p class="text-lg font-semibold text-slate-900">Traveling to {travelingTo}</p>
+            <p class="text-sm text-slate-500">Est. travel time: {duration}s</p>
+        </div>
+    {:else}
+        {#if thinking}
+            <div class="rounded-xl bg-blue-50 border border-blue-200 p-4 mb-4">
+                <p class="text-sm font-medium text-blue-900 text-center">
+                    📋 Review available batches ({thinkRemaining}s remaining)
+                </p>
+            </div>
         {/if}
-    </div>
-    {#if !thinking}
-    {#if distances}
-    <div class="flex flex-row justify-center items-center">
-        {#each distances["destinations"] as dest}
-            <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-sm font-medium rounded-md shadow-sm transition" id="travel" on:click={() => travel(dest, false)}>Travel to {dest}</button>
-        {/each}
-    </div>
+
+        <div class="flex items-baseline justify-between">
+            <h2 class="text-lg font-semibold text-slate-900">Available batches</h2>
+            <p class="text-xs text-slate-500">Select one or two orders to work on</p>
+        </div>
+
+        <div class="mt-3 grid gap-4 md:grid-cols-2">
+            {#each $orderList as order, i (order.id)}
+                <Order orderData={order} index={i} updateEarnings={updateEarnings}/>
+            {/each}
+        </div>
+
+        {#if !thinking}
+            <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <button
+                    id="startorder"
+                    class="rounded-full bg-green-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    on:click={start}
+                    disabled={$orders.length === 0}
+                >
+                    {$gameText.selector}
+                </button>
+
+                {#if distances && distances.destinations}
+                    {#each distances.destinations as dest}
+                        <button
+                            class="rounded-full bg-slate-100 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 transition"
+                            id="travel"
+                            on:click={() => travel(dest, false)}
+                        >
+                            Travel to {dest}
+                        </button>
+                    {/each}
+                {/if}
+            </div>
+        {/if}
     {/if}
-    {/if}
-{/if}
+</section>
 {/if}
