@@ -327,9 +327,14 @@
     </div>
     
     <script>
-        // Load the experiment data
-        fetch('./src/lib/bundle_experiment_50_rounds_short_times.json')
-            .then(response => response.json())
+        // Load the experiment data - use absolute path from root
+        fetch('/src/lib/bundle_experiment_50_rounds_short_times.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 populatePhaseA(data.filter(r => r.phase === 'A'));
                 populatePhaseB(data.filter(r => r.phase === 'B'));
@@ -337,13 +342,33 @@
             })
             .catch(error => {
                 console.error('Error loading experiment data:', error);
-                document.querySelector('.content').innerHTML = `
-                    <div style="padding: 2rem; text-align: center; color: #ef4444;">
-                        <h3>⚠️ Error Loading Data</h3>
-                        <p>Make sure this HTML file is in the root directory of your project.</p>
-                        <p style="font-size: 0.875rem; margin-top: 1rem;">Expected path: ./src/lib/bundle_experiment_50_rounds_short_times.json</p>
-                    </div>
-                `;
+                
+                // Try loading from relative path as fallback
+                fetch('src/lib/bundle_experiment_50_rounds_short_times.json')
+                    .then(response => response.json())
+                    .then(data => {
+                        populatePhaseA(data.filter(r => r.phase === 'A'));
+                        populatePhaseB(data.filter(r => r.phase === 'B'));
+                        populatePhaseC(data.filter(r => r.phase === 'C'));
+                    })
+                    .catch(fallbackError => {
+                        console.error('Fallback also failed:', fallbackError);
+                        document.querySelector('.content').innerHTML = `
+                            <div style="padding: 2rem; text-align: center; color: #ef4444;">
+                                <h3>⚠️ Error Loading Data</h3>
+                                <p style="margin: 1rem 0;">Cannot load experiment data. This HTML file must be opened from a web server.</p>
+                                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; margin: 1.5rem auto; max-width: 600px; text-align: left; border-radius: 0.5rem;">
+                                    <strong style="color: #92400e;">Quick Fix:</strong>
+                                    <p style="color: #78350f; margin: 0.5rem 0; font-size: 0.875rem;">Run this command from your project root:</p>
+                                    <code style="display: block; background: #fffbeb; padding: 0.75rem; border-radius: 0.25rem; font-family: monospace; color: #92400e; margin-top: 0.5rem;">
+                                        npx serve .
+                                    </code>
+                                    <p style="color: #78350f; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Then open: <strong>http://localhost:3000/experiment_reference_table.html</strong></p>
+                                </div>
+                                <p style="font-size: 0.75rem; color: #64748b; margin-top: 1.5rem;">Or use the CSV file instead: experiment_reference.csv</p>
+                            </div>
+                        `;
+                    });
             });
         
         function populatePhaseA(rounds) {
