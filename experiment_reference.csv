@@ -1,0 +1,51 @@
+Round,Phase,Scenario_ID,Store,City,Optimal_Bundle_Size,Optimal_Combo,Optimal_Earnings,Optimal_Time_s,Optimal_Efficiency,Has_Recommendations,Recommended_Orders,Alignment,Second_Best_Size,Second_Best_Efficiency
+1,A,A01,"Target",Emeryville,1,"R1_A",18,10,1.800,No,"None",N/A,3,1.444
+2,A,A02,"Berkeley Bowl",Berkeley,1,"R2_A",18,10,1.800,No,"None",N/A,3,1.444
+3,A,A03,"Sprouts Farmers Market",Oakland,1,"R3_A",18,10,1.800,No,"None",N/A,3,1.444
+4,A,A04,"Safeway",Piedmont,1,"R4_A",18,10,1.800,No,"None",N/A,3,1.444
+5,A,A05,"Target",Emeryville,1,"R5_A",18,10,1.800,No,"None",N/A,3,1.444
+6,A,A06,"Berkeley Bowl",Berkeley,2,"R6_A+R6_B",20,12,1.667,No,"None",N/A,3,1.500
+7,A,A07,"Sprouts Farmers Market",Oakland,2,"R7_A+R7_B",20,12,1.667,No,"None",N/A,3,1.500
+8,A,A08,"Safeway",Piedmont,2,"R8_A+R8_B",20,12,1.667,No,"None",N/A,3,1.500
+9,A,A09,"Target",Emeryville,2,"R9_A+R9_B",20,12,1.667,No,"None",N/A,3,1.500
+10,A,A10,"Berkeley Bowl",Berkeley,2,"R10_A+R10_B",20,12,1.667,No,"None",N/A,3,1.500
+11,A,A11,"Sprouts Farmers Market",Oakland,3,"R11_A+R11_B+R11_C",43,14,3.071,No,"None",N/A,3,2.500
+12,A,A12,"Safeway",Piedmont,3,"R12_A+R12_B+R12_C",43,14,3.071,No,"None",N/A,3,2.500
+13,A,A13,"Target",Emeryville,3,"R13_A+R13_B+R13_C",43,14,3.071,No,"None",N/A,3,2.500
+14,A,A14,"Berkeley Bowl",Berkeley,3,"R14_A+R14_B+R14_C",43,14,3.071,No,"None",N/A,3,2.500
+15,A,A15,"Sprouts Farmers Market",Oakland,3,"R15_A+R15_B+R15_C",43,14,3.071,No,"None",N/A,3,2.500
+16,B,B16,"Safeway",Piedmont,2,"R16_A+R16_B",20,12,1.667,Yes,"R16_A+R16_B",Aligned,3,1.500
+17,B,B17,"Target",Emeryville,2,"R17_A+R17_B",20,12,1.667,Yes,"R17_A+R17_B",Aligned,3,1.500
+18,B,B18,"Berkeley Bowl",Berkeley,2,"R18_A+R18_B",20,12,1.667,Yes,"R18_A+R18_B",Aligned,3,1.500
+19,B,B19,"Sprouts Farmers Market",Oakland,2,"R19_A+R19_B",20,12,1.667,Yes,"R19_A+R19_B",Aligned,3,1.500
+20,B,B20,"Safeway",Piedmont,2,"R20_A+R20_B",20,12,1.667,Yes,"R20_A+R20_B",Aligned,3,1.500
+21,B,B21,"Target",Emeryville,2,"R21_A+R21_B",20,12,1.667,Yes,"R21_A+R21_B",Aligned,3,1.500
+22,B,B22,"Berkeley Bowl",Berkeley,2,"R22_A+R22_B",20,12,1.667,Yes,"R22_A+R22_B",Aligned,3,1.500
+23,B,B23,"Sprouts Farmers Market",Oakland,2,"R23_A+R23_B",20,12,1.667,Yes,"R23_A+R23_B",Aligned,3,1.500
+24,B,B24,"Safeway",Piedmont,1,"R24_A",18,10,1.800,Yes,"R24_A+R24_B",Rec2_Opt1,3,1.444
+25,B,B25,"Target",Emeryville,1,"R25_A",18,10,1.800,Yes,"R25_A+R25_B",Rec2_Opt1,3,1.444
+26,B,B26,"Berkeley Bowl",Berkeley,1,"R26_A",18,10,1.800,Yes,"R26_A+R26_B",Rec2_Opt1,3,1.444
+27,B,B27,"Sprouts Farmers Market",Oakland,1,"R27_A",18,10,1.800,Yes,"R27_A+R27_B",Rec2_Opt1,3,1.444
+28,B,B28,"Safeway",Piedmont,1,"R28_A",18,10,1.800,Yes,"R28_A+R28_B",Rec2_Opt1,3,1.444
+29,B,B29,"Target",Emeryville,1,"R29_A",18,10,1.800,Yes,"R29_A+R29_B",Rec2_Opt1,3,1.444
+30,B,B30,"Berkeley Bowl",Berkeley,3,"R30_A+R30_B+R30_C",43,14,3.071,Yes,"R30_A+R30_B",Rec2_Opt3,3,2.500
+31,B,B31,"Sprouts Farmers Market",Oakland,3,"R31_A+R31_B+R31_C",43,14,3.071,Yes,"R31_A+R31_B",Rec2_Opt3,3,2.500
+32,B,B32,"Safeway",Piedmont,3,"R32_A+R32_B+R32_C",43,14,3.071,Yes,"R32_A+R32_B",Rec2_Opt3,3,2.500
+33,B,B33,"Target",Emeryville,3,"R33_A+R33_B+R33_C",43,14,3.071,Yes,"R33_A+R33_B",Rec2_Opt3,3,2.500
+34,B,B34,"Berkeley Bowl",Berkeley,3,"R34_A+R34_B+R34_C",43,14,3.071,Yes,"R34_A+R34_B",Rec2_Opt3,3,2.500
+35,B,B35,"Sprouts Farmers Market",Oakland,3,"R35_A+R35_B+R35_C",43,14,3.071,Yes,"R35_A+R35_B",Rec2_Opt3,3,2.500
+36,C,C36,"Safeway",Piedmont,1,"R36_A",18,10,1.800,No,"None",N/A,3,1.444
+37,C,C37,"Target",Emeryville,1,"R37_A",18,10,1.800,No,"None",N/A,3,1.444
+38,C,C38,"Berkeley Bowl",Berkeley,1,"R38_A",18,10,1.800,No,"None",N/A,3,1.444
+39,C,C39,"Sprouts Farmers Market",Oakland,1,"R39_A",18,10,1.800,No,"None",N/A,3,1.444
+40,C,C40,"Safeway",Piedmont,1,"R40_A",18,10,1.800,No,"None",N/A,3,1.444
+41,C,C41,"Target",Emeryville,2,"R41_A+R41_B",20,12,1.667,No,"None",N/A,3,1.500
+42,C,C42,"Berkeley Bowl",Berkeley,2,"R42_A+R42_B",20,12,1.667,No,"None",N/A,3,1.500
+43,C,C43,"Sprouts Farmers Market",Oakland,2,"R43_A+R43_B",20,12,1.667,No,"None",N/A,3,1.500
+44,C,C44,"Safeway",Piedmont,2,"R44_A+R44_B",20,12,1.667,No,"None",N/A,3,1.500
+45,C,C45,"Target",Emeryville,2,"R45_A+R45_B",20,12,1.667,No,"None",N/A,3,1.500
+46,C,C46,"Berkeley Bowl",Berkeley,3,"R46_A+R46_B+R46_C",43,14,3.071,No,"None",N/A,3,2.500
+47,C,C47,"Sprouts Farmers Market",Oakland,3,"R47_A+R47_B+R47_C",43,14,3.071,No,"None",N/A,3,2.500
+48,C,C48,"Safeway",Piedmont,3,"R48_A+R48_B+R48_C",43,14,3.071,No,"None",N/A,3,2.500
+49,C,C49,"Target",Emeryville,3,"R49_A+R49_B+R49_C",43,14,3.071,No,"None",N/A,3,2.500
+50,C,C50,"Berkeley Bowl",Berkeley,3,"R50_A+R50_B+R50_C",43,14,3.071,No,"None",N/A,3,2.500

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>50-Round Experiment Reference - Developer Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            padding: 1.5rem;
+            background: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .legend-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .phase-a { background: #dbeafe; color: #1e40af; }
+        .phase-b { background: #fef3c7; color: #92400e; }
+        .phase-c { background: #d1fae5; color: #065f46; }
+        
+        .opt-1 { background: #fee2e2; color: #991b1b; }
+        .opt-2 { background: #fef9c3; color: #854d0e; }
+        .opt-3 { background: #dcfce7; color: #166534; }
+        
+        .rec-yes { background: #d1fae5; color: #065f46; border: 2px solid #10b981; }
+        .rec-no { background: #f3f4f6; color: #6b7280; }
+        
+        .aligned { background: #d1fae5; color: #065f46; }
+        .misaligned { background: #fee2e2; color: #991b1b; }
+        
+        .content {
+            padding: 2rem;
+        }
+        
+        .phase-section {
+            margin-bottom: 3rem;
+        }
+        
+        .phase-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid #e2e8f0;
+        }
+        
+        .phase-header h2 {
+            font-size: 1.5rem;
+            color: #1e293b;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+        
+        th {
+            background: #f1f5f9;
+            color: #334155;
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 2px solid #cbd5e1;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        tr:hover {
+            background: #f8fafc;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.625rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        .store-badge {
+            background: #ede9fe;
+            color: #5b21b6;
+        }
+        
+        .earnings {
+            font-weight: 600;
+            color: #059669;
+        }
+        
+        .time {
+            color: #64748b;
+            font-size: 0.8125rem;
+        }
+        
+        .efficiency {
+            font-weight: 600;
+            color: #0891b2;
+        }
+        
+        .orders-list {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
+        
+        .note {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0.5rem;
+        }
+        
+        .note strong {
+            color: #92400e;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+            }
+            
+            tr {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 50-Round Experiment Reference Guide</h1>
+            <p>Developer-Only Table • Not Visible to Users</p>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <strong>Phases:</strong>
+                <span class="legend-badge phase-a">A: Baseline</span>
+                <span class="legend-badge phase-b">B: Recommendations</span>
+                <span class="legend-badge phase-c">C: Post-Rec</span>
+            </div>
+            <div class="legend-item">
+                <strong>Optimal:</strong>
+                <span class="legend-badge opt-1">1 Order</span>
+                <span class="legend-badge opt-2">2 Orders</span>
+                <span class="legend-badge opt-3">3 Orders</span>
+            </div>
+            <div class="legend-item">
+                <strong>Recommendations:</strong>
+                <span class="legend-badge rec-yes">Stars On</span>
+                <span class="legend-badge rec-no">No Stars</span>
+            </div>
+            <div class="legend-item">
+                <strong>Alignment:</strong>
+                <span class="legend-badge aligned">✓ Aligned</span>
+                <span class="legend-badge misaligned">✗ Misaligned</span>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- Phase A: Baseline -->
+            <div class="phase-section">
+                <div class="phase-header">
+                    <h2>Phase A: Baseline (No Recommendations)</h2>
+                    <span class="badge phase-a">Rounds 1-15</span>
+                </div>
+                
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Round</th>
+                                <th>Scenario</th>
+                                <th>Store</th>
+                                <th>Optimal Strategy</th>
+                                <th>Combo</th>
+                                <th>Earnings</th>
+                                <th>Time</th>
+                                <th>Efficiency</th>
+                                <th>Second Best</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="phase-a-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Phase B: Recommendations -->
+            <div class="phase-section">
+                <div class="phase-header">
+                    <h2>Phase B: System Recommendations</h2>
+                    <span class="badge phase-b">Rounds 16-35</span>
+                </div>
+                
+                <div class="note">
+                    <strong>⭐ Recommendation Period:</strong> Stars appear on exactly 2 orders each round. 
+                    This phase tests whether users follow recommendations and how alignment affects choices.
+                </div>
+                
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Round</th>
+                                <th>Scenario</th>
+                                <th>Store</th>
+                                <th>Recommended</th>
+                                <th>Optimal Strategy</th>
+                                <th>Alignment</th>
+                                <th>Earnings</th>
+                                <th>Time</th>
+                                <th>Efficiency</th>
+                                <th>Test Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody id="phase-b-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Phase C: Post-Recommendation -->
+            <div class="phase-section">
+                <div class="phase-header">
+                    <h2>Phase C: Post-Recommendation</h2>
+                    <span class="badge phase-c">Rounds 36-50</span>
+                </div>
+                
+                <div class="note">
+                    <strong>🔄 Lasting Effects:</strong> Stars removed. Tests whether exposure to recommendations 
+                    in Phase B creates lasting behavioral changes.
+                </div>
+                
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Round</th>
+                                <th>Scenario</th>
+                                <th>Store</th>
+                                <th>Optimal Strategy</th>
+                                <th>Combo</th>
+                                <th>Earnings</th>
+                                <th>Time</th>
+                                <th>Efficiency</th>
+                                <th>Compare to</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="phase-c-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Load the experiment data
+        fetch('./src/lib/bundle_experiment_50_rounds_short_times.json')
+            .then(response => response.json())
+            .then(data => {
+                populatePhaseA(data.filter(r => r.phase === 'A'));
+                populatePhaseB(data.filter(r => r.phase === 'B'));
+                populatePhaseC(data.filter(r => r.phase === 'C'));
+            })
+            .catch(error => {
+                console.error('Error loading experiment data:', error);
+                document.querySelector('.content').innerHTML = `
+                    <div style="padding: 2rem; text-align: center; color: #ef4444;">
+                        <h3>⚠️ Error Loading Data</h3>
+                        <p>Make sure this HTML file is in the root directory of your project.</p>
+                        <p style="font-size: 0.875rem; margin-top: 1rem;">Expected path: ./src/lib/bundle_experiment_50_rounds_short_times.json</p>
+                    </div>
+                `;
+            });
+        
+        function populatePhaseA(rounds) {
+            const tbody = document.getElementById('phase-a-body');
+            rounds.forEach(round => {
+                const opt = round.optimal;
+                const second = round.second_best;
+                
+                const row = `
+                    <tr>
+                        <td><strong>${round.round}</strong></td>
+                        <td><span class="badge" style="background: #e0e7ff; color: #4338ca;">${round.scenario_id}</span></td>
+                        <td><span class="badge store-badge">${round.orders[0].store}</span></td>
+                        <td><span class="badge opt-${opt.bundle_size}">${opt.bundle_size} Order${opt.bundle_size > 1 ? 's' : ''}</span></td>
+                        <td><code style="font-size: 0.75rem;">${opt.combo.map(id => id.split('_')[1]).join(', ')}</code></td>
+                        <td class="earnings">$${opt.total_earnings}</td>
+                        <td class="time">${opt.total_time_s}s</td>
+                        <td class="efficiency">$${opt.efficiency_earnings_per_s.toFixed(2)}/s</td>
+                        <td class="time">
+                            ${second.bundle_size} orders: $${second.efficiency_earnings_per_s.toFixed(2)}/s
+                        </td>
+                        <td style="font-size: 0.75rem; color: #64748b;">
+                            ${opt.bundle_size === 1 ? 'Single order best' : 
+                              opt.bundle_size === 2 ? 'Pair bundling optimal' : 
+                              'Triple bundle wins'}
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+        
+        function populatePhaseB(rounds) {
+            const tbody = document.getElementById('phase-b-body');
+            rounds.forEach(round => {
+                const opt = round.optimal;
+                const recOrders = round.orders.filter(o => o.recommended).map(o => o.id.split('_')[1]).join(', ');
+                const optOrders = opt.combo.map(id => id.split('_')[1]).join(', ');
+                
+                // Determine alignment
+                let alignment = 'aligned';
+                let alignmentText = '✓ Aligned';
+                let testPurpose = 'Rec matches optimal';
+                
+                if (opt.bundle_size === 1) {
+                    alignment = 'misaligned';
+                    alignmentText = '✗ Rec=2, Opt=1';
+                    testPurpose = 'Test if users over-bundle';
+                } else if (opt.bundle_size === 3) {
+                    alignment = 'misaligned';
+                    alignmentText = '✗ Rec=2, Opt=3';
+                    testPurpose = 'Test if users explore beyond rec';
+                }
+                
+                const row = `
+                    <tr>
+                        <td><strong>${round.round}</strong></td>
+                        <td><span class="badge" style="background: #fef3c7; color: #92400e;">${round.scenario_id}</span></td>
+                        <td><span class="badge store-badge">${round.orders[0].store}</span></td>
+                        <td><span class="badge rec-yes">⭐ ${recOrders}</span></td>
+                        <td><span class="badge opt-${opt.bundle_size}">${opt.bundle_size} Order${opt.bundle_size > 1 ? 's' : ''}: ${optOrders}</span></td>
+                        <td><span class="badge ${alignment}">${alignmentText}</span></td>
+                        <td class="earnings">$${opt.total_earnings}</td>
+                        <td class="time">${opt.total_time_s}s</td>
+                        <td class="efficiency">$${opt.efficiency_earnings_per_s.toFixed(2)}/s</td>
+                        <td style="font-size: 0.75rem;">${testPurpose}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+        
+        function populatePhaseC(rounds) {
+            const tbody = document.getElementById('phase-c-body');
+            rounds.forEach(round => {
+                const opt = round.optimal;
+                const second = round.second_best;
+                
+                // Map to Phase A equivalent for comparison
+                const phaseAEquiv = round.round <= 40 ? (round.round - 35) : 
+                                   round.round <= 45 ? (round.round - 35) : 
+                                   (round.round - 35);
+                
+                const row = `
+                    <tr>
+                        <td><strong>${round.round}</strong></td>
+                        <td><span class="badge" style="background: #d1fae5; color: #065f46;">${round.scenario_id}</span></td>
+                        <td><span class="badge store-badge">${round.orders[0].store}</span></td>
+                        <td><span class="badge opt-${opt.bundle_size}">${opt.bundle_size} Order${opt.bundle_size > 1 ? 's' : ''}</span></td>
+                        <td><code style="font-size: 0.75rem;">${opt.combo.map(id => id.split('_')[1]).join(', ')}</code></td>
+                        <td class="earnings">$${opt.total_earnings}</td>
+                        <td class="time">${opt.total_time_s}s</td>
+                        <td class="efficiency">$${opt.efficiency_earnings_per_s.toFixed(2)}/s</td>
+                        <td style="font-size: 0.75rem;">Phase A R${phaseAEquiv}</td>
+                        <td style="font-size: 0.75rem; color: #64748b;">
+                            Compare behavior to baseline
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+    </script>
+</body>
+</html>

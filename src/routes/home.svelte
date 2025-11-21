@@ -5,14 +5,6 @@
     import Order from "./order.svelte";
     import { onMount, onDestroy } from "svelte";
 
-    let waiting = false;
-    $: distances = getDistances($currLocation);
-    let duration = 0;
-    let travelingTo = ""
-    let thinking = false;
-    let thinkRemaining = thinkTime;
-    let thinkInterval;
-
     // Experiment: Load orders from scenario
     $: scenario = getCurrentScenario($currentRound);
     $: maxBundle = scenario.max_bundle ?? 3;
