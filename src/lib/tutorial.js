@@ -162,6 +162,11 @@ export const elapsed = derived(timeStamp, ($timeStamp, set) => {
 	set(elapsedSeconds);
 });
 
+export const remainingTime = derived(
+	elapsed,
+	($elapsed) => Math.max(FullTimeLimit - $elapsed, 0)
+);
+
 export const toggleTime = () => {
 	if (pausedAt) {
 		const resumeTime = new Date();

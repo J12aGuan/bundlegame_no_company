@@ -1,7 +1,7 @@
 <script>
     import { globalError } from "$lib/globalError.js"
     import Bundlegame from "./bundlegame.svelte";
-    import { game, elapsed, resetTimer, earned, currLocation, id, logAction, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame } from "$lib/bundle.js";
+    import { game, elapsed, resetTimer, earned, currLocation, id, logAction, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, FullTimeLimit } from "$lib/bundle.js";
     import { generateCompleteId } from "$lib/firebaseDB.js";
 	import Home from "./home.svelte";
 	import { onMount } from "svelte";
@@ -114,32 +114,81 @@
             {/if}
         </div>
     {:else}
-        <h4 class="font-bold py-2">Please do not refresh or close the page!</h4>
-        {#if started}
-            {#if $elapsed}
-            <p><b>Time</b>: {$elapsed}s</p>
-            {:else}
-            <p><b>Time</b>: 0s</p>
-            {/if}
-            <p><b>Earned</b>: ${$earned}</p>
-            <p><b>Location</b>: {$currLocation}</p>
-        {/if}
         {#if !started}
-            {#if needsAuth}
-                <div class="flex flex-col gap-2 items-start">
-                    <p>Input your ID</p>
-                    <input class="w-1/4 border rounded" type="text" bind:value={userInput} placeholder="Enter" />
-                    <p>Input your token (include dashes)</p>
-                    <input class="w-1/4 border rounded" type="password" bind:value={userPass} placeholder="Enter" />
-                    <button class="w-1/4 px-4 py-2 bg-green-600 hover:bg-green-700 text-sm font-medium rounded-md shadow-sm transition" id="start" onclick={start}>Start</button>
+            <!-- Login Screen -->
+            <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 -m-6">
+                <div class="bg-white rounded-3xl shadow-xl px-10 py-8 w-full max-w-md">
+                    <h1 class="text-2xl font-semibold text-center mb-6 text-slate-900">User Access</h1>
+                    
+                    {#if needsAuth}
+                        <label class="block text-sm font-medium text-slate-700 mb-1">User ID</label>
+                        <input
+                            class="w-full mb-4 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            type="text"
+                            bind:value={userInput}
+                            placeholder="Enter user ID"
+                        />
+
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Token (include dashes)</label>
+                        <input
+                            class="w-full mb-6 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            type="password"
+                            bind:value={userPass}
+                            placeholder="XXXX-XXXX-XXXX"
+                        />
+
+                        <button
+                            id="start"
+                            on:click={start}
+                            class="w-full mb-4 h-11 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold shadow-md transition"
+                        >
+                            Enter Simulation
+                        </button>
+
+                        <button
+                            type="button"
+                            class="w-full text-center text-sm text-slate-500 hover:text-slate-700"
+                            on:click={() => window.location.href = '/'}
+                        >
+                            Return to overview
+                        </button>
+                    {:else}
+                        <button
+                            id="start"
+                            on:click={startNoAuth}
+                            class="w-full mb-4 h-11 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold shadow-md transition"
+                        >
+                            Enter Simulation
+                        </button>
+                    {/if}
                 </div>
-            {:else}
-                <button class="w-1/4 px-4 py-2 bg-green-600 hover:bg-green-700 text-sm font-medium rounded-md shadow-sm transition" id="start" onclick={startNoAuth}>Start</button>
+            </div>
+        {:else}
+            <!-- Main Game View -->
+            <div class="mt-4 flex flex-wrap items-center gap-6 text-sm text-slate-800">
+                <span class="font-semibold text-red-500">Please do not refresh or close the page!</span>
+
+                {#if started}
+                    <div class="flex items-center gap-1">
+                        <span class="font-semibold">Time:</span>
+                        <span>{$remainingTime}s</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <span class="font-semibold">Earned:</span>
+                        <span>${$earned}</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <span class="font-semibold">Location:</span>
+                        <span>{$currLocation}</span>
+                    </div>
+                {/if}
+            </div>
+            
+            {#if inSelect}
+                <Home />
+            {:else if inStore}
+                <Bundlegame />
             {/if}
-        {:else if inSelect}
-            <Home />
-        {:else if inStore}
-            <Bundlegame />
         {/if}
     {/if}
 {/if}

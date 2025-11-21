@@ -1,15 +1,17 @@
 <script>
     import { get } from 'svelte/store';
-    import { game, orders, gameText, currLocation, logOrder, logBundledOrder, orderList, ordersShown, thinkTime, toggleTime } from "$lib/tutorial.js";
+    import { game, orders, gameText, currLocation, logOrder, logBundledOrder, orderList, ordersShown, thinkTime } from "$lib/tutorial.js";
     import { queueNFixedOrders, getDistances } from "$lib/config.js";
     import Order from "./order.svelte";
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
 
     let waiting = false;
     $: distances = getDistances($currLocation);
     let duration = 0;
     let travelingTo = ""
     let thinking = false;
+    let thinkRemaining = thinkTime;
+    let thinkInterval;
 
     function start() {
         const selOrders = get(orders)
@@ -86,12 +88,22 @@
     }
 
     onMount(() => {
-        thinking = true
-        toggleTime()
-        setTimeout(() => {
-            thinking = false
-            toggleTime()
-        }, thinkTime*1000) //ten second wait time
+        thinking = true;
+        thinkRemaining = thinkTime;
+
+        thinkInterval = setInterval(() => {
+            thinkRemaining -= 1;
+            if (thinkRemaining <= 0) {
+                clearInterval(thinkInterval);
+                thinking = false;
+            }
+        }, 1000);
+    });
+
+    onDestroy(() => {
+        if (thinkInterval) {
+            clearInterval(thinkInterval);
+        }
     });
 </script>
 
@@ -104,7 +116,7 @@
     <p class="text-lg font-medium text-gray-700 my-4">Traveling to {travelingTo}. Travel duration: {duration}</p>
 {:else}
     {#if thinking}
-    <p class="text-blue-600 font-semibold my-4">Game timer stopped! Take {thinkTime} free seconds to look through the available orders</p>
+    <p class="text-blue-600 font-semibold my-4">You have {thinkRemaining}s to look through the available orders.</p>
     {/if}
     <div class="grid grid-cols-2 gap-4 mb-6">
         {#each $orderList as order, i (order.id)}
