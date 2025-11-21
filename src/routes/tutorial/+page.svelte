@@ -8,6 +8,12 @@
     import { queueNFixedOrders, getDistances } from "$lib/config.js";
     import '../../app.css';
 
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
     $: inSelect = $game.inSelect;
 	$: inStore = $game.inStore;
     $: bundled = $game.bundled;
@@ -115,7 +121,7 @@
                     <button
                         id="start"
                         on:click={start}
-                        class="w-full mt-6 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                        class="w-full mt-6 h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white text-base font-semibold shadow-lg hover:shadow-xl transition-all"
                     >
                         Enter Simulation
                     </button>
@@ -132,7 +138,7 @@
                 <button
                     id="start"
                     on:click={startNoAuth}
-                    class="w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                    class="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white text-base font-semibold shadow-lg hover:shadow-xl transition-all"
                 >
                     Enter Simulation
                 </button>
@@ -172,31 +178,37 @@
                 {/if}
             </div>
         {:else}
-            <!-- Main Game View -->
-            <div class="mt-2 mb-4 flex flex-wrap items-center gap-6 text-base">
-                <span class="font-semibold text-red-600">Please do not refresh or close the page!</span>
-
-                {#if started}
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold text-slate-700">Time left:</span>
-                        <span class="font-mono text-lg text-indigo-600">{$remainingTime}s</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold text-slate-700">Earned:</span>
-                        <span class="font-mono text-lg text-green-600">${$earned}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold text-slate-700">Location:</span>
-                        <span class="text-slate-900">{$currLocation}</span>
-                    </div>
+            <!-- Sticky Header Bar -->
+            <header class="sticky top-0 z-50 bg-white/90 backdrop-blur shadow-sm border-b border-slate-200">
+                <div class="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
+                    <div class="text-sm font-semibold text-red-600">Do not refresh or close the page!</div>
+                    {#if started}
+                        <div class="flex items-center gap-4 text-sm">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-slate-700">Time:</span>
+                                <span class="font-mono font-semibold text-green-600">{formatTime($remainingTime)}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-slate-700">Earned:</span>
+                                <span class="font-mono font-semibold text-green-600">${$earned}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-slate-700">Location:</span>
+                                <span class="text-slate-900">{$currLocation}</span>
+                            </div>
+                        </div>
+                    {/if}
+                </div>
+            </header>
+            
+            <!-- Main content with bg -->
+            <div class="min-h-screen bg-slate-50 py-6">
+                {#if inSelect}
+                    <Home />
+                {:else if inStore}
+                    <Bundlegame />
                 {/if}
             </div>
-            
-            {#if inSelect}
-                <Home />
-            {:else if inStore}
-                <Bundlegame />
-            {/if}
         {/if}
     </div>
 {/if}

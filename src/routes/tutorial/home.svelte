@@ -112,30 +112,55 @@
 </style>
 {#if $game.inSelect}
 
-{#if waiting}
-    <p class="text-lg font-medium text-gray-700 my-4">Traveling to {travelingTo}. Travel duration: {duration}</p>
-{:else}
-    {#if thinking}
-    <p class="text-blue-600 font-semibold my-4">You have {thinkRemaining}s to look through the available orders.</p>
-    {/if}
-    <div class="grid grid-cols-2 gap-4 mb-6">
-        {#each $orderList as order, i (order.id)}
-            <Order orderData={order} index={i} updateEarnings={updateEarnings}/>
-        {/each}
-    </div>
-    <div class="flex flex-row justify-center items-center">
-        {#if !thinking}
-        <button class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition" id="startorder" on:click={start}>{$gameText.selector}</button>
+<main class="mx-auto max-w-5xl px-4 space-y-6">
+    {#if waiting}
+        <div class="rounded-2xl bg-blue-50 border border-blue-200 p-6 text-center space-y-2">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-2">
+                <svg class="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+            </div>
+            <h3 class="text-base font-semibold text-blue-900">Traveling to {travelingTo}</h3>
+            <p class="text-sm text-blue-700">Travel time: {duration}s</p>
+        </div>
+    {:else}
+        {#if thinking}
+            <div class="rounded-2xl bg-green-50 border border-green-200 p-4 text-center">
+                <p class="text-sm font-semibold text-green-900">You have {thinkRemaining}s to look through available orders</p>
+            </div>
         {/if}
-    </div>
-    {#if !thinking}
-    {#if distances}
-    <div class="flex flex-row justify-center items-center">
-        {#each distances["destinations"] as dest}
-            <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-sm font-medium rounded-md shadow-sm transition" id="travel" on:click={() => travel(dest, false)}>Travel to {dest}</button>
-        {/each}
-    </div>
+        
+        <div class="grid md:grid-cols-2 gap-4">
+            {#each $orderList as order, i (order.id)}
+                <Order orderData={order} index={i} updateEarnings={updateEarnings}/>
+            {/each}
+        </div>
+        
+        {#if !thinking}
+            <div class="flex justify-center py-4">
+                <button 
+                    class="rounded-full bg-green-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition" 
+                    id="startorder" 
+                    on:click={start}
+                >
+                    {$gameText.selector}
+                </button>
+            </div>
+            
+            {#if distances}
+                <div class="flex justify-center gap-3 flex-wrap">
+                    {#each distances["destinations"] as dest}
+                        <button 
+                            class="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-sm" 
+                            id="travel" 
+                            on:click={() => travel(dest, false)}
+                        >
+                            Travel to {dest}
+                        </button>
+                    {/each}
+                </div>
+            {/if}
+        {/if}
     {/if}
-    {/if}
-{/if}
+</main>
 {/if}

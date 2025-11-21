@@ -7,10 +7,12 @@
     export let index;
     export let updateEarnings;
     let selected = false;
-    let timer = 0; // Timer value
-    let intervalId; // To store the interval ID for cleanup
+    let timer = 0;
+    let intervalId;
     let taken = false;
     let config = storeConfig(orderData.store)
+    
+    $: totalItems = Object.values(orderData.items).reduce((sum, qty) => sum + qty, 0);
 
     function updateTimer() {
         timer += 1; // Increment timer by 1 second (or any other logic)
@@ -95,79 +97,49 @@
     }
 </script>
 
-<style>
-    .order {
-        margin: 2px;
-        display: flex;
-    }
-
-    .order-content {
-        width: 300px;
-        height: 180px;
-        text-align: center;
-        border-radius: 3px; /* Rounded corners */
-    }
-    .unselected {
-        background-color: darkgray;
-    }
-    .selected {
-        background-color: gray;
-    }
-    .header {
-        margin-top: 0.5em;
-        margin-bottom: 0em;
-    }
-    .innerText {
-        margin-top: 0.2em;
-        margin-bottom: 0em;
-    }
-    .headerTaken {
-        margin-top: 0.5em;
-        margin-bottom: 0em;
-        color: red;
-    }
-</style>
-
-<div class="order">
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-	<!-- svelte-ignore a11y-no-static-element-interactions -->
-    {#if taken}
-    <div class="order-content unselected">
-        <p class="headerTaken">{orderData.store} for {orderData.name} taken! Please wait for a new order</p>
-        <div style="display: inline;">
-            <div style="float:left">
-                <p class="innerText">$ {orderData.earnings}</p>
-                <p class="innerText">{orderData.city}</p>
-            </div>
-            <div style="float:right">
-                <p class="innerText">
-                {#each Object.keys(orderData.items) as item}
-                    {orderData.items[item]} - {item}<br>
-                {/each}
-                </p>
-            </div>
-        </div>
-    </div>
-    {:else}
-        
-     
-    <div id={index + "Selected" + selected} 
-    class="w-full max-w-sm mx-auto p-4 rounded-md shadow-md cursor-pointer select-none transition-all border border-gray-400" class:bg-gray-400={selected}
-    class:bg-gray-300={!selected} on:click={select}>
-        <p class="text-lg font-semibold text-center mb-2">{orderData.store} for {orderData.name}</p>
-        <div class="flex justify-between text-sm text-gray-800">
-            <div>
-                <p class="mb-1 font-medium">$ {orderData.earnings}</p>
-                <p>{orderData.city}</p>
+<!-- Instacart-style order card -->
+<button 
+    on:click={select}
+    disabled={taken}
+    id={index + "Selected" + selected}
+    class="group w-full text-left rounded-2xl border-2 bg-white shadow-sm transition-all hover:shadow-md {selected ? 'ring-2 ring-green-500 border-green-300' : 'border-slate-200'} {taken ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}"
+>
+    <div class="p-4 space-y-3">
+        <!-- Header -->
+        <div class="flex items-start justify-between">
+            <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">Batch</span>
+                    {#if orderData.demand && orderData.demand > 70}
+                        <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">High demand</span>
+                    {/if}
+                </div>
+                <h3 class="text-sm font-semibold text-slate-900">{orderData.store}</h3>
+                <p class="text-xs text-slate-600 mt-0.5">{orderData.city}</p>
             </div>
             <div class="text-right">
-                <p>
-                {#each Object.keys(orderData.items) as item}
-                    {orderData.items[item]} - {item}<br>
-                {/each}
-                </p>
+                <p class="text-lg font-bold text-slate-900">${orderData.earnings}</p>
             </div>
         </div>
+
+        {#if taken}
+            <div class="rounded-lg bg-red-50 border border-red-200 p-2 text-center">
+                <p class="text-xs font-semibold text-red-700">Order taken! Waiting for replacement...</p>
+            </div>
+        {:else}
+            <!-- Customer & Items -->
+            <div class="space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-600">Customer: <span class="font-medium text-slate-900">{orderData.name}</span></span>
+                    <span class="text-slate-600">{totalItems} items</span>
+                </div>
+                
+                <div class="rounded-lg bg-slate-50 p-2 text-xs text-slate-700">
+                    {#each Object.entries(orderData.items) as [item, qty]}
+                        <p class="py-0.5">{qty}× {item}</p>
+                    {/each}
+                </div>
+            </div>
+        {/if}
     </div>
-    {/if}
-</div>
+</button>

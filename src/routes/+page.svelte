@@ -17,6 +17,16 @@
     let started = false;
     let completed = ""
     let completed2 = ""
+    
+    $: formattedRemaining = formatTime($remainingTime ?? FullTimeLimit);
+
+    function formatTime(seconds) {
+        const s = Math.max(0, Math.floor(seconds));
+        const mins = Math.floor(s / 60);
+        const secs = s % 60;
+        return `${mins}:${secs.toString().padStart(2, "0")}`;
+    }
+    
     async function start() {
         const auth = await authUser(userInput, userPass)
         if (auth === 1) {
@@ -79,33 +89,35 @@
 </script>
 
 {#if $globalError}
-    <div class="container mx-auto px-4 py-6">
-        <div class="text-red-600 font-bold bg-red-100 p-4 rounded">
+    <div class="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div class="text-red-600 font-bold bg-red-100 p-4 rounded-xl max-w-2xl">
             ⚠️ Error: {$globalError}
         </div>
     </div>
 {:else if !started && !$GameOver}
-    <!-- Login Screen - Full screen -->
-    <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
-        <div class="bg-white rounded-3xl shadow-2xl px-12 py-10 w-full max-w-lg">
-            <h1 class="text-3xl font-bold text-center mb-8 text-slate-900">User Access</h1>
+    <!-- Login Screen - Full screen delivery app style -->
+    <main class="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 md:p-10 w-full max-w-md">
+            <h1 class="text-center text-2xl font-semibold text-slate-900 mb-6">
+                User Access
+            </h1>
             
             {#if needsAuth}
-                <div class="space-y-5">
-                    <div>
-                        <label class="block text-base font-medium text-slate-700 mb-2">User ID</label>
+                <div class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">User ID</label>
                         <input
-                            class="w-full rounded-xl border border-slate-300 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
                             type="text"
                             bind:value={userInput}
                             placeholder="Enter user ID"
                         />
                     </div>
 
-                    <div>
-                        <label class="block text-base font-medium text-slate-700 mb-2">Token (include dashes)</label>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">Token (include dashes)</label>
                         <input
-                            class="w-full rounded-xl border border-slate-300 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
                             type="password"
                             bind:value={userPass}
                             placeholder="XXXX-XXXX-XXXX"
@@ -115,14 +127,14 @@
                     <button
                         id="start"
                         on:click={start}
-                        class="w-full mt-6 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                        class="mt-4 w-full rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
                     >
                         Enter Simulation
                     </button>
 
                     <button
                         type="button"
-                        class="w-full text-center text-sm text-slate-500 hover:text-slate-700 transition mt-3"
+                        class="w-full text-center text-xs text-slate-500 hover:text-slate-700 mt-2 transition"
                         on:click={() => window.location.href = '/'}
                     >
                         Return to overview
@@ -132,18 +144,18 @@
                 <button
                     id="start"
                     on:click={startNoAuth}
-                    class="w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                    class="w-full rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
                 >
                     Enter Simulation
                 </button>
             {/if}
         </div>
-    </div>
+    </main>
 {:else}
-    <!-- Game View or Game Over - Container layout -->
-    <div class="container mx-auto px-4 py-6">
-        {#if $GameOver}
-            <div class="max-w-xl mx-auto p-6 bg-white rounded-lg shadow-md text-center space-y-6">
+    <!-- Game View or Game Over -->
+    {#if $GameOver}
+        <div class="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+            <div class="max-w-xl w-full p-6 bg-white rounded-2xl shadow-md text-center space-y-6">
                 <h3 class="text-2xl font-bold text-red-600">Game Over!</h3>
 
                 <div>
@@ -154,7 +166,7 @@
                     </ul>
                 </div>
                 {#if needsAuth}
-                <div class="bg-yellow-100 p-4 rounded border border-yellow-400">
+                <div class="bg-yellow-100 p-4 rounded-xl border border-yellow-400">
                     <h3 class="text-lg font-semibold text-yellow-800 mb-2">
                     Please copy the following two codes back into the Qualtrics survey:
                     </h3>
@@ -171,32 +183,26 @@
                 </h5>
                 {/if}
             </div>
-        {:else}
-            <!-- Main Game View -->
-            <div class="mt-2 mb-4 flex flex-wrap items-center gap-6 text-base">
-                <span class="font-semibold text-red-600">Please do not refresh or close the page!</span>
-
-                {#if started}
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold text-slate-700">Time left:</span>
-                        <span class="font-mono text-lg text-indigo-600">{$remainingTime}s</span>
+        </div>
+    {:else}
+        <!-- Main Game View with sticky header -->
+        <div class="min-h-screen bg-slate-50">
+            <header class="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-slate-100">
+                <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 text-xs sm:text-sm text-slate-700 flex-wrap gap-2">
+                    <span class="font-semibold text-red-600">Please do not refresh or close the page!</span>
+                    <div class="flex flex-wrap gap-4">
+                        <span><span class="font-semibold text-slate-900">Time left:</span> {formattedRemaining}</span>
+                        <span><span class="font-semibold text-slate-900">Earned:</span> ${$earned}</span>
+                        <span><span class="font-semibold text-slate-900">Location:</span> {$currLocation}</span>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold text-slate-700">Earned:</span>
-                        <span class="font-mono text-lg text-green-600">${$earned}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold text-slate-700">Location:</span>
-                        <span class="text-slate-900">{$currLocation}</span>
-                    </div>
-                {/if}
-            </div>
+                </div>
+            </header>
             
             {#if inSelect}
                 <Home />
             {:else if inStore}
                 <Bundlegame />
             {/if}
-        {/if}
-    </div>
+        </div>
+    {/if}
 {/if}

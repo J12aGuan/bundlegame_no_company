@@ -4,8 +4,8 @@
     import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols } from "$lib/tutorial.js"
     import { storeConfig } from "$lib/config.js";
     import emojis from "$lib/emojis.json"
+    
     let config = storeConfig($orders[0].store)
-
     let GameState = 0;
     let curLocation = [0, 0];
     let bag1Input = "";
@@ -20,7 +20,11 @@
     let startEarnings;
     let totalEarnings;
     let curTip = 0;
+    
     $: endTimer = $elapsed - startTimer;
+    $: bag1Count = Object.values(bag1).reduce((a, b) => a + b, 0);
+    $: bag2Count = Object.values(bag2).reduce((a, b) => a + b, 0);
+    $: locationLabel = config["locations"]?.[curLocation[0]]?.[curLocation[1]] || "Entrance";
 
     function updateTip() {
         let tipIndex = Math.floor(endTimer / config["tipinterval"])
@@ -54,9 +58,8 @@
         config = storeConfig($orders[0].store)
         curLocation = config["Entrance"]
         if ($game.tip) {
-            intervalId = setInterval(updateTip, 1000); // Run updateTimer every 1000ms (1 second)
+            intervalId = setInterval(updateTip, 1000);
         }
-        
     });
 
     onDestroy(() => {
@@ -99,8 +102,7 @@
             action.order2 = selOrders[1]
         }
         
-        
-        if (item == "" || item == "Entrance") {
+        if (item == "" || item == "entrance") {
             return;
         }
         try {
@@ -161,6 +163,7 @@
         config = storeConfig(selOrders[0].store)
         GameState = 1;
     }
+    
     function exit() {
         GameState = 0;
         $game.inSelect = true;
@@ -168,11 +171,9 @@
     }
 
     function checkoutSingle() {
-        //verify if it is correct
         const selOrders = get(orders)
         let c1 = true;
         Object.keys(bag1).forEach((key) => {
-            console.log(selOrders[0].items[key])
             if(selOrders[0].items[key] != bag1[key]) {
                 c1 = false;
             }
@@ -189,7 +190,6 @@
             $finishedOrders.push(selOrders[0]);
             $orders.splice(0, 1)
             GameState = 3;
-
         } else {
             GameState = 4;
         }
@@ -197,10 +197,8 @@
 
     function checkoutBundle() {
         const selOrders = get(orders)
-        //verify if it is correct
         let c1 = true;
         let c2 = true;
-        //check bag1 -> order1, bag2 -> order2
         Object.keys(bag1).forEach((key) => {
             if(selOrders[0].items[key] != bag1[key]) {
                 c1 = false;
@@ -218,7 +216,6 @@
             c1 = false;
         }
 
-        //check bag1 -> order1, bag2 -> order2
         Object.keys(bag1).forEach((key) => {
             if(selOrders[1].items[key] != bag1[key]) {
                 c2 = false;
@@ -236,8 +233,6 @@
             c2 = false;
         }
         correct = c1 || c2;
-        console.log(c1)
-        console.log(c2)
         bag1 = {}
         bag2 = {}
         if (correct) {
@@ -253,109 +248,254 @@
             GameState = 4;
         }
     }
-
 </script>
 
-<div class="bundlegame max-w-4xl mx-auto px-6 py-4 space-y-4 text-gray-800">
-    <div class="space-y-2 bg-gray-100 p-4 rounded shadow">
-        <h5 class="text-lg font-semibold">{$orders[0].store}</h5>
-        {#if $game.tip}
-        <div class="text-lg font-semibold">Total Earnings: ${totalEarnings} (${startEarnings} + {curTip}% tip)</div>
-        {:else}
-        <div class="text-lg font-semibold">Total Earnings: ${totalEarnings}</div>
-        {/if}
-        <div class="flex flex-row text-md font-semibold">
+<main class="mx-auto max-w-5xl px-4 py-6 space-y-5">
+    <!-- Summary card at top -->
+    <section class="rounded-2xl bg-white shadow-sm border p-4 space-y-3">
+        <div class="flex items-start justify-between">
+            <div>
+                <h2 class="text-base font-semibold text-slate-900">{$orders[0].store}</h2>
+                <p class="text-xs text-slate-500">Current location: {locationLabel}</p>
+            </div>
+            <div class="text-right text-sm">
+                <p class="font-semibold text-slate-900">Total earnings: ${totalEarnings}</p>
+                {#if $game.tip && curTip > 0}
+                    <p class="text-xs text-green-600">+{curTip}% tip</p>
+                {/if}
+                <p class="text-xs text-slate-500">Orders: {$orders.length}</p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2 text-[10px]">
+            {#if GameState === 1}
+                <span class="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
+                    Picking items
+                </span>
+            {:else if GameState === 2}
+                <span class="rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
+                    Moving...
+                </span>
+            {/if}
+            {#if GameState == 1 || GameState == 2}
+                <span class="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-700">
+                    Time in store: {endTimer}s
+                </span>
+            {/if}
+        </div>
+
+        <!-- Order details -->
+        <div class="flex flex-wrap gap-2">
             {#each $orders as order}
-                <div class="bg-white border p-3 rounded shadow w-full md:w-1/2">
-                    <p>
-                        Order for {order.name}
-                        <br>
-                        Earnings: {order.earnings}
-                    </p>
-                    <ul>
+                <div class="flex-1 min-w-[200px] rounded-lg bg-slate-50 p-3 text-xs">
+                    <p class="font-semibold text-slate-900 mb-1">Order for {order.name}</p>
+                    <p class="text-slate-600 mb-2">Pay: ${order.earnings}</p>
+                    <ul class="space-y-0.5 text-slate-600">
                         {#each Object.keys(order.items) as item}
-                            <li>{order.items[item]} - {item}</li>
+                            <li>{order.items[item]}x {item}</li>
                         {/each}
                     </ul>
                 </div>
             {/each}
         </div>
-        {#if GameState == 1 || GameState == 2}
-            <p>Time spent: {endTimer}</p>
-        {/if}
-    </div>
+    </section>
+
     {#if GameState == 0}
-        <!-- shop/browse -->
-        {#if $game.bundled}
-            <button class="bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded transition" id="startbundle" on:click={start}>Start</button>
-        {:else}
-            <button class="bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded transition" id="startsingle" on:click={start}>Start</button>
-        {/if}
+        <!-- Start picking -->
+        <div class="text-center py-8">
+            {#if $game.bundled}
+                <button 
+                    class="rounded-full bg-green-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition" 
+                    id="startbundle" 
+                    on:click={start}
+                >
+                    Start Bundle Picking
+                </button>
+            {:else}
+                <button 
+                    class="rounded-full bg-green-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition" 
+                    id="startsingle" 
+                    on:click={start}
+                >
+                    Start Picking
+                </button>
+            {/if}
+        </div>
         
     {:else if GameState == 1}
-        <h3 class="font-bold">Current Location: {config["locations"][curLocation[0]][curLocation[1]]}</h3>
-        <div>
-            <div class="flex items-center gap-2 mb-4">
-                Item: <input class="border rounded px-2 py-1 w-32" bind:value={wordInput}>
-                Quantities: <input class="border rounded px-2 py-1 w-8" bind:value={bag1Input}>
-                {#if $game.bundled}
-                    <input class="border rounded px-2 py-1 w-8" bind:value={bag2Input}>
-                {/if}
-                <button id="addtobag" class="bg-blue-500 hover:bg-blue-600 text-white font-medium px-3 py-1 rounded" on:click={addBag}>Add to bag</button>
-            </div>
-            <div class={`grid gap-3 my-4 ${gridColsClass}`}>
-                {#each config["locations"] as row, rowIndex}
-                    {#each row as cell, colIndex}
-                        {#if rowIndex == curLocation[0] && colIndex == curLocation[1]}
-                            <button id="moveinstore" class="cell rounded-md border text-sm p-3 bg-gray-100 hover:bg-gray-200 transition" class:selected={(rowIndex == curLocation[0] && colIndex == curLocation[1])} on:click={() => handleCell(cell, rowIndex, colIndex)}>
-                                {cell} <p class="text-lg">{emojis[cell]}</p>
-                            </button>
-                        {:else}
-                        <button id="moveinstore" class="cell rounded-md border text-sm p-3 bg-gray-300 hover:bg-gray-400 transition" class:selected={(rowIndex == curLocation[0] && colIndex == curLocation[1])} on:click={() => handleCell(cell, rowIndex, colIndex)}>
-                            {cell} <p class="text-lg">{emojis[cell]}</p>
-                        </button>
+        <!-- Active picking -->
+        <div class="grid md:grid-cols-[2fr,3fr] gap-4">
+            <!-- Left: Bags -->
+            <section class="rounded-2xl bg-white shadow-sm border p-4 space-y-3">
+                <h3 class="text-sm font-semibold text-slate-900">Your bags</h3>
+                
+                <div class="space-y-3">
+                    <div>
+                        <h5 class="text-xs font-medium text-slate-700 mb-1">{$game.bundled ? 'Bag 1' : 'Bag'}</h5>
+                        <ul class="text-xs text-slate-600 space-y-0.5">
+                            {#each Object.keys(bag1) as key}
+                                <li class="flex justify-between">
+                                    <span>{key}</span>
+                                    <span class="font-medium">{bag1[key]}</span>
+                                </li>
+                            {/each}
+                            {#if Object.keys(bag1).length === 0}
+                                <li class="text-slate-400 italic">Empty</li>
+                            {/if}
+                        </ul>
+                    </div>
+                    
+                    {#if $game.bundled}
+                        <div>
+                            <h5 class="text-xs font-medium text-slate-700 mb-1">Bag 2</h5>
+                            <ul class="text-xs text-slate-600 space-y-0.5">
+                                {#each Object.keys(bag2) as key}
+                                    <li class="flex justify-between">
+                                        <span>{key}</span>
+                                        <span class="font-medium">{bag2[key]}</span>
+                                    </li>
+                                {/each}
+                                {#if Object.keys(bag2).length === 0}
+                                    <li class="text-slate-400 italic">Empty</li>
+                                {/if}
+                            </ul>
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- Add to bag form -->
+                <div class="pt-3 border-t space-y-2">
+                    <input 
+                        class="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500" 
+                        bind:value={wordInput}
+                        placeholder="Item name"
+                    />
+                    <div class="flex gap-2">
+                        <input 
+                            class="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500" 
+                            bind:value={bag1Input}
+                            placeholder="Qty 1"
+                            type="number"
+                        />
+                        {#if $game.bundled}
+                            <input 
+                                class="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500" 
+                                bind:value={bag2Input}
+                                placeholder="Qty 2"
+                                type="number"
+                            />
                         {/if}
+                    </div>
+                    <button 
+                        id="addtobag" 
+                        class="w-full rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition" 
+                        on:click={addBag}
+                    >
+                        Add to bag
+                    </button>
+                </div>
+            </section>
+
+            <!-- Right: Store layout -->
+            <section class="rounded-2xl bg-white shadow-sm border p-4 space-y-3">
+                <h3 class="text-sm font-semibold text-slate-900">Store layout</h3>
+                <div class={`grid gap-2 ${gridColsClass}`}>
+                    {#each config["locations"] as row, rowIndex}
+                        {#each row as cell, colIndex}
+                            <button
+                                id="moveinstore"
+                                class="flex min-h-[60px] flex-col items-center justify-center rounded-xl text-xs font-medium transition {rowIndex === curLocation[0] && colIndex === curLocation[1] ? 'bg-green-100 border-2 border-green-500 text-green-900' : 'border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100'}"
+                                on:click={() => handleCell(cell, rowIndex, colIndex)}
+                            >
+                                <span>{cell}</span>
+                                {#if emojis[cell]}
+                                    <span class="text-lg">{emojis[cell]}</span>
+                                {/if}
+                            </button>
+                        {/each}
                     {/each}
-                {/each}
-            </div>
+                </div>
+            </section>
         </div>
-        {#if $game.bundled}
-            <button class="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition" id="checkout" on:click={checkoutBundle}>Checkout and Exit</button>
-        {:else}
-            <button class="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition" id="checkout" on:click={checkoutSingle}>Checkout and Exit</button>
-        {/if}
+
+        <!-- Checkout footer -->
+        <footer class="sticky bottom-0 mt-4 rounded-2xl border border-slate-200 bg-white/95 backdrop-blur shadow-lg">
+            <div class="flex items-center justify-between px-4 py-3">
+                <div class="text-xs text-slate-600">
+                    <p>Items: Bag 1 ({bag1Count}) {#if $game.bundled}· Bag 2 ({bag2Count}){/if}</p>
+                </div>
+                {#if $game.bundled}
+                    <button
+                        id="checkout"
+                        class="rounded-full bg-green-600 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
+                        on:click={checkoutBundle}
+                    >
+                        Checkout and Exit
+                    </button>
+                {:else}
+                    <button
+                        id="checkout"
+                        class="rounded-full bg-green-600 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
+                        on:click={checkoutSingle}
+                    >
+                        Checkout and Exit
+                    </button>
+                {/if}
+            </div>
+        </footer>
+
     {:else if GameState == 2}
-    <h3 class="text-md font-bold">Walking to {config["locations"][curLocation[0]][curLocation[1]]}</h3>
-    <h5 class="text-md">Travel Time: {dist*config["cellDistance"]/1000} seconds</h5>
-    {:else if GameState == 3}
-    <p class="text-green-600 font-semibold">Correct!</p>
-        <button class="mt-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition" id="ordersuccess" on:click={exit}>Go Back</button>
-    {:else}
-    <p class="text-red-600 font-semibold">Incorrect</p>
-        <button class="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition" id="orderretry" on:click={start}>Try Again</button>
-    {/if}
-    <div class="flex gap-6 mt-6">
-        <div>
-            {#if $game.bundled}
-                <h5 class="font-bold">Bag 1</h5>
-            {:else}
-                <h5 class="font-bold">Bag</h5>
-            {/if}
-            <ul class="list-disc pl-5 text-sm">
-                {#each Object.keys(bag1) as key}
-                    <li>{key}: {bag1[key]}</li>
-                {/each}
-            </ul>
-        </div>
-        {#if $game.bundled}
-            <div>
-                <h5 class="font-bold">Bag2</h5>
-                <ul class="list-disc pl-5 text-sm">
-                    {#each Object.keys(bag2) as key}
-                        <li>{key}: {bag2[key]}</li>
-                    {/each}
-                </ul>
+        <!-- Moving between locations -->
+        <div class="rounded-2xl bg-blue-50 border border-blue-200 p-6 text-center space-y-2">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-2">
+                <svg class="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
             </div>
-        {/if}
-    </div>
-</div>
+            <h3 class="text-sm font-semibold text-blue-900">Walking to {config["locations"][curLocation[0]][curLocation[1]]}</h3>
+            <p class="text-xs text-blue-700">Travel time: {dist*config["cellDistance"]/1000}s</p>
+        </div>
+
+    {:else if GameState == 3}
+        <!-- Success -->
+        <div class="rounded-2xl bg-green-50 border border-green-200 p-6 text-center space-y-4">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100">
+                <svg class="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-lg font-semibold text-green-900">Order Complete!</p>
+                <p class="text-sm text-green-700">All items collected correctly</p>
+            </div>
+            <button 
+                class="rounded-full bg-green-600 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition" 
+                id="ordersuccess" 
+                on:click={exit}
+            >
+                Back to Batches
+            </button>
+        </div>
+
+    {:else}
+        <!-- Error -->
+        <div class="rounded-2xl bg-red-50 border border-red-200 p-6 text-center space-y-4">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100">
+                <svg class="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-lg font-semibold text-red-900">Incorrect Items</p>
+                <p class="text-sm text-red-700">Please check your bags and try again</p>
+            </div>
+            <button 
+                class="rounded-full bg-red-600 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-red-700 transition" 
+                id="orderretry" 
+                on:click={start}
+            >
+                Try Again
+            </button>
+        </div>
+    {/if}
+</main>
