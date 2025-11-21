@@ -1,0 +1,72 @@
+{
+    "stores": [
+        {
+            "store": "Target",
+            "city": "Emeryville",
+            "items": ["watermelon", "apple", "pineapple", "grape", "banana"],
+            "locations": [
+                ["Entrance", "Watermelon", ""],
+                ["Apple", "Pineapple", ""],
+                ["Grape", "Banana", ""]
+            ],
+            "cellDistance": 3000,
+            "Entrance": [0, 0]
+        },
+        {
+            "store": "Berkeley Bowl",
+            "city": "Berkeley",
+            "items": ["apple", "pineapple", "grape", "orange", "watermelon"],
+            "locations": [
+                ["Entrance", "Pineapple", "Watermelon"],
+                ["Orange", "Apple", "Grape"],
+                ["", "", ""]
+            ],
+            "cellDistance": 1000,
+            "Entrance": [0, 0]
+        },
+        {
+            "store": "Sprouts Farmers Market",
+            "city": "Oakland",
+            "items": ["apple", "watermelon", "pear", "kiwi", "pineapple", "grape", "orange"],
+            "locations": [
+                ["Apple", "Watermelon", "Pear"],
+                ["Entrance", "Pineapple", "Kiwi"],
+                ["Grape", "Orange", "Apple"]
+            ],
+            "cellDistance": 2000,
+            "Entrance": [1, 0]
+        },
+        {
+            "store": "Safeway",
+            "city": "Piedmont",
+            "items": ["apple", "watermelon", "orange"],
+            "locations": [
+                ["Entrance", "Watermelon", ""],
+                ["Apple", "Orange", ""],
+                ["", "", ""]
+            ],
+            "cellDistance": 2000,
+            "Entrance": [0, 0]
+        }
+    ],
+    "distances": {
+        "Emeryville": {
+            "destinations": ["Berkeley", "Oakland", "Piedmont"],
+            "distances": [4, 2, 7]
+        },
+        "Berkeley": {
+            "destinations": ["Emeryville", "Oakland", "Piedmont"],
+            "distances": [4, 5, 4]
+        },
+        "Oakland": {
+            "destinations": ["Emeryville", "Berkeley", "Piedmont"],
+            "distances": [2, 5, 4]
+        },
+        "Piedmont": {
+            "destinations": ["Emeryville", "Berkeley", "Oakland"],
+            "distances": [7, 4, 4]
+        }
+    },
+    "startinglocation": "Berkeley"
+
+}

@@ -1,0 +1,23 @@
+{
+    "name": "Phase 1 Lab Configuration",
+    "timeLimit": 1200,
+    "thinkTime": 10,
+    "gridSize": 3,
+    "tips": false,
+    "waiting": false,
+    "refresh": false,
+    "expire": false,
+    "conditions": [
+        {
+            "name": "Shorter cell distances",
+            "order_file": "order.json",
+            "store_file": "stores1.json"
+        },
+        {
+            "name": "Longer cell distances",
+            "order_file": "order.json",
+            "store_file": "stores2.json"
+        }
+    ],
+    "auth": true
+}

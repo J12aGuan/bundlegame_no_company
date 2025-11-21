@@ -1,0 +1,18 @@
+{
+    "name": "Tutorial",
+    "timeLimit": 120,
+    "thinkTime": 2,
+    "gridSize": 2,
+    "tips": false,
+    "waiting": false,
+    "refresh": false,
+    "expire": false,
+    "conditions": [
+        {
+            "name": "Tutorial",
+            "order_file": "order.json",
+            "store_file": "stores.json"
+        }
+    ],
+    "auth": false
+}

@@ -1,0 +1,36 @@
+{
+    "stores": [
+        {
+            "store": "Safeway",
+			"city": "Los Angeles",
+			"locations": [
+				["Entrance", "Cherry"],
+				["Grape", "Apple"]
+			],
+			"cellDistance": 2000,
+            "Entrance": [0, 0]
+		},
+        {
+            "store": "Whole Foods",
+            "city": "Irvine",
+            "locations": [
+                ["Entrance", "Apple"],
+                ["Banana", "Pear"]
+            ],
+            "cellDistance": 1000,
+            "Entrance": [0, 0]
+        }
+    ],
+    "distances": {
+        "Los Angeles": {
+            "destinations": ["Irvine"],
+            "distances": [4]
+        },
+        "Irvine": {
+            "destinations": ["Irvine"],
+            "distances": [4]
+        }
+    },
+    "startinglocation": "Los Angeles"
+
+}
