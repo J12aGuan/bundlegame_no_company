@@ -2,5 +2,5 @@
 export const ssr = false;
 // Enable client-side routing
 export const csr = true;
-// Don't prerender any pages
-export const prerender = false;
+// Prerender all routes as static HTML
+export const prerender = true;
