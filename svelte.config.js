@@ -8,9 +8,7 @@ const config = {
 	preprocess: vitePreprocess(),
 	kit: {
 		adapter: adapter({
-			runtime: 'nodejs20.x',
-			regions: ['iad1'],
-			split: false
+			runtime: 'nodejs20.x'
 		})
 	}
 };
