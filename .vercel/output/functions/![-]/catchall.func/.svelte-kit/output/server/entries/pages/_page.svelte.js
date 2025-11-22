@@ -2,6 +2,8 @@ import { G as store_get, I as ensure_array_like, F as escape_html, J as unsubscr
 import { s as storeConfig, o as onDestroy, g as getDistances, a as globalError } from "../../chunks/config.js";
 import "clsx";
 import { o as orders, e as elapsed, g as game, a as getCurrentScenario, c as currentRound, b as currLocation, d as orderList, f as gameText, F as FullTimeLimit, r as remainingTime, G as GameOver, h as earned, i as finishedOrders } from "../../chunks/app.js";
+import "firebase/app";
+import "firebase/analytics";
 import "firebase/firestore";
 function Bundlegame($$payload, $$props) {
   push();

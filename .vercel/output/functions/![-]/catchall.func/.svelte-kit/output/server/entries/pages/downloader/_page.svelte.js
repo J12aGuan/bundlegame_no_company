@@ -1,5 +1,7 @@
 import { K as attr, C as pop, z as push } from "../../../chunks/index.js";
 import "../../../chunks/app.js";
+import "firebase/app";
+import "firebase/analytics";
 import "firebase/firestore";
 function _page($$payload, $$props) {
   push();

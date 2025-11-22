@@ -3,6 +3,8 @@ import { s as storeConfig, o as onDestroy, g as getDistances, a as globalError }
 import "clsx";
 import { d as derived, w as writable, g as get } from "../../../chunks/index2.js";
 import { u as updateFields, j as experimentScenarios } from "../../../chunks/app.js";
+import "firebase/app";
+import "firebase/analytics";
 import "firebase/firestore";
 const timeLimit = 120;
 const tips = false;

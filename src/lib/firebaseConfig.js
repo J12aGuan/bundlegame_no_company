@@ -1,7 +1,9 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
+import { browser } from '$app/environment';
+
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -17,7 +19,13 @@ const firebaseConfig = {
   measurementId: "REDACTED_MEASUREMENT_ID"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const firestore = getFirestore(app)
-export {firestore, app};
+// Initialize Firebase only in the browser
+let app;
+let firestore;
+
+if (browser && !getApps().length) {
+  app = initializeApp(firebaseConfig);
+  firestore = getFirestore(app);
+}
+
+export { firestore, app };

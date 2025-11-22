@@ -1,18 +1,8 @@
 import { d as derived, g as get, w as writable } from "./index2.js";
-import { initializeApp } from "firebase/app";
+import "firebase/app";
 import "firebase/analytics";
-import { getFirestore, doc, collection, Timestamp, updateDoc } from "firebase/firestore";
-const firebaseConfig = {
-  apiKey: "REDACTED_API_KEY",
-  authDomain: "REDACTED_PROJECT_ID.firebaseapp.com",
-  projectId: "REDACTED_PROJECT_ID",
-  storageBucket: "REDACTED_PROJECT_ID.appspot.com",
-  messagingSenderId: "REDACTED_SENDER_ID",
-  appId: "1:REDACTED_SENDER_ID:web:c76c1f46364a8a072fb655",
-  measurementId: "REDACTED_MEASUREMENT_ID"
-};
-const app = initializeApp(firebaseConfig);
-const firestore = getFirestore(app);
+import { doc, collection, Timestamp, updateDoc } from "firebase/firestore";
+let firestore;
 const updateFields = async (id2, gamestate) => {
   const userDocRef = doc(collection(firestore, "Users"), id2);
   gamestate.updatedAt = Timestamp.fromDate(/* @__PURE__ */ new Date());
