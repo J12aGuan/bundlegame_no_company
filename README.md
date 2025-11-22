@@ -1,5 +1,101 @@
 # Configuring the Game
 
+## 50-Round Experiment Configuration
+
+The game now includes a **50-round experiment** with structured scenarios testing bundling behavior and recommendation systems. This is the primary configuration for research purposes.
+
+### Experiment Overview
+
+- **Location**: `src/lib/bundle_experiment_50_rounds_short_times.json`
+- **Structure**: 50 rounds across 3 phases
+  - **Phase A (Rounds 1-15)**: Baseline - no recommendations
+  - **Phase B (Rounds 16-35)**: System recommends 2-bundles with star badges
+  - **Phase C (Rounds 36-50)**: Post-recommendation phase
+- **Test Scenarios**: Each round includes:
+  - 3-5 orders with specific store locations and items
+  - Optimal bundle size (1, 2, or 3 orders)
+  - Recommendation alignment (Phase B only)
+  - Timing model: 4s travel + 2s overhead + 2s per aisle
+
+### How to Modify Experiment Rounds
+
+To change what you're testing in specific rounds:
+
+1. **Edit the experiment file**: `src/lib/bundle_experiment_50_rounds_short_times.json`
+
+2. **Each round has this structure**:
+   ```json
+   {
+     "round": 1,
+     "phase": "A",
+     "scenario_id": "A_1_allsame",
+     "orders": [
+       {
+         "name": "Alice",
+         "price": 15,
+         "restaurant": "SafeGrocer",
+         "city": "NorthCity",
+         "items": ["Milk", "Bread"],
+         "recommended": false
+       }
+     ],
+     "max_bundle": 3
+   }
+   ```
+
+3. **Key fields to modify**:
+   - `orders`: Array of 3-5 order objects
+   - `orders[].recommended`: Set to `true` to show star badge (Phase B only)
+   - `orders[].restaurant`: Store name (affects travel time)
+   - `orders[].city`: "NorthCity" or "SouthCity" (affects travel time)
+   - `orders[].items`: Array of items (each item = 1 aisle, affects pick time)
+   - `max_bundle`: Maximum orders players can bundle (1-3)
+
+4. **After making changes**, update the developer reference table by regenerating the CSV:
+   ```bash
+   node generate_csv.mjs
+   ```
+
+### Developer Reference Table
+
+A **visual reference table** is available for developers to track optimal strategies across all 50 rounds:
+
+- **HTML Table**: `experiment_reference_table.html`
+  - Interactive color-coded table showing optimal bundles, earnings, and efficiency
+  - **How to view**: Run `npx serve -l 3000 .` then open `http://localhost:3000/experiment_reference_table.html`
+  - Shows phase badges, recommendation alignment, and second-best strategies
+
+- **CSV File**: `experiment_reference.csv`
+  - Quick data analysis in Excel, Google Sheets, Python, or R
+  - Contains: Round, Phase, Optimal_Bundle_Size, Optimal_Earnings, Optimal_Efficiency, Alignment, etc.
+
+- **Documentation**: `EXPERIMENT_REFERENCE_GUIDE.md`
+  - Complete guide with usage instructions and analysis examples
+
+**Important**: These reference tools are **developer-only** and are **NOT visible to experiment participants**.
+
+### Timing Model & Optimal Strategies
+
+The experiment uses this timing calculation for each bundle:
+```
+Total Time = 4s (travel) + 2s (overhead) + 2s × (number of unique aisles)
+```
+
+**Example**:
+- Bundle of 2 orders with 3 unique aisles total: `4 + 2 + (2 × 3) = 12 seconds`
+- Efficiency = Total Earnings / Total Time
+
+**Note**: Changing the per-aisle time between 1-3 seconds preserves the same optimal choices for the current scenario designs - only efficiency values scale proportionally.
+
+**Modifying timing parameters**:
+- Edit `cellDistance` values in `src/lib/bundle_experiment_50_rounds_short_times.json`
+- Current model: `{"NorthCity": 1, "SouthCity": 2}` where values represent travel time multipliers
+- After changes, verify optimal strategies haven't unexpectedly shifted using the reference table
+
+---
+
+## Legacy Configuration (config.json)
+
 You will need the following data inside your `config.json` file:
 
 - `name`: string. Name of the configuration (e.g., "Phase 1 Lab Configuration")
