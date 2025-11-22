@@ -11,7 +11,7 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@sveltejs/kit": "^2.20.8",
+		"@sveltejs/kit": "^2.49.0",
 		"firebase": "^10.13.0",
 		"svelte": "^5.28.2"
 	},
