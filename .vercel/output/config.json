@@ -11,16 +11,28 @@
 			"handle": "filesystem"
 		},
 		{
-			"src": "^/?(?:/__data.json)?$",
-			"dest": "/"
+			"src": "^/?$",
+			"dest": "/__root__?__pathname=/"
 		},
 		{
-			"src": "^/downloader/?(?:/__data.json)?$",
-			"dest": "/downloader"
+			"src": "^/?/__data.json$",
+			"dest": "/__root__/__data.json?__pathname=/"
 		},
 		{
-			"src": "^/tutorial/?(?:/__data.json)?$",
-			"dest": "/tutorial"
+			"src": "^/downloader/?$",
+			"dest": "/downloader?__pathname=/downloader"
+		},
+		{
+			"src": "^/downloader/?/__data.json$",
+			"dest": "/downloader/__data.json?__pathname=/downloader"
+		},
+		{
+			"src": "^/tutorial/?$",
+			"dest": "/tutorial?__pathname=/tutorial"
+		},
+		{
+			"src": "^/tutorial/?/__data.json$",
+			"dest": "/tutorial/__data.json?__pathname=/tutorial"
 		},
 		{
 			"src": "/.*",

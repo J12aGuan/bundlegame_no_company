@@ -1,4 +1,4 @@
-import { d as derived, g as get, w as writable } from "./index2.js";
+import { d as derived, g as get, w as writable } from "./index.js";
 import "firebase/app";
 import "firebase/analytics";
 import { doc, collection, Timestamp, updateDoc } from "firebase/firestore";

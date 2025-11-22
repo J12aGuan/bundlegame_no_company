@@ -1,11 +1,8 @@
-import { P as current_component } from "./index.js";
-import { w as writable } from "./index2.js";
+import { f as ssr_context } from "./index2.js";
+import { w as writable } from "./index.js";
 function onDestroy(fn) {
-  var context = (
-    /** @type {Component} */
-    current_component
-  );
-  (context.d ??= []).push(fn);
+  /** @type {SSRContext} */
+  ssr_context.r.on_destroy(fn);
 }
 const globalError = writable(null);
 const originalConsoleError = console.error;

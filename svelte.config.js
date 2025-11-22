@@ -5,7 +5,13 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
-		adapter: adapter()
+		adapter: adapter({
+			// Ensure @sveltejs/kit is bundled, not externalized
+			external: [],
+			isr: {
+				expiration: false
+			}
+		})
 	}
 };
 

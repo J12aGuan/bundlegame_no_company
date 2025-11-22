@@ -1,33 +1,21 @@
-import { H as HYDRATION_ERROR, g as get_next_sibling, d as define_property, s as set_active_reaction, a as set_active_effect, i as is_array, b as active_effect, c as active_reaction, e as init_operations, f as get_first_child, h as HYDRATION_START, j as HYDRATION_END, k as hydration_failed, l as clear_text_content, m as array_from, n as component_root, o as create_text, p as branch, q as push, r as component_context, t as pop, u as set, L as LEGACY_PROPS, v as get, w as flushSync, x as mutable_source, y as render, z as push$1, A as setContext, C as pop$1 } from "./index.js";
+import { H as HYDRATION_ERROR, C as COMMENT_NODE, a as HYDRATION_END, g as get_next_sibling, b as HYDRATION_START, c as HYDRATION_START_ELSE, e as effect_tracking, d as get, s as source, r as render_effect, u as untrack, i as increment, q as queue_micro_task, f as active_effect, h as block, j as branch, B as Batch, p as pause_effect, k as create_text, l as set_active_effect, m as set_active_reaction, n as set_component_context, o as handle_error, t as active_reaction, v as component_context, w as move_effect, x as internal_set, y as destroy_effect, z as invoke_error_boundary, A as svelte_boundary_reset_onerror, E as EFFECT_TRANSPARENT, D as EFFECT_PRESERVED, F as BOUNDARY_EFFECT, G as define_property, I as init_operations, J as get_first_child, K as hydration_failed, L as clear_text_content, M as array_from, N as component_root, O as push, P as pop, Q as set, R as LEGACY_PROPS, S as flushSync, T as mutable_source } from "./utils2.js";
+import { i as is_passive_event, r as render, s as setContext } from "./index2.js";
 import "clsx";
-let base = "";
-let assets = base;
-const app_dir = "_app";
-const initial = { base, assets };
-function override(paths) {
-  base = paths.base;
-  assets = paths.assets;
-}
-function reset() {
-  base = initial.base;
-  assets = initial.assets;
-}
-function set_assets(path) {
-  assets = initial.assets = path;
-}
+import "./environment.js";
 let public_env = {};
-let safe_public_env = {};
 function set_private_env(environment) {
 }
 function set_public_env(environment) {
   public_env = environment;
 }
-function set_safe_public_env(environment) {
-  safe_public_env = environment;
-}
 function hydration_mismatch(location) {
   {
     console.warn(`https://svelte.dev/e/hydration_mismatch`);
+  }
+}
+function svelte_boundary_reset_noop() {
+  {
+    console.warn(`https://svelte.dev/e/svelte_boundary_reset_noop`);
   }
 }
 let hydrating = false;
@@ -48,12 +36,395 @@ function hydrate_next() {
     get_next_sibling(hydrate_node)
   );
 }
-const PASSIVE_EVENTS = ["touchstart", "touchmove"];
-function is_passive_event(name) {
-  return PASSIVE_EVENTS.includes(name);
+function next(count = 1) {
+  if (hydrating) {
+    var i = count;
+    var node = hydrate_node;
+    while (i--) {
+      node = /** @type {TemplateNode} */
+      get_next_sibling(node);
+    }
+    hydrate_node = node;
+  }
+}
+function skip_nodes(remove = true) {
+  var depth = 0;
+  var node = hydrate_node;
+  while (true) {
+    if (node.nodeType === COMMENT_NODE) {
+      var data = (
+        /** @type {Comment} */
+        node.data
+      );
+      if (data === HYDRATION_END) {
+        if (depth === 0) return node;
+        depth -= 1;
+      } else if (data === HYDRATION_START || data === HYDRATION_START_ELSE) {
+        depth += 1;
+      }
+    }
+    var next2 = (
+      /** @type {TemplateNode} */
+      get_next_sibling(node)
+    );
+    if (remove) node.remove();
+    node = next2;
+  }
+}
+function createSubscriber(start) {
+  let subscribers = 0;
+  let version = source(0);
+  let stop;
+  return () => {
+    if (effect_tracking()) {
+      get(version);
+      render_effect(() => {
+        if (subscribers === 0) {
+          stop = untrack(() => start(() => increment(version)));
+        }
+        subscribers += 1;
+        return () => {
+          queue_micro_task(() => {
+            subscribers -= 1;
+            if (subscribers === 0) {
+              stop?.();
+              stop = void 0;
+              increment(version);
+            }
+          });
+        };
+      });
+    }
+  };
+}
+var flags = EFFECT_TRANSPARENT | EFFECT_PRESERVED | BOUNDARY_EFFECT;
+function boundary(node, props, children) {
+  new Boundary(node, props, children);
+}
+class Boundary {
+  /** @type {Boundary | null} */
+  parent;
+  #pending = false;
+  /** @type {TemplateNode} */
+  #anchor;
+  /** @type {TemplateNode | null} */
+  #hydrate_open = hydrating ? hydrate_node : null;
+  /** @type {BoundaryProps} */
+  #props;
+  /** @type {((anchor: Node) => void)} */
+  #children;
+  /** @type {Effect} */
+  #effect;
+  /** @type {Effect | null} */
+  #main_effect = null;
+  /** @type {Effect | null} */
+  #pending_effect = null;
+  /** @type {Effect | null} */
+  #failed_effect = null;
+  /** @type {DocumentFragment | null} */
+  #offscreen_fragment = null;
+  /** @type {TemplateNode | null} */
+  #pending_anchor = null;
+  #local_pending_count = 0;
+  #pending_count = 0;
+  #is_creating_fallback = false;
+  /**
+   * A source containing the number of pending async deriveds/expressions.
+   * Only created if `$effect.pending()` is used inside the boundary,
+   * otherwise updating the source results in needless `Batch.ensure()`
+   * calls followed by no-op flushes
+   * @type {Source<number> | null}
+   */
+  #effect_pending = null;
+  #effect_pending_subscriber = createSubscriber(() => {
+    this.#effect_pending = source(this.#local_pending_count);
+    return () => {
+      this.#effect_pending = null;
+    };
+  });
+  /**
+   * @param {TemplateNode} node
+   * @param {BoundaryProps} props
+   * @param {((anchor: Node) => void)} children
+   */
+  constructor(node, props, children) {
+    this.#anchor = node;
+    this.#props = props;
+    this.#children = children;
+    this.parent = /** @type {Effect} */
+    active_effect.b;
+    this.#pending = !!this.#props.pending;
+    this.#effect = block(() => {
+      active_effect.b = this;
+      if (hydrating) {
+        const comment = this.#hydrate_open;
+        hydrate_next();
+        const server_rendered_pending = (
+          /** @type {Comment} */
+          comment.nodeType === COMMENT_NODE && /** @type {Comment} */
+          comment.data === HYDRATION_START_ELSE
+        );
+        if (server_rendered_pending) {
+          this.#hydrate_pending_content();
+        } else {
+          this.#hydrate_resolved_content();
+        }
+      } else {
+        var anchor = this.#get_anchor();
+        try {
+          this.#main_effect = branch(() => children(anchor));
+        } catch (error) {
+          this.error(error);
+        }
+        if (this.#pending_count > 0) {
+          this.#show_pending_snippet();
+        } else {
+          this.#pending = false;
+        }
+      }
+      return () => {
+        this.#pending_anchor?.remove();
+      };
+    }, flags);
+    if (hydrating) {
+      this.#anchor = hydrate_node;
+    }
+  }
+  #hydrate_resolved_content() {
+    try {
+      this.#main_effect = branch(() => this.#children(this.#anchor));
+    } catch (error) {
+      this.error(error);
+    }
+    this.#pending = false;
+  }
+  #hydrate_pending_content() {
+    const pending = this.#props.pending;
+    if (!pending) {
+      return;
+    }
+    this.#pending_effect = branch(() => pending(this.#anchor));
+    Batch.enqueue(() => {
+      var anchor = this.#get_anchor();
+      this.#main_effect = this.#run(() => {
+        Batch.ensure();
+        return branch(() => this.#children(anchor));
+      });
+      if (this.#pending_count > 0) {
+        this.#show_pending_snippet();
+      } else {
+        pause_effect(
+          /** @type {Effect} */
+          this.#pending_effect,
+          () => {
+            this.#pending_effect = null;
+          }
+        );
+        this.#pending = false;
+      }
+    });
+  }
+  #get_anchor() {
+    var anchor = this.#anchor;
+    if (this.#pending) {
+      this.#pending_anchor = create_text();
+      this.#anchor.before(this.#pending_anchor);
+      anchor = this.#pending_anchor;
+    }
+    return anchor;
+  }
+  /**
+   * Returns `true` if the effect exists inside a boundary whose pending snippet is shown
+   * @returns {boolean}
+   */
+  is_pending() {
+    return this.#pending || !!this.parent && this.parent.is_pending();
+  }
+  has_pending_snippet() {
+    return !!this.#props.pending;
+  }
+  /**
+   * @param {() => Effect | null} fn
+   */
+  #run(fn) {
+    var previous_effect = active_effect;
+    var previous_reaction = active_reaction;
+    var previous_ctx = component_context;
+    set_active_effect(this.#effect);
+    set_active_reaction(this.#effect);
+    set_component_context(this.#effect.ctx);
+    try {
+      return fn();
+    } catch (e) {
+      handle_error(e);
+      return null;
+    } finally {
+      set_active_effect(previous_effect);
+      set_active_reaction(previous_reaction);
+      set_component_context(previous_ctx);
+    }
+  }
+  #show_pending_snippet() {
+    const pending = (
+      /** @type {(anchor: Node) => void} */
+      this.#props.pending
+    );
+    if (this.#main_effect !== null) {
+      this.#offscreen_fragment = document.createDocumentFragment();
+      this.#offscreen_fragment.append(
+        /** @type {TemplateNode} */
+        this.#pending_anchor
+      );
+      move_effect(this.#main_effect, this.#offscreen_fragment);
+    }
+    if (this.#pending_effect === null) {
+      this.#pending_effect = branch(() => pending(this.#anchor));
+    }
+  }
+  /**
+   * Updates the pending count associated with the currently visible pending snippet,
+   * if any, such that we can replace the snippet with content once work is done
+   * @param {1 | -1} d
+   */
+  #update_pending_count(d) {
+    if (!this.has_pending_snippet()) {
+      if (this.parent) {
+        this.parent.#update_pending_count(d);
+      }
+      return;
+    }
+    this.#pending_count += d;
+    if (this.#pending_count === 0) {
+      this.#pending = false;
+      if (this.#pending_effect) {
+        pause_effect(this.#pending_effect, () => {
+          this.#pending_effect = null;
+        });
+      }
+      if (this.#offscreen_fragment) {
+        this.#anchor.before(this.#offscreen_fragment);
+        this.#offscreen_fragment = null;
+      }
+    }
+  }
+  /**
+   * Update the source that powers `$effect.pending()` inside this boundary,
+   * and controls when the current `pending` snippet (if any) is removed.
+   * Do not call from inside the class
+   * @param {1 | -1} d
+   */
+  update_pending_count(d) {
+    this.#update_pending_count(d);
+    this.#local_pending_count += d;
+    if (this.#effect_pending) {
+      internal_set(this.#effect_pending, this.#local_pending_count);
+    }
+  }
+  get_effect_pending() {
+    this.#effect_pending_subscriber();
+    return get(
+      /** @type {Source<number>} */
+      this.#effect_pending
+    );
+  }
+  /** @param {unknown} error */
+  error(error) {
+    var onerror = this.#props.onerror;
+    let failed = this.#props.failed;
+    if (this.#is_creating_fallback || !onerror && !failed) {
+      throw error;
+    }
+    if (this.#main_effect) {
+      destroy_effect(this.#main_effect);
+      this.#main_effect = null;
+    }
+    if (this.#pending_effect) {
+      destroy_effect(this.#pending_effect);
+      this.#pending_effect = null;
+    }
+    if (this.#failed_effect) {
+      destroy_effect(this.#failed_effect);
+      this.#failed_effect = null;
+    }
+    if (hydrating) {
+      set_hydrate_node(
+        /** @type {TemplateNode} */
+        this.#hydrate_open
+      );
+      next();
+      set_hydrate_node(skip_nodes());
+    }
+    var did_reset = false;
+    var calling_on_error = false;
+    const reset = () => {
+      if (did_reset) {
+        svelte_boundary_reset_noop();
+        return;
+      }
+      did_reset = true;
+      if (calling_on_error) {
+        svelte_boundary_reset_onerror();
+      }
+      Batch.ensure();
+      this.#local_pending_count = 0;
+      if (this.#failed_effect !== null) {
+        pause_effect(this.#failed_effect, () => {
+          this.#failed_effect = null;
+        });
+      }
+      this.#pending = this.has_pending_snippet();
+      this.#main_effect = this.#run(() => {
+        this.#is_creating_fallback = false;
+        return branch(() => this.#children(this.#anchor));
+      });
+      if (this.#pending_count > 0) {
+        this.#show_pending_snippet();
+      } else {
+        this.#pending = false;
+      }
+    };
+    var previous_reaction = active_reaction;
+    try {
+      set_active_reaction(null);
+      calling_on_error = true;
+      onerror?.(error, reset);
+      calling_on_error = false;
+    } catch (error2) {
+      invoke_error_boundary(error2, this.#effect && this.#effect.parent);
+    } finally {
+      set_active_reaction(previous_reaction);
+    }
+    if (failed) {
+      queue_micro_task(() => {
+        this.#failed_effect = this.#run(() => {
+          Batch.ensure();
+          this.#is_creating_fallback = true;
+          try {
+            return branch(() => {
+              failed(
+                this.#anchor,
+                () => error,
+                () => reset
+              );
+            });
+          } catch (error2) {
+            invoke_error_boundary(
+              error2,
+              /** @type {Effect} */
+              this.#effect.parent
+            );
+            return null;
+          } finally {
+            this.#is_creating_fallback = false;
+          }
+        });
+      });
+    }
+  }
 }
 const all_registered_events = /* @__PURE__ */ new Set();
 const root_event_handles = /* @__PURE__ */ new Set();
+let last_propagated_event = null;
 function handle_event_propagation(event) {
   var handler_element = this;
   var owner_document = (
@@ -66,8 +437,9 @@ function handle_event_propagation(event) {
     /** @type {null | Element} */
     path[0] || event.target
   );
+  last_propagated_event = event;
   var path_idx = 0;
-  var handled_at = event.__root;
+  var handled_at = last_propagated_event === event && event.__root;
   if (handled_at) {
     var at_idx = path.indexOf(handled_at);
     if (at_idx !== -1 && (handler_element === document || handler_element === /** @type {any} */
@@ -108,12 +480,7 @@ function handle_event_propagation(event) {
         current_target.disabled || // DOM could've been updated already by the time this is reached, so we check this as well
         // -> the target could not have been disabled because it emits the event in the first place
         event.target === current_target)) {
-          if (is_array(delegated)) {
-            var [fn, ...data] = delegated;
-            fn.apply(current_target, [event, ...data]);
-          } else {
-            delegated.call(current_target, event);
-          }
+          delegated.call(current_target, event);
         }
       } catch (error) {
         if (throw_error) {
@@ -166,7 +533,7 @@ function hydrate(component, options2) {
       /** @type {TemplateNode} */
       get_first_child(target)
     );
-    while (anchor && (anchor.nodeType !== 8 || /** @type {Comment} */
+    while (anchor && (anchor.nodeType !== COMMENT_NODE || /** @type {Comment} */
     anchor.data !== HYDRATION_START)) {
       anchor = /** @type {TemplateNode} */
       get_next_sibling(anchor);
@@ -179,29 +546,26 @@ function hydrate(component, options2) {
       /** @type {Comment} */
       anchor
     );
-    hydrate_next();
     const instance = _mount(component, { ...options2, anchor });
-    if (hydrate_node === null || hydrate_node.nodeType !== 8 || /** @type {Comment} */
-    hydrate_node.data !== HYDRATION_END) {
-      hydration_mismatch();
-      throw HYDRATION_ERROR;
-    }
     set_hydrating(false);
     return (
       /**  @type {Exports} */
       instance
     );
   } catch (error) {
-    if (error === HYDRATION_ERROR) {
-      if (options2.recover === false) {
-        hydration_failed();
-      }
-      init_operations();
-      clear_text_content(target);
-      set_hydrating(false);
-      return mount(component, options2);
+    if (error instanceof Error && error.message.split("\n").some((line) => line.startsWith("https://svelte.dev/e/"))) {
+      throw error;
     }
-    throw error;
+    if (error !== HYDRATION_ERROR) {
+      console.warn("Failed to hydrate: ", error);
+    }
+    if (options2.recover === false) {
+      hydration_failed();
+    }
+    init_operations();
+    clear_text_content(target);
+    set_hydrating(false);
+    return mount(component, options2);
   } finally {
     set_hydrating(was_hydrating);
     set_hydrate_node(previous_hydrate_node);
@@ -232,33 +596,46 @@ function _mount(Component, { target, anchor, props = {}, events, context, intro 
   var component = void 0;
   var unmount2 = component_root(() => {
     var anchor_node = anchor ?? target.appendChild(create_text());
-    branch(() => {
-      if (context) {
-        push({});
-        var ctx = (
-          /** @type {ComponentContext} */
-          component_context
-        );
-        ctx.c = context;
+    boundary(
+      /** @type {TemplateNode} */
+      anchor_node,
+      {
+        pending: () => {
+        }
+      },
+      (anchor_node2) => {
+        if (context) {
+          push({});
+          var ctx = (
+            /** @type {ComponentContext} */
+            component_context
+          );
+          ctx.c = context;
+        }
+        if (events) {
+          props.$$events = events;
+        }
+        if (hydrating) {
+          assign_nodes(
+            /** @type {TemplateNode} */
+            anchor_node2,
+            null
+          );
+        }
+        component = Component(anchor_node2, props) || {};
+        if (hydrating) {
+          active_effect.nodes_end = hydrate_node;
+          if (hydrate_node === null || hydrate_node.nodeType !== COMMENT_NODE || /** @type {Comment} */
+          hydrate_node.data !== HYDRATION_END) {
+            hydration_mismatch();
+            throw HYDRATION_ERROR;
+          }
+        }
+        if (context) {
+          pop();
+        }
       }
-      if (events) {
-        props.$$events = events;
-      }
-      if (hydrating) {
-        assign_nodes(
-          /** @type {TemplateNode} */
-          anchor_node,
-          null
-        );
-      }
-      component = Component(anchor_node, props) || {};
-      if (hydrating) {
-        active_effect.nodes_end = hydrate_node;
-      }
-      if (context) {
-        pop();
-      }
-    });
+    );
     return () => {
       for (var event_name of registered_events) {
         target.removeEventListener(event_name, handle_event_propagation);
@@ -315,7 +692,7 @@ class Svelte4Component {
   constructor(options2) {
     var sources = /* @__PURE__ */ new Map();
     var add_source = (key, value) => {
-      var s = mutable_source(value);
+      var s = mutable_source(value, false, false);
       sources.set(key, s);
       return s;
     };
@@ -362,8 +739,8 @@ class Svelte4Component {
       });
     }
     this.#instance.$set = /** @param {Record<string, any>} next */
-    (next) => {
-      Object.assign(props, next);
+    (next2) => {
+      Object.assign(props, next2);
     };
     this.#instance.$destroy = () => {
       unmount(this.#instance);
@@ -403,73 +780,101 @@ function asClassComponent(component) {
   const component_constructor = asClassComponent$1(component);
   const _render = (props, { context } = {}) => {
     const result = render(component, { props, context });
-    return {
-      css: { code: "", map: null },
-      head: result.head,
-      html: result.body
-    };
+    const munged = Object.defineProperties(
+      /** @type {LegacyRenderResult & PromiseLike<LegacyRenderResult>} */
+      {},
+      {
+        css: {
+          value: { code: "", map: null }
+        },
+        head: {
+          get: () => result.head
+        },
+        html: {
+          get: () => result.body
+        },
+        then: {
+          /**
+           * this is not type-safe, but honestly it's the best I can do right now, and it's a straightforward function.
+           *
+           * @template TResult1
+           * @template [TResult2=never]
+           * @param { (value: LegacyRenderResult) => TResult1 } onfulfilled
+           * @param { (reason: unknown) => TResult2 } onrejected
+           */
+          value: (onfulfilled, onrejected) => {
+            {
+              const user_result = onfulfilled({
+                css: munged.css,
+                head: munged.head,
+                html: munged.html
+              });
+              return Promise.resolve(user_result);
+            }
+          }
+        }
+      }
+    );
+    return munged;
   };
   component_constructor.render = _render;
   return component_constructor;
 }
-let prerendering = false;
-function set_building() {
-}
-function set_prerendering() {
-  prerendering = true;
-}
-function Root($$payload, $$props) {
-  push$1();
-  let {
-    stores,
-    page,
-    constructors,
-    components = [],
-    form,
-    data_0 = null,
-    data_1 = null
-  } = $$props;
-  {
-    setContext("__svelte__", stores);
-  }
-  {
-    stores.page.set(page);
-  }
-  const Pyramid_1 = constructors[1];
-  if (constructors[1]) {
-    $$payload.out += "<!--[-->";
-    const Pyramid_0 = constructors[0];
-    $$payload.out += `<!---->`;
-    Pyramid_0($$payload, {
-      data: data_0,
+function Root($$renderer, $$props) {
+  $$renderer.component(($$renderer2) => {
+    let {
+      stores,
+      page,
+      constructors,
+      components = [],
       form,
-      children: ($$payload2) => {
-        $$payload2.out += `<!---->`;
-        Pyramid_1($$payload2, { data: data_1, form });
-        $$payload2.out += `<!---->`;
-      },
-      $$slots: { default: true }
-    });
-    $$payload.out += `<!---->`;
-  } else {
-    $$payload.out += "<!--[!-->";
-    const Pyramid_0 = constructors[0];
-    $$payload.out += `<!---->`;
-    Pyramid_0($$payload, { data: data_0, form });
-    $$payload.out += `<!---->`;
-  }
-  $$payload.out += `<!--]--> `;
-  {
-    $$payload.out += "<!--[!-->";
-  }
-  $$payload.out += `<!--]-->`;
-  pop$1();
+      data_0 = null,
+      data_1 = null
+    } = $$props;
+    {
+      setContext("__svelte__", stores);
+    }
+    {
+      stores.page.set(page);
+    }
+    const Pyramid_1 = constructors[1];
+    if (constructors[1]) {
+      $$renderer2.push("<!--[-->");
+      const Pyramid_0 = constructors[0];
+      $$renderer2.push(`<!---->`);
+      Pyramid_0($$renderer2, {
+        data: data_0,
+        form,
+        params: page.params,
+        children: ($$renderer3) => {
+          $$renderer3.push(`<!---->`);
+          Pyramid_1($$renderer3, { data: data_1, form, params: page.params });
+          $$renderer3.push(`<!---->`);
+        },
+        $$slots: { default: true }
+      });
+      $$renderer2.push(`<!---->`);
+    } else {
+      $$renderer2.push("<!--[!-->");
+      const Pyramid_0 = constructors[0];
+      $$renderer2.push(`<!---->`);
+      Pyramid_0($$renderer2, { data: data_0, form, params: page.params });
+      $$renderer2.push(`<!---->`);
+    }
+    $$renderer2.push(`<!--]--> `);
+    {
+      $$renderer2.push("<!--[!-->");
+    }
+    $$renderer2.push(`<!--]-->`);
+  });
 }
 const root = asClassComponent(Root);
 const options = {
   app_template_contains_nonce: false,
+  async: false,
   csp: { "mode": "auto", "directives": { "upgrade-insecure-requests": false, "block-all-mixed-content": false }, "reportOnly": { "upgrade-insecure-requests": false, "block-all-mixed-content": false } },
   csrf_check_origin: true,
+  csrf_trusted_origins: [],
   embedded: false,
   env_public_prefix: "PUBLIC_",
   env_private_prefix: "",
@@ -479,8 +884,9 @@ const options = {
   preload_strategy: "modulepreload",
   root,
   service_worker: false,
+  service_worker_options: void 0,
   templates: {
-    app: ({ head, body, assets: assets2, nonce, env }) => '<!DOCTYPE html>\n<html lang="en">\n	<head>\n		<meta charset="utf-8" />\n		<link rel="icon" href="' + assets2 + '/favicon.png" />\n		<meta name="viewport" content="width=device-width" />\n		' + head + '\n	</head>\n	<body data-sveltekit-preload-data="hover">\n		<div style="display: contents">' + body + "</div>\n	</body>\n</html>\n",
+    app: ({ head, body, assets, nonce, env }) => '<!DOCTYPE html>\n<html lang="en">\n	<head>\n		<meta charset="utf-8" />\n		<link rel="icon" href="' + assets + '/favicon.png" />\n		<meta name="viewport" content="width=device-width" />\n		' + head + '\n	</head>\n	<body data-sveltekit-preload-data="hover">\n		<div style="display: contents">' + body + "</div>\n	</body>\n</html>\n",
     error: ({ status, message }) => '<!doctype html>\n<html lang="en">\n	<head>\n		<meta charset="utf-8" />\n		<title>' + message + `</title>
 
 		<style>
@@ -552,43 +958,34 @@ const options = {
 		<div class="error">
 			<span class="status">` + status + '</span>\n			<div class="message">\n				<h1>' + message + "</h1>\n			</div>\n		</div>\n	</body>\n</html>\n"
   },
-  version_hash: "1vi1sol"
+  version_hash: "6yjxju"
 };
 async function get_hooks() {
   let handle;
   let handleFetch;
   let handleError;
+  let handleValidationError;
   let init;
-  ({ handle, handleFetch, handleError, init } = await import("./hooks.server.js"));
+  ({ handle, handleFetch, handleError, handleValidationError, init } = await import("./hooks.server.js"));
   let reroute;
   let transport;
   return {
     handle,
     handleFetch,
     handleError,
+    handleValidationError,
     init,
     reroute,
     transport
   };
 }
 export {
-  assets as a,
-  base as b,
-  app_dir as c,
-  read_implementation as d,
-  options as e,
-  set_private_env as f,
+  set_public_env as a,
+  set_read_implementation as b,
+  set_manifest as c,
   get_hooks as g,
-  prerendering as h,
-  set_public_env as i,
-  set_safe_public_env as j,
-  set_read_implementation as k,
-  set_assets as l,
-  set_building as m,
-  set_manifest as n,
-  override as o,
+  options as o,
   public_env as p,
-  set_prerendering as q,
-  reset as r,
-  safe_public_env as s
+  read_implementation as r,
+  set_private_env as s
 };
