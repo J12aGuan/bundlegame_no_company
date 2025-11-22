@@ -5,8 +5,10 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
-		adapter: adapter()
-		// No custom options needed for Vercel - zero-config support
+		adapter: adapter(),
+		prerender: {
+			entries: ['*']   // Force prerender ALL routes to generate HTML
+		}
 	}
 };
 
