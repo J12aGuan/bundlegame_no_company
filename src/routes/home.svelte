@@ -1,20 +1,97 @@
 <script>
     import { get } from 'svelte/store';
     import { game, orders, gameText, currLocation, logOrders, orderList, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed } from "$lib/bundle.js";
-    import { getDistances } from "$lib/config.js";
+    import { getDistances, storeConfig } from "$lib/config.js";
     import Order from "./order.svelte";
     import { onMount, onDestroy } from "svelte";
 
-    // --- EXPERIMENT DATA ---
+    // --- EXPERIMENT DATA PROCESSING ---
     $: scenario = getCurrentScenario($currentRound);
     $: maxBundle = scenario.max_bundle ?? 3;
-    $: scenarioOrders = scenario.orders;
-
-    // Filter orders: Only show orders belonging to the current city
-    $: localOrders = scenarioOrders.filter(o => o.city === $currLocation);
     
-    // Detect where the orders actually are if not here
-    $: activeOrderCity = scenarioOrders.length > 0 ? scenarioOrders[0].city : "";
+    // 1. Get Experiment Orders (and fix missing 'items' - CRITICAL FIX for Emeryville freeze)
+    $: experimentOrders = (scenario.orders || []).map(hydrateOrder);
+
+    // 2. Generate Orders for ALL cities (4 orders per city)
+    let cityOrderMap = {};
+    
+    // Reactive block to regenerate orders when round changes
+    $: {
+        const cities = ["Berkeley", "Oakland", "Emeryville", "Piedmont"];
+        let map = {};
+        
+        // Identify the "Active" city for this round
+        const activeCity = experimentOrders.length > 0 ? experimentOrders[0].city : "Berkeley";
+
+        cities.forEach(city => {
+            if (city === activeCity) {
+                // Use specific experiment data for the active city
+                map[city] = experimentOrders;
+            } else {
+                // Generate consistent filler data for other cities
+                map[city] = generateFillerOrders(city, $currentRound);
+            }
+        });
+        cityOrderMap = map;
+    }
+
+    // 3. Display orders for CURRENT location
+    $: localOrders = cityOrderMap[$currLocation] || [];
+    
+    // Detect where the experiment orders actually are
+    $: activeOrderCity = experimentOrders.length > 0 ? experimentOrders[0].city : "";
+
+    // --- HELPER: Hydrate Orders (Fixes Freeze caused by missing items) ---
+    function hydrateOrder(order) {
+        // If items already exist, keep them
+        if (order.items && Object.keys(order.items).length > 0) return order;
+
+        // Generate items from store config or fallback
+        const config = storeConfig(order.store);
+        let generatedItems = {};
+        
+        if (config && config.items && config.items.length > 0) {
+            // Pick 1-3 random items from store's item list
+            const count = 1 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < count; i++) {
+                const item = config.items[Math.floor(Math.random() * config.items.length)];
+                generatedItems[item] = 1 + Math.floor(Math.random() * 2);
+            }
+        } else {
+            // Fallback items if config is missing
+            generatedItems = { "Apple": 1, "Banana": 2 };
+        }
+
+        return {
+            ...order,
+            items: generatedItems,
+            name: order.name || `Customer ${order.id}`
+        };
+    }
+
+    // --- HELPER: Generate Filler Orders for non-active cities ---
+    function generateFillerOrders(city, round) {
+        const storeNames = {
+            "Berkeley": "Berkeley Bowl",
+            "Oakland": "Sprouts Farmers Market", 
+            "Emeryville": "Target",
+            "Piedmont": "Safeway"
+        };
+        
+        let fillers = [];
+        for (let i = 1; i <= 4; i++) {
+            fillers.push({
+                id: `fill_${round}_${city}_${i}`,
+                store: storeNames[city],
+                city: city,
+                earnings: 8 + Math.floor(Math.random() * 12), // $8-$20
+                items: { "Apple": 1, "Watermelon": 1 },
+                recommended: false,
+                name: `Local Order ${i}`
+            });
+        }
+        return fillers;
+    }
 
     // --- STATE ---
     let waiting = false;
@@ -71,8 +148,8 @@
         }
 
         clearTimers();
-        // Log the selected orders against the scenario
-        logOrders(selOrders, scenarioOrders);
+        // Log the selected orders against all available orders
+        logOrders(selOrders, localOrders);
         $game.inStore = true;
         $game.inSelect = false;
     }
@@ -82,11 +159,14 @@
         
         // Find travel duration from config
         let index = distances["destinations"].indexOf(city);
-        if (index == -1) return; 
+        if (index == -1) {
+            console.warn("Distance not found for", city);
+            duration = 5; // fallback
+        } else {
+            duration = distances["distances"][index] || 5;
+        }
         
-        duration = distances["distances"][index];
         clearTimers();
-        
         waiting = true;
         travelingTo = city;
         travelProgress = duration;
@@ -100,7 +180,7 @@
     }
 
     function completeTravel(city) {
-        clearTimers();
+        clearInterval(travelTimer);
         waiting = false;
         currLocation.set(city);
         $orders = []; // Clear selection
@@ -136,10 +216,7 @@
     }
 
     function updateEarnings(index, newEarnings) {
-        orderList.update(list => {
-            list[index].earnings = newEarnings;
-            return list;
-        });
+        // Helper to update UI if needed
     }
 
     // --- MAP INIT ---
@@ -161,19 +238,18 @@
 
         Object.entries(cityCoords).forEach(([city, coords]) => {
             const isCurrent = city === $currLocation;
-            const isActiveTarget = city === activeOrderCity && localOrders.length === 0;
+            const hasExpOrders = experimentOrders.length > 0 && experimentOrders[0].city === city;
 
             const marker = L.circleMarker(coords, {
-                color: isCurrent ? '#16a34a' : (isActiveTarget ? '#ef4444' : '#3b82f6'),
-                fillColor: isCurrent ? '#22c55e' : (isActiveTarget ? '#f87171' : '#60a5fa'),
+                color: isCurrent ? '#16a34a' : (hasExpOrders ? '#ef4444' : '#3b82f6'),
+                fillColor: isCurrent ? '#22c55e' : (hasExpOrders ? '#f87171' : '#60a5fa'),
                 fillOpacity: 0.8,
-                radius: isCurrent ? 10 : 8
+                radius: 10
             }).addTo(map);
 
-            // Tooltip
             let label = city;
             if (isCurrent) label += " (You)";
-            if (isActiveTarget) label += " (Orders Here!)";
+            if (hasExpOrders && !isCurrent) label += " (High Value!)";
 
             marker.bindTooltip(label, { 
                 permanent: true, 
@@ -191,14 +267,13 @@
         else startThinkingTimer();
         
         roundStartTime.set($elapsed);
-        orderList.set(scenarioOrders);
 
-        setTimeout(initMap, 100);
+        setTimeout(initMap, 200);
     });
 
     // Re-render map when state changes to selection mode
     $: if (!waiting && !isPenalty && $game.inSelect) {
-        setTimeout(initMap, 100);
+        setTimeout(initMap, 200);
     }
 
     onDestroy(() => {
@@ -253,39 +328,25 @@
             <div class="space-y-4">
                 <h2 class="text-lg font-semibold text-slate-800">Orders in {$currLocation}</h2>
                 
-                {#if localOrders.length > 0}
-                    <div class="grid gap-4">
-                        {#each localOrders as order, i (order.id)}
-                            <Order orderData={order} index={i} updateEarnings={updateEarnings}/>
-                        {/each}
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl border shadow-sm sticky bottom-4">
-                        <button id="startorder"
-                            class="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                            on:click={start}
-                            disabled={$orders.length === 0}
-                        >
-                            {$gameText.selector === "None selected" ? "Select Orders to Start" : $gameText.selector}
-                        </button>
-                    </div>
-                {:else}
-                    <div class="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300 space-y-2">
-                        <p class="text-slate-500">No active orders in {$currLocation}.</p>
-                        <p class="text-red-600 font-bold">Round {$currentRound} orders are in {activeOrderCity}.</p>
-                        <p class="text-sm text-slate-400">Please travel to {activeOrderCity} using the map.</p>
-                    </div>
-                {/if}
+                <div class="grid gap-4 max-h-[600px] overflow-y-auto pr-2">
+                    {#each localOrders as order, i (order.id)}
+                        <Order orderData={order} index={i} updateEarnings={updateEarnings}/>
+                    {/each}
+                </div>
+
+                <div class="bg-slate-50 p-6 rounded-2xl border flex flex-col items-center gap-3 mt-4 sticky bottom-4">
+                    <button id="startorder"
+                        class="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        on:click={start}
+                        disabled={$orders.length === 0}
+                    >
+                        {$gameText.selector === "None selected" ? "Select Orders to Start" : $gameText.selector}
+                    </button>
+                </div>
             </div>
 
             <div class="h-[600px] bg-slate-100 rounded-2xl border shadow-sm overflow-hidden relative">
                 <div id="map" class="w-full h-full z-0"></div>
-                <div class="absolute top-4 right-4 bg-white/90 p-3 rounded-lg shadow text-xs z-[1000] backdrop-blur">
-                    <p class="font-bold mb-1">Navigation</p>
-                    <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-green-500"></div> You are here</div>
-                    {#if activeOrderCity && activeOrderCity !== $currLocation}
-                        <div class="flex items-center gap-2 mt-1"><div class="w-3 h-3 rounded-full bg-red-400"></div> Orders here</div>
-                    {/if}
-                </div>
             </div>
         </div>
     {/if}

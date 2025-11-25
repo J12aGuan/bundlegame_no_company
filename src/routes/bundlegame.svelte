@@ -87,9 +87,11 @@
         let action = { buttonID: "addtobag", itemInput: wordInput, bags: bags.map(b => ({...b})) };
         
         if (wordInput.toLowerCase() != item) {
-            alert("Incorrect! Type: " + item);
+            alert("Incorrect! You must type the name of the item: " + item)
+            action.mistake = "itemtypo"
             wordInput = ""; bagInputs = ["", "", ""];
-            logAction(action); return;
+            logAction(action)
+            return;
         }
 
         let hasQuantity = false;
@@ -104,12 +106,13 @@
         }
 
         if (!hasQuantity) {
-            alert("Enter quantity for at least one bag.");
+            alert("Please enter a quantity for at least one order.");
             return;
         }
-        bags = [...bags];
+
+        bags = [...bags]; // Reactivity trigger
         wordInput = ""; bagInputs = ["", "", ""];
-        logAction(action);
+        logAction(action)
     }
 
     function start() {
