@@ -51,7 +51,8 @@ export const game = writable({
 	bundled: false,
 	tip: config["tips"],
 	waiting: config["waiting"],
-	refresh: config["refresh"]
+	refresh: config["refresh"],
+	penaltyTriggered: false
 });
 
 export const tipTimers = writable([])

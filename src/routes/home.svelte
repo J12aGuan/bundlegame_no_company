@@ -1,283 +1,325 @@
 <script>
     import { get } from 'svelte/store';
-    import { game, orders, gameText, currLocation, logOrder, logBundledOrder, logOrders, orderList, ordersShown, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed, penaltyEndTime } from "$lib/bundle.js";
-    import { queueNFixedOrders, getDistances } from "$lib/config.js";
+    import { game, orders, gameText, currLocation, logOrders, orderList, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed } from "$lib/bundle.js";
+    import { getDistances } from "$lib/config.js";
     import Order from "./order.svelte";
     import { onMount, onDestroy } from "svelte";
 
-    // Experiment: Load orders from scenario
+    // Experiment Data
     $: scenario = getCurrentScenario($currentRound);
     $: maxBundle = scenario.max_bundle ?? 3;
-    $: scenarioOrders = scenario.orders;
+    $: experimentOrders = scenario.orders;
     
-    // Filter orders by current location
-    $: filteredOrders = $orderList.filter(o => o.city === $currLocation);
+    // REACTIVE: Orders available in current location
+    // If we are in the target city, show experiment orders.
+    // If we are elsewhere, show generated dummy orders so the UI isn't empty.
+    let localOrders = [];
+    $: {
+        if (experimentOrders.length > 0 && experimentOrders[0].city === $currLocation) {
+            localOrders = experimentOrders;
+        } else {
+            localOrders = generateDummyOrders($currLocation);
+        }
+    }
+
+    // Helper: Generate dummy orders for non-scenario cities
+    function generateDummyOrders(city) {
+        const storeNames = {
+            "Berkeley": "Berkeley Bowl",
+            "Oakland": "Sprouts", 
+            "Emeryville": "Target",
+            "Piedmont": "Safeway"
+        };
+        return [
+            {
+                id: `dummy_${city}_1`, name: "Local Customer A", city: city, store: storeNames[city] || "Local Store",
+                earnings: 5, items: { "Apple": 1, "Banana": 2 }, recommended: false
+            },
+            {
+                id: `dummy_${city}_2`, name: "Local Customer B", city: city, store: storeNames[city] || "Local Store",
+                earnings: 4, items: { "Watermelon": 1 }, recommended: false
+            }
+        ];
+    }
 
     let waiting = false;
     $: distances = getDistances($currLocation);
     let duration = 0;
-    let travelProgress = 0; // For visual feedback
-    let travelingTo = ""
+    let travelProgress = 0;
+    let travelingTo = "";
+    let travelTimer;
+    
     let thinking = false;
     let thinkRemaining = thinkTime;
     let thinkInterval;
-    let travelTimer;
-    
-    // Penalty system
-    $: isPenalized = $penaltyEndTime > $elapsed;
-    $: penaltyRemaining = Math.max(0, $penaltyEndTime - $elapsed);
 
-    // Hardcoded map coordinates for visualization (approximate relative positions)
-    const mapCoords = {
-        "Berkeley": { cx: 50, cy: 30 },
-        "Oakland": { cx: 50, cy: 80 },
-        "Emeryville": { cx: 20, cy: 55 },
-        "Piedmont": { cx: 80, cy: 55 }
+    // Penalty Logic
+    let isPenalty = false;
+    let penaltyTime = 30; 
+    let penaltyRemaining = 0;
+    let penaltyInterval;
+
+    // Map variables
+    let map;
+    const API_KEY = 'iMsEUcFHOj2pHKXd7NO0';
+    const cityCoords = {
+        "Berkeley": [37.8715, -122.2730],
+        "Oakland": [37.8044, -122.2712],
+        "Emeryville": [37.8313, -122.2852],
+        "Piedmont": [37.8238, -122.2316]
     };
 
     function clearTimers() {
-        if (thinkInterval) {
-            clearInterval(thinkInterval);
-            thinkInterval = null;
-        }
-        if (travelTimer) {
-            clearInterval(travelTimer);
-            travelTimer = null;
-        }
+        if (travelTimer) clearInterval(travelTimer);
+        if (thinkInterval) clearInterval(thinkInterval);
+        if (penaltyInterval) clearInterval(penaltyInterval);
     }
 
     function start() {
         const selOrders = get(orders)
-        const curGame = get(game)
-        const curLoc = get(currLocation)
         
         if (selOrders.length < 1) {
-            alert(`Please select 1 to ${maxBundle} orders!`)
+            alert(`Please select at least 1 order.`)
             return;
         }
-        
         if (selOrders.length > maxBundle) {
             alert(`You can only select up to ${maxBundle} orders this round!`)
             return;
         }
-        
-        // Check all orders are from same store/city
-        if (selOrders.length > 1) {
-            const firstStore = selOrders[0].store
-            const firstCity = selOrders[0].city
-            for (let order of selOrders) {
-                if (order.store !== firstStore || order.city !== firstCity) {
-                    alert("Cannot bundle orders from different stores/cities!")
-                    return;
-                }
-            }
-            curGame.bundled = true;
-        } else {
-            curGame.bundled = false;
-        }
 
-        // For experiment mode, don't modify orderList - it's fixed per round
-        // Just proceed with the selected orders
-
-        if (selOrders[0].city != curLoc) {
-            travel(selOrders[0].city, true)
-        } else {
-            gameWindow()
-        }
-    }
-
-    function travel(city, visitStore) {
-        if (city === $currLocation) return;
-        
-        //find index of city
-        let index = distances["destinations"].indexOf(city)
-        if (index == -1) {
+        // Validate bundling (same store)
+        const firstStore = selOrders[0].store;
+        if (!selOrders.every(o => o.store === firstStore)) {
+            alert("All bundled orders must be from the same store!");
             return;
         }
-        duration = distances["distances"][index]
+
+        clearTimers();
+        // Use selected orders (mixed real/dummy is fine for gameplay, logic handles it)
+        logOrders(selOrders, localOrders);
+        $game.inStore = true;
+        $game.inSelect = false;
+    }
+
+    function travel(city) {
+        if (city === $currLocation) return;
+        
+        // Find distance
+        let index = distances["destinations"].indexOf(city);
+        if (index == -1) {
+            console.error(`Cannot travel to ${city} from ${$currLocation}`);
+            return;
+        }
+        
+        duration = distances["distances"][index];
+        clearTimers();
+        
         waiting = true;
         travelingTo = city;
         travelProgress = duration;
-        
-        // Clear any pending selections when traveling
-        $orders = [];
-        $gameText.selector = "None selected";
 
-        // Visual countdown for travel progress
         travelTimer = setInterval(() => {
             travelProgress -= 1;
-            if (travelProgress <= 0) clearInterval(travelTimer);
-        }, 1000);
-
-        setTimeout(() => {
-            waiting = false;
-            if (travelTimer) clearInterval(travelTimer);
-            currLocation.set(city)
-            if (visitStore) {
-                gameWindow()
-            } else {
-                // Clear selected orders but keep orderList intact for experiment
-                $orders = []
-                distances = getDistances(city)
-                $gameText.selector = "None selected"
+            if (travelProgress <= 0) {
+                completeTravel(city);
             }
-        }, duration * 1000)
+        }, 1000);
     }
 
-    function gameWindow() {
-        const selOrders = get(orders)
-        // Use new logOrders function that handles 1-3 orders
-        logOrders(selOrders, scenarioOrders)
-        $game.inStore = true;
-        $game.inSelect= false;
+    function completeTravel(city) {
+        clearTimers();
+        waiting = false;
+        currLocation.set(city);
+        $orders = []; // Clear selection
+        $gameText.selector = "None selected";
+        
+        // Re-init map if needed or update view (handled by reactive statements usually, but we remount on state change)
+        startThinkingTimer();
     }
+
+    function startThinkingTimer() {
+        clearTimers();
+        thinking = true;
+        thinkRemaining = thinkTime;
+        thinkInterval = setInterval(() => {
+            thinkRemaining -= 1;
+            if (thinkRemaining <= 0) {
+                thinking = false;
+                clearInterval(thinkInterval);
+            }
+        }, 1000);
+    }
+
+    function startPenalty() {
+        isPenalty = true;
+        penaltyRemaining = penaltyTime;
+        clearTimers();
+        penaltyInterval = setInterval(() => {
+            penaltyRemaining -= 1;
+            if (penaltyRemaining <= 0) {
+                isPenalty = false;
+                clearInterval(penaltyInterval);
+                $game.penaltyTriggered = false; 
+            }
+        }, 1000);
+    }
+
     function updateEarnings(index, newEarnings) {
-        console.log("updated: " + index + " " + newEarnings)
         orderList.update(list => {
             list[index].earnings = newEarnings;
             return list;
         });
     }
 
-    function skipThinking() {
-        thinkRemaining = 0;
-        if (thinkInterval) clearInterval(thinkInterval);
-        thinking = false;
+    function initMap() {
+        // Wait for DOM
+        if (!document.getElementById('map')) return;
+
+        // Cleanup existing map
+        if (map && map.remove) {
+            map.remove();
+            map = null;
+        }
+
+        const currentCoords = cityCoords[$currLocation] || cityCoords["Berkeley"];
+
+        // Initialize Leaflet with MapTiler
+        map = L.map('map', {
+            center: currentCoords,
+            zoom: 12
+        });
+
+        // Add MapTiler Vector Layer
+        const mtLayer = L.maptilerLayer({
+            apiKey: API_KEY,
+            style: L.MaptilerStyle.STREETS
+        }).addTo(map);
+
+        // Add City Markers
+        Object.entries(cityCoords).forEach(([city, coords]) => {
+            const isCurrent = city === $currLocation;
+            
+            const marker = L.circleMarker(coords, {
+                color: isCurrent ? '#16a34a' : '#3b82f6',
+                fillColor: isCurrent ? '#22c55e' : '#60a5fa',
+                fillOpacity: 0.8,
+                radius: isCurrent ? 10 : 8
+            }).addTo(map);
+
+            marker.bindTooltip(city, { 
+                permanent: true, 
+                direction: 'top',
+                className: 'font-bold text-slate-700' 
+            });
+
+            marker.on('click', () => {
+                travel(city);
+            });
+        });
     }
 
     onMount(() => {
-        // Set round start time for tracking
+        if ($game.penaltyTriggered) {
+            startPenalty();
+        } else {
+            startThinkingTimer();
+        }
+        
         roundStartTime.set($elapsed);
-        
-        // Load scenario orders into orderList
-        orderList.set(scenarioOrders);
-        
-        thinking = true;
-        thinkRemaining = thinkTime;
+        orderList.set(experimentOrders);
 
-        thinkInterval = setInterval(() => {
-            thinkRemaining -= 1;
-            if (thinkRemaining <= 0) {
-                clearInterval(thinkInterval);
-                thinking = false;
-            }
-        }, 1000);
+        // Delay map init slightly to ensure div is ready
+        setTimeout(initMap, 100);
     });
+
+    // Re-init map when penalty/waiting state ends to ensure it renders correctly
+    $: if (!waiting && !isPenalty && $game.inSelect) {
+        setTimeout(initMap, 100);
+    }
 
     onDestroy(() => {
         clearTimers();
+        if (map) map.remove();
     });
 </script>
 
 {#if $game.inSelect}
-<section class="mx-auto max-w-5xl px-4 py-6 space-y-4">
-    {#if isPenalized}
-        <!-- Penalty timeout screen -->
-        <div class="rounded-2xl bg-red-50 border border-red-200 p-6 text-center space-y-4">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100">
-                <svg class="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-            </div>
-            <h2 class="text-lg font-semibold text-red-900">Penalty Timeout</h2>
-            <p class="text-sm text-red-700">You gave up on the previous order. Please wait before selecting a new order.</p>
-            <div class="text-2xl font-bold text-red-800">{penaltyRemaining}s</div>
-            <div class="w-full bg-red-200 rounded-full h-2.5 max-w-md mx-auto">
-                <div class="bg-red-600 h-2.5 rounded-full transition-all duration-1000" style="width: {(penaltyRemaining / 30) * 100}%"></div>
+<section class="mx-auto max-w-6xl px-4 py-6 space-y-6">
+
+    {#if isPenalty}
+        <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-8 text-center space-y-4 shadow-lg">
+            <h2 class="text-2xl font-bold text-red-800">Penalty Timeout</h2>
+            <p class="text-red-600">You gave up the previous round.</p>
+            <div class="text-4xl font-mono font-bold text-red-900">{penaltyRemaining}s</div>
+            <div class="mt-4">
+                <label class="text-xs font-bold uppercase text-red-400">Customize Penalty (s)</label>
+                <input type="number" bind:value={penaltyTime} class="w-20 text-center border rounded p-1 ml-2" />
             </div>
         </div>
+
     {:else if waiting}
-        <div class="rounded-2xl bg-white shadow-sm border p-6 text-center space-y-4">
-            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-2">
-                <svg class="w-6 h-6 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+        <div class="bg-white rounded-2xl shadow-xl border p-8 text-center space-y-6">
+            <div class="animate-spin text-4xl text-blue-600 mx-auto w-min">⚙️</div>
+            <div>
+                <h2 class="text-2xl font-bold text-slate-800">Traveling to {travelingTo}</h2>
+                <p class="text-slate-500">Driving time...</p>
             </div>
-            <h2 class="text-lg font-semibold text-slate-900">Traveling to {travelingTo}</h2>
-            <div class="w-full bg-gray-200 rounded-full h-2.5 max-w-md mx-auto">
-                <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-1000" style="width: {((duration - travelProgress) / duration) * 100}%"></div>
+            <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden max-w-md mx-auto">
+                <div class="bg-blue-600 h-full transition-all duration-1000 ease-linear" 
+                     style="width: {((duration - travelProgress) / duration) * 100}%"></div>
             </div>
-            <p class="text-sm text-slate-500">Arriving in {Math.max(travelProgress, 0)}s</p>
+            <p class="font-mono text-slate-400">{travelProgress}s remaining</p>
         </div>
+
     {:else}
-        {#if thinking}
-            <div class="rounded-xl bg-blue-50 border border-blue-200 p-4 mb-4 flex justify-between items-center">
-                <p class="text-sm font-medium text-blue-900">
-                    📋 Review available orders ({thinkRemaining}s remaining)
-                </p>
-                <button class="text-xs bg-blue-200 hover:bg-blue-300 text-blue-800 px-3 py-1 rounded transition" on:click={skipThinking}>
-                    Skip Wait
-                </button>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900">Round {$currentRound}</h1>
+                <p class="text-slate-500">Current Location: <span class="font-bold text-blue-600">{$currLocation}</span></p>
             </div>
-        {/if}
-
-        <div class="flex items-baseline justify-between">
-            <h2 class="text-lg font-semibold text-slate-900">Orders in {$currLocation}</h2>
-            <p class="text-xs text-slate-500">Round {$currentRound} • Select up to {maxBundle} {maxBundle === 1 ? 'order' : 'orders'}</p>
-        </div>
-
-        <div class="mt-3 grid gap-4 md:grid-cols-2">
-            {#each filteredOrders as order, i (order.id)}
-                <Order orderData={order} index={i} updateEarnings={updateEarnings}/>
-            {/each}
-            {#if filteredOrders.length === 0}
-                <div class="col-span-2 text-center py-8 text-slate-500">
-                    <p>No orders available in {$currLocation}</p>
-                    <p class="text-xs mt-1">Use the map to travel to another location</p>
+            {#if thinking}
+                <div class="bg-blue-50 px-4 py-2 rounded-lg text-blue-800 text-sm font-medium border border-blue-100">
+                    ⏱️ Review Time: {thinkRemaining}s
+                    <button class="ml-2 text-xs underline opacity-60 hover:opacity-100" on:click={() => thinkRemaining = 0}>Skip</button>
                 </div>
             {/if}
         </div>
 
-        {#if !thinking}
-            <div class="mt-8 grid md:grid-cols-2 gap-8 items-start">
-                <div class="flex flex-col items-center gap-4 p-6 bg-slate-50 rounded-2xl border">
-                    <h3 class="font-semibold text-slate-900">Current Location: {$currLocation}</h3>
-                    
-                    <button
-                        id="startorder"
-                        class="w-full max-w-xs rounded-full bg-green-600 px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        <div class="grid lg:grid-cols-[1fr,1fr] gap-8 mt-4">
+            <div class="space-y-4">
+                <h2 class="text-lg font-semibold text-slate-800">Orders in {$currLocation}</h2>
+                
+                {#if localOrders.length > 0}
+                    <div class="grid gap-4">
+                        {#each localOrders as order, i (order.id)}
+                            <Order orderData={order} index={i} updateEarnings={updateEarnings}/>
+                        {/each}
+                    </div>
+                {:else}
+                    <div class="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                        <p class="text-slate-500">No orders available here.</p>
+                    </div>
+                {/if}
+
+                <div class="bg-slate-50 p-6 rounded-2xl border flex flex-col items-center gap-3 mt-4">
+                    <button id="startorder"
+                        class="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                         on:click={start}
                         disabled={$orders.length === 0}
                     >
-                        {$gameText.selector}
+                        {$gameText.selector === "None selected" ? "Select Orders to Start" : $gameText.selector}
                     </button>
-                    
-                    <p class="text-xs text-slate-500 text-center max-w-xs">
-                        Select orders above, then click start. Or click a city on the map to travel.
-                    </p>
-                </div>
-
-                <div class="bg-white p-4 rounded-2xl border shadow-sm flex flex-col items-center">
-                    <h3 class="text-sm font-semibold mb-2 text-slate-700">Area Map</h3>
-                    <svg viewBox="0 0 100 100" class="w-full max-w-[300px] h-auto border rounded-lg bg-blue-50/30">
-                        <!-- Connection lines -->
-                        <line x1="50" y1="30" x2="20" y2="55" stroke="#cbd5e1" stroke-width="2" />
-                        <line x1="50" y1="30" x2="80" y2="55" stroke="#cbd5e1" stroke-width="2" />
-                        <line x1="50" y1="30" x2="50" y2="80" stroke="#cbd5e1" stroke-width="2" />
-                        <line x1="20" y1="55" x2="50" y2="80" stroke="#cbd5e1" stroke-width="2" />
-                        <line x1="80" y1="55" x2="50" y2="80" stroke="#cbd5e1" stroke-width="2" />
-                        
-                        <!-- City nodes -->
-                        {#each Object.entries(mapCoords) as [city, coords]}
-                            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-                            <g class="cursor-pointer hover:opacity-80 transition" role="button" tabindex="0" on:click={() => travel(city, false)} on:keydown={(e) => e.key === 'Enter' && travel(city, false)}>
-                                <circle cx={coords.cx} cy={coords.cy} r="8" 
-                                    fill={city === $currLocation ? '#16a34a' : '#fff'} 
-                                    stroke={city === $currLocation ? '#166534' : '#64748b'} 
-                                    stroke-width="2" />
-                                <text x={coords.cx} y={coords.cy + 15} font-size="6" text-anchor="middle" fill="#334155" font-weight="bold">
-                                    {city}
-                                </text>
-                                {#if city === $currLocation}
-                                    <circle cx={coords.cx} cy={coords.cy} r="3" fill="white" />
-                                {/if}
-                            </g>
-                        {/each}
-                    </svg>
                 </div>
             </div>
-        {/if}
+
+            <div class="h-[500px] bg-slate-100 rounded-2xl border shadow-sm overflow-hidden relative">
+                <div id="map" class="w-full h-full z-0"></div>
+                <div class="absolute bottom-4 left-4 bg-white/90 p-2 rounded shadow text-xs z-[1000] pointer-events-none">
+                    Click a city circle to travel
+                </div>
+            </div>
+        </div>
     {/if}
+
 </section>
 {/if}
