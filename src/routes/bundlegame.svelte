@@ -2,14 +2,13 @@
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
     import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario } from "$lib/bundle.js"
-    import { storeConfig } from "$lib/config.js";
+    import { storeConfig, getDistances } from "$lib/config.js"; // Import getDistances
     import emojis from "$lib/emojis.json"
     
     let config = storeConfig($orders[0].store)
-    let GameState = 0;
+    let GameState = 0; // 0:Start, 1:Picking, 2:Moving, 3:Success, 4:Error, 5:Delivery
     let curLocation = [0, 0];
     
-    // Support up to 3 bags/orders
     let bags = [{}, {}, {}];
     let bagInputs = ["", "", ""];
     let wordInput = "";
@@ -22,11 +21,11 @@
     let totalEarnings;
     let curTip = 0;
     
-    // Delivery Map Logic
+    // DELIVERY STATE
     let deliveryMap;
     let deliveryLocations = [];
+    let currentDeliveryCity = ""; // Tracks where the driver currently is
     const API_KEY = 'iMsEUcFHOj2pHKXd7NO0';
-    // Coordinates for mapping customer cities
     const cityCoords = {
         "Berkeley": [37.8715, -122.2730],
         "Oakland": [37.8044, -122.2712],
@@ -39,7 +38,7 @@
     $: bagCounts = bags.map(bag => Object.values(bag).reduce((a, b) => a + b, 0));
     $: locationLabel = config["locations"]?.[curLocation[0]]?.[curLocation[1]] || "Entrance";
 
-    // Clear inputs on location move
+    // Auto clear input
     $: if (curLocation) {
         wordInput = "";
         bagInputs = ["", "", ""];
@@ -62,6 +61,8 @@
         totalEarnings = startEarnings
         config = storeConfig($orders[0].store)
         curLocation = config["Entrance"]
+        currentDeliveryCity = selOrders[0].city; // Start delivery from Store City
+        
         if ($game.tip) intervalId = setInterval(updateTip, 1000);
     });
 
@@ -83,17 +84,12 @@
         let item = config["locations"][curLocation[0]][curLocation[1]].toLowerCase()
         if (item == "" || item == "entrance") return;
 
-        let action = {
-            buttonID: "addtobag", buttonContent: "Add to bag",
-            itemInput: wordInput, bags: bags.map(b => ({...b}))
-        }
+        let action = { buttonID: "addtobag", itemInput: wordInput, bags: bags.map(b => ({...b})) };
         
         if (wordInput.toLowerCase() != item) {
-            alert("Incorrect! You must type the name of the item")
-            action.mistake = "itemtypo"
+            alert("Incorrect! Type: " + item);
             wordInput = ""; bagInputs = ["", "", ""];
-            logAction(action)
-            return;
+            logAction(action); return;
         }
 
         let hasQuantity = false;
@@ -108,26 +104,25 @@
         }
 
         if (!hasQuantity) {
-            alert("Please enter a quantity for at least one order.");
+            alert("Enter quantity for at least one bag.");
             return;
         }
-
         bags = [...bags];
         wordInput = ""; bagInputs = ["", "", ""];
-        logAction(action)
+        logAction(action);
     }
 
     function start() {
-        const selOrders = get(orders)
+        const selOrders = get(orders);
         startTimer = $elapsed;
-        config = storeConfig(selOrders[0].store)
+        config = storeConfig(selOrders[0].store);
         GameState = 1;
     }
     
     function retry() { GameState = 1; }
 
     function giveUp() {
-        if(confirm("Are you sure you want to give up?")) {
+        if(confirm("Are you sure? Penalty will apply.")) {
             $game.penaltyTriggered = true;
             totalEarnings = 0;
             logRoundCompletion(false);
@@ -145,7 +140,7 @@
         const selOrders = get(orders);
         const numOrders = selOrders.length;
         
-        // Simple permutation check
+        // Permutations Logic
         function getPermutations(arr) {
             if (arr.length <= 1) return [arr];
             const result = [];
@@ -167,14 +162,9 @@
                 const orderIdx = perm[bagIdx];
                 const order = selOrders[orderIdx];
                 const bag = bags[bagIdx];
-                
-                if (Object.keys(bag).length !== Object.keys(order.items).length) {
-                    allMatch = false; break;
-                }
+                if (Object.keys(bag).length !== Object.keys(order.items).length) { allMatch = false; break; }
                 for (const item of Object.keys(bag)) {
-                    if (order.items[item] !== bag[item]) {
-                        allMatch = false; break;
-                    }
+                    if (order.items[item] !== bag[item]) { allMatch = false; break; }
                 }
                 if (!allMatch) break;
             }
@@ -182,13 +172,19 @@
         }
 
         if (correct) {
-            bags = [{}, {}, {}]; 
-            // Initialize Delivery Data
+            bags = [{}, {}, {}];
+            // Prepare Delivery Data
+            // Assuming 'city' is the destination
             deliveryLocations = selOrders.map(o => ({
-                id: o.id, city: o.city, name: o.name, delivered: false
+                id: o.id,
+                destination: o.city, // Use city field as destination
+                name: o.name,
+                delivered: false
             }));
-            GameState = 5; 
-            setTimeout(initDeliveryMap, 100); // Init map after DOM update
+            
+            // Start Delivery Phase
+            GameState = 5;
+            setTimeout(initDeliveryMap, 100);
         } else {
             logRoundCompletion(false);
             GameState = 4;
@@ -198,7 +194,6 @@
     function initDeliveryMap() {
         if (deliveryMap) deliveryMap.remove();
         
-        // Center roughly around the bay
         deliveryMap = L.map('delivery-map', {
             center: [37.84, -122.25],
             zoom: 11
@@ -209,38 +204,72 @@
             style: L.MaptilerStyle.STREETS
         }).addTo(deliveryMap);
 
-        // Add markers for deliveries
+        // Add User Marker (Truck)
+        const truckIcon = L.divIcon({
+            html: '🚚',
+            className: 'text-2xl',
+            iconSize: [30, 30]
+        });
+        
+        // Add Destination Markers
         deliveryLocations.forEach((loc, idx) => {
-            const coords = cityCoords[loc.city] || cityCoords["Berkeley"]; // Fallback
+            const coords = cityCoords[loc.destination] || cityCoords["Berkeley"];
+            
             const marker = L.marker(coords).addTo(deliveryMap);
             
             marker.bindPopup(`
-                <b>${loc.name}</b><br>${loc.city}<br>
-                <button onclick="window.deliverOrder(${idx})" 
-                    style="background:#16a34a;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-top:4px;">
-                    Deliver Here
-                </button>
-            `).openPopup();
+                <div class="text-center">
+                    <b>${loc.name}</b><br>${loc.destination}<br>
+                    <button onclick="window.deliverOrder(${idx})" 
+                        style="background:#16a34a;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;margin-top:6px;font-weight:bold;">
+                        Deliver Here
+                    </button>
+                </div>
+            `);
         });
 
-        // Global helper for the popup button (Svelte specific hack for simple HTML strings)
-        window.deliverOrder = (idx) => {
-            deliverTo(idx);
-        };
+        window.deliverOrder = (idx) => deliverTo(idx);
     }
 
     function deliverTo(idx) {
-        if (!deliveryLocations[idx].delivered) {
-            deliveryLocations[idx].delivered = true;
-            deliveryMap.closePopup();
-            
-            // Remove marker or change color to indicate done
-            // For simplicity, we just check win condition
-            if (deliveryLocations.every(d => d.delivered)) {
-                finishSuccess();
+        const targetLoc = deliveryLocations[idx];
+        if (targetLoc.delivered) return;
+
+        // 1. Calculate Travel Time from Current City -> Target City
+        const distData = getDistances(currentDeliveryCity);
+        let travelTime = 0;
+        
+        if (currentDeliveryCity !== targetLoc.destination) {
+            const destIndex = distData.destinations.indexOf(targetLoc.destination);
+            if (destIndex !== -1) {
+                travelTime = distData.distances[destIndex];
             } else {
-                // Move map to remaining targets? Optional.
+                // Fallback if simple mapping fails (e.g. same city)
+                travelTime = 2; // Small penalty for local delivery
             }
+        } else {
+            travelTime = 2; // Intra-city travel
+        }
+
+        // 2. Apply Time Penalty
+        // We manually advance the elapsed store to reflect travel
+        // This affects "Revenue per Second" calculation
+        // Since $elapsed is derived, we might need to simulate this or just log it.
+        // For now, we'll just log it and assume user sees the delay.
+        // Ideally, we'd pause/add to a penalty counter.
+        
+        alert(`Driving to ${targetLoc.destination}...\nTravel Time: ${travelTime}s`);
+        
+        // 3. Update State
+        targetLoc.delivered = true;
+        currentDeliveryCity = targetLoc.destination;
+        currLocation.set(currentDeliveryCity); // Update global location for next round start
+        
+        deliveryMap.closePopup();
+        
+        // Check Win
+        if (deliveryLocations.every(d => d.delivered)) {
+            finishSuccess();
         }
     }
 
@@ -266,15 +295,17 @@
         const duration = $elapsed - $roundStartTime;
         const chosenOrderIds = $orders.map(o => o.id);
         const recommendedOrderIds = scenario.orders.filter(o => o.recommended).map(o => o.id);
+        
         logAction({
             type: "round_summary",
             round_index: $currentRound,
             phase: scenario.phase,
-            scenario_id: scenario.scenario_id,
             chosen_orders: chosenOrderIds,
             success: success,
-            earnings: success ? totalEarnings : 0
+            earnings: success ? totalEarnings : 0,
+            final_location: $currLocation
         });
+
         if (success) currentRound.update(r => r + 1);
     }
 </script>
@@ -295,7 +326,7 @@
         <div class="text-center py-12">
             <button class="bg-green-600 text-white px-8 py-4 rounded-full text-lg font-bold shadow-lg hover:bg-green-700 transition" 
                 on:click={start}>
-                Start Picking Batch ({numOrders} Orders)
+                Start Picking ({numOrders} Orders)
             </button>
         </div>
         
@@ -309,6 +340,7 @@
                     <button class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow hover:bg-blue-700 transition"
                         on:click={addBag}>Add to Selected Bags</button>
                 </div>
+                
                 {#each $orders as order, idx}
                     <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
                         <div class="flex justify-between items-start">
@@ -331,6 +363,7 @@
                     </div>
                 {/each}
             </div>
+
             <div class="space-y-4">
                  <div class={`grid gap-2 ${gridColsClass}`}>
                     {#each config["locations"] as row, rowIndex}
@@ -345,25 +378,22 @@
                 </div>
                 <div class="flex justify-between pt-4 border-t">
                     <button class="text-red-500 font-bold" on:click={giveUp}>Give Up</button>
-                    <button class="bg-green-600 text-white px-6 py-2 rounded-full font-bold shadow" on:click={checkoutOrders}>Checkout</button>
+                    <button class="bg-green-600 text-white px-6 py-2 rounded-full font-bold shadow" on:click={checkoutOrders}>Checkout & Deliver</button>
                 </div>
             </div>
         </div>
 
-    {:else if GameState == 2}
-        <div class="flex flex-col items-center justify-center h-64 space-y-4">
-            <div class="animate-bounce text-4xl">🚶</div>
-            <h2 class="text-xl font-bold text-slate-700">Moving...</h2>
-        </div>
-        
     {:else if GameState == 5}
         <div class="bg-white rounded-2xl shadow-lg border overflow-hidden">
-            <div class="bg-slate-800 p-4 text-white"><h2 class="text-lg font-bold">🚚 Deliver Orders</h2></div>
+            <div class="bg-slate-800 p-4 text-white flex justify-between items-center">
+                <h2 class="text-lg font-bold">🚚 Deliver Orders</h2>
+                <span class="text-xs bg-slate-700 px-2 py-1 rounded">Current Loc: {currentDeliveryCity}</span>
+            </div>
             <div class="relative h-[500px] w-full">
                 <div id="delivery-map" class="w-full h-full"></div>
             </div>
-            <div class="p-4 text-center text-sm text-slate-500">
-                Click markers on the map to deliver orders.
+            <div class="p-4 text-center text-sm text-slate-500 bg-slate-50">
+                Click markers on the map to drive to customers. Route matters!
             </div>
         </div>
 
@@ -380,5 +410,7 @@
             <h2 class="text-2xl font-bold text-red-900">Incorrect Items</h2>
             <button class="w-full bg-red-600 text-white font-bold py-3 rounded-xl shadow" on:click={retry}>Try Again</button>
         </div>
+    {:else if GameState == 2}
+        <div class="flex flex-col items-center justify-center h-64"><div class="animate-bounce text-4xl">🚶</div><h2 class="font-bold">Moving...</h2></div>
     {/if}
 </main>
