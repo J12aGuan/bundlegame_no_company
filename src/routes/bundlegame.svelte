@@ -108,6 +108,7 @@
 
         // Process quantities for each bag
         let quantities = [];
+        let hasQuantity = false;
         for (let i = 0; i < numOrders; i++) {
             let inputVal = bagInputs[i].trim();
             if (inputVal === "") {
@@ -122,8 +123,17 @@
                     logAction(action)
                     return;
                 }
+                if (qty > 0) hasQuantity = true;
                 quantities.push(qty);
             }
+        }
+
+        // FIX: Check if at least one quantity was entered
+        if (!hasQuantity) {
+            alert("Please enter a quantity for at least one bag.");
+            action.mistake = "noquantity"
+            logAction(action)
+            return;
         }
 
         // Add to bags
@@ -153,6 +163,19 @@
         startTimer = $elapsed;
         config = storeConfig(selOrders[0].store)
         GameState = 1;
+    }
+    
+    // FIX: Retry without resetting timer
+    function retry() {
+        GameState = 1;
+    }
+
+    function giveUp() {
+        if(confirm("Are you sure you want to give up? You will incur a penalty.")) {
+            totalEarnings = 0; // Penalty: 0 earnings
+            logRoundCompletion(false);
+            exit();
+        }
     }
     
     function exit() {
@@ -213,31 +236,40 @@
             }
         }
 
-        // Clear bags
-        bags = [{}, {}, {}];
-
         if (correct) {
-            // Log round completion
-            logRoundCompletion(true);
-            
-            $earned += totalEarnings;
-            $uniqueSets += 1;
-            
-            selOrders.forEach(order => {
-                completeOrder(order.id);
-                $finishedOrders.push(order);
-            });
-            
-            // Remove completed orders
-            for (let i = 0; i < numOrders; i++) {
-                $orders.shift();
-            }
-            
-            GameState = 3;
+            // Clear bags on success
+            bags = [{}, {}, {}];
+            // Start Delivery Phase
+            GameState = 5;
+            setTimeout(() => {
+                finishSuccess();
+            }, 3000); // 3 second delivery simulation
         } else {
+            // Keep bags for retry - don't clear them
             logRoundCompletion(false);
             GameState = 4;
         }
+    }
+
+    function finishSuccess() {
+        // Log round completion
+        logRoundCompletion(true);
+        
+        $earned += totalEarnings;
+        $uniqueSets += 1;
+        
+        const selOrders = get(orders);
+        selOrders.forEach(order => {
+            completeOrder(order.id);
+            $finishedOrders.push(order);
+        });
+        
+        // Remove completed orders
+        for (let i = 0; i < numOrders; i++) {
+            $orders.shift();
+        }
+        
+        GameState = 3;
     }
 
     function logRoundCompletion(success) {
@@ -429,13 +461,21 @@
                 <div class="text-xs text-slate-600">
                     <p>Items: {#each bagCounts as count, idx}Bag {idx + 1} ({count}){idx < numOrders - 1 ? ' · ' : ''}{/each}</p>
                 </div>
-                <button
-                    id="checkout"
-                    class="rounded-full bg-green-600 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
-                    on:click={checkoutOrders}
-                >
-                    Checkout and Exit
-                </button>
+                <div class="flex gap-2">
+                    <button
+                        class="rounded-full bg-red-100 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-200 transition"
+                        on:click={giveUp}
+                    >
+                        Give Up
+                    </button>
+                    <button
+                        id="checkout"
+                        class="rounded-full bg-green-600 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
+                        on:click={checkoutOrders}
+                    >
+                        Checkout and Exit
+                    </button>
+                </div>
             </div>
         </footer>
 
@@ -451,6 +491,20 @@
             <p class="text-xs text-blue-700">Travel time: {dist*config["cellDistance"]/1000}s</p>
         </div>
 
+    {:else if GameState == 5}
+        <!-- Delivering -->
+        <div class="rounded-2xl bg-purple-50 border border-purple-200 p-6 text-center space-y-4">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-100 animate-pulse">
+                <svg class="w-8 h-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-lg font-semibold text-purple-900">Delivering Orders...</p>
+                <p class="text-sm text-purple-700">Driving to customers</p>
+            </div>
+        </div>
+
     {:else if GameState == 3}
         <!-- Success -->
         <div class="rounded-2xl bg-green-50 border border-green-200 p-6 text-center space-y-4">
@@ -461,7 +515,7 @@
             </div>
             <div>
                 <p class="text-lg font-semibold text-green-900">Order Complete!</p>
-                <p class="text-sm text-green-700">All items collected correctly</p>
+                <p class="text-sm text-green-700">All items collected and delivered</p>
                 <p class="text-xs text-slate-500 mt-2">Round {$currentRound - 1} finished</p>
             </div>
             <button 
@@ -488,7 +542,7 @@
             <button 
                 class="rounded-full bg-red-600 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-red-700 transition" 
                 id="orderretry" 
-                on:click={start}
+                on:click={retry}
             >
                 Try Again
             </button>
