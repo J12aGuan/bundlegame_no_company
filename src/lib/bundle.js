@@ -150,6 +150,7 @@ export const orders = writable([])
 export const finishedOrders = writable([])
 export const failedOrders = writable([])
 export const id = writable("")
+export const penaltyEndTime = writable(0) // Time when penalty expires
 
 export const earned = writable(0);
 export const currLocation = writable("");

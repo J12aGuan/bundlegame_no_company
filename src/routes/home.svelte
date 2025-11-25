@@ -1,6 +1,6 @@
 <script>
     import { get } from 'svelte/store';
-    import { game, orders, gameText, currLocation, logOrder, logBundledOrder, logOrders, orderList, ordersShown, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed } from "$lib/bundle.js";
+    import { game, orders, gameText, currLocation, logOrder, logBundledOrder, logOrders, orderList, ordersShown, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed, penaltyEndTime } from "$lib/bundle.js";
     import { queueNFixedOrders, getDistances } from "$lib/config.js";
     import Order from "./order.svelte";
     import { onMount, onDestroy } from "svelte";
@@ -9,6 +9,9 @@
     $: scenario = getCurrentScenario($currentRound);
     $: maxBundle = scenario.max_bundle ?? 3;
     $: scenarioOrders = scenario.orders;
+    
+    // Filter orders by current location
+    $: filteredOrders = $orderList.filter(o => o.city === $currLocation);
 
     let waiting = false;
     $: distances = getDistances($currLocation);
@@ -19,6 +22,10 @@
     let thinkRemaining = thinkTime;
     let thinkInterval;
     let travelTimer;
+    
+    // Penalty system
+    $: isPenalized = $penaltyEndTime > $elapsed;
+    $: penaltyRemaining = Math.max(0, $penaltyEndTime - $elapsed);
 
     // Hardcoded map coordinates for visualization (approximate relative positions)
     const mapCoords = {
@@ -27,6 +34,17 @@
         "Emeryville": { cx: 20, cy: 55 },
         "Piedmont": { cx: 80, cy: 55 }
     };
+
+    function clearTimers() {
+        if (thinkInterval) {
+            clearInterval(thinkInterval);
+            thinkInterval = null;
+        }
+        if (travelTimer) {
+            clearInterval(travelTimer);
+            travelTimer = null;
+        }
+    }
 
     function start() {
         const selOrders = get(orders)
@@ -80,6 +98,10 @@
         waiting = true;
         travelingTo = city;
         travelProgress = duration;
+        
+        // Clear any pending selections when traveling
+        $orders = [];
+        $gameText.selector = "None selected";
 
         // Visual countdown for travel progress
         travelTimer = setInterval(() => {
@@ -143,18 +165,28 @@
     });
 
     onDestroy(() => {
-        if (thinkInterval) {
-            clearInterval(thinkInterval);
-        }
-        if (travelTimer) {
-            clearInterval(travelTimer);
-        }
+        clearTimers();
     });
 </script>
 
 {#if $game.inSelect}
 <section class="mx-auto max-w-5xl px-4 py-6 space-y-4">
-    {#if waiting}
+    {#if isPenalized}
+        <!-- Penalty timeout screen -->
+        <div class="rounded-2xl bg-red-50 border border-red-200 p-6 text-center space-y-4">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100">
+                <svg class="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <h2 class="text-lg font-semibold text-red-900">Penalty Timeout</h2>
+            <p class="text-sm text-red-700">You gave up on the previous order. Please wait before selecting a new order.</p>
+            <div class="text-2xl font-bold text-red-800">{penaltyRemaining}s</div>
+            <div class="w-full bg-red-200 rounded-full h-2.5 max-w-md mx-auto">
+                <div class="bg-red-600 h-2.5 rounded-full transition-all duration-1000" style="width: {(penaltyRemaining / 30) * 100}%"></div>
+            </div>
+        </div>
+    {:else if waiting}
         <div class="rounded-2xl bg-white shadow-sm border p-6 text-center space-y-4">
             <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-2">
                 <svg class="w-6 h-6 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -181,14 +213,20 @@
         {/if}
 
         <div class="flex items-baseline justify-between">
-            <h2 class="text-lg font-semibold text-slate-900">Available orders</h2>
+            <h2 class="text-lg font-semibold text-slate-900">Orders in {$currLocation}</h2>
             <p class="text-xs text-slate-500">Round {$currentRound} • Select up to {maxBundle} {maxBundle === 1 ? 'order' : 'orders'}</p>
         </div>
 
         <div class="mt-3 grid gap-4 md:grid-cols-2">
-            {#each $orderList as order, i (order.id)}
+            {#each filteredOrders as order, i (order.id)}
                 <Order orderData={order} index={i} updateEarnings={updateEarnings}/>
             {/each}
+            {#if filteredOrders.length === 0}
+                <div class="col-span-2 text-center py-8 text-slate-500">
+                    <p>No orders available in {$currLocation}</p>
+                    <p class="text-xs mt-1">Use the map to travel to another location</p>
+                </div>
+            {/if}
         </div>
 
         {#if !thinking}

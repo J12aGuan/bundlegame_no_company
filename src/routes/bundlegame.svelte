@@ -1,8 +1,8 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario } from "$lib/bundle.js"
-    import { storeConfig } from "$lib/config.js";
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario, penaltyEndTime } from "$lib/bundle.js"
+    import { storeConfig, getDistances } from "$lib/config.js";
     import emojis from "$lib/emojis.json"
     
     let config = storeConfig($orders[0].store)
@@ -11,8 +11,7 @@
     
     // Support up to 3 bags
     let bags = [{}, {}, {}];
-    let selectedBagIndex = 0;
-    let bagInputs = ["", "", ""];
+    let orderInputs = [{}, {}, {}]; // Per-order inputs for each item
     let wordInput = "";
     
     let dist = 0;
@@ -23,10 +22,24 @@
     let totalEarnings;
     let curTip = 0;
     
+    // Delivery phase tracking
+    let deliveryIndex = 0;
+    let deliveryProgress = 0;
+    let deliveryTimer;
+    
+    // Map coordinates for delivery visualization
+    const mapCoords = {
+        "Berkeley": { cx: 50, cy: 30 },
+        "Oakland": { cx: 50, cy: 80 },
+        "Emeryville": { cx: 20, cy: 55 },
+        "Piedmont": { cx: 80, cy: 55 }
+    };
+    
     $: numOrders = $orders.length;
     $: endTimer = $elapsed - startTimer;
     $: bagCounts = bags.map(bag => Object.values(bag).reduce((a, b) => a + b, 0));
     $: locationLabel = config["locations"]?.[curLocation[0]]?.[curLocation[1]] || "Entrance";
+    $: currentItem = config["locations"]?.[curLocation[0]]?.[curLocation[1]]?.toLowerCase() || "";
 
     function updateTip() {
         let tipIndex = Math.floor(endTimer / config["tipinterval"])
@@ -64,7 +77,15 @@
         if ($game.tip) {
             clearInterval(intervalId);
         }
+        if (deliveryTimer) {
+            clearInterval(deliveryTimer);
+        }
     });
+
+    function clearInputs() {
+        wordInput = "";
+        orderInputs = [{}, {}, {}];
+    }
 
     function handleCell(value, row, col) {
         if (value == "") {
@@ -73,13 +94,17 @@
         dist = Math.abs(row - curLocation[0]) + Math.abs(col - curLocation[1]);
         curLocation[0] = row;
         curLocation[1] = col;
+        
+        // Clear inputs when moving to new location
+        clearInputs();
+        
         GameState = 2;
         setTimeout(() => {
             GameState = 1;
         }, dist*config["cellDistance"])
     }
 
-    function addBag() {
+    function addItemToOrder(orderIdx) {
         const selOrders = get(orders)
         let item = config["locations"][curLocation[0]][curLocation[1]].toLowerCase()
         
@@ -87,71 +112,47 @@
             return;
         }
 
+        const qtyInput = orderInputs[orderIdx][item] || "";
+        
         // Build action for logging
         let action = {
-            buttonID: "addtobag",
-            buttonContent: "Add to bag",
-            itemInput: wordInput,
-            selectedBag: selectedBagIndex + 1,
+            buttonID: "addtoorder",
+            buttonContent: "Add to order",
+            itemInput: item,
+            selectedOrder: orderIdx + 1,
+            quantity: qtyInput,
             bags: bags.map(b => ({...b}))
         }
         
-        // Validate item name
-        if (wordInput.toLowerCase() != item.toLowerCase()) {
-            alert("Incorrect! You must type the name of the item")
-            action.mistake = "itemtypo"
-            wordInput = "";
-            bagInputs = ["", "", ""];
-            logAction(action)
-            return;
-        }
-
-        // Process quantities for each bag
-        let quantities = [];
-        let hasQuantity = false;
-        for (let i = 0; i < numOrders; i++) {
-            let inputVal = bagInputs[i].trim();
-            if (inputVal === "") {
-                quantities.push(0);
-            } else {
-                let qty = parseInt(inputVal);
-                if (isNaN(qty)) {
-                    alert("Error: Quantity inputs must be numbers")
-                    action.mistake = "numberempty"
-                    wordInput = "";
-                    bagInputs = ["", "", ""];
-                    logAction(action)
-                    return;
-                }
-                if (qty > 0) hasQuantity = true;
-                quantities.push(qty);
-            }
-        }
-
-        // FIX: Check if at least one quantity was entered
-        if (!hasQuantity) {
-            alert("Please enter a quantity for at least one bag.");
+        if (qtyInput === "" || qtyInput === "0") {
+            alert("Please enter a quantity")
             action.mistake = "noquantity"
             logAction(action)
             return;
         }
 
-        // Add to bags
-        for (let i = 0; i < numOrders; i++) {
-            if (quantities[i] !== 0) {
-                if (Object.keys(bags[i]).includes(item)) {
-                    bags[i][item] += quantities[i];
-                } else {
-                    bags[i][item] = quantities[i];
-                }
-                if (bags[i][item] <= 0) {
-                    delete bags[i][item];
-                }
-            }
+        let qty = parseInt(qtyInput);
+        if (isNaN(qty)) {
+            alert("Error: Quantity must be a number")
+            action.mistake = "numberempty"
+            logAction(action)
+            return;
         }
 
-        wordInput = "";
-        bagInputs = ["", "", ""];
+        // Add to bag
+        if (Object.keys(bags[orderIdx]).includes(item)) {
+            bags[orderIdx][item] += qty;
+        } else {
+            bags[orderIdx][item] = qty;
+        }
+        if (bags[orderIdx][item] <= 0) {
+            delete bags[orderIdx][item];
+        }
+
+        // Clear the input for this item/order
+        orderInputs[orderIdx][item] = "";
+        orderInputs = orderInputs; // Trigger reactivity
+        
         logAction(action)
         
         // Trigger reactivity
@@ -171,9 +172,13 @@
     }
 
     function giveUp() {
-        if(confirm("Are you sure you want to give up? You will incur a penalty.")) {
+        if(confirm("Are you sure you want to give up? You will incur a 30 second penalty.")) {
             totalEarnings = 0; // Penalty: 0 earnings
             logRoundCompletion(false);
+            
+            // Set penalty end time (30 seconds from now)
+            penaltyEndTime.set($elapsed + 30);
+            
             exit();
         }
     }
@@ -239,15 +244,30 @@
         if (correct) {
             // Clear bags on success
             bags = [{}, {}, {}];
-            // Start Delivery Phase
-            GameState = 5;
-            setTimeout(() => {
-                finishSuccess();
-            }, 3000); // 3 second delivery simulation
+            // Start Delivery Phase with interactive map
+            startDeliveryPhase();
         } else {
             // Keep bags for retry - don't clear them
             logRoundCompletion(false);
             GameState = 4;
+        }
+    }
+
+    function startDeliveryPhase() {
+        deliveryIndex = 0;
+        GameState = 5;
+    }
+
+    function deliverToCustomer(city) {
+        const selOrders = get(orders);
+        const targetCity = selOrders[deliveryIndex]?.deliveryCity || selOrders[deliveryIndex]?.city;
+        
+        if (city === targetCity) {
+            deliveryIndex++;
+            if (deliveryIndex >= numOrders) {
+                // All deliveries complete
+                finishSuccess();
+            }
         }
     }
 
@@ -364,78 +384,86 @@
         
     {:else if GameState == 1}
         <!-- Active picking -->
-        <div class="grid md:grid-cols-[2fr,3fr] gap-4">
-            <!-- Left: Bags with tabs -->
-            <section class="rounded-2xl bg-white shadow-sm border p-4 space-y-3">
-                <!-- Bag tabs -->
-                <div class="flex gap-1 border-b pb-2">
-                    {#each Array(numOrders) as _, idx}
-                        <button
-                            class="flex-1 rounded-t-lg px-3 py-1.5 text-xs font-medium transition {selectedBagIndex === idx ? 'bg-green-100 text-green-700' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}"
-                            on:click={() => selectedBagIndex = idx}
-                        >
-                            Bag {idx + 1}
-                            {#if bagCounts[idx] > 0}
-                                <span class="ml-1 rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px]">
-                                    {bagCounts[idx]}
+        <div class="grid md:grid-cols-[3fr,2fr] gap-4">
+            <!-- Left: Order cards with integrated inputs -->
+            <section class="space-y-4">
+                {#each $orders as order, idx}
+                    <div class="rounded-2xl bg-white shadow-sm border p-4 space-y-3">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-900">Order {idx + 1} - {order.name}</p>
+                                <p class="text-xs text-slate-500">Pay: ${order.earnings}</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                                    Bag: {bagCounts[idx]} items
                                 </span>
-                            {/if}
-                        </button>
-                    {/each}
-                </div>
-
-                <!-- Show all bags -->
-                <div class="space-y-3">
-                    {#each Array(numOrders) as _, idx}
-                        <div>
-                            <h5 class="text-xs font-medium text-slate-700 mb-1">
-                                Bag {idx + 1} - {$orders[idx].name}
-                            </h5>
-                            <ul class="text-xs text-slate-600 space-y-0.5 pl-2">
-                                {#each Object.keys(bags[idx]) as key}
-                                    <li class="flex justify-between">
-                                        <span>{key}</span>
-                                        <span class="font-medium">{bags[idx][key]}</span>
-                                    </li>
-                                {/each}
-                                {#if Object.keys(bags[idx]).length === 0}
-                                    <li class="text-slate-400 italic text-[10px]">Empty</li>
-                                {/if}
-                            </ul>
+                            </div>
                         </div>
-                    {/each}
-                </div>
-
-                <!-- Add to bag form -->
-                <div class="pt-3 border-t space-y-2">
-                    <input 
-                        class="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500" 
-                        bind:value={wordInput}
-                        placeholder="Item name"
-                    />
-                    <div class="grid gap-2" style="grid-template-columns: repeat({numOrders}, 1fr);">
-                        {#each Array(numOrders) as _, idx}
-                            <input 
-                                class="rounded-lg border border-slate-200 px-2 py-1.5 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500" 
-                                bind:value={bagInputs[idx]}
-                                placeholder="Bag {idx + 1}"
-                                type="number"
-                            />
-                        {/each}
+                        
+                        <!-- Items needed with inline input -->
+                        <div class="space-y-2">
+                            {#each Object.keys(order.items) as item}
+                                {@const collected = bags[idx][item] || 0}
+                                {@const needed = order.items[item]}
+                                {@const isCurrentItem = currentItem === item.toLowerCase()}
+                                <div class="flex items-center justify-between gap-2 p-2 rounded-lg {isCurrentItem ? 'bg-green-50 border border-green-200' : 'bg-slate-50'}">
+                                    <div class="flex items-center gap-2 flex-1">
+                                        {#if emojis[item.charAt(0).toUpperCase() + item.slice(1)]}
+                                            <span class="text-lg">{emojis[item.charAt(0).toUpperCase() + item.slice(1)]}</span>
+                                        {/if}
+                                        <span class="text-xs font-medium text-slate-700">{item}</span>
+                                        <span class="text-xs text-slate-500">
+                                            ({collected}/{needed})
+                                        </span>
+                                        {#if collected >= needed}
+                                            <span class="text-green-600 text-xs">✓</span>
+                                        {/if}
+                                    </div>
+                                    
+                                    {#if isCurrentItem}
+                                        <div class="flex items-center gap-1">
+                                            <input 
+                                                type="number" 
+                                                class="w-16 rounded border border-green-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                                                bind:value={orderInputs[idx][item]}
+                                                placeholder="qty"
+                                            />
+                                            <button 
+                                                class="rounded bg-green-600 px-2 py-1 text-xs font-semibold text-white hover:bg-green-700 transition"
+                                                on:click={() => addItemToOrder(idx)}
+                                            >
+                                                Add
+                                            </button>
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/each}
+                        </div>
+                        
+                        <!-- Bag contents summary -->
+                        {#if Object.keys(bags[idx]).length > 0}
+                            <div class="pt-2 border-t">
+                                <p class="text-[10px] text-slate-500 mb-1">In bag:</p>
+                                <div class="flex flex-wrap gap-1">
+                                    {#each Object.keys(bags[idx]) as bagItem}
+                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">
+                                            {bagItem}: {bags[idx][bagItem]}
+                                        </span>
+                                    {/each}
+                                </div>
+                            </div>
+                        {/if}
                     </div>
-                    <button 
-                        id="addtobag" 
-                        class="w-full rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition" 
-                        on:click={addBag}
-                    >
-                        Add to bags
-                    </button>
-                </div>
+                {/each}
             </section>
 
             <!-- Right: Store layout -->
-            <section class="rounded-2xl bg-white shadow-sm border p-4 space-y-3">
-                <h3 class="text-sm font-semibold text-slate-900">Store layout</h3>
+            <section class="rounded-2xl bg-white shadow-sm border p-4 space-y-3 sticky top-4 h-fit">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-slate-900">Store layout</h3>
+                    <span class="text-xs text-slate-500">At: {locationLabel}</span>
+                </div>
                 <div class={`grid gap-2 ${gridColsClass}`}>
                     {#each config["locations"] as row, rowIndex}
                         {#each row as cell, colIndex}
@@ -459,7 +487,7 @@
         <footer class="sticky bottom-0 mt-4 rounded-2xl border border-slate-200 bg-white/95 backdrop-blur shadow-lg">
             <div class="flex items-center justify-between px-4 py-3">
                 <div class="text-xs text-slate-600">
-                    <p>Items: {#each bagCounts as count, idx}Bag {idx + 1} ({count}){idx < numOrders - 1 ? ' · ' : ''}{/each}</p>
+                    <p>Items: {#each bagCounts as count, idx}Order {idx + 1} ({count}){idx < numOrders - 1 ? ' · ' : ''}{/each}</p>
                 </div>
                 <div class="flex gap-2">
                     <button
@@ -473,7 +501,7 @@
                         class="rounded-full bg-green-600 px-6 py-2 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
                         on:click={checkoutOrders}
                     >
-                        Checkout and Exit
+                        Checkout and Deliver
                     </button>
                 </div>
             </div>
@@ -492,16 +520,50 @@
         </div>
 
     {:else if GameState == 5}
-        <!-- Delivering -->
+        <!-- Delivering with interactive map -->
         <div class="rounded-2xl bg-purple-50 border border-purple-200 p-6 text-center space-y-4">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-100 animate-pulse">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-100">
                 <svg class="w-8 h-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
             </div>
             <div>
-                <p class="text-lg font-semibold text-purple-900">Delivering Orders...</p>
-                <p class="text-sm text-purple-700">Driving to customers</p>
+                <p class="text-lg font-semibold text-purple-900">Delivery Phase</p>
+                <p class="text-sm text-purple-700">
+                    Click on <span class="font-bold">{$orders[deliveryIndex]?.deliveryCity || $orders[deliveryIndex]?.city}</span> to deliver to {$orders[deliveryIndex]?.name}
+                </p>
+                <p class="text-xs text-purple-500 mt-1">Delivery {deliveryIndex + 1} of {numOrders}</p>
+            </div>
+            
+            <!-- Interactive delivery map -->
+            <div class="bg-white p-4 rounded-2xl border shadow-sm inline-block">
+                <svg viewBox="0 0 100 100" class="w-64 h-64 border rounded-lg bg-blue-50/30">
+                    <!-- Connection lines -->
+                    <line x1="50" y1="30" x2="20" y2="55" stroke="#cbd5e1" stroke-width="2" />
+                    <line x1="50" y1="30" x2="80" y2="55" stroke="#cbd5e1" stroke-width="2" />
+                    <line x1="50" y1="30" x2="50" y2="80" stroke="#cbd5e1" stroke-width="2" />
+                    <line x1="20" y1="55" x2="50" y2="80" stroke="#cbd5e1" stroke-width="2" />
+                    <line x1="80" y1="55" x2="50" y2="80" stroke="#cbd5e1" stroke-width="2" />
+                    
+                    <!-- City nodes -->
+                    {#each Object.entries(mapCoords) as [city, coords]}
+                        {@const isTarget = city === ($orders[deliveryIndex]?.deliveryCity || $orders[deliveryIndex]?.city)}
+                        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                        <g class="cursor-pointer hover:opacity-80 transition" role="button" tabindex="0" on:click={() => deliverToCustomer(city)} on:keydown={(e) => e.key === 'Enter' && deliverToCustomer(city)}>
+                            <circle cx={coords.cx} cy={coords.cy} r="8" 
+                                fill={isTarget ? '#a855f7' : '#fff'} 
+                                stroke={isTarget ? '#7e22ce' : '#64748b'} 
+                                stroke-width="2"
+                                class={isTarget ? 'animate-pulse' : ''} />
+                            <text x={coords.cx} y={coords.cy + 15} font-size="6" text-anchor="middle" fill="#334155" font-weight="bold">
+                                {city}
+                            </text>
+                            {#if isTarget}
+                                <text x={coords.cx} y={coords.cy + 3} font-size="6" text-anchor="middle" fill="white">📦</text>
+                            {/if}
+                        </g>
+                    {/each}
+                </svg>
             </div>
         </div>
 

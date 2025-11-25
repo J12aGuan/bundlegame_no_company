@@ -127,9 +127,6 @@
                 </div>
 
                 <div class="flex flex-wrap gap-1 justify-end {orderData.recommended ? 'mr-24' : ''}">
-                    <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
-                        Batch
-                    </span>
                     {#if orderData.demand > 0}
                         <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
                             High demand
