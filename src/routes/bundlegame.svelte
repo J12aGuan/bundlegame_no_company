@@ -544,8 +544,19 @@
             <div class="relative h-[500px] w-full">
                 <div id="delivery-map" class="w-full h-full"></div>
             </div>
-            <div class="p-4 text-center text-sm text-slate-500 bg-slate-50">
-                Click markers on the map to drive to customers. Route matters!
+            <div class="p-4 space-y-2">
+                <div class="text-center text-sm text-slate-500">
+                    Click markers on the map to drive to customers. Route matters!
+                </div>
+                <button 
+                    class="w-full bg-yellow-600 text-white font-bold py-3 rounded-xl shadow hover:bg-yellow-700 transition"
+                    on:click={() => {
+                        console.log("Skip Delivery button clicked - forcing round completion");
+                        finishSuccess();
+                    }}
+                >
+                    ⚠️ Skip Delivery (Debug)
+                </button>
             </div>
         </div>
 
