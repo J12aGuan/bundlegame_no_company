@@ -5,7 +5,7 @@
     import { storeConfig, getDistances } from "$lib/config.js"; // Import getDistances
     import emojis from "$lib/emojis.json"
     
-    let config = storeConfig($orders[0].store)
+    let config = {}; // Will be set properly in onMount()
     let GameState = 0; // 0:Start, 1:Picking, 2:Moving, 3:Success, 4:Error, 5:Delivery
     let curLocation = [0, 0];
     
@@ -37,7 +37,6 @@
 
     $: numOrders = $orders.length;
     $: endTimer = $elapsed - startTimer;
-    $: bagCounts = bags.map(bag => Object.values(bag).reduce((a, b) => a + b, 0));
     $: locationLabel = config["locations"]?.[curLocation[0]]?.[curLocation[1]] || "Entrance";
 
     // Auto clear input
@@ -169,7 +168,31 @@
     }
     
     function exit() {
+        // Reset local component state for next round
         GameState = 0;
+        bags = [{}, {}, {}];
+        bagInputs = ["", "", ""];
+        wordInput = "";
+        dist = 0;
+        totalEarnings = 0;
+        curTip = 0;
+        deliveryLocations = [];
+
+        // Make sure delivery map is fully torn down
+        if (deliveryMap) {
+            try {
+                deliveryMap.remove();
+            } catch (err) {
+                console.error("Failed to remove delivery map", err);
+            }
+            deliveryMap = null;
+        }
+
+        // Keep `currLocation` as whatever you last delivered to;
+        // Home uses `$currLocation` to decide which city's orders to show,
+        // and you already set it in `deliverTo`.
+
+        // Switch back to the selection screen
         $game.inSelect = true;
         $game.inStore = false;
     }
@@ -300,10 +323,12 @@
     }
 
     function deliverTo(idx) {
+        if (!deliveryMap || !deliveryLocations.length) return;
+        
         const targetLoc = deliveryLocations[idx];
-        if (targetLoc.delivered) return;
+        if (!targetLoc || targetLoc.delivered) return;
 
-        // 1. Calculate Travel Time from Current City -> Target City
+        // Calculate Travel Time from Current City -> Target City
         const distData = getDistances(currentDeliveryCity);
         let travelTime = 0;
         
@@ -312,53 +337,74 @@
             if (destIndex !== -1) {
                 travelTime = distData.distances[destIndex];
             } else {
-                // Fallback if simple mapping fails (e.g. same city)
-                travelTime = 2; // Small penalty for local delivery
+                travelTime = 2; // Fallback for same city
             }
         } else {
             travelTime = 2; // Intra-city travel
         }
-
-        // 2. Apply Time Penalty
-        // We manually advance the elapsed store to reflect travel
-        // This affects "Revenue per Second" calculation
-        // Since $elapsed is derived, we might need to simulate this or just log it.
-        // For now, we'll just log it and assume user sees the delay.
-        // Ideally, we'd pause/add to a penalty counter.
         
         alert(`Driving to ${targetLoc.destination}...\nTravel Time: ${travelTime}s`);
         
-        // 3. Update State - CRITICAL FIX: Update both local and global location
+        // Update State
         targetLoc.delivered = true;
         currentDeliveryCity = targetLoc.destination;
         currLocation.set(targetLoc.destination); // Update global location for next round start
         
-        deliveryMap.closePopup();
+        // Safely close popup
+        if (deliveryMap && deliveryMap.closePopup) {
+            try {
+                deliveryMap.closePopup();
+            } catch (err) {
+                console.error("Failed to close popup", err);
+            }
+        }
         
-        // Check Win
+        // Check if all deliveries complete
         if (deliveryLocations.every(d => d.delivered)) {
             finishSuccess();
         }
     }
 
     function finishSuccess() {
-        logRoundCompletion(true);
+        // 1. Never let logging crash the game
+        try {
+            logRoundCompletion(true);
+        } catch (err) {
+            console.error("logRoundCompletion failed", err);
+        }
+
+        // 2. Award earnings / mark orders complete
         $earned += totalEarnings;
         $uniqueSets += 1;
         
         const selOrders = get(orders);
         selOrders.forEach(order => {
-            completeOrder(order.id);
+            try {
+                completeOrder(order.id);          // may talk to Firestore
+            } catch (err) {
+                console.error("completeOrder failed", err, order);
+            }
             $finishedOrders.push(order);
         });
         
+        // Clear current round's orders from the selection store
         let len = $orders.length;
         for (let i = 0; i < len; i++) $orders.shift();
         
         // Ensure currLocation persists to next round (already set in deliverTo)
         // The next round's orders will be generated from $currLocation in home.svelte
         
+        // 3. Show Round Complete
         GameState = 3;
+
+        // 4. Safety net: auto-advance if button never works
+        setTimeout(() => {
+            // Only auto-exit if the user hasn't already left
+            if (GameState === 3) {
+                console.log("Auto-advancing from Round Complete screen");
+                exit();
+            }
+        }, 2000);  // 2 second delay to show success screen
     }
 
     function logRoundCompletion(success) {
@@ -372,9 +418,11 @@
             round_index: $currentRound,
             phase: scenario.phase,
             chosen_orders: chosenOrderIds,
+            recommended_orders: recommendedOrderIds,  // Include for analysis
             success: success,
             earnings: success ? totalEarnings : 0,
-            final_location: $currLocation
+            final_location: $currLocation,
+            duration: duration
         });
 
         if (success) currentRound.update(r => r + 1);
