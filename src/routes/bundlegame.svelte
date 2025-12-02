@@ -315,28 +315,21 @@
             
             const marker = L.marker(coords).addTo(deliveryMap);
             
-            // Create popup content with a unique button ID
-            const buttonId = `deliver-btn-${idx}`;
+            // Show info popup (no button - click marker directly)
             marker.bindPopup(`
                 <div class="text-center">
                     <b>${loc.name}</b><br>${loc.destination}<br>
                     <div style="font-size:12px;color:#666;margin:4px 0;">Travel Time: ${travelTime}s</div>
-                    <button id="${buttonId}" 
-                        style="background:#16a34a;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;margin-top:6px;font-weight:bold;">
-                        Deliver Here
-                    </button>
+                    <div style="font-size:11px;color:#16a34a;font-weight:bold;margin-top:6px;">
+                        Click marker to deliver
+                    </div>
                 </div>
             `);
             
-            // Attach click handler after popup opens
-            marker.on('popupopen', () => {
-                const btn = document.getElementById(buttonId);
-                if (btn) {
-                    btn.onclick = () => {
-                        console.log("Button clicked for idx:", idx);
-                        deliverTo(idx);
-                    };
-                }
+            // Attach click handler directly to marker
+            marker.on('click', () => {
+                console.log("Marker clicked for idx:", idx);
+                deliverTo(idx);
             });
         });
     }
@@ -372,10 +365,15 @@
         
         alert(`Driving to ${targetLoc.destination}...\nTravel Time: ${travelTime}s`);
         
-        // Update State
+        // Update State - use reassignment to trigger Svelte reactivity
         targetLoc.delivered = true;
         currentDeliveryCity = targetLoc.destination;
-        currLocation.set(targetLoc.destination); // Update global location for next round start
+        currLocation.set(targetLoc.destination);
+        
+        // Force array update to trigger reactivity
+        deliveryLocations = [...deliveryLocations];
+        
+        console.log("After delivery update:", deliveryLocations.map(d => ({name: d.name, delivered: d.delivered})));
         
         // Safely close popup
         if (deliveryMap && deliveryMap.closePopup) {
@@ -387,12 +385,18 @@
         }
         
         // Check if all deliveries complete
-        if (deliveryLocations.every(d => d.delivered)) {
+        const allDelivered = deliveryLocations.every(d => d.delivered);
+        console.log("All delivered?", allDelivered, "Count:", deliveryLocations.filter(d => d.delivered).length, "/", deliveryLocations.length);
+        
+        if (allDelivered) {
+            console.log("All deliveries complete! Calling finishSuccess()");
             finishSuccess();
         }
     }
 
     function finishSuccess() {
+        console.log("finishSuccess() called - completing round");
+        
         // 1. Never let logging crash the game
         try {
             logRoundCompletion(true);
