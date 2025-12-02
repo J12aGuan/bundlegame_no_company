@@ -168,6 +168,9 @@
     }
     
     function exit() {
+        console.log("exit() called - switching back to home");
+        console.log("Before: $game.inSelect =", $game.inSelect, "$game.inStore =", $game.inStore);
+        
         // Reset local component state for next round
         GameState = 0;
         bags = [{}, {}, {}];
@@ -193,8 +196,13 @@
         // and you already set it in `deliverTo`.
 
         // Switch back to the selection screen
-        $game.inSelect = true;
-        $game.inStore = false;
+        game.update(g => {
+            g.inSelect = true;
+            g.inStore = false;
+            return g;
+        });
+        
+        console.log("After: $game.inSelect =", $game.inSelect, "$game.inStore =", $game.inStore);
     }
 
     function checkoutOrders() {
