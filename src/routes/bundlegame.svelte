@@ -561,10 +561,24 @@
         </div>
 
     {:else if GameState == 3}
-        <div class="rounded-2xl bg-green-50 border border-green-200 p-8 text-center space-y-6 max-w-lg mx-auto">
+        <div class="rounded-2xl bg-green-50 border border-green-200 p-8 text-center space-y-4 max-w-lg mx-auto">
             <div class="text-6xl">🎉</div>
             <h2 class="text-2xl font-bold text-green-900">Round Complete!</h2>
-            <button class="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow" on:click={exit}>Next Round</button>
+            <button 
+                class="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow hover:bg-green-700 transition" 
+                on:click={exit}
+            >
+                Next Round
+            </button>
+            <button 
+                class="w-full bg-yellow-600 text-white font-bold py-3 rounded-xl shadow hover:bg-yellow-700 transition"
+                on:click={() => {
+                    console.log("Force Skip to Next Round - manually calling exit()");
+                    exit();
+                }}
+            >
+                ⚠️ Force Skip to Next Round (Debug)
+            </button>
         </div>
 
     {:else if GameState == 4}
