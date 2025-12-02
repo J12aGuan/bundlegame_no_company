@@ -287,12 +287,6 @@
             iconSize: [30, 30]
         });
         
-        // Set up the global delivery function FIRST
-        window.deliverOrder = (idx) => {
-            console.log("deliverOrder called with idx:", idx);
-            deliverTo(idx);
-        };
-        
         // Add Destination Markers with Travel Times
         deliveryLocations.forEach((loc, idx) => {
             const coords = cityCoords[loc.destination] || cityCoords["Berkeley"];
@@ -313,16 +307,29 @@
             
             const marker = L.marker(coords).addTo(deliveryMap);
             
+            // Create popup content with a unique button ID
+            const buttonId = `deliver-btn-${idx}`;
             marker.bindPopup(`
                 <div class="text-center">
                     <b>${loc.name}</b><br>${loc.destination}<br>
                     <div style="font-size:12px;color:#666;margin:4px 0;">Travel Time: ${travelTime}s</div>
-                    <button onclick="window.deliverOrder(${idx})" 
+                    <button id="${buttonId}" 
                         style="background:#16a34a;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;margin-top:6px;font-weight:bold;">
                         Deliver Here
                     </button>
                 </div>
             `);
+            
+            // Attach click handler after popup opens
+            marker.on('popupopen', () => {
+                const btn = document.getElementById(buttonId);
+                if (btn) {
+                    btn.onclick = () => {
+                        console.log("Button clicked for idx:", idx);
+                        deliverTo(idx);
+                    };
+                }
+            });
         });
     }
 
