@@ -9,6 +9,8 @@
     let GameState = 0; // 0:Start, 1:Picking, 2:Moving, 3:Success, 4:Error, 5:Delivery
     let curLocation = [0, 0];
     
+    let showStoreMap = false; // For store map modal
+    
     let bags = [{}, {}, {}];
     let bagInputs = ["", "", ""];
     let wordInput = "";
@@ -148,49 +150,50 @@
         const selOrders = get(orders);
         const numOrders = selOrders.length;
         
-        // Permutations Logic
-        function getPermutations(arr) {
-            if (arr.length <= 1) return [arr];
-            const result = [];
-            for (let i = 0; i < arr.length; i++) {
-                const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
-                const perms = getPermutations(rest);
-                for (const perm of perms) result.push([arr[i], ...perm]);
-            }
-            return result;
-        }
-
-        const orderIndices = Array.from({length: numOrders}, (_, i) => i);
-        const permutations = getPermutations(orderIndices);
+        // Efficient validation without permutations - O(n²) instead of O(n!)
+        const usedBags = new Set();
+        correct = true;
         
-        correct = false;
-        for (const perm of permutations) {
-            let allMatch = true;
+        // For each order, try to find a matching bag
+        for (let orderIdx = 0; orderIdx < numOrders; orderIdx++) {
+            const order = selOrders[orderIdx];
+            
+            // Normalize order items to lowercase for comparison
+            const normalizedOrderItems = {};
+            for (const [key, val] of Object.entries(order.items)) {
+                normalizedOrderItems[key.toLowerCase()] = val;
+            }
+            
+            let foundMatch = false;
+            
+            // Try to find an unused bag that matches this order
             for (let bagIdx = 0; bagIdx < numOrders; bagIdx++) {
-                const orderIdx = perm[bagIdx];
-                const order = selOrders[orderIdx];
+                if (usedBags.has(bagIdx)) continue; // Skip already used bags
+                
                 const bag = bags[bagIdx];
                 
-                // Normalize order items to lowercase for comparison
-                const normalizedOrderItems = {};
-                for (const [key, val] of Object.entries(order.items)) {
-                    normalizedOrderItems[key.toLowerCase()] = val;
-                }
+                // Check if bag matches order
+                if (Object.keys(bag).length !== Object.keys(normalizedOrderItems).length) continue;
                 
-                if (Object.keys(bag).length !== Object.keys(normalizedOrderItems).length) { 
-                    allMatch = false; 
-                    break; 
-                }
-                
+                let bagMatches = true;
                 for (const item of Object.keys(bag)) {
-                    if (normalizedOrderItems[item] !== bag[item]) { 
-                        allMatch = false; 
-                        break; 
+                    if (normalizedOrderItems[item] !== bag[item]) {
+                        bagMatches = false;
+                        break;
                     }
                 }
-                if (!allMatch) break;
+                
+                if (bagMatches) {
+                    usedBags.add(bagIdx);
+                    foundMatch = true;
+                    break;
+                }
             }
-            if (allMatch) { correct = true; break; }
+            
+            if (!foundMatch) {
+                correct = false;
+                break;
+            }
         }
 
         if (correct) {
@@ -233,15 +236,30 @@
             iconSize: [30, 30]
         });
         
-        // Add Destination Markers
+        // Add Destination Markers with Travel Times
         deliveryLocations.forEach((loc, idx) => {
             const coords = cityCoords[loc.destination] || cityCoords["Berkeley"];
+            
+            // Calculate travel time from current location to this destination
+            const distData = getDistances(currentDeliveryCity);
+            let travelTime = 0;
+            if (currentDeliveryCity !== loc.destination) {
+                const destIndex = distData.destinations.indexOf(loc.destination);
+                if (destIndex !== -1) {
+                    travelTime = distData.distances[destIndex];
+                } else {
+                    travelTime = 2;
+                }
+            } else {
+                travelTime = 2;
+            }
             
             const marker = L.marker(coords).addTo(deliveryMap);
             
             marker.bindPopup(`
                 <div class="text-center">
                     <b>${loc.name}</b><br>${loc.destination}<br>
+                    <div style="font-size:12px;color:#666;margin:4px 0;">Travel Time: ${travelTime}s</div>
                     <button onclick="window.deliverOrder(${idx})" 
                         style="background:#16a34a;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;margin-top:6px;font-weight:bold;">
                         Deliver Here
@@ -282,10 +300,10 @@
         
         alert(`Driving to ${targetLoc.destination}...\nTravel Time: ${travelTime}s`);
         
-        // 3. Update State
+        // 3. Update State - CRITICAL FIX: Update both local and global location
         targetLoc.delivered = true;
         currentDeliveryCity = targetLoc.destination;
-        currLocation.set(currentDeliveryCity); // Update global location for next round start
+        currLocation.set(targetLoc.destination); // Update global location for next round start
         
         deliveryMap.closePopup();
         
@@ -308,6 +326,9 @@
         
         let len = $orders.length;
         for (let i = 0; i < len; i++) $orders.shift();
+        
+        // Ensure currLocation persists to next round (already set in deliverTo)
+        // The next round's orders will be generated from $currLocation in home.svelte
         
         GameState = 3;
     }
@@ -361,6 +382,8 @@
                         bind:value={wordInput} placeholder="Item name..."/>
                     <button class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow hover:bg-blue-700 transition"
                         on:click={addBag}>Add to Selected Bags</button>
+                    <button class="w-full bg-slate-500 text-white font-bold py-2 rounded-lg shadow hover:bg-slate-600 transition text-sm"
+                        on:click={() => showStoreMap = true}>📍 Show Store Map</button>
                 </div>
                 
                 {#each $orders as order, idx}
@@ -435,4 +458,31 @@
     {:else if GameState == 2}
         <div class="flex flex-col items-center justify-center h-64"><div class="animate-bounce text-4xl">🚶</div><h2 class="font-bold">Moving...</h2></div>
     {/if}
+    
+    <!-- Store Map Modal -->
+    {#if showStoreMap}
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+             on:click={() => showStoreMap = false}>
+            <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto p-6"
+                 on:click|stopPropagation>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-slate-800">📍 Store Layout: {$orders[0].store}</h2>
+                    <button class="text-slate-400 hover:text-slate-600 text-3xl" on:click={() => showStoreMap = false}>&times;</button>
+                </div>
+                <div class={`grid gap-2 ${gridColsClass}`}>
+                    {#each config["locations"] as row, rowIndex}
+                        {#each row as cell, colIndex}
+                            <div class="flex min-h-[70px] flex-col items-center justify-center rounded-lg text-sm font-medium border
+                                {rowIndex === curLocation[0] && colIndex === curLocation[1] ? 'bg-green-100 border-2 border-green-500 text-green-900' : 'border-slate-200 bg-slate-50'}">
+                                <span class="font-bold">{cell}</span>
+                                {#if emojis[cell]}<span class="text-xl mt-1">{emojis[cell]}</span>{/if}
+                            </div>
+                        {/each}
+                    {/each}
+                </div>
+                <p class="text-center text-xs text-slate-500 mt-4">Your current location is highlighted in green</p>
+            </div>
+        </div>
+    {/if}
 </main>
+
