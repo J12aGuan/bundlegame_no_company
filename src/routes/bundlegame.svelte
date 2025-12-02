@@ -287,6 +287,12 @@
             iconSize: [30, 30]
         });
         
+        // Set up the global delivery function FIRST
+        window.deliverOrder = (idx) => {
+            console.log("deliverOrder called with idx:", idx);
+            deliverTo(idx);
+        };
+        
         // Add Destination Markers with Travel Times
         deliveryLocations.forEach((loc, idx) => {
             const coords = cityCoords[loc.destination] || cityCoords["Berkeley"];
@@ -318,15 +324,21 @@
                 </div>
             `);
         });
-
-        window.deliverOrder = (idx) => deliverTo(idx);
     }
 
     function deliverTo(idx) {
-        if (!deliveryMap || !deliveryLocations.length) return;
+        console.log("deliverTo called with idx:", idx, "deliveryLocations:", deliveryLocations);
+        if (!deliveryMap || !deliveryLocations.length) {
+            console.log("Early return: deliveryMap:", deliveryMap, "deliveryLocations.length:", deliveryLocations.length);
+            return;
+        }
         
         const targetLoc = deliveryLocations[idx];
-        if (!targetLoc || targetLoc.delivered) return;
+        console.log("targetLoc:", targetLoc);
+        if (!targetLoc || targetLoc.delivered) {
+            console.log("Early return: targetLoc:", targetLoc, "delivered:", targetLoc?.delivered);
+            return;
+        }
 
         // Calculate Travel Time from Current City -> Target City
         const distData = getDistances(currentDeliveryCity);
