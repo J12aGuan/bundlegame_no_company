@@ -9,30 +9,45 @@
     $: scenario = getCurrentScenario($currentRound);
     $: maxBundle = scenario.max_bundle ?? 3;
     
+    // Cache for hydrated orders to prevent infinite reactive loops
+    let hydratedOrdersCache = new Map();
+    
     // 1. Get Experiment Orders (and fix missing 'items' - CRITICAL FIX for Emeryville freeze)
-    $: experimentOrders = (scenario.orders || []).map(hydrateOrder);
+    $: experimentOrders = (scenario.orders || []).map(order => {
+        // Use cache to prevent regenerating random items
+        if (!hydratedOrdersCache.has(order.id)) {
+            hydratedOrdersCache.set(order.id, hydrateOrder(order));
+        }
+        return hydratedOrdersCache.get(order.id);
+    });
 
     // 2. Generate Orders for ALL cities (4 orders per city)
     let cityOrderMap = {};
+    let lastRound = -1; // Track round to only regenerate when needed
     
     // Reactive block to regenerate orders when round changes
     $: {
-        const cities = ["Berkeley", "Oakland", "Emeryville", "Piedmont"];
-        let map = {};
-        
-        // Identify the "Active" city for this round
-        const activeCity = experimentOrders.length > 0 ? experimentOrders[0].city : "Berkeley";
+        // Only regenerate if round actually changed
+        if ($currentRound !== lastRound) {
+            lastRound = $currentRound;
+            
+            const cities = ["Berkeley", "Oakland", "Emeryville", "Piedmont"];
+            let map = {};
+            
+            // Identify the "Active" city for this round
+            const activeCity = experimentOrders.length > 0 ? experimentOrders[0].city : "Berkeley";
 
-        cities.forEach(city => {
-            if (city === activeCity) {
-                // Use specific experiment data for the active city
-                map[city] = experimentOrders;
-            } else {
-                // Generate consistent filler data for other cities
-                map[city] = generateFillerOrders(city, $currentRound);
-            }
-        });
-        cityOrderMap = map;
+            cities.forEach(city => {
+                if (city === activeCity) {
+                    // Use specific experiment data for the active city
+                    map[city] = experimentOrders;
+                } else {
+                    // Generate consistent filler data for other cities
+                    map[city] = generateFillerOrders(city, $currentRound);
+                }
+            });
+            cityOrderMap = map;
+        }
     }
 
     // 3. Display orders for CURRENT location
@@ -51,11 +66,15 @@
         let generatedItems = {};
         
         if (config && config.items && config.items.length > 0) {
-            // Pick 1-3 random items from store's item list
-            const count = 1 + Math.floor(Math.random() * 3);
+            // Use deterministic selection based on order ID to prevent random changes
+            const seed = order.id ? order.id.split('').reduce((a, b) => a + b.charCodeAt(0), 0) : 0;
+            const count = 1 + (seed % 3);
+            
             for (let i = 0; i < count; i++) {
-                const item = config.items[Math.floor(Math.random() * config.items.length)];
-                generatedItems[item] = 1 + Math.floor(Math.random() * 2);
+                const itemIndex = (seed + i * 7) % config.items.length;
+                const item = config.items[itemIndex];
+                const quantity = 1 + ((seed + i) % 2);
+                generatedItems[item] = quantity;
             }
         } else {
             // Fallback items if config is missing
@@ -78,13 +97,19 @@
             "Piedmont": "Safeway"
         };
         
+        // Use seeded random based on city and round for consistency
+        const seed = (city.charCodeAt(0) + round * 1000);
+        
         let fillers = [];
         for (let i = 1; i <= 4; i++) {
+            // Deterministic earnings based on seed
+            const earnings = 8 + ((seed + i * 7) % 13);
+            
             fillers.push({
                 id: `fill_${round}_${city}_${i}`,
                 store: storeNames[city],
                 city: city,
-                earnings: 8 + Math.floor(Math.random() * 12), // $8-$20
+                earnings: earnings,
                 items: { "Apple": 1, "Watermelon": 1 },
                 recommended: false,
                 name: `Local Order ${i}`
