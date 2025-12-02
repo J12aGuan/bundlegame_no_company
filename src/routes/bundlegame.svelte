@@ -425,17 +425,9 @@
         // Ensure currLocation persists to next round (already set in deliverTo)
         // The next round's orders will be generated from $currLocation in home.svelte
         
-        // 3. Show Round Complete
-        GameState = 3;
-
-        // 4. Safety net: auto-advance if button never works
-        setTimeout(() => {
-            // Only auto-exit if the user hasn't already left
-            if (GameState === 3) {
-                console.log("Auto-advancing from Round Complete screen");
-                exit();
-            }
-        }, 2000);  // 2 second delay to show success screen
+        // 3. Immediately advance to next round (no Round Complete screen)
+        console.log("Round complete - immediately advancing to next round");
+        exit();
     }
 
     function logRoundCompletion(success) {
@@ -560,26 +552,6 @@
             </div>
         </div>
 
-    {:else if GameState == 3}
-        <div class="rounded-2xl bg-green-50 border border-green-200 p-8 text-center space-y-4 max-w-lg mx-auto">
-            <div class="text-6xl">🎉</div>
-            <h2 class="text-2xl font-bold text-green-900">Round Complete!</h2>
-            <button 
-                class="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow hover:bg-green-700 transition" 
-                on:click={exit}
-            >
-                Next Round
-            </button>
-            <button 
-                class="w-full bg-yellow-600 text-white font-bold py-3 rounded-xl shadow hover:bg-yellow-700 transition"
-                on:click={() => {
-                    console.log("Force Skip to Next Round - manually calling exit()");
-                    exit();
-                }}
-            >
-                ⚠️ Force Skip to Next Round (Debug)
-            </button>
-        </div>
 
     {:else if GameState == 4}
         <div class="rounded-2xl bg-red-50 border border-red-200 p-8 text-center space-y-6 max-w-lg mx-auto">
