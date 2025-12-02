@@ -62,6 +62,13 @@
         startEarnings = selOrders.reduce((sum, order) => sum + order.earnings, 0)
         totalEarnings = startEarnings
         config = storeConfig($orders[0].store)
+        
+        // Safety check for config
+        if (!config || !config["Entrance"]) {
+            console.error("Invalid store config for:", $orders[0].store);
+            config = { Entrance: [0, 0], locations: [[""]], cellDistance: 1000 };
+        }
+        
         curLocation = config["Entrance"]
         currentDeliveryCity = selOrders[0].city; // Start delivery from Store City
         
@@ -75,11 +82,24 @@
 
     function handleCell(value, row, col) {
         if (value == "") return;
+        
+        // Calculate distance and travel time
         dist = Math.abs(row - curLocation[0]) + Math.abs(col - curLocation[1]);
+        
+        // Safety check: prevent freeze if config is missing or invalid
+        if (!config || !config["cellDistance"] || config["cellDistance"] <= 0) {
+            console.error("Invalid config or cellDistance:", config);
+            curLocation[0] = row;
+            curLocation[1] = col;
+            return;
+        }
+        
         curLocation[0] = row;
         curLocation[1] = col;
         GameState = 2;
-        setTimeout(() => { GameState = 1; }, dist*config["cellDistance"])
+        
+        const travelTime = dist * config["cellDistance"];
+        setTimeout(() => { GameState = 1; }, travelTime)
     }
 
     function addBag() {
@@ -126,6 +146,14 @@
         const selOrders = get(orders);
         startTimer = $elapsed;
         config = storeConfig(selOrders[0].store);
+        
+        // Safety check and reset location
+        if (!config || !config["Entrance"]) {
+            console.error("Invalid store config for:", selOrders[0].store);
+            config = { Entrance: [0, 0], locations: [[""]], cellDistance: 1000 };
+        }
+        
+        curLocation = config["Entrance"]; // Reset to entrance when starting
         GameState = 1;
     }
     
@@ -456,7 +484,14 @@
             <button class="w-full bg-red-600 text-white font-bold py-3 rounded-xl shadow" on:click={retry}>Try Again</button>
         </div>
     {:else if GameState == 2}
-        <div class="flex flex-col items-center justify-center h-64"><div class="animate-bounce text-4xl">🚶</div><h2 class="font-bold">Moving...</h2></div>
+        <div class="flex flex-col items-center justify-center h-64 space-y-4">
+            <div class="animate-bounce text-4xl">🚶</div>
+            <h2 class="font-bold text-xl">Moving...</h2>
+            <div class="text-slate-500">
+                <span class="text-2xl font-mono font-bold text-blue-600">{dist * config["cellDistance"] / 1000}s</span>
+                <p class="text-sm mt-1">({dist} {dist === 1 ? 'aisle' : 'aisles'})</p>
+            </div>
+        </div>
     {/if}
     
     <!-- Store Map Modal -->
