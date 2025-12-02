@@ -4,6 +4,9 @@ let order_list = []
 let id = 0;
 let orderid = 0;
 
+// Penalty timeout in seconds (for developers to configure)
+export const PENALTY_TIMEOUT = 5;
+
 function gaussianRandom(mean, stdDev) {
     // Using the Box-Muller transform to generate a Gaussian-distributed random number
     let u1 = Math.random();

@@ -82,7 +82,12 @@
 
     function addBag() {
         let item = config["locations"][curLocation[0]][curLocation[1]].toLowerCase()
-        if (item == "" || item == "entrance") return;
+        
+        // Alert if trying to add from entrance or empty location
+        if (item == "" || item == "entrance") {
+            alert("You must travel to the item first to select it.");
+            return;
+        }
 
         let action = { buttonID: "addtobag", itemInput: wordInput, bags: bags.map(b => ({...b})) };
         
@@ -165,9 +170,23 @@
                 const orderIdx = perm[bagIdx];
                 const order = selOrders[orderIdx];
                 const bag = bags[bagIdx];
-                if (Object.keys(bag).length !== Object.keys(order.items).length) { allMatch = false; break; }
+                
+                // Normalize order items to lowercase for comparison
+                const normalizedOrderItems = {};
+                for (const [key, val] of Object.entries(order.items)) {
+                    normalizedOrderItems[key.toLowerCase()] = val;
+                }
+                
+                if (Object.keys(bag).length !== Object.keys(normalizedOrderItems).length) { 
+                    allMatch = false; 
+                    break; 
+                }
+                
                 for (const item of Object.keys(bag)) {
-                    if (order.items[item] !== bag[item]) { allMatch = false; break; }
+                    if (normalizedOrderItems[item] !== bag[item]) { 
+                        allMatch = false; 
+                        break; 
+                    }
                 }
                 if (!allMatch) break;
             }

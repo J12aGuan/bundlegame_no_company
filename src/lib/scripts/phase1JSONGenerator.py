@@ -36,10 +36,16 @@ def pure_randomness(default_job, start_id, loc):
     return generate_group(default_job, start_id, varies, loc)
 
 def equal_location_earnings(default_job, start_id, loc):
+    # Pick 4 different stores randomly
+    stores = default_job["stores"]
+    selected_stores = random.sample(stores, min(4, len(stores)))
+    
     varies = []
-    for _ in range(4):
+    for i in range(4):
+        # Use different stores if available, otherwise reuse
+        store = selected_stores[i % len(selected_stores)]
         varies.append({
-            "location": "Sprouts Farmers Market",
+            "location": store["store"],
             "earnings": 20,
             "amount": 0,
             "unique": 0
@@ -69,20 +75,25 @@ def vary_location(default_job, start_id, loc):
     return generate_group(default_job, start_id, varies, loc)
 
 def commonsense_item_amount(default_job, start_id, loc):
+    # Pick 4 different stores randomly
+    stores = default_job["stores"]
+    selected_stores = random.sample(stores, min(4, len(stores)))
+    
     varies = []
     #random index is the "easy" or obvious choice
     random_index = int(random.random()*4)
     for x in range(4):
+        store = selected_stores[x % len(selected_stores)]
         if x == random_index:
             varies.append({
-                "location": "Sprouts Farmers Market",
+                "location": store["store"],
                 "earnings": 20,
                 "amount": 5,
                 "unique": 2
             })
         else:
             varies.append({
-                "location": "Sprouts Farmers Market",
+                "location": store["store"],
                 "earnings": 20,
                 "amount": 15,
                 "unique": 5
@@ -90,10 +101,15 @@ def commonsense_item_amount(default_job, start_id, loc):
     return generate_group(default_job, start_id, varies, loc)
 
 def vary_earnings_item_amount(default_job, start_id, loc):
+    # Pick 4 different stores randomly
+    stores = default_job["stores"]
+    selected_stores = random.sample(stores, min(4, len(stores)))
+    
     varies = []
     for x in range(4):
+        store = selected_stores[x % len(selected_stores)]
         varies.append({
-            "location": "Sprouts Farmers Market",
+            "location": store["store"],
             "earnings": 0,
             "amount": 0,
             "unique": 0
@@ -101,11 +117,16 @@ def vary_earnings_item_amount(default_job, start_id, loc):
     return generate_group(default_job, start_id, varies, loc)
 
 def equal_everything(default_job, start_id, loc):
+    # Pick 4 different stores randomly
+    stores = default_job["stores"]
+    selected_stores = random.sample(stores, min(4, len(stores)))
+    
     #only thing that varies is the types of foods
     varies = []
     for x in range(4):
+        store = selected_stores[x % len(selected_stores)]
         varies.append({
-            "location": "Sprouts Farmers Market",
+            "location": store["store"],
             "earnings": 20,
             "amount": 6,
             "unique": 3

@@ -1,7 +1,7 @@
 <script>
     import { get } from 'svelte/store';
     import { game, orders, gameText, currLocation, logOrders, orderList, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed } from "$lib/bundle.js";
-    import { getDistances, storeConfig } from "$lib/config.js";
+    import { getDistances, storeConfig, PENALTY_TIMEOUT } from "$lib/config.js";
     import Order from "./order.svelte";
     import { onMount, onDestroy } from "svelte";
 
@@ -105,9 +105,8 @@
     let thinkRemaining = thinkTime;
     let thinkInterval;
 
-    // Penalty Logic
+    // Penalty Logic (uses PENALTY_TIMEOUT from config.js)
     let isPenalty = false;
-    let penaltyTime = 30; 
     let penaltyRemaining = 0;
     let penaltyInterval;
 
@@ -203,7 +202,7 @@
 
     function startPenalty() {
         isPenalty = true;
-        penaltyRemaining = penaltyTime;
+        penaltyRemaining = PENALTY_TIMEOUT;
         clearTimers();
         penaltyInterval = setInterval(() => {
             penaltyRemaining -= 1;
@@ -290,10 +289,6 @@
             <h2 class="text-2xl font-bold text-red-800">Penalty Timeout</h2>
             <p class="text-red-600">You gave up the previous round.</p>
             <div class="text-4xl font-mono font-bold text-red-900">{penaltyRemaining}s</div>
-            <div class="mt-4">
-                <label class="text-xs font-bold uppercase text-red-400">Customize Penalty (s)</label>
-                <input type="number" bind:value={penaltyTime} class="w-20 text-center border rounded p-1 ml-2" />
-            </div>
         </div>
 
     {:else if waiting}
