@@ -1,0 +1,141 @@
+{
+  "orders": [
+    {"id": "R1_A", "round": 1, "city": "Emeryville", "store": "Default Store", "earnings": 91, "base_time_s": 38, "aisles": "1|5", "travel_time_s": 3, "recommended": false, "name": "Order A", "items": ["Apple", "Banana", "Orange", "Grapes", "Watermelon"]},
+    {"id": "R1_B", "round": 1, "city": "Emeryville", "store": "Default Store", "earnings": 71, "base_time_s": 37, "aisles": "1|3|6", "travel_time_s": 3, "recommended": false, "name": "Order B", "items": ["Milk", "Bread", "Eggs", "Butter"]},
+    {"id": "R1_C", "round": 1, "city": "Emeryville", "store": "Default Store", "earnings": 80, "base_time_s": 45, "aisles": "2|6|8", "travel_time_s": 3, "recommended": false, "name": "Order C", "items": ["Chicken", "Beef", "Pork", "Fish", "Shrimp"]},
+    {"id": "R1_D", "round": 1, "city": "Emeryville", "store": "Default Store", "earnings": 77, "base_time_s": 45, "aisles": "2|5", "travel_time_s": 3, "recommended": false, "name": "Order D", "items": ["Tomato", "Lettuce", "Cucumber", "Carrot"]},
+    
+    {"id": "R2_A", "round": 2, "city": "Berkeley", "store": "Default Store", "earnings": 117, "base_time_s": 69, "aisles": "1|8", "travel_time_s": 3, "recommended": false, "name": "Order A", "items": ["Yogurt", "Cheese", "Cream", "Ice Cream", "Milk", "Butter"]},
+    {"id": "R2_B", "round": 2, "city": "Berkeley", "store": "Default Store", "earnings": 80, "base_time_s": 47, "aisles": "3", "travel_time_s": 3, "recommended": false, "name": "Order B", "items": ["Pasta", "Rice", "Noodles", "Cereal"]},
+    {"id": "R2_C", "round": 2, "city": "Berkeley", "store": "Default Store", "earnings": 68, "base_time_s": 46, "aisles": "3|8", "travel_time_s": 3, "recommended": false, "name": "Order C", "items": ["Cookies", "Chips", "Candy", "Chocolate"]},
+    {"id": "R2_D", "round": 2, "city": "Berkeley", "store": "Default Store", "earnings": 135, "base_time_s": 75, "aisles": "5|6", "travel_time_s": 3, "recommended": false, "name": "Order D", "items": ["Salmon", "Tuna", "Cod", "Shrimp", "Crab", "Lobster"]},
+    
+    {"id": "R3_A", "round": 3, "city": "Oakland", "store": "Default Store", "earnings": 138, "base_time_s": 75, "aisles": "4|8", "travel_time_s": 4, "recommended": false, "name": "Order A", "items": ["Steak", "Ribs", "Bacon", "Sausage", "Ham", "Turkey"]},
+    {"id": "R3_B", "round": 3, "city": "Oakland", "store": "Default Store", "earnings": 116, "base_time_s": 69, "aisles": "3|7", "travel_time_s": 4, "recommended": false, "name": "Order B", "items": ["Potato", "Onion", "Garlic", "Pepper", "Broccoli"]},
+    {"id": "R3_C", "round": 3, "city": "Oakland", "store": "Default Store", "earnings": 100, "base_time_s": 58, "aisles": "1|5|7", "travel_time_s": 4, "recommended": false, "name": "Order C", "items": ["Juice", "Soda", "Water", "Tea", "Coffee"]},
+    {"id": "R3_D", "round": 3, "city": "Oakland", "store": "Default Store", "earnings": 84, "base_time_s": 55, "aisles": "2|5", "travel_time_s": 4, "recommended": false, "name": "Order D", "items": ["Spinach", "Kale", "Celery", "Mushroom"]},
+    
+    {"id": "R4_A", "round": 4, "city": "Piedmont", "store": "Default Store", "earnings": 110, "base_time_s": 76, "aisles": "4|7", "travel_time_s": 4, "recommended": false, "name": "Order A", "items": ["Wine", "Beer", "Juice", "Soda", "Water", "Tea"]},
+    {"id": "R4_B", "round": 4, "city": "Piedmont", "store": "Default Store", "earnings": 102, "base_time_s": 73, "aisles": "1|8", "travel_time_s": 4, "recommended": false, "name": "Order B", "items": ["Strawberry", "Blueberry", "Raspberry", "Blackberry", "Mango"]},
+    {"id": "R4_C", "round": 4, "city": "Piedmont", "store": "Default Store", "earnings": 78, "base_time_s": 63, "aisles": "2|3|5", "travel_time_s": 4, "recommended": false, "name": "Order C", "items": ["Flour", "Sugar", "Salt", "Oil"]},
+    {"id": "R4_D", "round": 4, "city": "Piedmont", "store": "Default Store", "earnings": 93, "base_time_s": 71, "aisles": "3|6", "travel_time_s": 4, "recommended": false, "name": "Order D", "items": ["Detergent", "Soap", "Shampoo", "Toothpaste"]},
+    
+    {"id": "R5_A", "round": 5, "city": "Emeryville", "store": "Default Store", "earnings": 117, "base_time_s": 52, "aisles": "2|5", "travel_time_s": 3, "recommended": false, "name": "Order A", "items": ["Pineapple", "Papaya", "Kiwi", "Peach", "Plum"]},
+    {"id": "R5_B", "round": 5, "city": "Emeryville", "store": "Default Store", "earnings": 98, "base_time_s": 42, "aisles": "1|4|6", "travel_time_s": 3, "recommended": false, "name": "Order B", "items": ["Pork Chop", "Lamb", "Duck", "Quail"]},
+    {"id": "R5_C", "round": 5, "city": "Emeryville", "store": "Default Store", "earnings": 76, "base_time_s": 49, "aisles": "3|7", "travel_time_s": 3, "recommended": false, "name": "Order C", "items": ["Corn", "Peas", "Beans", "Lentils"]},
+    {"id": "R5_D", "round": 5, "city": "Emeryville", "store": "Default Store", "earnings": 84, "base_time_s": 50, "aisles": "2|6", "travel_time_s": 3, "recommended": false, "name": "Order D", "items": ["Bagel", "Muffin", "Croissant", "Donut"]},
+    
+    {"id": "R6_A", "round": 6, "city": "Berkeley", "store": "Default Store", "earnings": 142, "base_time_s": 71, "aisles": "2|3", "travel_time_s": 3, "recommended": true, "name": "Order A", "items": ["Avocado", "Lime", "Cilantro", "Jalapeno", "Salsa", "Tortilla"]},
+    {"id": "R6_B", "round": 6, "city": "Berkeley", "store": "Default Store", "earnings": 81, "base_time_s": 45, "aisles": "1|4|8", "travel_time_s": 3, "recommended": true, "name": "Order B", "items": ["Hummus", "Pita", "Olives", "Feta"]},
+    {"id": "R6_C", "round": 6, "city": "Berkeley", "store": "Default Store", "earnings": 86, "base_time_s": 53, "aisles": "3|6", "travel_time_s": 3, "recommended": false, "name": "Order C", "items": ["Quinoa", "Couscous", "Bulgur", "Farro"]},
+    {"id": "R6_D", "round": 6, "city": "Berkeley", "store": "Default Store", "earnings": 108, "base_time_s": 61, "aisles": "4|7", "travel_time_s": 3, "recommended": false, "name": "Order D", "items": ["Tofu", "Tempeh", "Seitan", "Edamame", "Miso"]},
+    
+    {"id": "R7_A", "round": 7, "city": "Oakland", "store": "Default Store", "earnings": 113, "base_time_s": 61, "aisles": "1|3", "travel_time_s": 4, "recommended": true, "name": "Order A", "items": ["Almond Milk", "Coconut Milk", "Oat Milk", "Soy Milk", "Rice Milk"]},
+    {"id": "R7_B", "round": 7, "city": "Oakland", "store": "Default Store", "earnings": 102, "base_time_s": 56, "aisles": "2|4|6", "travel_time_s": 4, "recommended": true, "name": "Order B", "items": ["Almonds", "Cashews", "Walnuts", "Pecans"]},
+    {"id": "R7_C", "round": 7, "city": "Oakland", "store": "Default Store", "earnings": 92, "base_time_s": 60, "aisles": "5|7", "travel_time_s": 4, "recommended": false, "name": "Order C", "items": ["Dates", "Figs", "Prunes", "Raisins"]},
+    {"id": "R7_D", "round": 7, "city": "Oakland", "store": "Default Store", "earnings": 94, "base_time_s": 61, "aisles": "4|6", "travel_time_s": 4, "recommended": false, "name": "Order D", "items": ["Honey", "Maple Syrup", "Agave", "Molasses"]},
+    
+    {"id": "R8_A", "round": 8, "city": "Piedmont", "store": "Default Store", "earnings": 104, "base_time_s": 61, "aisles": "3|8", "travel_time_s": 4, "recommended": true, "name": "Order A", "items": ["Granola", "Protein Bar", "Energy Bar", "Trail Mix"]},
+    {"id": "R8_B", "round": 8, "city": "Piedmont", "store": "Default Store", "earnings": 103, "base_time_s": 59, "aisles": "1|4", "travel_time_s": 4, "recommended": true, "name": "Order B", "items": ["Kombucha", "Kefir", "Probiotic", "Yogurt Drink"]},
+    {"id": "R8_C", "round": 8, "city": "Piedmont", "store": "Default Store", "earnings": 96, "base_time_s": 62, "aisles": "2|5|7", "travel_time_s": 4, "recommended": false, "name": "Order C", "items": ["Chia Seeds", "Flax Seeds", "Hemp Seeds", "Pumpkin Seeds"]},
+    {"id": "R8_D", "round": 8, "city": "Piedmont", "store": "Default Store", "earnings": 81, "base_time_s": 60, "aisles": "4|6", "travel_time_s": 4, "recommended": false, "name": "Order D", "items": ["Coconut Oil", "Olive Oil", "Avocado Oil"]},
+    
+    {"id": "R9_A", "round": 9, "city": "Emeryville", "store": "Default Store", "earnings": 97, "base_time_s": 46, "aisles": "1|2|5", "travel_time_s": 3, "recommended": true, "name": "Order A", "items": ["Green Tea", "Black Tea", "White Tea", "Herbal Tea"]},
+    {"id": "R9_B", "round": 9, "city": "Emeryville", "store": "Default Store", "earnings": 95, "base_time_s": 46, "aisles": "2|4", "travel_time_s": 3, "recommended": true, "name": "Order B", "items": ["Espresso", "Cappuccino", "Latte", "Mocha"]},
+    {"id": "R9_C", "round": 9, "city": "Emeryville", "store": "Default Store", "earnings": 86, "base_time_s": 41, "aisles": "3|6|7", "travel_time_s": 3, "recommended": false, "name": "Order C", "items": ["Dark Chocolate", "Milk Chocolate", "White Chocolate"]},
+    {"id": "R9_D", "round": 9, "city": "Emeryville", "store": "Default Store", "earnings": 78, "base_time_s": 46, "aisles": "5|7", "travel_time_s": 3, "recommended": false, "name": "Order D", "items": ["Gummy Bears", "Sour Patch", "Skittles"]},
+    
+    {"id": "R10_A", "round": 10, "city": "Berkeley", "store": "Default Store", "earnings": 125, "base_time_s": 61, "aisles": "2|6", "travel_time_s": 3, "recommended": true, "name": "Order A", "items": ["Brie", "Camembert", "Gouda", "Cheddar", "Swiss"]},
+    {"id": "R10_B", "round": 10, "city": "Berkeley", "store": "Default Store", "earnings": 110, "base_time_s": 56, "aisles": "1|3|7", "travel_time_s": 3, "recommended": true, "name": "Order B", "items": ["Prosciutto", "Salami", "Pepperoni", "Mortadella"]},
+    {"id": "R10_C", "round": 10, "city": "Berkeley", "store": "Default Store", "earnings": 87, "base_time_s": 48, "aisles": "4|8", "travel_time_s": 3, "recommended": false, "name": "Order C", "items": ["Crackers", "Breadsticks", "Pretzels"]},
+    {"id": "R10_D", "round": 10, "city": "Berkeley", "store": "Default Store", "earnings": 79, "base_time_s": 49, "aisles": "2|5", "travel_time_s": 3, "recommended": false, "name": "Order D", "items": ["Pickles", "Relish", "Mustard", "Ketchup"]},
+    
+    {"id": "R11_A", "round": 11, "city": "Oakland", "store": "Default Store", "earnings": 136, "base_time_s": 80, "aisles": "3|6", "travel_time_s": 4, "recommended": true, "name": "Order A", "items": ["Lobster Tail", "King Crab", "Snow Crab", "Scallops", "Oysters"]},
+    {"id": "R11_B", "round": 11, "city": "Oakland", "store": "Default Store", "earnings": 105, "base_time_s": 63, "aisles": "2|7", "travel_time_s": 4, "recommended": true, "name": "Order B", "items": ["Artichoke", "Asparagus", "Brussels Sprouts", "Eggplant"]},
+    {"id": "R11_C", "round": 11, "city": "Oakland", "store": "Default Store", "earnings": 102, "base_time_s": 63, "aisles": "1|4|8", "travel_time_s": 4, "recommended": false, "name": "Order C", "items": ["Zucchini", "Squash", "Pumpkin", "Butternut"]},
+    {"id": "R11_D", "round": 11, "city": "Oakland", "store": "Default Store", "earnings": 98, "base_time_s": 66, "aisles": "5|8", "travel_time_s": 4, "recommended": false, "name": "Order D", "items": ["Arugula", "Watercress", "Endive", "Radicchio"]},
+    
+    {"id": "R12_A", "round": 12, "city": "Piedmont", "store": "Default Store", "earnings": 123, "base_time_s": 78, "aisles": "2|5", "travel_time_s": 4, "recommended": true, "name": "Order A", "items": ["Champagne", "Prosecco", "Cava", "Sparkling Wine", "Rosé"]},
+    {"id": "R12_B", "round": 12, "city": "Piedmont", "store": "Default Store", "earnings": 94, "base_time_s": 69, "aisles": "1|3|7", "travel_time_s": 4, "recommended": true, "name": "Order B", "items": ["Whiskey", "Bourbon", "Scotch", "Rum"]},
+    {"id": "R12_C", "round": 12, "city": "Piedmont", "store": "Default Store", "earnings": 83, "base_time_s": 64, "aisles": "4|6", "travel_time_s": 4, "recommended": false, "name": "Order C", "items": ["Vodka", "Gin", "Tequila", "Brandy"]},
+    {"id": "R12_D", "round": 12, "city": "Piedmont", "store": "Default Store", "earnings": 90, "base_time_s": 72, "aisles": "2|8", "travel_time_s": 4, "recommended": false, "name": "Order D", "items": ["Vermouth", "Aperol", "Campari", "Bitters"]},
+    
+    {"id": "R13_A", "round": 13, "city": "Emeryville", "store": "Default Store", "earnings": 108, "base_time_s": 45, "aisles": "2|6", "travel_time_s": 3, "recommended": true, "name": "Order A", "items": ["Gourmet Coffee", "Espresso Beans", "French Roast", "Italian Roast"]},
+    {"id": "R13_B", "round": 13, "city": "Emeryville", "store": "Default Store", "earnings": 82, "base_time_s": 44, "aisles": "1|3|5", "travel_time_s": 3, "recommended": true, "name": "Order B", "items": ["Matcha", "Chai", "Earl Grey", "English Breakfast"]},
+    {"id": "R13_C", "round": 13, "city": "Emeryville", "store": "Default Store", "earnings": 80, "base_time_s": 47, "aisles": "4|7", "travel_time_s": 3, "recommended": false, "name": "Order C", "items": ["Hot Chocolate", "Cocoa", "Chocolate Mix"]},
+    {"id": "R13_D", "round": 13, "city": "Emeryville", "store": "Default Store", "earnings": 85, "base_time_s": 47, "aisles": "3|6|8", "travel_time_s": 3, "recommended": false, "name": "Order D", "items": ["Protein Powder", "Creatine", "BCAA", "Pre-Workout"]},
+    
+    {"id": "R14_A", "round": 14, "city": "Berkeley", "store": "Default Store", "earnings": 130, "base_time_s": 63, "aisles": "3|7", "travel_time_s": 3, "recommended": true, "name": "Order A", "items": ["Smoked Salmon", "Gravlax", "Lox", "Whitefish", "Herring"]},
+    {"id": "R14_B", "round": 14, "city": "Berkeley", "store": "Default Store", "earnings": 108, "base_time_s": 56, "aisles": "1|5", "travel_time_s": 3, "recommended": true, "name": "Order B", "items": ["Caviar", "Roe", "Tobiko", "Ikura"]},
+    {"id": "R14_C", "round": 14, "city": "Berkeley", "store": "Default Store", "earnings": 95, "base_time_s": 55, "aisles": "2|4|8", "travel_time_s": 3, "recommended": false, "name": "Order C", "items": ["Capers", "Anchovies", "Sardines", "Mackerel"]},
+    {"id": "R14_D", "round": 14, "city": "Berkeley", "store": "Default Store", "earnings": 92, "base_time_s": 57, "aisles": "4|6", "travel_time_s": 3, "recommended": false, "name": "Order D", "items": ["Truffle Oil", "Truffle Salt", "Truffle Butter"]},
+    
+    {"id": "R15_A", "round": 15, "city": "Oakland", "store": "Default Store", "earnings": 140, "base_time_s": 77, "aisles": "2|5", "travel_time_s": 4, "recommended": true, "name": "Order A", "items": ["Wagyu Beef", "Kobe Beef", "Prime Rib", "Filet Mignon", "Ribeye"]},
+    {"id": "R15_B", "round": 15, "city": "Oakland", "store": "Default Store", "earnings": 118, "base_time_s": 69, "aisles": "1|4|7", "travel_time_s": 4, "recommended": true, "name": "Order B", "items": ["Venison", "Bison", "Elk", "Wild Boar"]},
+    {"id": "R15_C", "round": 15, "city": "Oakland", "store": "Default Store", "earnings": 96, "base_time_s": 60, "aisles": "3|6", "travel_time_s": 4, "recommended": false, "name": "Order C", "items": ["Foie Gras", "Pâté", "Rillettes", "Terrine"]},
+    {"id": "R15_D", "round": 15, "city": "Oakland", "store": "Default Store", "earnings": 92, "base_time_s": 66, "aisles": "4|8", "travel_time_s": 4, "recommended": false, "name": "Order D", "items": ["Saffron", "Vanilla Bean", "Cardamom", "Star Anise"]},
+    
+    {"id": "R16_A", "round": 16, "city": "Piedmont", "store": "Default Store", "earnings": 127, "base_time_s": 82, "aisles": "3|6", "travel_time_s": 4, "recommended": false, "name": "Order A", "items": ["Aged Parmesan", "Pecorino", "Manchego", "Gruyere", "Emmental"]},
+    {"id": "R16_B", "round": 16, "city": "Piedmont", "store": "Default Store", "earnings": 89, "base_time_s": 67, "aisles": "2|4|7", "travel_time_s": 4, "recommended": false, "name": "Order B", "items": ["Blue Cheese", "Roquefort", "Gorgonzola", "Stilton"]},
+    {"id": "R16_C", "round": 16, "city": "Piedmont", "store": "Default Store", "earnings": 90, "base_time_s": 67, "aisles": "1|5", "travel_time_s": 4, "recommended": false, "name": "Order C", "items": ["Mozzarella", "Burrata", "Ricotta", "Mascarpone"]},
+    {"id": "R16_D", "round": 16, "city": "Piedmont", "store": "Default Store", "earnings": 99, "base_time_s": 74, "aisles": "4|8", "travel_time_s": 4, "recommended": false, "name": "Order D", "items": ["Balsamic Vinegar", "Red Wine Vinegar", "Apple Cider Vinegar"]},
+    
+    {"id": "R17_A", "round": 17, "city": "Emeryville", "store": "Default Store", "earnings": 130, "base_time_s": 57, "aisles": "1|4", "travel_time_s": 3, "recommended": false, "name": "Order A", "items": ["Organic Strawberries", "Organic Blueberries", "Organic Raspberries", "Organic Blackberries"]},
+    {"id": "R17_B", "round": 17, "city": "Emeryville", "store": "Default Store", "earnings": 128, "base_time_s": 52, "aisles": "2|5|7", "travel_time_s": 3, "recommended": false, "name": "Order B", "items": ["Organic Kale", "Organic Spinach", "Organic Arugula", "Organic Lettuce"]},
+    {"id": "R17_C", "round": 17, "city": "Emeryville", "store": "Default Store", "earnings": 100, "base_time_s": 52, "aisles": "3|6", "travel_time_s": 3, "recommended": false, "name": "Order C", "items": ["Organic Tomatoes", "Organic Peppers", "Organic Cucumbers"]},
+    {"id": "R17_D", "round": 17, "city": "Emeryville", "store": "Default Store", "earnings": 97, "base_time_s": 55, "aisles": "4|8", "travel_time_s": 3, "recommended": false, "name": "Order D", "items": ["Organic Carrots", "Organic Beets", "Organic Radishes"]},
+    
+    {"id": "R18_A", "round": 18, "city": "Berkeley", "store": "Default Store", "earnings": 140, "base_time_s": 72, "aisles": "2|7", "travel_time_s": 3, "recommended": false, "name": "Order A", "items": ["Artisan Bread", "Sourdough", "Ciabatta", "Focaccia", "Baguette"]},
+    {"id": "R18_B", "round": 18, "city": "Berkeley", "store": "Default Store", "earnings": 117, "base_time_s": 61, "aisles": "1|4|6", "travel_time_s": 3, "recommended": false, "name": "Order B", "items": ["Croissants", "Pain au Chocolat", "Danish Pastry"]},
+    {"id": "R18_C", "round": 18, "city": "Berkeley", "store": "Default Store", "earnings": 96, "base_time_s": 57, "aisles": "3|5", "travel_time_s": 3, "recommended": false, "name": "Order C", "items": ["Macarons", "Eclairs", "Tarts", "Cannoli"]},
+    {"id": "R18_D", "round": 18, "city": "Berkeley", "store": "Default Store", "earnings": 108, "base_time_s": 63, "aisles": "4|8", "travel_time_s": 3, "recommended": false, "name": "Order D", "items": ["Tiramisu", "Panna Cotta", "Crème Brûlée", "Mousse"]},
+    
+    {"id": "R19_A", "round": 19, "city": "Oakland", "store": "Default Store", "earnings": 179, "base_time_s": 97, "aisles": "2|7", "travel_time_s": 4, "recommended": false, "name": "Order A", "items": ["Fresh Pasta", "Ravioli", "Tortellini", "Gnocchi", "Lasagna Sheets", "Fettuccine"]},
+    {"id": "R19_B", "round": 19, "city": "Oakland", "store": "Default Store", "earnings": 118, "base_time_s": 70, "aisles": "1|3|5", "travel_time_s": 4, "recommended": false, "name": "Order B", "items": ["Marinara", "Pesto", "Alfredo", "Carbonara", "Bolognese"]},
+    {"id": "R19_C", "round": 19, "city": "Oakland", "store": "Default Store", "earnings": 101, "base_time_s": 65, "aisles": "4|6", "travel_time_s": 4, "recommended": false, "name": "Order C", "items": ["Fresh Basil", "Fresh Oregano", "Fresh Rosemary", "Fresh Thyme"]},
+    {"id": "R19_D", "round": 19, "city": "Oakland", "store": "Default Store", "earnings": 112, "base_time_s": 72, "aisles": "2|8", "travel_time_s": 4, "recommended": false, "name": "Order D", "items": ["Sun-dried Tomatoes", "Roasted Peppers", "Artichoke Hearts", "Kalamata Olives"]},
+    
+    {"id": "R20_A", "round": 20, "city": "Piedmont", "store": "Default Store", "earnings": 112, "base_time_s": 70, "aisles": "3|5", "travel_time_s": 4, "recommended": false, "name": "Order A", "items": ["Sushi Grade Tuna", "Sushi Grade Salmon", "Yellowtail", "Snapper"]},
+    {"id": "R20_B", "round": 20, "city": "Piedmont", "store": "Default Store", "earnings": 86, "base_time_s": 59, "aisles": "1|4|8", "travel_time_s": 4, "recommended": false, "name": "Order B", "items": ["Nori", "Wasabi", "Pickled Ginger", "Soy Sauce"]},
+    {"id": "R20_C", "round": 20, "city": "Piedmont", "store": "Default Store", "earnings": 61, "base_time_s": 38, "aisles": "2|6", "travel_time_s": 4, "recommended": false, "name": "Order C", "items": ["Rice Vinegar", "Mirin", "Sake"]},
+    {"id": "R20_D", "round": 20, "city": "Piedmont", "store": "Default Store", "earnings": 89, "base_time_s": 73, "aisles": "4|7", "travel_time_s": 4, "recommended": false, "name": "Order D", "items": ["Sesame Seeds", "Sesame Oil", "Furikake", "Panko"]}
+  ],
+  "metadata": {
+    "total_rounds": 20,
+    "orders_per_round": 4,
+    "city_rotation": ["Emeryville", "Berkeley", "Oakland", "Piedmont"],
+    "phases": {
+      "baseline": {"rounds": [1, 2, 3, 4, 5], "has_recommendation": false},
+      "assisted": {"rounds": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15], "has_recommendation": true},
+      "transfer": {"rounds": [16, 17, 18, 19, 20], "has_recommendation": false}
+    },
+    "optimal_scenarios": {
+      "round_1": {"optimal_bundle_size": 1, "optimal_combo": "R1_A", "optimal_rps": 2.395, "type": "baseline"},
+      "round_2": {"optimal_bundle_size": 2, "optimal_combo": "R2_A+R2_B", "optimal_rps": 1.998, "type": "baseline"},
+      "round_3": {"optimal_bundle_size": 3, "optimal_combo": "R3_A+R3_B+R3_C", "optimal_rps": 1.75, "type": "baseline"},
+      "round_4": {"optimal_bundle_size": 1, "optimal_combo": "R4_A", "optimal_rps": 1.447, "type": "baseline"},
+      "round_5": {"optimal_bundle_size": 2, "optimal_combo": "R5_A+R5_B", "optimal_rps": 2.4, "type": "baseline"},
+      "round_6": {"optimal_bundle_size": 1, "optimal_combo": "R6_A", "optimal_rps": 2.0, "type": "rec2_opt1"},
+      "round_7": {"optimal_bundle_size": 2, "optimal_combo": "R7_A+R7_B", "optimal_rps": 1.664, "type": "aligned"},
+      "round_8": {"optimal_bundle_size": 3, "optimal_combo": "R8_A+R8_B+R8_C", "optimal_rps": 1.659, "type": "rec2_opt3"},
+      "round_9": {"optimal_bundle_size": 3, "optimal_combo": "R9_A+R9_B+R9_C", "optimal_rps": 2.5, "type": "rec2_opt3"},
+      "round_10": {"optimal_bundle_size": 3, "optimal_combo": "R10_A+R10_B+R10_C", "optimal_rps": 2.287, "type": "rec2_opt3"},
+      "round_11": {"optimal_bundle_size": 1, "optimal_combo": "R11_A", "optimal_rps": 1.7, "type": "rec2_opt1"},
+      "round_12": {"optimal_bundle_size": 2, "optimal_combo": "R12_A+R12_B", "optimal_rps": 1.474, "type": "aligned"},
+      "round_13": {"optimal_bundle_size": 1, "optimal_combo": "R13_A", "optimal_rps": 2.4, "type": "rec2_opt1"},
+      "round_14": {"optimal_bundle_size": 2, "optimal_combo": "R14_A+R14_B", "optimal_rps": 2.176, "type": "aligned"},
+      "round_15": {"optimal_bundle_size": 3, "optimal_combo": "R15_A+R15_B+R15_C", "optimal_rps": 1.825, "type": "rec2_opt3"},
+      "round_16": {"optimal_bundle_size": 2, "optimal_combo": "R16_A+R16_B", "optimal_rps": 1.453, "type": "transfer"},
+      "round_17": {"optimal_bundle_size": 2, "optimal_combo": "R17_A+R17_B", "optimal_rps": 2.353, "type": "transfer"},
+      "round_18": {"optimal_bundle_size": 3, "optimal_combo": "R18_A+R18_B+R18_C", "optimal_rps": 2.095, "type": "transfer"},
+      "round_19": {"optimal_bundle_size": 1, "optimal_combo": "R19_A", "optimal_rps": 1.845, "type": "transfer"},
+      "round_20": {"optimal_bundle_size": 3, "optimal_combo": "R20_A+R20_B+R20_C", "optimal_rps": 1.551, "type": "transfer"}
+    },
+    "city_stats": {
+      "Emeryville": {"avg_optimal_rps": 2.419, "rounds": [1, 5, 9, 13, 17]},
+      "Berkeley": {"avg_optimal_rps": 2.042, "rounds": [2, 6, 10, 14, 18]},
+      "Oakland": {"avg_optimal_rps": 1.690, "rounds": [3, 7, 11, 15, 19]},
+      "Piedmont": {"avg_optimal_rps": 1.489, "rounds": [4, 8, 12, 16, 20]}
+    }
+  }
+}
