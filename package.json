@@ -16,7 +16,7 @@
 		"svelte": "^5.28.2"
 	},
 	"engines": {
-		"node": ">=22.x"
+		"node": ">=18.x"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-static": "^3.0.10",
