@@ -1,108 +1,214 @@
-# Configuring the Game
+# Bundle Game - Delivery Efficiency Experiment# Configuring the Game
 
-## 50-Round Experiment Configuration
 
-The game now includes a **50-round experiment** with structured scenarios testing bundling behavior and recommendation systems. This is the primary configuration for research purposes.
 
-### Experiment Overview
+A SvelteKit-based delivery simulation game for researching order bundling decision-making.## 50-Round Experiment Configuration
 
-- **Location**: `src/lib/bundle_experiment_50_rounds_short_times.json`
-- **Structure**: 50 rounds across 3 phases
+
+
+## Quick StartThe game now includes a **50-round experiment** with structured scenarios testing bundling behavior and recommendation systems. This is the primary configuration for research purposes.
+
+
+
+```bash### Experiment Overview
+
+npm install
+
+npm run dev- **Location**: `src/lib/bundle_experiment_50_rounds_short_times.json`
+
+```- **Structure**: 50 rounds across 3 phases
+
   - **Phase A (Rounds 1-15)**: Baseline - no recommendations
-  - **Phase B (Rounds 16-35)**: System recommends 2-bundles with star badges
+
+## Project Structure  - **Phase B (Rounds 16-35)**: System recommends 2-bundles with star badges
+
   - **Phase C (Rounds 36-50)**: Post-recommendation phase
-- **Test Scenarios**: Each round includes:
-  - 3-5 orders with specific store locations and items
-  - Optimal bundle size (1, 2, or 3 orders)
-  - Recommendation alignment (Phase B only)
-  - Timing model: 4s travel + 2s overhead + 2s per aisle
 
-### How to Modify Experiment Rounds
+```- **Test Scenarios**: Each round includes:
 
-To change what you're testing in specific rounds:
+src/  - 3-5 orders with specific store locations and items
 
-1. **Edit the experiment file**: `src/lib/bundle_experiment_50_rounds_short_times.json`
+├── routes/  - Optimal bundle size (1, 2, or 3 orders)
 
-2. **Each round has this structure**:
+│   ├── +page.svelte        # Main router (login → game → game over)  - Recommendation alignment (Phase B only)
+
+│   ├── home.svelte         # Order selection & city navigation  - Timing model: 4s travel + 2s overhead + 2s per aisle
+
+│   ├── bundlegame.svelte   # Picking, checkout & delivery
+
+│   └── order.svelte        # Order card component### How to Modify Experiment Rounds
+
+├── lib/
+
+│   ├── bundle.js           # Core game state & logicTo change what you're testing in specific rounds:
+
+│   ├── bundle_experiment_50_rounds_short_times.json  # Experiment data
+
+│   └── configs/            # Store configurations1. **Edit the experiment file**: `src/lib/bundle_experiment_50_rounds_short_times.json`
+
+└── app.html
+
+```2. **Each round has this structure**:
+
    ```json
-   {
+
+## Current Experiment: 50 Rounds, 3 Phases   {
+
      "round": 1,
-     "phase": "A",
+
+The game runs a controlled experiment with 50 rounds across 3 phases:     "phase": "A",
+
      "scenario_id": "A_1_allsame",
-     "orders": [
-       {
-         "name": "Alice",
-         "price": 15,
-         "restaurant": "SafeGrocer",
+
+| Phase | Rounds | Recommendations | Purpose |     "orders": [
+
+|-------|--------|-----------------|---------|       {
+
+| **A** | 1-15   | None            | Baseline player behavior |         "name": "Alice",
+
+| **B** | 16-35  | Shown (2 orders marked) | Optimal recommendations visible |         "price": 15,
+
+| **C** | 36-50  | None            | Post-recommendation behavior |         "restaurant": "SafeGrocer",
+
          "city": "NorthCity",
-         "items": ["Milk", "Bread"],
-         "recommended": false
-       }
-     ],
-     "max_bundle": 3
-   }
+
+### Key Parameters         "items": ["Milk", "Bread"],
+
+- **4 orders** shown per round         "recommended": false
+
+- **Max bundle size**: 3 orders       }
+
+- **Time per round**: 300 seconds (5 min countdown)     ],
+
+- **Stores**: Target, Berkeley Bowl, Sprouts, Safeway     "max_bundle": 3
+
+- **Cities**: Emeryville, Berkeley, Oakland, Piedmont   }
+
    ```
+
+## Game Flow
 
 3. **Key fields to modify**:
-   - `orders`: Array of 3-5 order objects
-   - `orders[].recommended`: Set to `true` to show star badge (Phase B only)
-   - `orders[].restaurant`: Store name (affects travel time)
-   - `orders[].city`: "NorthCity" or "SouthCity" (affects travel time)
-   - `orders[].items`: Array of items (each item = 1 aisle, affects pick time)
+
+1. **Order Selection**: Player sees 4 orders on a map, selects 1-3 to bundle   - `orders`: Array of 3-5 order objects
+
+2. **Shopping**: Navigate store aisles, pick items (2s per aisle)   - `orders[].recommended`: Set to `true` to show star badge (Phase B only)
+
+3. **Checkout**: Complete purchase   - `orders[].restaurant`: Store name (affects travel time)
+
+4. **Delivery**: Travel to destination city (4s travel time)   - `orders[].city`: "NorthCity" or "SouthCity" (affects travel time)
+
+5. **Next Round**: Automatically advances after delivery   - `orders[].items`: Array of items (each item = 1 aisle, affects pick time)
+
    - `max_bundle`: Maximum orders players can bundle (1-3)
 
+## Experiment Data
+
 4. **After making changes**, update the developer reference table by regenerating the CSV:
-   ```bash
+
+The experiment file (`src/lib/bundle_experiment_50_rounds_short_times.json`) contains:   ```bash
+
    node generate_csv.mjs
-   ```
 
-### Developer Reference Table
+```json   ```
 
-A **visual reference table** is available for developers to track optimal strategies across all 50 rounds:
+{
 
-- **HTML Table**: `experiment_reference_table.html`
-  - Interactive color-coded table showing optimal bundles, earnings, and efficiency
-  - **How to view**: Run `npx serve -l 3000 .` then open `http://localhost:3000/experiment_reference_table.html`
-  - Shows phase badges, recommendation alignment, and second-best strategies
+  "round": 1,### Developer Reference Table
 
-- **CSV File**: `experiment_reference.csv`
-  - Quick data analysis in Excel, Google Sheets, Python, or R
-  - Contains: Round, Phase, Optimal_Bundle_Size, Optimal_Earnings, Optimal_Efficiency, Alignment, etc.
+  "phase": "A",
+
+  "scenario_id": "A01",A **visual reference table** is available for developers to track optimal strategies across all 50 rounds:
+
+  "max_bundle": 3,
+
+  "orders": [...],- **HTML Table**: `experiment_reference_table.html`
+
+  "optimal": {  - Interactive color-coded table showing optimal bundles, earnings, and efficiency
+
+    "combo": ["R1_A"],  - **How to view**: Run `npx serve -l 3000 .` then open `http://localhost:3000/experiment_reference_table.html`
+
+    "efficiency_earnings_per_s": 1.8,  - Shows phase badges, recommendation alignment, and second-best strategies
+
+    "total_earnings": 18
+
+  },- **CSV File**: `experiment_reference.csv`
+
+  "second_best": {...}  - Quick data analysis in Excel, Google Sheets, Python, or R
+
+}  - Contains: Round, Phase, Optimal_Bundle_Size, Optimal_Earnings, Optimal_Efficiency, Alignment, etc.
+
+```
 
 - **Documentation**: `EXPERIMENT_REFERENCE_GUIDE.md`
-  - Complete guide with usage instructions and analysis examples
 
-**Important**: These reference tools are **developer-only** and are **NOT visible to experiment participants**.
+## Optimal Bundle Types  - Complete guide with usage instructions and analysis examples
 
-### Timing Model & Optimal Strategies
 
-The experiment uses this timing calculation for each bundle:
+
+| Type | Bundle Size | Efficiency | Scenario |**Important**: These reference tools are **developer-only** and are **NOT visible to experiment participants**.
+
+|------|-------------|------------|----------|
+
+| Single High | 1 order | 1.8 $/s | One $18 order beats 3 small orders |### Timing Model & Optimal Strategies
+
+| Overlap Duo | 2 orders | 1.667 $/s | Two orders sharing aisles |
+
+| Chain Triple | 3 orders | 3.071 $/s | Three orders with sequential aisle overlap |The experiment uses this timing calculation for each bundle:
+
 ```
-Total Time = 4s (travel) + 2s (overhead) + 2s × (number of unique aisles)
+
+## Data LoggingTotal Time = 4s (travel) + 2s (overhead) + 2s × (number of unique aisles)
+
 ```
 
-**Example**:
-- Bundle of 2 orders with 3 unique aisles total: `4 + 2 + (2 × 3) = 12 seconds`
-- Efficiency = Total Earnings / Total Time
+Player actions are logged to Firebase:
 
-**Note**: Changing the per-aisle time between 1-3 seconds preserves the same optimal choices for the current scenario designs - only efficiency values scale proportionally.
+- Order selections**Example**:
 
-**Modifying timing parameters**:
+- Bundle compositions- Bundle of 2 orders with 3 unique aisles total: `4 + 2 + (2 × 3) = 12 seconds`
+
+- Shopping times- Efficiency = Total Earnings / Total Time
+
+- Delivery completions
+
+- Recommendation interactions (Phase B)**Note**: Changing the per-aisle time between 1-3 seconds preserves the same optimal choices for the current scenario designs - only efficiency values scale proportionally.
+
+
+
+## Development**Modifying timing parameters**:
+
 - Edit `cellDistance` values in `src/lib/bundle_experiment_50_rounds_short_times.json`
-- Current model: `{"NorthCity": 1, "SouthCity": 2}` where values represent travel time multipliers
-- After changes, verify optimal strategies haven't unexpectedly shifted using the reference table
 
----
+```bash- Current model: `{"NorthCity": 1, "SouthCity": 2}` where values represent travel time multipliers
+
+npm run dev      # Start development server- After changes, verify optimal strategies haven't unexpectedly shifted using the reference table
+
+npm run build    # Build for production
+
+npm run preview  # Preview production build---
+
+```
 
 ## Legacy Configuration (config.json)
 
+## Deployment
+
 You will need the following data inside your `config.json` file:
+
+Auto-deploys to Vercel on push to main branch.
 
 - `name`: string. Name of the configuration (e.g., "Phase 1 Lab Configuration")
 
+## Reference Materials
+
 - `timeLimit`: integer. How long the game should run in seconds
 
-- `thinkTime`: integer. How many seconds the user gets to think before being able to select orders (timer is paused during this time)
+- `experiment_reference.csv` - Round-by-round reference table
+
+- `experiment_reference_table.html` - Visual reference (open in browser)- `thinkTime`: integer. How many seconds the user gets to think before being able to select orders (timer is paused during this time)
+
+- `docs/EXPERIMENT_DESIGN.md` - Full research design documentation
 
 - `gridSize`: integer. Dimensions of the game grid.  
   - For example, `3` means a 3x3 grid.

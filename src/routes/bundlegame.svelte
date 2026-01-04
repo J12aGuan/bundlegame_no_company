@@ -20,6 +20,17 @@
     let startTimer = $elapsed;
     let intervalId;
     let startEarnings;
+    
+    // Aisle movement countdown
+    let aisleCountdown = 0;
+    let aisleCountdownInterval = null;
+    
+    // Delivery countdown state
+    let deliveryInProgress = false;
+    let deliveryCountdown = 0;
+    let deliveryCountdownInterval = null;
+    let deliveringToCity = "";
+    
     let totalEarnings;
     let curTip = 0;
     
@@ -81,6 +92,8 @@
     onDestroy(() => {
         if ($game.tip) clearInterval(intervalId);
         if (deliveryMap) deliveryMap.remove();
+        if (aisleCountdownInterval) clearInterval(aisleCountdownInterval);
+        if (deliveryCountdownInterval) clearInterval(deliveryCountdownInterval);
     });
 
     function handleCell(value, row, col) {
@@ -102,6 +115,18 @@
         GameState = 2;
         
         const travelTime = dist * config["cellDistance"];
+        
+        // Start aisle countdown
+        aisleCountdown = travelTime / 1000; // Convert to seconds
+        if (aisleCountdownInterval) clearInterval(aisleCountdownInterval);
+        aisleCountdownInterval = setInterval(() => {
+            aisleCountdown = Math.max(0, aisleCountdown - 0.1);
+            if (aisleCountdown <= 0) {
+                clearInterval(aisleCountdownInterval);
+                aisleCountdownInterval = null;
+            }
+        }, 100);
+        
         setTimeout(() => { GameState = 1; }, travelTime)
     }
 
@@ -370,8 +395,8 @@
 
     function deliverTo(idx) {
         console.log("deliverTo called with idx:", idx, "deliveryLocations:", deliveryLocations);
-        if (!deliveryMap || !deliveryLocations.length) {
-            console.log("Early return: deliveryMap:", deliveryMap, "deliveryLocations.length:", deliveryLocations.length);
+        if (!deliveryMap || !deliveryLocations.length || deliveryInProgress) {
+            console.log("Early return: deliveryMap:", deliveryMap, "deliveryLocations.length:", deliveryLocations.length, "deliveryInProgress:", deliveryInProgress);
             return;
         }
         
@@ -397,12 +422,29 @@
             travelTime = 2; // Intra-city travel
         }
         
-        alert(`Driving to ${targetLoc.destination}...\nTravel Time: ${travelTime}s`);
+        // Start delivery countdown (auto-completes after time)
+        deliveryInProgress = true;
+        deliveringToCity = targetLoc.destination;
+        deliveryCountdown = travelTime;
         
+        if (deliveryCountdownInterval) clearInterval(deliveryCountdownInterval);
+        deliveryCountdownInterval = setInterval(() => {
+            deliveryCountdown = Math.max(0, deliveryCountdown - 0.1);
+            if (deliveryCountdown <= 0) {
+                clearInterval(deliveryCountdownInterval);
+                deliveryCountdownInterval = null;
+                completeDelivery(idx, targetLoc);
+            }
+        }, 100);
+    }
+    
+    function completeDelivery(idx, targetLoc) {
         // Update State - use reassignment to trigger Svelte reactivity
         targetLoc.delivered = true;
         currentDeliveryCity = targetLoc.destination;
         currLocation.set(targetLoc.destination);
+        deliveryInProgress = false;
+        deliveringToCity = "";
         
         // Force array update to trigger reactivity
         deliveryLocations = [...deliveryLocations];
@@ -591,56 +633,62 @@
                 <span class="text-xs bg-slate-700 px-2 py-1 rounded">📍 Current: {currentDeliveryCity}</span>
             </div>
             
-            <!-- Delivery List with Distance/Time Info -->
-            <div class="p-3 bg-slate-50 border-b">
-                <p class="text-xs font-semibold text-slate-600 mb-2">Deliveries Remaining:</p>
-                <div class="grid gap-2">
-                    {#each deliveryLocations as loc, idx}
-                        {@const distData = getDistances(currentDeliveryCity)}
-                        {@const destIndex = distData.destinations.indexOf(loc.destination)}
-                        {@const travelTime = currentDeliveryCity === loc.destination ? 2 : (destIndex !== -1 ? distData.distances[destIndex] : 2)}
-                        <div class="flex items-center justify-between bg-white p-2 rounded-lg border text-sm
-                            {loc.delivered ? 'opacity-50' : ''}">
-                            <div class="flex items-center gap-2">
-                                <span class="text-lg">{loc.delivered ? '✅' : '📦'}</span>
-                                <div>
-                                    <p class="font-medium text-slate-800">{loc.name}</p>
-                                    <p class="text-xs text-slate-500">📍 {loc.destination}</p>
+            <!-- Delivery Countdown Overlay -->
+            {#if deliveryInProgress}
+                <div class="p-6 bg-blue-50 border-b text-center">
+                    <div class="animate-bounce text-4xl mb-2">🚗</div>
+                    <h3 class="font-bold text-lg text-slate-800">Driving to {deliveringToCity}...</h3>
+                    <div class="text-4xl font-mono font-bold text-blue-600 tabular-nums mt-2">
+                        {deliveryCountdown.toFixed(1)}s
+                    </div>
+                    <div class="w-48 h-2 bg-slate-200 rounded-full mt-3 mx-auto overflow-hidden">
+                        <div class="h-full bg-blue-500 transition-all duration-100 rounded-full"
+                             style="width: {(deliveryCountdown / (getDistances(currentDeliveryCity).distances[getDistances(currentDeliveryCity).destinations.indexOf(deliveringToCity)] || 2)) * 100}%"></div>
+                    </div>
+                </div>
+            {:else}
+                <!-- Delivery List with Distance/Time Info -->
+                <div class="p-3 bg-slate-50 border-b">
+                    <p class="text-xs font-semibold text-slate-600 mb-2">Deliveries Remaining:</p>
+                    <div class="grid gap-2">
+                        {#each deliveryLocations as loc, idx}
+                            {@const distData = getDistances(currentDeliveryCity)}
+                            {@const destIndex = distData.destinations.indexOf(loc.destination)}
+                            {@const travelTime = currentDeliveryCity === loc.destination ? 2 : (destIndex !== -1 ? distData.distances[destIndex] : 2)}
+                            <div class="flex items-center justify-between bg-white p-2 rounded-lg border text-sm
+                                {loc.delivered ? 'opacity-50' : ''}">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-lg">{loc.delivered ? '✅' : '📦'}</span>
+                                    <div>
+                                        <p class="font-medium text-slate-800">{loc.name}</p>
+                                        <p class="text-xs text-slate-500">📍 {loc.destination}</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    {#if !loc.delivered}
+                                        <p class="text-xs text-slate-600">🚗 {travelTime}s away</p>
+                                        <button class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 mt-1"
+                                            on:click={() => deliverTo(idx)}>
+                                            Deliver
+                                        </button>
+                                    {:else}
+                                        <span class="text-xs text-green-600 font-medium">Delivered ✓</span>
+                                    {/if}
                                 </div>
                             </div>
-                            <div class="text-right">
-                                {#if !loc.delivered}
-                                    <p class="text-xs text-slate-600">🚗 {travelTime}s away</p>
-                                    <button class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 mt-1"
-                                        on:click={() => deliverTo(idx)}>
-                                        Deliver
-                                    </button>
-                                {:else}
-                                    <span class="text-xs text-green-600 font-medium">Delivered ✓</span>
-                                {/if}
-                            </div>
-                        </div>
-                    {/each}
+                        {/each}
+                    </div>
                 </div>
-            </div>
+            {/if}
             
             <!-- Smaller Map -->
             <div class="relative h-[280px] w-full">
                 <div id="delivery-map" class="w-full h-full"></div>
             </div>
-            <div class="p-3 space-y-2">
+            <div class="p-3">
                 <div class="text-center text-xs text-slate-500">
                     Click delivery buttons above or markers on map. Your location updates after each delivery.
                 </div>
-                <button 
-                    class="w-full bg-yellow-600 text-white font-bold py-2 rounded-xl shadow hover:bg-yellow-700 transition text-sm"
-                    on:click={() => {
-                        console.log("Skip Delivery button clicked - forcing round completion");
-                        finishSuccess();
-                    }}
-                >
-                    ⚠️ Skip Delivery (Debug)
-                </button>
             </div>
         </div>
 
@@ -654,10 +702,16 @@
     {:else if GameState == 2}
         <div class="flex flex-col items-center justify-center h-48 space-y-3">
             <div class="animate-bounce text-3xl">🚶</div>
-            <h2 class="font-bold text-lg">Moving...</h2>
+            <h2 class="font-bold text-lg">Moving to aisle...</h2>
             <div class="text-slate-500">
-                <span class="text-xl font-mono font-bold text-blue-600">{dist * config["cellDistance"] / 1000}s</span>
-                <p class="text-xs mt-1">({dist} {dist === 1 ? 'aisle' : 'aisles'})</p>
+                <div class="text-4xl font-mono font-bold text-blue-600 tabular-nums">
+                    {aisleCountdown.toFixed(1)}s
+                </div>
+                <div class="w-32 h-2 bg-slate-200 rounded-full mt-2 overflow-hidden">
+                    <div class="h-full bg-blue-500 transition-all duration-100 rounded-full"
+                         style="width: {(aisleCountdown / (dist * config['cellDistance'] / 1000)) * 100}%"></div>
+                </div>
+                <p class="text-xs mt-2">({dist} {dist === 1 ? 'aisle' : 'aisles'})</p>
             </div>
         </div>
     {/if}
