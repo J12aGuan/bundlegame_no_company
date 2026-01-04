@@ -1,4 +1,4 @@
-# Bundle Game - Delivery Efficiency Experiment
+# Bundle Game  
 
 A SvelteKit-based delivery simulation game for researching order bundling decision-making.
 
@@ -13,7 +13,7 @@ npm run dev
 
 # CONFIGURATION GUIDE
 
-This guide documents **ALL configurable parameters** for customizing experiments.
+This guide documents configurable parameters for customizing experiments.
 
 ---
 
@@ -110,7 +110,7 @@ This is the **main experiment data** containing 50 rounds across 3 phases.
 }
 ```
 
-Distances are in **seconds**. Determines delivery travel time between cities.
+Distances are in seconds. Determines delivery travel time between cities.
 
 ---
 
