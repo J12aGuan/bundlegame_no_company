@@ -35,9 +35,13 @@
         "Piedmont": [37.8238, -122.2316]
     };
 
+    // Timer config - set round time limit (e.g., 300 seconds = 5 minutes)
+    const ROUND_TIME_LIMIT = 300;
+    
     $: numOrders = $orders.length;
-    $: endTimer = $elapsed - startTimer;
-    $: locationLabel = config["locations"]?.[curLocation[0]]?.[curLocation[1]] || "Entrance";
+    $: elapsedTime = $elapsed - startTimer;
+    $: countdownTimer = Math.max(0, ROUND_TIME_LIMIT - elapsedTime);
+    $: locationLabel = config["locations"]?.[curLocation[0]]?.[curLocation[1]]?.toLowerCase() || "entrance";
 
     // Auto clear input
     $: if (curLocation) {
@@ -46,7 +50,7 @@
     }
 
     function updateTip() {
-        let tipIndex = Math.floor(endTimer / config["tipinterval"])
+        let tipIndex = Math.floor(elapsedTime / config["tipinterval"])
         let percentIncrease = tipIndex < config["tip"].length ?
         (1 + (config["tip"][tipIndex]/100)) : (config["tip"][config["tip"].length - 1]/100)
         curTip = Math.round(percentIncrease * 100 - 100);
@@ -139,6 +143,36 @@
         bags = [...bags]; // Reactivity trigger
         wordInput = ""; bagInputs = ["", "", ""];
         logAction(action)
+    }
+
+    // Function to remove items from a bag
+    function removeFromBag(bagIdx, itemName) {
+        if (bags[bagIdx][itemName]) {
+            delete bags[bagIdx][itemName];
+            bags = [...bags]; // Trigger reactivity
+            logAction({ buttonID: "removefromBag", bagIndex: bagIdx, item: itemName });
+        }
+    }
+
+    // Function to decrease quantity of an item
+    function decreaseQuantity(bagIdx, itemName) {
+        if (bags[bagIdx][itemName]) {
+            bags[bagIdx][itemName] -= 1;
+            if (bags[bagIdx][itemName] <= 0) {
+                delete bags[bagIdx][itemName];
+            }
+            bags = [...bags]; // Trigger reactivity
+            logAction({ buttonID: "decreaseQty", bagIndex: bagIdx, item: itemName });
+        }
+    }
+
+    // Function to increase quantity of an item
+    function increaseQuantity(bagIdx, itemName) {
+        if (bags[bagIdx][itemName]) {
+            bags[bagIdx][itemName] += 1;
+            bags = [...bags]; // Trigger reactivity
+            logAction({ buttonID: "increaseQty", bagIndex: bagIdx, item: itemName });
+        }
     }
 
     function start() {
@@ -432,7 +466,7 @@
 
     function logRoundCompletion(success) {
         const scenario = getCurrentScenario($currentRound);
-        const duration = $elapsed - $roundStartTime;
+        const duration = $elapsed - startTimer; // Calculate directly
         const chosenOrderIds = $orders.map(o => o.id);
         const recommendedOrderIds = scenario.orders.filter(o => o.recommended).map(o => o.id);
         
@@ -452,96 +486,154 @@
     }
 </script>
 
-<main class="mx-auto max-w-6xl px-4 py-4 space-y-4">
-    <div class="flex items-center justify-between bg-white p-3 rounded-xl border shadow-sm">
+<main class="mx-auto max-w-6xl px-4 py-2 space-y-3">
+    <div class="flex items-center justify-between bg-white p-2 rounded-xl border shadow-sm">
         <div>
-            <h1 class="text-lg font-bold text-slate-800">{$orders[0].store}</h1>
-            <p class="text-sm text-slate-500">Aisle: {locationLabel}</p>
+            <h1 class="text-base font-bold text-slate-800">{$orders[0].store}</h1>
+            <p class="text-xs text-slate-500">Aisle: {locationLabel}</p>
         </div>
         <div class="text-right">
-             <div class="text-xl font-bold text-green-600">${totalEarnings}</div>
-             <div class="text-xs text-slate-400">Time: {endTimer}s</div>
+             <div class="text-lg font-bold text-green-600">${totalEarnings}</div>
+             <div class="text-xs text-slate-400 font-mono {countdownTimer < 60 ? 'text-red-500 font-bold' : ''}">
+                 ⏱️ {Math.floor(countdownTimer / 60)}:{(countdownTimer % 60).toString().padStart(2, '0')}
+             </div>
         </div>
     </div>
 
     {#if GameState == 0}
-        <div class="text-center py-12">
-            <button class="bg-green-600 text-white px-8 py-4 rounded-full text-lg font-bold shadow-lg hover:bg-green-700 transition" 
+        <div class="text-center py-8">
+            <button class="bg-green-600 text-white px-6 py-3 rounded-full text-base font-bold shadow-lg hover:bg-green-700 transition" 
                 on:click={start}>
                 Start Picking ({numOrders} Orders)
             </button>
         </div>
         
     {:else if GameState == 1}
-        <div class="grid lg:grid-cols-[1fr,2fr] gap-6">
-            <div class="space-y-4">
-                <div class="bg-white p-4 rounded-xl border shadow-sm space-y-3 sticky top-4 z-10">
+        <div class="grid lg:grid-cols-[1fr,2fr] gap-4">
+            <div class="space-y-3">
+                <div class="bg-white p-3 rounded-xl border shadow-sm space-y-2 sticky top-2 z-10">
                     <label class="block text-xs font-bold text-slate-700 uppercase">1. Identify Item</label>
-                    <input class="w-full text-lg border-2 border-slate-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none" 
-                        bind:value={wordInput} placeholder="Item name..."/>
-                    <button class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow hover:bg-blue-700 transition"
+                    <input class="w-full text-base border-2 border-slate-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none" 
+                        bind:value={wordInput} placeholder="Type item name..."/>
+                    <button class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg shadow hover:bg-blue-700 transition text-sm"
                         on:click={addBag}>Add to Selected Bags</button>
-                    <button class="w-full bg-slate-500 text-white font-bold py-2 rounded-lg shadow hover:bg-slate-600 transition text-sm"
+                    <button class="w-full bg-slate-500 text-white font-bold py-1.5 rounded-lg shadow hover:bg-slate-600 transition text-xs"
                         on:click={() => showStoreMap = true}>📍 Show Store Map</button>
                 </div>
                 
                 {#each $orders as order, idx}
-                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-2 space-y-1">
                         <div class="flex justify-between items-start">
-                            <div><h3 class="font-bold text-slate-800">Order {idx+1}: {order.name}</h3></div>
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-sm">Order {idx+1}: {order.name}</h3>
+                                <p class="text-[10px] text-slate-500">📍 Deliver to: {order.city}</p>
+                            </div>
                             <div class="flex flex-col items-end">
-                                <label class="text-[10px] font-bold text-slate-500 uppercase">Qty Add</label>
-                                <input type="number" min="0" class="w-16 text-center font-bold border rounded p-1" bind:value={bagInputs[idx]} placeholder="0"/>
+                                <label class="text-[10px] font-bold text-slate-500 uppercase">Qty</label>
+                                <input type="number" min="0" class="w-14 text-center font-bold border rounded p-1 text-sm" bind:value={bagInputs[idx]} placeholder="0"/>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-2 text-xs">
-                            <div class="bg-white p-2 rounded border">
-                                <p class="font-semibold text-slate-500">List</p>
-                                {#each Object.entries(order.items) as [item, qty]}<div class="flex justify-between"><span>{item}</span><span>x{qty}</span></div>{/each}
+                        <div class="grid grid-cols-2 gap-1 text-xs">
+                            <div class="bg-white p-1.5 rounded border">
+                                <p class="font-semibold text-slate-500 text-[10px]">Shopping List</p>
+                                {#each Object.entries(order.items) as [item, qty]}
+                                    <div class="flex justify-between"><span>{item.toLowerCase()}</span><span>x{qty}</span></div>
+                                {/each}
                             </div>
-                            <div class="bg-blue-50 p-2 rounded border border-blue-100">
-                                <p class="font-semibold text-blue-600">Bag</p>
-                                {#each Object.entries(bags[idx]) as [item, qty]}<div class="flex justify-between"><span>{item}</span><span>x{qty}</span></div>{/each}
+                            <div class="bg-blue-50 p-1.5 rounded border border-blue-100">
+                                <p class="font-semibold text-blue-600 text-[10px]">In Bag</p>
+                                {#each Object.entries(bags[idx]) as [item, qty]}
+                                    <div class="flex justify-between items-center gap-1">
+                                        <span class="truncate">{item}</span>
+                                        <div class="flex items-center gap-0.5">
+                                            <button class="w-4 h-4 bg-slate-200 rounded text-[10px] hover:bg-slate-300" 
+                                                on:click|stopPropagation={() => decreaseQuantity(idx, item)}>-</button>
+                                            <span class="min-w-[16px] text-center">{qty}</span>
+                                            <button class="w-4 h-4 bg-slate-200 rounded text-[10px] hover:bg-slate-300" 
+                                                on:click|stopPropagation={() => increaseQuantity(idx, item)}>+</button>
+                                            <button class="w-4 h-4 bg-red-100 text-red-600 rounded text-[10px] hover:bg-red-200 ml-0.5" 
+                                                on:click|stopPropagation={() => removeFromBag(idx, item)}>×</button>
+                                        </div>
+                                    </div>
+                                {/each}
+                                {#if Object.keys(bags[idx]).length === 0}
+                                    <p class="text-slate-400 text-[10px] italic">Empty</p>
+                                {/if}
                             </div>
                         </div>
                     </div>
                 {/each}
             </div>
 
-            <div class="space-y-4">
-                 <div class={`grid gap-2 ${gridColsClass}`}>
+            <div class="space-y-3">
+                 <div class={`grid gap-1.5 ${gridColsClass}`}>
                     {#each config["locations"] as row, rowIndex}
                         {#each row as cell, colIndex}
-                            <button class="flex min-h-[80px] flex-col items-center justify-center rounded-xl text-sm font-medium transition
+                            <button class="flex min-h-[60px] flex-col items-center justify-center rounded-lg text-xs font-medium transition
                                 {rowIndex === curLocation[0] && colIndex === curLocation[1] ? 'bg-green-100 border-2 border-green-500 text-green-900 transform scale-105' : 'border border-slate-200 bg-white hover:bg-slate-50'}"
                                 on:click={() => handleCell(cell, rowIndex, colIndex)}>
-                                <span>{cell}</span>{#if emojis[cell]}<span class="text-2xl mt-1">{emojis[cell]}</span>{/if}
+                                <span>{cell.toLowerCase()}</span>{#if emojis[cell]}<span class="text-xl mt-0.5">{emojis[cell]}</span>{/if}
                             </button>
                         {/each}
                     {/each}
                 </div>
-                <div class="flex justify-between pt-4 border-t">
-                    <button class="text-red-500 font-bold" on:click={giveUp}>Give Up</button>
-                    <button class="bg-green-600 text-white px-6 py-2 rounded-full font-bold shadow" on:click={checkoutOrders}>Checkout & Deliver</button>
+                <div class="flex justify-between pt-2 border-t">
+                    <button class="text-red-500 font-bold text-sm" on:click={giveUp}>Give Up</button>
+                    <button class="bg-green-600 text-white px-5 py-2 rounded-full font-bold shadow text-sm" on:click={checkoutOrders}>Checkout & Deliver</button>
                 </div>
             </div>
         </div>
 
     {:else if GameState == 5}
-        <div class="bg-white rounded-2xl shadow-lg border overflow-hidden">
-            <div class="bg-slate-800 p-4 text-white flex justify-between items-center">
-                <h2 class="text-lg font-bold">🚚 Deliver Orders</h2>
-                <span class="text-xs bg-slate-700 px-2 py-1 rounded">Current Loc: {currentDeliveryCity}</span>
+        <div class="bg-white rounded-xl shadow-lg border overflow-hidden">
+            <div class="bg-slate-800 p-3 text-white flex justify-between items-center">
+                <h2 class="text-base font-bold">🚚 Deliver Orders</h2>
+                <span class="text-xs bg-slate-700 px-2 py-1 rounded">📍 Current: {currentDeliveryCity}</span>
             </div>
-            <div class="relative h-[500px] w-full">
+            
+            <!-- Delivery List with Distance/Time Info -->
+            <div class="p-3 bg-slate-50 border-b">
+                <p class="text-xs font-semibold text-slate-600 mb-2">Deliveries Remaining:</p>
+                <div class="grid gap-2">
+                    {#each deliveryLocations as loc, idx}
+                        {@const distData = getDistances(currentDeliveryCity)}
+                        {@const destIndex = distData.destinations.indexOf(loc.destination)}
+                        {@const travelTime = currentDeliveryCity === loc.destination ? 2 : (destIndex !== -1 ? distData.distances[destIndex] : 2)}
+                        <div class="flex items-center justify-between bg-white p-2 rounded-lg border text-sm
+                            {loc.delivered ? 'opacity-50' : ''}">
+                            <div class="flex items-center gap-2">
+                                <span class="text-lg">{loc.delivered ? '✅' : '📦'}</span>
+                                <div>
+                                    <p class="font-medium text-slate-800">{loc.name}</p>
+                                    <p class="text-xs text-slate-500">📍 {loc.destination}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                {#if !loc.delivered}
+                                    <p class="text-xs text-slate-600">🚗 {travelTime}s away</p>
+                                    <button class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 mt-1"
+                                        on:click={() => deliverTo(idx)}>
+                                        Deliver
+                                    </button>
+                                {:else}
+                                    <span class="text-xs text-green-600 font-medium">Delivered ✓</span>
+                                {/if}
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+            
+            <!-- Smaller Map -->
+            <div class="relative h-[280px] w-full">
                 <div id="delivery-map" class="w-full h-full"></div>
             </div>
-            <div class="p-4 space-y-2">
-                <div class="text-center text-sm text-slate-500">
-                    Click markers on the map to drive to customers. Route matters!
+            <div class="p-3 space-y-2">
+                <div class="text-center text-xs text-slate-500">
+                    Click delivery buttons above or markers on map. Your location updates after each delivery.
                 </div>
                 <button 
-                    class="w-full bg-yellow-600 text-white font-bold py-3 rounded-xl shadow hover:bg-yellow-700 transition"
+                    class="w-full bg-yellow-600 text-white font-bold py-2 rounded-xl shadow hover:bg-yellow-700 transition text-sm"
                     on:click={() => {
                         console.log("Skip Delivery button clicked - forcing round completion");
                         finishSuccess();
@@ -554,18 +646,18 @@
 
 
     {:else if GameState == 4}
-        <div class="rounded-2xl bg-red-50 border border-red-200 p-8 text-center space-y-6 max-w-lg mx-auto">
-            <div class="text-6xl">⚠️</div>
-            <h2 class="text-2xl font-bold text-red-900">Incorrect Items</h2>
-            <button class="w-full bg-red-600 text-white font-bold py-3 rounded-xl shadow" on:click={retry}>Try Again</button>
+        <div class="rounded-xl bg-red-50 border border-red-200 p-6 text-center space-y-4 max-w-lg mx-auto">
+            <div class="text-5xl">⚠️</div>
+            <h2 class="text-xl font-bold text-red-900">Incorrect Items</h2>
+            <button class="w-full bg-red-600 text-white font-bold py-2.5 rounded-xl shadow text-sm" on:click={retry}>Try Again</button>
         </div>
     {:else if GameState == 2}
-        <div class="flex flex-col items-center justify-center h-64 space-y-4">
-            <div class="animate-bounce text-4xl">🚶</div>
-            <h2 class="font-bold text-xl">Moving...</h2>
+        <div class="flex flex-col items-center justify-center h-48 space-y-3">
+            <div class="animate-bounce text-3xl">🚶</div>
+            <h2 class="font-bold text-lg">Moving...</h2>
             <div class="text-slate-500">
-                <span class="text-2xl font-mono font-bold text-blue-600">{dist * config["cellDistance"] / 1000}s</span>
-                <p class="text-sm mt-1">({dist} {dist === 1 ? 'aisle' : 'aisles'})</p>
+                <span class="text-xl font-mono font-bold text-blue-600">{dist * config["cellDistance"] / 1000}s</span>
+                <p class="text-xs mt-1">({dist} {dist === 1 ? 'aisle' : 'aisles'})</p>
             </div>
         </div>
     {/if}
@@ -574,24 +666,24 @@
     {#if showStoreMap}
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
              on:click={() => showStoreMap = false}>
-            <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto p-6"
+            <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto p-4"
                  on:click|stopPropagation>
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold text-slate-800">📍 Store Layout: {$orders[0].store}</h2>
-                    <button class="text-slate-400 hover:text-slate-600 text-3xl" on:click={() => showStoreMap = false}>&times;</button>
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-xl font-bold text-slate-800">📍 Store Layout: {$orders[0].store}</h2>
+                    <button class="text-slate-400 hover:text-slate-600 text-2xl" on:click={() => showStoreMap = false}>&times;</button>
                 </div>
-                <div class={`grid gap-2 ${gridColsClass}`}>
+                <div class={`grid gap-1.5 ${gridColsClass}`}>
                     {#each config["locations"] as row, rowIndex}
                         {#each row as cell, colIndex}
-                            <div class="flex min-h-[70px] flex-col items-center justify-center rounded-lg text-sm font-medium border
+                            <div class="flex min-h-[50px] flex-col items-center justify-center rounded-lg text-xs font-medium border
                                 {rowIndex === curLocation[0] && colIndex === curLocation[1] ? 'bg-green-100 border-2 border-green-500 text-green-900' : 'border-slate-200 bg-slate-50'}">
-                                <span class="font-bold">{cell}</span>
-                                {#if emojis[cell]}<span class="text-xl mt-1">{emojis[cell]}</span>{/if}
+                                <span class="font-bold">{cell.toLowerCase()}</span>
+                                {#if emojis[cell]}<span class="text-lg mt-0.5">{emojis[cell]}</span>{/if}
                             </div>
                         {/each}
                     {/each}
                 </div>
-                <p class="text-center text-xs text-slate-500 mt-4">Your current location is highlighted in green</p>
+                <p class="text-center text-xs text-slate-500 mt-3">Your current location is highlighted in green</p>
             </div>
         </div>
     {/if}

@@ -273,7 +273,6 @@
 
             let label = city;
             if (isCurrent) label += " (You)";
-            if (hasExpOrders && !isCurrent) label += " (High Value!)";
 
             marker.bindTooltip(label, { 
                 permanent: true, 
@@ -307,56 +306,57 @@
 </script>
 
 {#if $game.inSelect}
-<section class="mx-auto max-w-7xl px-4 py-6 space-y-6">
+<section class="mx-auto max-w-7xl px-3 py-3 space-y-3">
 
     {#if isPenalty}
-        <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-8 text-center space-y-4 shadow-lg">
-            <h2 class="text-2xl font-bold text-red-800">Penalty Timeout</h2>
-            <p class="text-red-600">You gave up the previous round.</p>
-            <div class="text-4xl font-mono font-bold text-red-900">{penaltyRemaining}s</div>
+        <div class="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center space-y-3 shadow-lg">
+            <h2 class="text-xl font-bold text-red-800">Penalty Timeout</h2>
+            <p class="text-red-600 text-sm">You gave up the previous round.</p>
+            <div class="text-3xl font-mono font-bold text-red-900">{penaltyRemaining}s</div>
         </div>
 
     {:else if waiting}
-        <div class="bg-white rounded-2xl shadow-xl border p-8 text-center space-y-6">
-            <div class="animate-spin text-4xl text-blue-600 mx-auto w-min">⚙️</div>
+        <div class="bg-white rounded-xl shadow-xl border p-6 text-center space-y-4">
+            <div class="animate-spin text-3xl text-blue-600 mx-auto w-min">⚙️</div>
             <div>
-                <h2 class="text-2xl font-bold text-slate-800">Traveling to {travelingTo}</h2>
-                <p class="text-slate-500">Driving...</p>
+                <h2 class="text-xl font-bold text-slate-800">Traveling to {travelingTo}</h2>
+                <p class="text-slate-500 text-sm">Driving...</p>
             </div>
-            <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden max-w-md mx-auto">
+            <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden max-w-md mx-auto">
                 <div class="bg-blue-600 h-full transition-all duration-1000 ease-linear" 
                      style="width: {((duration - travelProgress) / duration) * 100}%"></div>
             </div>
-            <p class="font-mono text-slate-400">{travelProgress}s remaining</p>
+            <p class="font-mono text-slate-400 text-sm">{travelProgress}s remaining</p>
         </div>
 
     {:else}
-        <div class="flex flex-wrap items-end justify-between gap-4">
+        <div class="flex flex-wrap items-end justify-between gap-2">
             <div>
-                <h1 class="text-2xl font-bold text-slate-900">Round {$currentRound} / 50</h1>
-                <p class="text-slate-500">Current Location: <span class="font-bold text-blue-600">{$currLocation}</span></p>
+                <h1 class="text-xl font-bold text-slate-900">Round {$currentRound} / 50</h1>
+                <p class="text-sm text-slate-500">Current Location: <span class="font-bold text-blue-600">{$currLocation}</span></p>
             </div>
             {#if thinking}
-                <div class="bg-blue-50 px-4 py-2 rounded-lg text-blue-800 text-sm font-medium border border-blue-100">
+                <div class="bg-blue-50 px-3 py-1.5 rounded-lg text-blue-800 text-xs font-medium border border-blue-100">
                     ⏱️ Review Time: {thinkRemaining}s
                     <button class="ml-2 text-xs underline opacity-60 hover:opacity-100" on:click={() => thinkRemaining = 0}>Skip</button>
                 </div>
             {/if}
         </div>
 
-        <div class="grid lg:grid-cols-[40%_60%] gap-8 mt-4">
-            <div class="space-y-4">
-                <h2 class="text-lg font-semibold text-slate-800">Orders in {$currLocation}</h2>
+        <div class="grid lg:grid-cols-[55%_45%] gap-4 mt-2">
+            <div class="space-y-2">
+                <h2 class="text-base font-semibold text-slate-800">Orders in {$currLocation}</h2>
                 
-                <div class="grid gap-4 max-h-[600px] overflow-y-auto pr-2">
+                <!-- Fixed height grid for 4 orders without scrolling -->
+                <div class="grid grid-cols-2 gap-2">
                     {#each localOrders as order, i (order.id)}
                         <Order orderData={order} index={i} updateEarnings={updateEarnings}/>
                     {/each}
                 </div>
 
-                <div class="bg-slate-50 p-6 rounded-2xl border flex flex-col items-center gap-3 mt-4 sticky bottom-4">
+                <div class="bg-slate-50 p-3 rounded-xl border flex flex-col items-center gap-2 sticky bottom-2">
                     <button id="startorder"
-                        class="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        class="w-full bg-green-600 text-white font-bold py-2.5 rounded-xl shadow-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
                         on:click={start}
                         disabled={$orders.length === 0}
                     >
@@ -365,7 +365,7 @@
                 </div>
             </div>
 
-            <div class="h-[600px] bg-slate-100 rounded-2xl border shadow-sm overflow-hidden relative">
+            <div class="h-[400px] bg-slate-100 rounded-xl border shadow-sm overflow-hidden relative">
                 <div id="map" class="w-full h-full z-0"></div>
             </div>
         </div>
