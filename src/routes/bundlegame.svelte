@@ -334,12 +334,18 @@
         }
     }
 
+    // Map layer references for updating
+    let truckMarker = null;
+    let routeLines = [];
+    let distanceLabels = [];
+    let destinationMarkers = [];
+
     function initDeliveryMap() {
         if (deliveryMap) deliveryMap.remove();
         
         deliveryMap = L.map('delivery-map', {
             center: [37.84, -122.25],
-            zoom: 11
+            zoom: 12
         });
 
         L.maptilerLayer({
@@ -347,18 +353,40 @@
             style: L.MaptilerStyle.STREETS
         }).addTo(deliveryMap);
 
-        // Add User Marker (Truck)
-        const truckIcon = L.divIcon({
-            html: '🚚',
-            className: 'text-2xl',
-            iconSize: [30, 30]
-        });
+        updateDeliveryMapLayers();
+    }
+    
+    function updateDeliveryMapLayers() {
+        if (!deliveryMap) return;
         
-        // Add Destination Markers with Travel Times
+        // Clear existing layers
+        routeLines.forEach(line => deliveryMap.removeLayer(line));
+        distanceLabels.forEach(label => deliveryMap.removeLayer(label));
+        destinationMarkers.forEach(marker => deliveryMap.removeLayer(marker));
+        if (truckMarker) deliveryMap.removeLayer(truckMarker);
+        
+        routeLines = [];
+        distanceLabels = [];
+        destinationMarkers = [];
+        
+        // Get current location coordinates
+        const currentCoords = cityCoords[currentDeliveryCity] || cityCoords["Berkeley"];
+        
+        // Add Truck Marker at current location
+        const truckIcon = L.divIcon({
+            html: '<div style="font-size:28px;text-shadow:2px 2px 4px rgba(0,0,0,0.3);">🚚</div>',
+            className: 'truck-marker',
+            iconSize: [35, 35],
+            iconAnchor: [17, 17]
+        });
+        truckMarker = L.marker(currentCoords, { icon: truckIcon, zIndexOffset: 1000 }).addTo(deliveryMap);
+        truckMarker.bindPopup(`<b>📍 You are here</b><br>${currentDeliveryCity}`);
+        
+        // Add Destination Markers and Route Lines
         deliveryLocations.forEach((loc, idx) => {
-            const coords = cityCoords[loc.destination] || cityCoords["Berkeley"];
+            const destCoords = cityCoords[loc.destination] || cityCoords["Berkeley"];
             
-            // Calculate travel time from current location to this destination
+            // Calculate travel time from current location
             const distData = getDistances(currentDeliveryCity);
             let travelTime = 0;
             if (currentDeliveryCity !== loc.destination) {
@@ -372,25 +400,74 @@
                 travelTime = 2;
             }
             
-            const marker = L.marker(coords).addTo(deliveryMap);
+            if (!loc.delivered) {
+                // Draw route line from current location to destination
+                const routeLine = L.polyline([currentCoords, destCoords], {
+                    color: '#3b82f6',
+                    weight: 3,
+                    opacity: 0.7,
+                    dashArray: '10, 10'
+                }).addTo(deliveryMap);
+                routeLines.push(routeLine);
+                
+                // Add distance/time label at midpoint of line
+                const midLat = (currentCoords[0] + destCoords[0]) / 2;
+                const midLng = (currentCoords[1] + destCoords[1]) / 2;
+                
+                const labelIcon = L.divIcon({
+                    html: `<div style="background:#3b82f6;color:white;padding:2px 6px;border-radius:10px;font-size:11px;font-weight:bold;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.2);">🚗 ${travelTime}s</div>`,
+                    className: 'distance-label',
+                    iconSize: [60, 20],
+                    iconAnchor: [30, 10]
+                });
+                const label = L.marker([midLat, midLng], { icon: labelIcon, interactive: false }).addTo(deliveryMap);
+                distanceLabels.push(label);
+            }
             
-            // Show info popup (no button - click marker directly)
-            marker.bindPopup(`
-                <div class="text-center">
-                    <b>${loc.name}</b><br>${loc.destination}<br>
-                    <div style="font-size:12px;color:#666;margin:4px 0;">Travel Time: ${travelTime}s</div>
-                    <div style="font-size:11px;color:#16a34a;font-weight:bold;margin-top:6px;">
-                        Click marker to deliver
-                    </div>
-                </div>
-            `);
-            
-            // Attach click handler directly to marker
-            marker.on('click', () => {
-                console.log("Marker clicked for idx:", idx);
-                deliverTo(idx);
+            // Destination marker
+            const markerIcon = L.divIcon({
+                html: `<div style="font-size:24px;${loc.delivered ? 'opacity:0.4;' : ''}">${loc.delivered ? '✅' : '📦'}</div>`,
+                className: 'dest-marker',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
             });
+            
+            const marker = L.marker(destCoords, { icon: markerIcon }).addTo(deliveryMap);
+            destinationMarkers.push(marker);
+            
+            // Popup with delivery info
+            if (!loc.delivered) {
+                marker.bindPopup(`
+                    <div style="text-align:center;min-width:120px;">
+                        <b style="font-size:14px;">${loc.name}</b><br>
+                        <span style="color:#666;">📍 ${loc.destination}</span><br>
+                        <div style="background:#e0f2fe;padding:4px 8px;border-radius:6px;margin:6px 0;">
+                            <span style="font-size:16px;font-weight:bold;color:#0369a1;">🚗 ${travelTime}s</span>
+                        </div>
+                        <div style="font-size:11px;color:#16a34a;font-weight:bold;">
+                            Click to deliver
+                        </div>
+                    </div>
+                `);
+                
+                marker.on('click', () => {
+                    console.log("Marker clicked for idx:", idx);
+                    deliverTo(idx);
+                });
+            } else {
+                marker.bindPopup(`
+                    <div style="text-align:center;">
+                        <b>${loc.name}</b><br>
+                        <span style="color:#16a34a;">✅ Delivered</span>
+                    </div>
+                `);
+            }
         });
+        
+        // Fit map to show all points
+        const allCoords = [currentCoords, ...deliveryLocations.map(loc => cityCoords[loc.destination] || cityCoords["Berkeley"])];
+        const bounds = L.latLngBounds(allCoords);
+        deliveryMap.fitBounds(bounds, { padding: [30, 30] });
     }
 
     function deliverTo(idx) {
@@ -459,6 +536,9 @@
                 console.error("Failed to close popup", err);
             }
         }
+        
+        // Update map to show new current location and recalculate distances
+        updateDeliveryMapLayers();
         
         // Check if all deliveries complete
         const allDelivered = deliveryLocations.every(d => d.delivered);
