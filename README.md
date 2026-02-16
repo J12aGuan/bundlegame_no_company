@@ -469,3 +469,343 @@ Auto-deploys to Vercel on push to main branch.
 npm run build    # Build for production
 npm run preview  # Preview production build locally
 ```
+
+---
+
+# VERCEL & FIREBASE TUTORIAL
+
+A guide on how Vercel and Firebase are set up and used in this project.
+
+---
+
+## Part 1: Vercel (Hosting & Deployment)
+
+### What Vercel Does in This Project
+
+Vercel hosts the built SvelteKit app as a **static site**. Every push to the `main` branch triggers an automatic rebuild and deploy.
+
+### How It Works
+
+1. **SvelteKit is configured for static output** via `@sveltejs/adapter-static`:
+
+   **File**: `svelte.config.js`
+   ```javascript
+   import adapter from '@sveltejs/adapter-static';
+
+   const config = {
+     kit: {
+       adapter: adapter(),
+       prerender: {
+         entries: ['*']   // Pre-renders ALL routes to static HTML
+       }
+     }
+   };
+   ```
+
+   This means at build time, SvelteKit generates plain HTML/CSS/JS files — no server needed.
+
+2. **Build command**: `vite build` (runs via `npm run build`)
+
+3. **Output**: Goes into a `build/` folder, which Vercel serves.
+
+### Setting Up Vercel (Step-by-Step)
+
+1. **Go to [vercel.com](https://vercel.com)** and sign in with your GitHub account.
+
+2. **Import your GitHub repo**:
+   - Click "Add New Project"
+   - Select the `bundlegame_no_company` repository
+
+3. **Configure build settings** (Vercel usually auto-detects SvelteKit):
+   - **Framework Preset**: SvelteKit
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `build`
+   - **Install Command**: `npm install`
+
+4. **Set Node.js version**: In Project Settings → General → Node.js Version, set to **18.x** or higher.
+
+5. **Deploy**: Click "Deploy". Vercel builds and gives you a live URL.
+
+6. **Auto-deploy**: Every `git push origin main` now triggers a new deployment automatically.
+
+### Key Vercel Behaviors
+
+| Behavior | Details |
+|----------|---------|
+| Auto-deploy | Every push to `main` triggers rebuild |
+| Preview deploys | Pull requests get their own preview URL |
+| Build command | `npm run build` |
+| Output | Static files from `build/` |
+| Node.js | >= 18.x required (set in `package.json` engines) |
+
+### Vercel Troubleshooting
+
+- **Build fails with Node version error**: Ensure `package.json` has `"engines": { "node": ">=18.x" }` and Vercel project settings match.
+- **404 on routes**: The `adapter-static` with `entries: ['*']` pre-renders all routes. If you add a new route, it's automatically included.
+- **Environment variables**: If needed, add them in Vercel → Project Settings → Environment Variables (not currently used since Firebase config is in the code).
+
+---
+
+## Part 2: Firebase (Database & Auth)
+
+### What Firebase Does in This Project
+
+Firebase **Firestore** is the real-time database that stores all experiment data:
+- User sessions
+- Every button click and action
+- Order selections and completions
+- Game state at each round
+
+### Firebase Project Details
+
+**File**: `src/lib/firebaseConfig.js`
+
+```javascript
+const firebaseConfig = {
+  apiKey: "REDACTED_API_KEY",
+  authDomain: "REDACTED_PROJECT_ID.firebaseapp.com",
+  projectId: "REDACTED_PROJECT_ID",
+  storageBucket: "REDACTED_PROJECT_ID.appspot.com",
+  messagingSenderId: "REDACTED_SENDER_ID",
+  appId: "1:REDACTED_SENDER_ID:web:c76c1f46364a8a072fb655",
+  measurementId: "REDACTED_MEASUREMENT_ID"
+};
+```
+
+This connects the app to the Firebase project named **REDACTED_PROJECT_ID**.
+
+### Firebase Initialization Pattern
+
+Firebase only initializes in the browser (not during server-side rendering):
+
+```javascript
+import { browser } from '$app/environment';
+
+if (browser && !getApps().length) {
+  app = initializeApp(firebaseConfig);
+  firestore = getFirestore(app);
+}
+```
+
+This is important because SvelteKit pre-renders pages at build time, and Firebase can only run in a browser.
+
+### Firestore Database Structure
+
+```
+Firestore
+├── Global/
+│   └── totalusers              # { count: <number> }
+│
+├── Auth/
+│   └── {token}                 # { userid, status }
+│
+└── Users/
+    └── {userId}/
+        ├── earnings            # Total earnings
+        ├── ordersComplete      # Count of completed orders
+        ├── configuration       # Which condition (0 or 1)
+        ├── createdAt           # Timestamp
+        │
+        ├── Actions/            # Sub-collection
+        │   ├── start           # Game start event
+        │   ├── 1_buttonID      # Action #1
+        │   ├── 2_buttonID      # Action #2
+        │   └── ...             # Every click logged
+        │
+        └── Orders/             # Sub-collection
+            ├── R1_A            # Order data + state
+            ├── R2_B            # Order data + state
+            └── ...
+```
+
+### What Gets Logged to Firebase
+
+**File**: `src/lib/firebaseDB.js` — all database functions
+
+| Function | What It Does | When It's Called |
+|----------|-------------|-----------------|
+| `incrementCounter()` | Increments global user count | New user starts game |
+| `getCounter()` | Gets current user count | Assigning condition number |
+| `createUser(id, n)` | Creates user doc + start action | Login/game start |
+| `authenticateUser(id, token)` | Validates user token | Login screen |
+| `addAction(id, gamestate, name)` | Logs a player action | Every button click |
+| `addOrder(id, gamestate, orderID)` | Logs an order selection | Player selects order |
+| `updateOrder(id, gamestate, orderID)` | Updates order state | Order delivered/completed |
+| `updateFields(id, gamestate)` | Updates user-level fields | Earnings/orders change |
+| `retrieveData()` | Downloads ALL user data | Data export page |
+
+### How User Authentication Works
+
+1. Player enters an **ID** and **token** on the login screen
+2. `authenticateUser()` generates an expected token from the ID using a seeded hash
+3. If tokens match → user is authenticated
+4. A new user document is created in Firestore with `createUser()`
+5. The global counter determines which **condition** (0 or 1) the user gets
+
+```
+ID → hashSeed() → seededRandom() → generateToken() → compare with input
+```
+
+### How Actions Are Logged
+
+Every button click during the game triggers `logAction()`:
+
+**File**: `src/lib/bundle.js`
+```javascript
+export const logAction = (action) => {
+    // action = { buttonID, buttonContent }
+    addAction(id, action, actionCounter + "_" + action.buttonID)
+}
+```
+
+This creates a document in `Users/{id}/Actions/` with:
+- Button ID and content
+- Timestamp
+- Current game state
+
+### How to Download Experiment Data
+
+1. Navigate to `/downloader` on your deployed site
+2. Enter password: (set in `src/routes/downloader/+page.svelte`)
+3. Click "Download JSON"
+4. This calls `retrieveData()` which fetches ALL users with their Orders and Actions sub-collections
+
+The downloaded JSON structure:
+```json
+[
+  {
+    "id": "user123",
+    "earnings": 150,
+    "ordersComplete": 12,
+    "configuration": 0,
+    "orders": [
+      { "id": "R1_A", "earnings": 18, "store": "Target", ... }
+    ],
+    "actions": [
+      { "id": "1_selectOrder", "buttonContent": "Select", ... }
+    ]
+  }
+]
+```
+
+### Setting Up a New Firebase Project (Step-by-Step)
+
+If you need to create a fresh Firebase backend:
+
+1. **Go to [console.firebase.google.com](https://console.firebase.google.com)**
+
+2. **Create a new project**:
+   - Click "Add project"
+   - Name it (e.g., "bundlegame-experiment")
+   - Disable Google Analytics if not needed
+
+3. **Add a web app**:
+   - Click the web icon `</>`
+   - Register app name
+   - Copy the `firebaseConfig` object
+
+4. **Replace the config** in `src/lib/firebaseConfig.js`:
+   ```javascript
+   const firebaseConfig = {
+     apiKey: "YOUR_NEW_API_KEY",
+     authDomain: "YOUR_PROJECT.firebaseapp.com",
+     projectId: "YOUR_PROJECT_ID",
+     storageBucket: "YOUR_PROJECT.appspot.com",
+     messagingSenderId: "YOUR_SENDER_ID",
+     appId: "YOUR_APP_ID"
+   };
+   ```
+
+5. **Enable Firestore**:
+   - In Firebase console → Build → Firestore Database
+   - Click "Create database"
+   - Choose **production mode** or **test mode**
+   - Select a region (e.g., `us-central1`)
+
+6. **Set Firestore security rules**:
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /{document=**} {
+         allow read, write: if true;  // Open for development
+       }
+     }
+   }
+   ```
+   ⚠️ For production, restrict rules to authenticated users.
+
+7. **Initialize the Global counter**:
+   - In Firestore console, create collection `Global`
+   - Add document with ID `totalusers`
+   - Add field `count` (number) = `0`
+
+8. **Deploy**: Push to GitHub → Vercel auto-deploys with the new Firebase config.
+
+### Firebase Firestore Rules (Production)
+
+For a real experiment, use stricter rules:
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /Users/{userId} {
+      allow create: if true;
+      allow read, update: if true;
+      match /Actions/{actionId} {
+        allow create: if true;
+        allow read: if true;
+      }
+      match /Orders/{orderId} {
+        allow create, update: if true;
+        allow read: if true;
+      }
+    }
+    match /Global/{docId} {
+      allow read, update: if true;
+    }
+    match /Auth/{tokenId} {
+      allow read, create: if true;
+    }
+  }
+}
+```
+
+---
+
+## Part 3: How Vercel + Firebase Work Together
+
+```
+┌─────────────┐     git push      ┌──────────────┐
+│  Developer   │ ───────────────► │   GitHub      │
+│  (VS Code)   │                  │   Repository  │
+└─────────────┘                   └──────┬───────┘
+                                         │ webhook
+                                         ▼
+                                  ┌──────────────┐
+                                  │   Vercel      │
+                                  │   (builds &   │
+                                  │   hosts site) │
+                                  └──────┬───────┘
+                                         │ serves
+                                         ▼
+┌─────────────┐   loads page     ┌──────────────┐
+│  Player's    │ ◄────────────── │  Static HTML  │
+│  Browser     │                 │  /CSS/JS      │
+└──────┬──────┘                  └──────────────┘
+       │
+       │ reads/writes directly
+       ▼
+┌──────────────┐
+│  Firebase     │
+│  Firestore    │
+│  (database)   │
+└──────────────┘
+```
+
+**Key point**: Vercel only serves static files. All database communication happens **directly from the player's browser to Firebase** — there is no backend server.
+
+This means:
+- **Vercel** = hosting (free tier handles this easily)
+- **Firebase** = database + auth (free Spark plan works for small experiments)
+- **No server code** — everything runs client-side
