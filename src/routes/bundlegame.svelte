@@ -38,7 +38,7 @@
     let deliveryMap;
     let deliveryLocations = [];
     let currentDeliveryCity = ""; // Tracks where the driver currently is
-    const API_KEY = 'iMsEUcFHOj2pHKXd7NO0';
+    const API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
     const cityCoords = {
         "Berkeley": [37.8715, -122.2730],
         "Oakland": [37.8044, -122.2712],

@@ -560,19 +560,21 @@ Firebase **Firestore** is the real-time database that stores all experiment data
 
 **File**: `src/lib/firebaseConfig.js`
 
+All Firebase credentials are loaded from environment variables (`.env` file):
+
 ```javascript
 const firebaseConfig = {
-  apiKey: "REDACTED_API_KEY",
-  authDomain: "REDACTED_PROJECT_ID.firebaseapp.com",
-  projectId: "REDACTED_PROJECT_ID",
-  storageBucket: "REDACTED_PROJECT_ID.appspot.com",
-  messagingSenderId: "REDACTED_SENDER_ID",
-  appId: "1:REDACTED_SENDER_ID:web:c76c1f46364a8a072fb655",
-  measurementId: "REDACTED_MEASUREMENT_ID"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 ```
 
-This connects the app to the Firebase project named **REDACTED_PROJECT_ID**.
+See `.env.example` for the required variable names.
 
 ### Firebase Initialization Pattern
 
@@ -704,17 +706,18 @@ If you need to create a fresh Firebase backend:
    - Register app name
    - Copy the `firebaseConfig` object
 
-4. **Replace the config** in `src/lib/firebaseConfig.js`:
-   ```javascript
-   const firebaseConfig = {
-     apiKey: "YOUR_NEW_API_KEY",
-     authDomain: "YOUR_PROJECT.firebaseapp.com",
-     projectId: "YOUR_PROJECT_ID",
-     storageBucket: "YOUR_PROJECT.appspot.com",
-     messagingSenderId: "YOUR_SENDER_ID",
-     appId: "YOUR_APP_ID"
-   };
+4. **Set the environment variables** in your `.env` file:
    ```
+   VITE_FIREBASE_API_KEY=your_api_key_here
+   VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=your_project_id
+   VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+   VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+   VITE_FIREBASE_APP_ID=your_app_id
+   VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
+   ```
+
+   Also set these in **Vercel → Project Settings → Environment Variables** for production.
 
 5. **Enable Firestore**:
    - In Firebase console → Build → Firestore Database

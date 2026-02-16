@@ -4,7 +4,7 @@
 
     let password = '';
     let authorized = false;
-    const correctPassword = 'bobaboba';
+    const correctPassword = import.meta.env.VITE_DOWNLOADER_PASSWORD;
 
     async function exportDataAsJSON() {
         const data = await retrieveData();

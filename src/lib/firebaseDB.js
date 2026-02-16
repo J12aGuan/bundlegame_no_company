@@ -153,8 +153,6 @@ export const authenticateUser = async (id, token) => {
     const userDocRef = doc(collection(firestore, 'Auth'), id);
     const userDocSnap = await getDoc(userDocRef)
     if (userDocSnap.exists()) {
-        console.log("Retrieved user with token", token)
-        console.log(userDocSnap.data())
         if (userDocSnap.data().status == 2) {
             return 1
         }
@@ -162,9 +160,6 @@ export const authenticateUser = async (id, token) => {
     }
     //token does not exist, generate a token for the user and see if matches
     let generatedToken = generateToken(id)
-    console.log("Generated token vs token")
-    console.log(generatedToken)
-    console.log(token)
     if (generatedToken == token) {
         const data = {
             userid: id,
@@ -173,7 +168,6 @@ export const authenticateUser = async (id, token) => {
         const userDocRef = doc(collection(firestore, 'Auth'), token);
         try {
             await setDoc(userDocRef, data);
-            console.log("Document written with ID: ", token);
         } catch (error) {
             console.error("Error adding document: ", error);
         }
