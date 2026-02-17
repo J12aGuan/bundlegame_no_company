@@ -667,28 +667,114 @@ This creates a document in `Users/{id}/Actions/` with:
 
 ### How to Download Experiment Data
 
-1. Navigate to `/downloader` on your deployed site
-2. Enter password: (set in `src/routes/downloader/+page.svelte`)
-3. Click "Download JSON"
-4. This calls `retrieveData()` which fetches ALL users with their Orders and Actions sub-collections
+The `/downloader` page allows you to export all experiment data as JSON.
 
-The downloaded JSON structure:
+#### Access the Downloader
+
+**Deployed site:**
+```
+https://your-vercel-deployment.vercel.app/downloader
+```
+
+**Local development:**
+```
+http://localhost:5173/downloader
+```
+
+#### Download Steps
+
+1. Navigate to the `/downloader` URL
+2. Enter the downloader password (ask Nicholas for the password)
+3. Click "Submit" to authenticate
+4. Click the green "Download JSON" button
+5. Your browser will download `data.json` with all experiment data
+
+#### Password Configuration
+
+The download password is set via the `VITE_DOWNLOADER_PASSWORD` environment variable:
+
+- **Local development**: Set in `.env` file
+- **Production (Vercel)**: Set in Project Settings → Environment Variables
+
+**File**: `.env.example` (template)
+```env
+VITE_DOWNLOADER_PASSWORD=your_secure_password
+```
+
+**File**: `src/routes/downloader/+page.svelte` (implementation)
+```javascript
+const correctPassword = import.meta.env.VITE_DOWNLOADER_PASSWORD;
+```
+
+#### What Data Gets Downloaded
+
+The `retrieveData()` function fetches:
+- All user documents from the `Users/` collection
+- Each user's `Orders/` sub-collection
+- Each user's `Actions/` sub-collection
+
+**Downloaded JSON structure:**
 ```json
 [
   {
-    "id": "user123",
+    "id": "user_abc123",
     "earnings": 150,
     "ordersComplete": 12,
     "configuration": 0,
+    "createdAt": { "seconds": 1234567890, "nanoseconds": 0 },
+    "updatedAt": { "seconds": 1234567890, "nanoseconds": 0 },
     "orders": [
-      { "id": "R1_A", "earnings": 18, "store": "Target", ... }
+      {
+        "id": "R1_A",
+        "earnings": 18,
+        "store": "Target",
+        "city": "Berkeley",
+        "selected": true,
+        "delivered": true,
+        "createdAt": { "seconds": 1234567890, "nanoseconds": 0 }
+      }
     ],
     "actions": [
-      { "id": "1_selectOrder", "buttonContent": "Select", ... }
+      {
+        "id": "start",
+        "earnings": 0,
+        "ordersComplete": 0,
+        "gametime": 0,
+        "createdAt": { "seconds": 1234567890, "nanoseconds": 0 }
+      },
+      {
+        "id": "1_selectOrder",
+        "buttonID": "selectOrder",
+        "buttonContent": "Select Order",
+        "earnings": 0,
+        "round": 1,
+        "createdAt": { "seconds": 1234567891, "nanoseconds": 0 }
+      }
     ]
   }
 ]
 ```
+
+#### Data Fields Explanation
+
+| Field | Description |
+|-------|-------------|
+| `id` | Unique user identifier |
+| `earnings` | Total dollars earned by user |
+| `ordersComplete` | Number of orders completed |
+| `configuration` | Experiment condition (0 or 1) |
+| `createdAt` | User session start timestamp |
+| `orders[]` | Array of all orders selected/delivered |
+| `actions[]` | Complete log of every button click |
+
+#### Security Notes
+
+⚠️ **Important**: The download password protects access to participant data.
+
+- Keep the password secure and share only with authorized researchers
+- Change the default password before launching your experiment
+- Consider rotating the password periodically
+- The downloader page has no rate limiting — implement additional security if needed
 
 ### Setting Up a New Firebase Project (Step-by-Step)
 
