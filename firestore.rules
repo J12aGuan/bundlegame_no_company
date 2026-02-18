@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if user is authenticated via Auth collection
+    function isAuthenticatedUser(userId) {
+      return request.auth != null
+        || exists(/databases/$(database)/documents/Auth/$(userId));
+    }
+
+    // Global counter - read by anyone, write only to increment
+    match /Global/totalusers {
+      allow read: if true;
+      allow update: if request.resource.data.count == resource.data.count + 1;
+      allow create: if request.resource.data.count == 0;
+    }
+
+    // Auth collection - users can create their own auth doc, read their own
+    match /Auth/{tokenId} {
+      allow create: if true; // Allow initial authentication
+      allow read: if request.auth != null
+        || request.resource.data.userid == tokenId;
+      allow update, delete: if false; // Never allow updates/deletes
+    }
+
+    // Users collection - strict per-user access only
+    match /Users/{userId} {
+      // Users can only create their own document
+      allow create: if request.auth == null
+        && request.resource.data.keys().hasAll(['earnings', 'ordersComplete', 'configuration', 'createdAt']);
+
+      // Users can only read/update their own data
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+
+      // Prevent deletion
+      allow delete: if false;
+
+      // Actions subcollection
+      match /Actions/{actionId} {
+        allow create: if true; // Allow logging actions
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow update, delete: if false;
+      }
+
+      // Orders subcollection
+      match /Orders/{orderId} {
+        allow create: if true; // Allow creating orders
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow update: if true; // Allow updating order status
+        allow delete: if false;
+      }
+    }
+
+    // Block everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

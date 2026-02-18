@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // STRICT PRODUCTION RULES - Requires Firebase Authentication
+    // Use this version if you set up Firebase Auth
+
+    // Global counter - read by anyone, write only to increment
+    match /Global/totalusers {
+      allow read: if true;
+      allow update: if request.resource.data.count == resource.data.count + 1;
+      allow create: if request.auth != null;
+    }
+
+    // Auth collection - only for authenticated users
+    match /Auth/{tokenId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null && request.auth.uid == tokenId;
+      allow update, delete: if false;
+    }
+
+    // Users collection - strict Firebase Auth required
+    match /Users/{userId} {
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+
+      match /Actions/{actionId} {
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow update, delete: if false;
+      }
+
+      match /Orders/{orderId} {
+        allow create, update: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow delete: if false;
+      }
+    }
+
+    // Block everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
