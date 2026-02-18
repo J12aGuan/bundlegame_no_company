@@ -1,0 +1,40 @@
+# Commands to clean up the repository
+
+# These commands were already executed locally:
+# - Moved security docs to docs/security/
+# - Moved experiment docs to docs/experiment/
+# - Renamed original README.md to README_FULL.md
+# - Created new concise README.md
+# - Created PROJECT_STRUCTURE.md and other documentation
+
+# Optional: Remove .history folder if it exists (already gitignored)
+rm -rf .history/
+
+# Commit all changes
+git add .
+git commit -m "Organize project structure: move docs, create navigation guides, improve README
+
+- Moved security docs to docs/security/ folder
+- Moved experiment docs to docs/experiment/ folder  
+- Renamed detailed README to README_FULL.md
+- Created concise README.md for quick start
+- Added PROJECT_STRUCTURE.md for code organization guide
+- Added START_HERE.md for navigation
+- Added docs/FILE_EXPLANATIONS.md for file-by-file explanations
+- Updated .gitignore to exclude .history and data outputs
+- Deployed Firebase security rules structure
+
+Files moved:
+- SECURITY_*.md → docs/security/
+- experiment_reference.* → docs/experiment/
+- firestore.rules.strict → docs/security/
+
+New documentation:
+- README.md (concise overview)
+- PROJECT_STRUCTURE.md (complete file guide)
+- START_HERE.md (navigation hub)
+- docs/FILE_EXPLANATIONS.md (file-by-file details)
+"
+
+# Push to GitHub
+git push origin main
