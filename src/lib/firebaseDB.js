@@ -268,3 +268,61 @@ export const retrieveData = async () => {
 
     return data;
 }
+
+// ===== CONFIG MANAGEMENT (EXPERIMENTS) =====
+
+export const getAllConfigs = async () => {
+    try {
+        const querySnapshot = await getDocs(collection(firestore, 'Configs'));
+        console.log('Fetched all configs');
+        return querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error('Error fetching configs:', error);
+        return [];
+    }
+}
+
+export const getConfigByName = async (configName) => {
+    try {
+        const docSnap = await getDoc(doc(firestore, 'Configs', configName));
+        if (docSnap.exists()) {
+            console.log('Config found:', configName);
+            return { id: docSnap.id, ...docSnap.data() };
+        } else {
+            console.log('Config not found:', configName);
+            return null;
+        }
+    } catch (error) {
+        console.error('Error fetching config:', error);
+        return null;
+    }
+}
+
+export const saveConfig = async (configId, configData) => {
+    try {
+        const docRef = doc(firestore, 'Configs', configId);
+        await setDoc(docRef, {
+            ...configData,
+            updatedAt: Timestamp.fromDate(new Date()),
+            createdAt: configData.createdAt || Timestamp.fromDate(new Date())
+        });
+        console.log('Config saved:', configId);
+        return configId;
+    } catch (error) {
+        console.error('Error saving config:', error);
+        throw error;
+    }
+}
+
+export const deleteConfig = async (configId) => {
+    try {
+        await deleteDoc(doc(firestore, 'Configs', configId));
+        console.log('Config deleted:', configId);
+    } catch (error) {
+        console.error('Error deleting config:', error);
+        throw error;
+    }
+}
