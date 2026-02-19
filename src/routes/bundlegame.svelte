@@ -342,19 +342,25 @@
     let destinationMarkers = [];
 
     function initDeliveryMap() {
-        if (deliveryMap) deliveryMap.remove();
-        
-        deliveryMap = L.map('delivery-map', {
-            center: [37.84, -122.25],
-            zoom: 12
-        });
+        try {
+            if (deliveryMap) deliveryMap.remove();
+            
+            deliveryMap = L.map('delivery-map', {
+                center: [37.84, -122.25],
+                zoom: 12
+            });
 
-        L.maptilerLayer({
-            apiKey: API_KEY,
-            style: L.MaptilerStyle.STREETS
-        }).addTo(deliveryMap);
+            L.maptilerLayer({
+                apiKey: API_KEY,
+                style: L.MaptilerStyle.STREETS
+            }).addTo(deliveryMap);
 
-        updateDeliveryMapLayers();
+            updateDeliveryMapLayers();
+        } catch (error) {
+            console.error('Error initializing delivery map:', error);
+            // Don't throw - allow game to continue without map
+            deliveryMap = null;
+        }
     }
     
     function updateDeliveryMapLayers() {
