@@ -4,6 +4,7 @@
     import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario } from "$lib/bundle.js"
     import { storeConfig, getDistances } from "$lib/config.js"; // Import getDistances
     import emojis from "$lib/emojis.json"
+    import centralConfig from "$lib/centralConfig.json"
     
     let config = {}; // Will be set properly in onMount()
     let GameState = 0; // 0:Start, 1:Picking, 2:Moving, 3:Success, 4:Error, 5:Delivery
@@ -46,8 +47,8 @@
         "Piedmont": [37.8238, -122.2316]
     };
 
-    // Timer config - set round time limit (e.g., 300 seconds = 5 minutes)
-    const ROUND_TIME_LIMIT = 300;
+    // Timer config - now from centralized config
+    const ROUND_TIME_LIMIT = centralConfig.game.roundTimeLimit;
     
     $: numOrders = $orders.length;
     $: elapsedTime = $elapsed - startTimer;

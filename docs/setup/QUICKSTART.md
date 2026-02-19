@@ -108,12 +108,14 @@ git push origin main
 | `src/lib/bundle_experiment_50_rounds_short_times.json` | All 50 rounds data |
 | `src/lib/configs/stores1.json` | Store layouts & city distances |
 
-**Full guide**: See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+**Full guide**: See [../architecture/PROJECT_STRUCTURE.md](../architecture/PROJECT_STRUCTURE.md)
+
+**Environment details**: See [ENVIRONMENT.md](ENVIRONMENT.md)
 
 ---
 
 ## Need Help?
 
-1. Check [README.md](README.md) for quick reference
-2. Check [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for code details
+1. Check [../../README.md](../../README.md) for quick reference
+2. Check [../architecture/PROJECT_STRUCTURE.md](../architecture/PROJECT_STRUCTURE.md) for code details
 3. Contact Nicholas: PARKSINCHAISRI@gmail.com

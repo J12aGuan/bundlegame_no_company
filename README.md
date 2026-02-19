@@ -1,106 +1,114 @@
-# Bundle Game - Internal Project
+# Bundle Game
 
-Order bundling behavioral experiment (50 rounds, Firebase backend, SvelteKit frontend).
+> Order bundling behavioral experiment using SvelteKit, Firebase, and interactive maps.
+
+**Quick Links**: [Setup](#-quick-setup) • [Documentation](docs/README.md) • [Security](#-security-critical) • [Contributing](CONTRIBUTING.md)
 
 ---
 
-## 🚀 Local Setup
+## 🎯 What Is This?
+
+An interactive web experiment where participants make delivery order bundling decisions across 50 rounds:
+- **Phase A (Rounds 1-15)**: Baseline behavior
+- **Phase B (Rounds 16-35)**: With AI recommendations
+- **Phase C (Rounds 36-50)**: Post-recommendation behavior
+
+**Live Demo**: Deployed on Vercel
+**Tech Stack**: SvelteKit • Firebase • MapTiler • Tailwind CSS
+
+---
+
+## 🚀 Quick Setup
 
 ```bash
-# Clone repo (if not already)
-git clone [repo-url]
+# 1. Clone and install
+git clone https://github.com/nnicholas-c/bundlegame_no_company.git
 cd bundlegame_no_company
-
-# Install dependencies
 npm install
 
-# Set up environment variables
+# 2. Configure environment
 cp .env.example .env
-# Contact Nicholas for Firebase credentials and fill in .env
+# Fill in Firebase credentials (contact Nicholas)
 
-# Run locally
+# 3. Run locally
 npm run dev
 # Visit http://localhost:5173
 ```
 
-**Ask Nicholas for**:
-- Firebase credentials (all `VITE_FIREBASE_*` variables)
-- MapTiler API key (`VITE_MAPTILER_API_KEY`)
-- Downloader password (`VITE_DOWNLOADER_PASSWORD`)
+**Need detailed setup?** See [docs/setup/QUICKSTART.md](docs/setup/QUICKSTART.md)
 
 ---
 
-## 🔐 **CRITICAL: Firebase Security**
+## 🔐 SECURITY CRITICAL
 
-⚠️ **Must be deployed before collecting real data**
+⚠️ **Before collecting real data, deploy Firebase security rules!**
 
-1. Go to: https://console.firebase.google.com/project/bundling-63c10/firestore/rules
-2. Copy contents of [firestore.rules](firestore.rules)
-3. Paste and **Publish**
+**Quick Fix (5 minutes)**:
+1. Go to: [Firebase Console → Firestore Rules](https://console.firebase.google.com/project/bundling-63c10/firestore/rules)
+2. Copy contents of [`firestore.rules`](firestore.rules)
+3. Paste and click **"Publish"**
 
-See [docs/security/QUICK_FIX.md](docs/security/QUICK_FIX.md) if needed.
+**Full security guide**: [SECURITY.md](SECURITY.md) • [docs/security/SECURITY_SETUP.md](docs/security/SECURITY_SETUP.md)
 
 ---
 
-## 📁 Key Files
+## 📚 Documentation
+
+**New here?** Start with [docs/README.md](docs/README.md) - the documentation hub.
+
+| Topic | Link |
+|-------|------|
+| **Getting Started** | [Setup Guide](docs/setup/QUICKSTART.md) |
+| **Code Structure** | [Architecture Overview](docs/architecture/OVERVIEW.md) |
+| **Configuration** | [Config Guide](docs/configuration/OVERVIEW.md) |
+| **Security** | [Security Setup](docs/security/SECURITY_SETUP.md) |
+| **Experiment Design** | [Experiment Guide](docs/experiment/EXPERIMENT_DESIGN.md) |
+
+---
+
+## 🗂️ Repository Structure
 
 ```
-src/
-├── lib/
-│   ├── firebaseConfig.js              # Firebase setup
-│   ├── firebaseDB.js                  # Database operations
-│   ├── bundle.js                      # Game logic
-│   ├── bundle_experiment_50_rounds_short_times.json  # All 50 rounds
-│   └── configs/stores1.json           # Store layouts & distances
-└── routes/
-    ├── +page.svelte                   # Login page
-    ├── bundlegame.svelte              # Main game
-    └── downloader/                    # Data export (password-protected)
+bundlegame_no_company/
+├── src/
+│   ├── lib/                    # Shared libraries (Firebase, game logic)
+│   │   ├── centralConfig.json  # ⭐ Main configuration file
+│   │   ├── firebaseDB.js       # Database operations
+│   │   └── bundle.js           # Core game logic
+│   └── routes/                 # SvelteKit pages
+│       ├── +page.svelte        # Login page
+│       ├── bundlegame.svelte   # Main game
+│       └── downloader/         # Data export (password-protected)
+│
+├── docs/                       # 📚 All documentation
+├── firestore.rules             # 🔐 Database security rules
+└── package.json
 ```
 
-Full file guide: [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+**Detailed structure**: [docs/architecture/PROJECT_STRUCTURE.md](docs/architecture/PROJECT_STRUCTURE.md)
 
 ---
 
-## ⚙️ Quick Config Reference
+## ⚙️ Configuration
 
-| What | File | Location |
-|------|------|----------|
-| Round timer | [bundlegame.svelte](src/routes/bundlegame.svelte) | `ROUND_TIME_LIMIT` (~line 50) |
-| Orders shown | [bundle.js](src/lib/bundle.js) | `ordersShown` (~line 17) |
-| Store layouts | [stores1.json](src/lib/configs/stores1.json) | `stores` array |
-| Experiment data | [bundle_experiment_50_rounds_short_times.json](src/lib/bundle_experiment_50_rounds_short_times.json) | Full file |
+All settings centralized in [`src/lib/centralConfig.json`](src/lib/centralConfig.json):
 
----
-
-## 🗂️ Database Structure
-
-```
-Users/{userId}/
-├── earnings, ordersComplete, configuration
-├── Actions/          # Every button click
-└── Orders/           # Round results
-
-Global/totalusers
-Auth/{token}
-```
-
----
-
-## 📊 Export Data
-
-1. Visit: `/downloader` on deployed site
-2. Enter password (from `.env`)
-3. Download JSON with all user data
+| Setting | Default | Docs |
+|---------|---------|------|
+| Round timer | 300s | [Config Guide](docs/configuration/CENTRALIZED_CONFIG.md) |
+| Orders per round | 4 | [Config Guide](docs/configuration/CENTRALIZED_CONFIG.md) |
+| Store layouts | 4 stores | [Parameters](docs/configuration/PARAMETERS.md) |
+| Experiment rounds | 50 rounds | [Experiment Design](docs/experiment/EXPERIMENT_DESIGN.md) |
 
 ---
 
 ## 🚀 Deployment
 
 Auto-deploys to Vercel on push to `main`:
+
 ```bash
 git add .
-git commit -m "description"
+git commit -m "Your changes"
 git push origin main
 # Vercel auto-builds and deploys
 ```
@@ -109,20 +117,34 @@ git push origin main
 
 ---
 
-## 🔧 Development
+## 🤝 Contributing
 
-```bash
-npm run dev       # Local dev server
-npm run build     # Build for production
-npm run preview   # Test production build locally
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Development workflow
+- Code style guidelines
+- Pull request process
+- Testing requirements
 
-**Workflow**: Edit → Test locally → Commit → Push → Auto-deploy
+---
+
+## 📊 Data Export
+
+1. Visit `/downloader` on deployed site
+2. Enter password (from `.env`)
+3. Download JSON with all participant data
+
+**Analysis**: Jupyter notebooks in [`data analysis/`](data%20analysis/)
 
 ---
 
 ## 📞 Contacts
 
-- **Nicholas Chen**: PARKSINCHAISRI@gmail.com
+- **Maintainer**: Nicholas Chen ([PARKSINCHAISRI@gmail.com](mailto:PARKSINCHAISRI@gmail.com))
 - **Firebase Project**: `bundling-63c10`
-- **Docs**: See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for detailed code guide
+- **GitHub**: [nnicholas-c/bundlegame_no_company](https://github.com/nnicholas-c/bundlegame_no_company)
+
+---
+
+## 📄 License
+
+[Add your license here]

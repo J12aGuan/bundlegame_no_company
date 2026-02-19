@@ -32,4 +32,4 @@ phase1_possibilities.json
 # Data analysis outputs (keep scripts, ignore data)
 data analysis/data/*.json
 data analysis/*.csv
-data analysis/.ipynb_checkpoints
+data analysis/.ipynb_checkpoints.claude/settings.local.json
