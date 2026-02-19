@@ -1,9 +1,22 @@
 import { writable, readable, derived, get} from 'svelte/store';
 import { addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser, getCounter, incrementCounter } from './firebaseDB';
 
-import config from "../config.json"
+import centralConfig from "./centralConfig.json"
 import { switchJob } from './config';
 import experimentScenarios from "./bundle_experiment_50_rounds_short_times.json";
+
+// Extract config values from centralized config
+const config = {
+	timeLimit: centralConfig.game.timeLimit,
+	thinkTime: centralConfig.game.thinkTime,
+	gridSize: centralConfig.game.gridSize,
+	auth: centralConfig.game.auth,
+	tips: centralConfig.game.tips,
+	waiting: centralConfig.game.waiting,
+	refresh: centralConfig.game.refresh,
+	expire: centralConfig.game.expire,
+	conditions: centralConfig.conditions
+};
 
 const configModules = import.meta.glob("./configs/*.json");
 
@@ -44,7 +57,7 @@ export const gameText = writable({
 })
 
 export const thinkTime = config["thinkTime"];
-export const ordersShown = 4;
+export const ordersShown = centralConfig.game.ordersShown;
 export const game = writable({
 	inSelect: false,
 	inStore: false,

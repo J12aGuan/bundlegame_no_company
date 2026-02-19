@@ -1,11 +1,13 @@
+import centralConfig from "./centralConfig.json";
+
 let default_job = {}
 let order_list = []
 
 let id = 0;
 let orderid = 0;
 
-// Penalty timeout in seconds (for developers to configure)
-export const PENALTY_TIMEOUT = 30;
+// Penalty timeout in seconds (now from centralized config)
+export const PENALTY_TIMEOUT = centralConfig.game.penaltyTimeout;
 
 function gaussianRandom(mean, stdDev) {
     // Using the Box-Muller transform to generate a Gaussian-distributed random number
