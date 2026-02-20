@@ -14,7 +14,7 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 ### 2. 🔐 Deploy Security Rules (5 minutes - CRITICAL)
 **Goal**: Secure your Firebase database before collecting data
 
-→ [**Security Quick Fix**](security/QUICK_FIX.md)
+→ [**Security Overview**](../SECURITY.md)
 
 ### 3. 📖 Understand the Code (10 minutes)
 **Goal**: Navigate the codebase confidently
@@ -54,9 +54,6 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 
 | Document | Purpose | Urgency |
 |----------|---------|---------|
-| [security/QUICK_FIX.md](security/QUICK_FIX.md) | Emergency 5-min security fix | 🔴 CRITICAL |
-| [security/SECURITY_SETUP.md](security/SECURITY_SETUP.md) | Complete security hardening | High |
-| [security/SECURITY_EXPLAINED.md](security/SECURITY_EXPLAINED.md) | Deep dive into vulnerabilities | Reference |
 | [../SECURITY.md](../SECURITY.md) | Security overview | Overview |
 
 ### 🧪 Experiment Design
@@ -76,7 +73,7 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 
 **I'm a researcher customizing experiments** → Read [configuration/PARAMETERS.md](configuration/PARAMETERS.md) and [experiment/EXPERIMENT_DESIGN.md](experiment/EXPERIMENT_DESIGN.md)
 
-**I'm deploying to production** → Follow [security/SECURITY_SETUP.md](security/SECURITY_SETUP.md) first, then deploy
+**I'm deploying to production** → Follow [../SECURITY.md](../SECURITY.md) first, then deploy
 
 **I'm fixing a bug** → Check [architecture/FILE_EXPLANATIONS.md](architecture/FILE_EXPLANATIONS.md) to find the right file
 
@@ -88,7 +85,7 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 | Understand the codebase | [architecture/OVERVIEW.md](architecture/OVERVIEW.md) |
 | Change game timers/parameters | [configuration/CENTRALIZED_CONFIG.md](configuration/CENTRALIZED_CONFIG.md) |
 | Modify experiment rounds | [configuration/PARAMETERS.md](configuration/PARAMETERS.md) |
-| Secure the database | [security/QUICK_FIX.md](security/QUICK_FIX.md) |
+| Secure the database | [../SECURITY.md](../SECURITY.md) |
 | Add a new feature | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Export participant data | [../README.md](../README.md#-data-export) |
 | Understand store layouts | [configuration/PARAMETERS.md](configuration/PARAMETERS.md#store-configuration) |
@@ -108,7 +105,7 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 
 1. **Search this documentation** - Use GitHub's search or `grep -r "keyword" docs/`
 2. **Check the issue tracker** - Someone may have had the same problem
-3. **Contact the maintainer** - Nicholas Chen: [PARKSINCHAISRI@gmail.com](mailto:PARKSINCHAISRI@gmail.com)
+3. **Contact the maintainer** - Nicholas Chen: [nchen06@berkeley.edu](mailto:nchen06@berkeley.edu)
 
 ---
 

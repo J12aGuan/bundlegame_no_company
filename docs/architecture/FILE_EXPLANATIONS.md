@@ -201,7 +201,7 @@ Quick reference for understanding the most important files in the codebase.
 3. Downloads JSON file with all experiment data
 
 **Security issue**: Password check is client-side (can be bypassed!)
-**Fix**: See [docs/security/SECURITY_SETUP.md](../security/SECURITY_SETUP.md)
+**Fix**: Implement server-side authentication to replace the client-side password check
 
 **When to edit**:
 - Changing download format
@@ -302,24 +302,6 @@ Quick reference for understanding the most important files in the codebase.
 ### `README_FULL.md` (formerly README.md)
 **What it does**: Detailed configuration guide with step-by-step instructions
 **Audience**: Researchers customizing experiment parameters
-
----
-
-### `docs/security/QUICK_FIX.md`
-**What it does**: Emergency 5-minute security deployment
-**Audience**: Admins during security incident
-
----
-
-### `docs/security/SECURITY_SETUP.md`
-**What it does**: Complete security hardening checklist
-**Audience**: Admins setting up new deployment
-
----
-
-### `docs/security/SECURITY_EXPLAINED.md`
-**What it does**: Deep dive into vulnerabilities and attack scenarios
-**Audience**: Technical staff, security reviewers
 
 ---
 

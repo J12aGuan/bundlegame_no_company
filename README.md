@@ -48,7 +48,7 @@ npm run dev
 2. Copy contents of [`firestore.rules`](firestore.rules)
 3. Paste and click **"Publish"**
 
-**Full security guide**: [SECURITY.md](SECURITY.md) • [docs/security/SECURITY_SETUP.md](docs/security/SECURITY_SETUP.md)
+**Full security guide**: [SECURITY.md](SECURITY.md)
 
 ---
 
@@ -61,7 +61,6 @@ npm run dev
 | **Getting Started** | [Setup Guide](docs/setup/QUICKSTART.md) |
 | **Code Structure** | [Architecture Overview](docs/architecture/OVERVIEW.md) |
 | **Configuration** | [Config Guide](docs/configuration/OVERVIEW.md) |
-| **Security** | [Security Setup](docs/security/SECURITY_SETUP.md) |
 | **Experiment Design** | [Experiment Guide](docs/experiment/EXPERIMENT_DESIGN.md) |
 
 ---
@@ -139,7 +138,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ## 📞 Contacts
 
-- **Maintainer**: Nicholas Chen ([PARKSINCHAISRI@gmail.com](mailto:PARKSINCHAISRI@gmail.com))
+- **Maintainer**: Nicholas Chen ([nchen06@berkeley.edu](mailto:nchen06@berkeley.edu))
 - **Firebase Project**: `bundling-63c10`
 - **GitHub**: [nnicholas-c/bundlegame_no_company](https://github.com/nnicholas-c/bundlegame_no_company)
 

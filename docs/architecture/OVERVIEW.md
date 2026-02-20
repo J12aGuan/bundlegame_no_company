@@ -188,8 +188,6 @@ Auth/
 - **User isolation** - Users can only access their own data
 - **Public counters** - `/Global/totalusers` readable by all
 
-**Security docs**: [docs/security/](../security/)
-
 ---
 
 ## ⚙️ Configuration System
@@ -317,7 +315,6 @@ git push origin main → GitHub webhook
 - **Code structure**: [CODEMAP.md](CODEMAP.md)
 - **File details**: [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
 - **Configuration**: [docs/configuration/OVERVIEW.md](../configuration/OVERVIEW.md)
-- **Security**: [docs/security/SECURITY_SETUP.md](../security/SECURITY_SETUP.md)
 
 ---
 
