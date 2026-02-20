@@ -17,18 +17,6 @@ Bundle Game uses Firebase for backend data storage and authentication. Proper se
 3. Paste into the Firebase Console
 4. Click **"Publish"**
 
-**Detailed guide**: [docs/security/QUICK_FIX.md](docs/security/QUICK_FIX.md)
-
----
-
-## 📚 Security Documentation
-
-| Document | Purpose |
-|----------|---------|
-| [docs/security/QUICK_FIX.md](docs/security/QUICK_FIX.md) | Emergency 5-minute security fix |
-| [docs/security/SECURITY_SETUP.md](docs/security/SECURITY_SETUP.md) | Complete security hardening guide |
-| [docs/security/SECURITY_EXPLAINED.md](docs/security/SECURITY_EXPLAINED.md) | Deep dive into security vulnerabilities |
-
 ---
 
 ## 🔒 Security Best Practices
@@ -58,7 +46,7 @@ Bundle Game uses Firebase for backend data storage and authentication. Proper se
 **DO NOT open public issues for security vulnerabilities.**
 
 Instead:
-1. **Email directly**: PARKSINCHAISRI@gmail.com
+1. **Email directly**: nchen06@berkeley.edu
 2. Include:
    - Description of the vulnerability
    - Steps to reproduce
@@ -73,7 +61,7 @@ We aim to respond within **48 hours** and will work with you to resolve the issu
 
 Before deploying to production:
 
-- [ ] Firebase security rules deployed ([docs/security/QUICK_FIX.md](docs/security/QUICK_FIX.md))
+- [ ] Firebase security rules deployed (go to Firebase Console → Firestore Rules and publish `firestore.rules`)
 - [ ] `.env` file is in `.gitignore` and not committed
 - [ ] API keys restricted in Google Cloud Console
 - [ ] Downloader page password is strong (`VITE_DOWNLOADER_PASSWORD`)
@@ -124,7 +112,7 @@ Before deploying to production:
 
 ## 📞 Security Contact
 
-**Security issues**: PARKSINCHAISRI@gmail.com
+**Security issues**: nchen06@berkeley.edu
 **General questions**: See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---

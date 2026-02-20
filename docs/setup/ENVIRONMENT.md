@@ -26,7 +26,7 @@ cp .env.example .env
 
 ### 2. Fill in Values
 
-**Contact Nicholas Chen** (PARKSINCHAISRI@gmail.com) for credentials.
+**Contact Nicholas Chen** (nchen06@berkeley.edu) for credentials.
 
 Your `.env` should look like this:
 
@@ -322,7 +322,6 @@ node test-env.js
 
 - **Quick setup**: [QUICKSTART.md](QUICKSTART.md)
 - **Security guide**: [../../SECURITY.md](../../SECURITY.md)
-- **Firebase security**: [../security/SECURITY_SETUP.md](../security/SECURITY_SETUP.md)
 - **Contributing**: [../../CONTRIBUTING.md](../../CONTRIBUTING.md)
 
 ---
@@ -330,7 +329,7 @@ node test-env.js
 ## 📞 Need Credentials?
 
 **Contact**: Nicholas Chen
-**Email**: PARKSINCHAISRI@gmail.com
+**Email**: nchen06@berkeley.edu
 
 Please include:
 - What you need credentials for (dev, prod, both)

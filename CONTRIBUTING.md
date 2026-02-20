@@ -185,7 +185,7 @@ See [docs/configuration/OVERVIEW.md](docs/configuration/OVERVIEW.md) for the con
 - **Review Firebase rules** before deploying security changes
 - **Test authentication flows** after auth-related changes
 
-See [SECURITY.md](SECURITY.md) and [docs/security/](docs/security/) for security guidelines.
+See [SECURITY.md](SECURITY.md) for security guidelines.
 
 ---
 
@@ -283,7 +283,7 @@ We prioritize:
 
 - **Setup issues**: See [docs/setup/QUICKSTART.md](docs/setup/QUICKSTART.md)
 - **Code questions**: See [docs/architecture/](docs/architecture/)
-- **Other questions**: Contact Nicholas Chen: PARKSINCHAISRI@gmail.com
+- **Other questions**: Contact Nicholas Chen: nchen06@berkeley.edu
 
 ---
 

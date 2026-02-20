@@ -104,12 +104,6 @@ bundlegame_no_company/
 │   │   ├── CENTRALIZED_CONFIG.md      # From: root
 │   │   └── PARAMETERS.md              # From: README_FULL.md
 │   │
-│   ├── security/                      # Kept as-is
-│   │   ├── QUICK_FIX.md
-│   │   ├── SECURITY_SETUP.md
-│   │   ├── SECURITY_EXPLAINED.md
-│   │   └── firestore.rules.strict
-│   │
 │   └── experiment/                    # Kept as-is
 │       ├── EXPERIMENT_DESIGN.md
 │       ├── experiment_reference.csv
@@ -184,8 +178,7 @@ bundlegame_no_company/
 
 **Deploying to Production**:
 1. [SECURITY.md](SECURITY.md) - Security overview
-2. [docs/security/SECURITY_SETUP.md](docs/security/SECURITY_SETUP.md) - Complete security guide
-3. [docs/setup/ENVIRONMENT.md](docs/setup/ENVIRONMENT.md) - Environment variables for Vercel
+2. [docs/setup/ENVIRONMENT.md](docs/setup/ENVIRONMENT.md) - Environment variables for Vercel
 
 ---
 
@@ -280,7 +273,7 @@ bundlegame_no_company/
 **Achieved**:
 - ✅ New developer can understand project in <5 min (README.md + docs/README.md)
 - ✅ Clear path to getting started (docs/setup/QUICKSTART.md)
-- ✅ Security prominently displayed (README.md, SECURITY.md, docs/security/)
+- ✅ Security prominently displayed (README.md, SECURITY.md)
 - ✅ Documentation logically organized (by topic, not chronology)
 - ✅ Zero runtime impact (build works, no code changes)
 
@@ -288,7 +281,7 @@ bundlegame_no_company/
 
 ## 📞 Questions?
 
-**Maintainer**: Nicholas Chen (PARKSINCHAISRI@gmail.com)
+**Maintainer**: Nicholas Chen (nchen06@berkeley.edu)
 **Date**: February 18, 2026
 **Status**: ✅ COMPLETE
 
