@@ -322,7 +322,6 @@ node test-env.js
 
 - **Quick setup**: [QUICKSTART.md](QUICKSTART.md)
 - **Security guide**: [../../SECURITY.md](../../SECURITY.md)
-- **Contributing**: [../../CONTRIBUTING.md](../../CONTRIBUTING.md)
 
 ---
 

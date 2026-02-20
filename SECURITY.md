@@ -113,7 +113,7 @@ Before deploying to production:
 ## 📞 Security Contact
 
 **Security issues**: nchen06@berkeley.edu
-**General questions**: See [CONTRIBUTING.md](CONTRIBUTING.md)
+**General questions**: See [README.md](README.md#-contributing)
 
 ---
 
