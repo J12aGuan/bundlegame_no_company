@@ -31,7 +31,7 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 |----------|---------|------|
 | [setup/QUICKSTART.md](setup/QUICKSTART.md) | Get running locally | 5 min |
 | [setup/ENVIRONMENT.md](setup/ENVIRONMENT.md) | Detailed environment setup | 10 min |
-| [../CONTRIBUTING.md](../CONTRIBUTING.md) | How to contribute | 5 min |
+| [../README.md#-contributing](../README.md#-contributing) | How to contribute | 5 min |
 
 ### 🏗️ Architecture & Code
 
@@ -86,7 +86,7 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 | Change game timers/parameters | [configuration/CENTRALIZED_CONFIG.md](configuration/CENTRALIZED_CONFIG.md) |
 | Modify experiment rounds | [configuration/PARAMETERS.md](configuration/PARAMETERS.md) |
 | Secure the database | [../SECURITY.md](../SECURITY.md) |
-| Add a new feature | [../CONTRIBUTING.md](../CONTRIBUTING.md) |
+| Add a new feature | [../README.md#-contributing](../README.md#-contributing) |
 | Export participant data | [../README.md](../README.md#-data-export) |
 | Understand store layouts | [configuration/PARAMETERS.md](configuration/PARAMETERS.md#store-configuration) |
 
