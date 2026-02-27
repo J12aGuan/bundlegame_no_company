@@ -24,11 +24,6 @@ bundlegame_no_company/
 │   ├── README.md                 # Main project documentation
 │   ├── PROJECT_STRUCTURE.md      # This file - explains project organization
 │   ├── docs/                     # Additional documentation
-│   │   ├── security/             # Security guides and rules
-│   │   │   ├── SECURITY_SETUP.md        # Complete security setup guide
-│   │   │   ├── SECURITY_EXPLAINED.md    # Detailed security explanations
-│   │   │   ├── QUICK_FIX.md             # Emergency security fix (5 min)
-│   │   │   └── firestore.rules.strict   # Alternative strict security rules
 │   │   └── experiment/           # Experiment design documentation
 │   │       ├── EXPERIMENT_DESIGN.md     # Experiment methodology
 │   │       ├── experiment_reference.csv # Round-by-round reference
@@ -121,9 +116,6 @@ bundlegame_no_company/
 |------|---------|----------|
 | `README.md` | Main documentation - setup, configuration, deployment | All users |
 | `PROJECT_STRUCTURE.md` | This file - explains code organization | Developers |
-| `docs/security/QUICK_FIX.md` | Emergency security deployment (5 min) | Admin (during security incident) |
-| `docs/security/SECURITY_SETUP.md` | Complete security hardening guide | Admin (initial setup) |
-| `docs/security/SECURITY_EXPLAINED.md` | Deep dive into vulnerabilities | Technical staff |
 | `docs/experiment/EXPERIMENT_DESIGN.md` | Experiment methodology and phases | Researchers |
 | `deploy-security.sh` | Automated script to deploy security rules | Admin |
 
@@ -179,8 +171,7 @@ bundlegame_no_company/
 → Edit: `src/routes/bundlegame.svelte` (main game page)
 
 **...secure the Firebase database:**
-→ See: [docs/security/QUICK_FIX.md](docs/security/QUICK_FIX.md) (5 min fix)
-→ Or: [docs/security/SECURITY_SETUP.md](docs/security/SECURITY_SETUP.md) (complete guide)
+→ See: [SECURITY.md](SECURITY.md) for security overview and Firebase rules deployment
 
 **...download experiment data:**
 → Visit: `/downloader` page (enter password)
@@ -218,7 +209,7 @@ bundlegame_no_company/
 - `src/lib/firebaseDB.js` - All database operations (review regularly)
 - `src/routes/downloader/+page.svelte` - Password-protected data export
 
-**See**: [docs/security/](docs/security/) for complete security documentation
+**See**: [SECURITY.md](SECURITY.md) for security documentation
 
 ---
 
@@ -352,7 +343,6 @@ data analysis/.ipynb_checkpoints/
 
 6. **Read this first**:
    - [README.md](README.md) - Main documentation
-   - [docs/security/SECURITY_SETUP.md](docs/security/SECURITY_SETUP.md) - Security basics
    - [docs/experiment/EXPERIMENT_DESIGN.md](docs/experiment/EXPERIMENT_DESIGN.md) - Understand the experiment
 
 ---
@@ -389,7 +379,7 @@ data analysis/.ipynb_checkpoints/
 ## 📞 Maintainer Notes
 
 **Original Developer**: Marcus
-**Current Maintainer**: Nicholas Chen (PARKSINCHAISRI@gmail.com)
+**Current Maintainer**: Nicholas Chen (nchen06@berkeley.edu)
 
 **Important**:
 - Firebase Project: `bundling-63c10`
