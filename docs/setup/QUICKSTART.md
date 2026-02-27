@@ -118,4 +118,4 @@ git push origin main
 
 1. Check [../../README.md](../../README.md) for quick reference
 2. Check [../architecture/PROJECT_STRUCTURE.md](../architecture/PROJECT_STRUCTURE.md) for code details
-3. Contact Nicholas: PARKSINCHAISRI@gmail.com
+3. Contact Nicholas: nchen06@berkeley.edu

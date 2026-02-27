@@ -363,4 +363,4 @@ const orders = scenario.orders;                      // Orders for this round
 
 ---
 
-*For questions about code organization, contact Nicholas Chen: PARKSINCHAISRI@gmail.com*
+*For questions about code organization, contact Nicholas Chen: nchen06@berkeley.edu*
