@@ -2,7 +2,7 @@
 
 > Order bundling behavioral experiment using SvelteKit, Firebase, and interactive maps.
 
-**Quick Links**: [Setup](#-quick-setup) • [Documentation](docs/README.md) • [Security](#-security-critical) • [Contributing](CONTRIBUTING.md)
+**Quick Links**: [Setup](#-quick-setup) • [Documentation](docs/README.md) • [Security](#-security-critical) • [Contributing](#-contributing)
 
 ---
 
@@ -48,7 +48,7 @@ npm run dev
 2. Copy contents of [`firestore.rules`](firestore.rules)
 3. Paste and click **"Publish"**
 
-**Full security guide**: [SECURITY.md](SECURITY.md) • [docs/security/SECURITY_SETUP.md](docs/security/SECURITY_SETUP.md)
+**Full security guide**: [SECURITY.md](SECURITY.md)
 
 ---
 
@@ -61,7 +61,6 @@ npm run dev
 | **Getting Started** | [Setup Guide](docs/setup/QUICKSTART.md) |
 | **Code Structure** | [Architecture Overview](docs/architecture/OVERVIEW.md) |
 | **Configuration** | [Config Guide](docs/configuration/OVERVIEW.md) |
-| **Security** | [Security Setup](docs/security/SECURITY_SETUP.md) |
 | **Experiment Design** | [Experiment Guide](docs/experiment/EXPERIMENT_DESIGN.md) |
 
 ---
@@ -119,11 +118,30 @@ git push origin main
 
 ## 🤝 Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for:
-- Development workflow
-- Code style guidelines
-- Pull request process
-- Testing requirements
+### Branch Naming
+```bash
+git checkout -b feature/your-feature-name   # new features
+git checkout -b fix/bug-description         # bug fixes
+git checkout -b docs/what-you-changed       # documentation
+```
+
+### Commit Messages
+- `feat:` new feature
+- `fix:` bug fix
+- `docs:` documentation
+- `refactor:` code refactoring
+- `chore:` maintenance
+
+### Before Submitting a PR
+- [ ] `npm run dev` runs without errors
+- [ ] `npm run build` succeeds
+- [ ] No new console errors or warnings
+- [ ] Firebase operations still work
+
+### Adding Environment Variables
+1. Add to `.env.example` with a comment
+2. Update [docs/setup/ENVIRONMENT.md](docs/setup/ENVIRONMENT.md)
+3. Note in PR that Vercel env vars need updating
 
 ---
 
@@ -139,12 +157,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ## 📞 Contacts
 
-- **Maintainer**: Nicholas Chen ([PARKSINCHAISRI@gmail.com](mailto:PARKSINCHAISRI@gmail.com))
+- **Maintainer**: Nicholas Chen ([nchen06@berkeley.edu](mailto:nchen06@berkeley.edu))
 - **Firebase Project**: `bundling-63c10`
 - **GitHub**: [nnicholas-c/bundlegame_no_company](https://github.com/nnicholas-c/bundlegame_no_company)
 
----
-
-## 📄 License
-
-[Add your license here]
