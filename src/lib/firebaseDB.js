@@ -1,6 +1,6 @@
 import { timeStamp } from './bundle';
 import {app, firestore} from './firebaseConfig';
-import { collection, collectionGroup, doc, setDoc, getDoc, getDocs, addDoc, arrayUnion, updateDoc, Timestamp, increment } from "firebase/firestore";
+import { collection, collectionGroup, doc, setDoc, getDoc, getDocs, addDoc, arrayUnion, updateDoc, Timestamp, increment, deleteDoc } from "firebase/firestore";
 
 export const incrementCounter = async () => {
     const docRef = doc(collection(firestore, 'Global'), "totalusers");
@@ -323,6 +323,242 @@ export const deleteConfig = async (configId) => {
         console.log('Config deleted:', configId);
     } catch (error) {
         console.error('Error deleting config:', error);
+        throw error;
+    }
+}
+
+// ============ MasterData Management ============
+
+// Central Game Configuration
+export const getCentralConfig = async () => {
+    try {
+        const docSnap = await getDoc(doc(firestore, 'MasterData', 'centralConfig'));
+        if (docSnap.exists()) {
+            console.log('Central config fetched');
+            return docSnap.data();
+        } else {
+            console.log('Central config not found');
+            return null;
+        }
+    } catch (error) {
+        console.error('Error fetching central config:', error);
+        return null;
+    }
+}
+
+export const saveCentralConfig = async (configData) => {
+    try {
+        const docRef = doc(firestore, 'MasterData', 'centralConfig');
+        await setDoc(docRef, {
+            ...configData,
+            updatedAt: Timestamp.fromDate(new Date())
+        });
+        console.log('Central config saved');
+        return true;
+    } catch (error) {
+        console.error('Error saving central config:', error);
+        throw error;
+    }
+}
+
+// Experiment Scenarios
+export const getExperimentScenarios = async (scenariosId = 'experimentScenarios') => {
+    try {
+        const docSnap = await getDoc(doc(firestore, 'MasterData', scenariosId));
+        if (docSnap.exists()) {
+            console.log(`Experiment scenarios fetched: ${scenariosId}`);
+            return docSnap.data().scenarios || [];
+        } else {
+            console.log(`Experiment scenarios not found: ${scenariosId}`);
+            return [];
+        }
+    } catch (error) {
+        console.error(`Error fetching experiment scenarios (${scenariosId}):`, error);
+        return [];
+    }
+}
+
+export const saveExperimentScenarios = async (scenariosData, scenariosId = 'experimentScenarios') => {
+    try {
+        const docRef = doc(firestore, 'MasterData', scenariosId);
+        await setDoc(docRef, {
+            scenarios: scenariosData,
+            updatedAt: Timestamp.fromDate(new Date())
+        });
+        console.log(`Experiment scenarios saved: ${scenariosId}`);
+        return true;
+    } catch (error) {
+        console.error(`Error saving experiment scenarios (${scenariosId}):`, error);
+        throw error;
+    }
+}
+
+// Tutorial Configuration
+export const getTutorialConfig = async () => {
+    try {
+        const docSnap = await getDoc(doc(firestore, 'MasterData', 'tutorialConfig'));
+        if (docSnap.exists()) {
+            console.log('Tutorial config fetched');
+            return docSnap.data();
+        } else {
+            console.log('Tutorial config not found');
+            return null;
+        }
+    } catch (error) {
+        console.error('Error fetching tutorial config:', error);
+        return null;
+    }
+}
+
+export const saveTutorialConfig = async (configData) => {
+    try {
+        const docRef = doc(firestore, 'MasterData', 'tutorialConfig');
+        await setDoc(docRef, {
+            ...configData,
+            updatedAt: Timestamp.fromDate(new Date())
+        });
+        console.log('Tutorial config saved');
+        return true;
+    } catch (error) {
+        console.error('Error saving tutorial config:', error);
+        throw error;
+    }
+}
+
+// Orders Data
+export const getOrdersData = async (ordersId = 'order') => {
+    try {
+        const docSnap = await getDoc(doc(firestore, 'MasterData', `orders_${ordersId}`));
+        if (docSnap.exists()) {
+            console.log(`Orders ${ordersId} fetched`);
+            return docSnap.data().orders || [];
+        } else {
+            console.log(`Orders ${ordersId} not found`);
+            return [];
+        }
+    } catch (error) {
+        console.error(`Error fetching orders ${ordersId}:`, error);
+        return [];
+    }
+}
+
+export const saveOrdersData = async (ordersData, ordersId = 'order') => {
+    try {
+        const docRef = doc(firestore, 'MasterData', `orders_${ordersId}`);
+        await setDoc(docRef, {
+            orders: ordersData,
+            updatedAt: Timestamp.fromDate(new Date())
+        });
+        console.log(`Orders ${ordersId} saved`);
+        return true;
+    } catch (error) {
+        console.error(`Error saving orders ${ordersId}:`, error);
+        throw error;
+    }
+}
+
+// Stores Data
+export const getStoresData = async (storesId = 'stores1') => {
+    const decodeStore = (store) => {
+        const locations = Array.isArray(store?.locations)
+            ? store.locations.map((row) => {
+                if (Array.isArray(row)) return row;
+                if (row && Array.isArray(row.cells)) return row.cells;
+                return [];
+            })
+            : [];
+        return { ...store, locations };
+    };
+
+    const decodeStoresPayload = (payload) => {
+        if (!payload) return payload;
+        const stores = Array.isArray(payload.stores) ? payload.stores.map(decodeStore) : [];
+        return { ...payload, stores };
+    };
+
+    try {
+        const docSnap = await getDoc(doc(firestore, 'MasterData', `stores_${storesId}`));
+        if (docSnap.exists()) {
+            console.log(`Stores ${storesId} fetched`);
+            const data = decodeStoresPayload(docSnap.data() || {});
+            if (Array.isArray(data)) {
+                return { stores: data };
+            }
+            if (Array.isArray(data.stores)) {
+                return data;
+            }
+            return { stores: [] };
+        } else {
+            console.log(`Stores ${storesId} not found`);
+            return null;
+        }
+    } catch (error) {
+        if (error?.code === 'permission-denied') {
+            console.warn(`Stores ${storesId} read blocked by Firestore rules.`);
+        } else {
+            console.error(`Error fetching stores ${storesId}:`, error);
+        }
+        return null;
+    }
+}
+
+export const saveStoresData = async (storesData, storesId = 'stores1') => {
+    const encodeStore = (store) => {
+        const locations = Array.isArray(store?.locations)
+            ? store.locations.map((row) => ({ cells: Array.isArray(row) ? row : [] }))
+            : [];
+        return { ...store, locations };
+    };
+
+    const encodeStoresPayload = (payload) => {
+        const stores = Array.isArray(payload?.stores) ? payload.stores.map(encodeStore) : [];
+        return { ...payload, stores };
+    };
+
+    try {
+        const docRef = doc(firestore, 'MasterData', `stores_${storesId}`);
+        const payload = Array.isArray(storesData) ? { stores: storesData } : storesData;
+        const encodedPayload = encodeStoresPayload(payload);
+        await setDoc(docRef, {
+            ...encodedPayload,
+            updatedAt: Timestamp.fromDate(new Date())
+        });
+        console.log(`Stores ${storesId} saved`);
+        return true;
+    } catch (error) {
+        console.error(`Error saving stores ${storesId}:`, error);
+        throw error;
+    }
+}
+
+// Emojis Data
+export const getEmojisData = async () => {
+    try {
+        const docSnap = await getDoc(doc(firestore, 'MasterData', 'emojis'));
+        if (docSnap.exists()) {
+            console.log('Emojis fetched');
+            return docSnap.data().emojis || {};
+        } else {
+            console.log('Emojis not found');
+            return {};
+        }
+    } catch (error) {
+        console.error('Error fetching emojis:', error);
+        return {};
+    }
+}
+
+export const saveEmojisData = async (emojisData) => {
+    try {
+        const docRef = doc(firestore, 'MasterData', 'emojis');
+        await setDoc(docRef, {
+            emojis: emojisData,
+            updatedAt: Timestamp.fromDate(new Date())
+        });
+        console.log('Emojis saved');
+        return true;
+    } catch (error) {
+        console.error('Error saving emojis:', error);
         throw error;
     }
 }
