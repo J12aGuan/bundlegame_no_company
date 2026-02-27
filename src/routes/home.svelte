@@ -83,8 +83,7 @@
 
         return {
             ...order,
-            items: generatedItems,
-            name: order.name || `Customer ${order.id}`
+            items: generatedItems
         };
     }
 
@@ -111,8 +110,7 @@
                 city: city,
                 earnings: earnings,
                 items: { "Apple": 1, "Watermelon": 1 },
-                recommended: false,
-                name: `Local Order ${i}`
+                recommended: false
             });
         }
         return fillers;

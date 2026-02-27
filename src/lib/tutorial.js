@@ -1,11 +1,12 @@
 import { writable, readable, derived, get} from 'svelte/store';
 import {
-	addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser, getCounter, incrementCounter,
+	addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser,
 	getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getEmojisData
 } from './firebaseDB';
 
 import { switchJob } from './config';
-const DEFAULT_TUTORIAL_CONDITION = [{ name: "Tutorial", order_file: "order_tutorial.json", store_file: "stores.json" }];
+const TUTORIAL_ORDER_FILE = 'order_tutorial.json';
+const TUTORIAL_STORE_FILE = 'store.json';
 
 let config = {
 	timeLimit: 120,
@@ -15,7 +16,7 @@ let config = {
 	waiting: false,
 	refresh: false,
 	expire: false,
-	conditions: [...DEFAULT_TUTORIAL_CONDITION],
+	scenario_set: 'experimentScenarios',
 	auth: false
 };
 
@@ -76,16 +77,13 @@ export async function initializeFromFirebase() {
 				waiting: tutorialConfig.waiting ?? config.waiting,
 				refresh: tutorialConfig.refresh ?? config.refresh,
 				expire: tutorialConfig.expire ?? config.expire,
-				conditions: tutorialConfig.conditions ?? config.conditions,
+				scenario_set: tutorialConfig.scenario_set ?? config.scenario_set,
 				auth: tutorialConfig.auth ?? config.auth
 			};
-			if (!Array.isArray(config.conditions) || config.conditions.length === 0) {
-				config.conditions = [...DEFAULT_TUTORIAL_CONDITION];
-				console.warn("Firebase tutorialConfig has no conditions; using default tutorial condition IDs.");
-			}
 		}
 
-		const fetchedScenarios = await getExperimentScenarios();
+		const scenarioSetId = config.scenario_set || 'experimentScenarios';
+		const fetchedScenarios = await getExperimentScenarios(scenarioSetId);
 		if (Array.isArray(fetchedScenarios) && fetchedScenarios.length > 0) {
 			tutorialScenarios = fetchedScenarios;
 		}
@@ -351,7 +349,7 @@ export const authUser = (id, pass) => {
 export async function loadConfigByName(fileName) {
   const normalizedId = fileName?.replace(/\.json$/i, '');
   const isOrderFile = normalizedId?.startsWith('order');
-  const isStoreFile = normalizedId?.startsWith('stores');
+  const isStoreFile = normalizedId?.startsWith('store');
 
   if (isOrderFile) {
 	const orderData = await getOrdersData(normalizedId);
@@ -374,21 +372,9 @@ export async function loadGame() {
 	if (!firebaseInitialized) {
 		await initializeFromFirebase();
 	}
-
-	if (!Array.isArray(config.conditions) || config.conditions.length === 0) {
-		config.conditions = [...DEFAULT_TUTORIAL_CONDITION];
-		console.warn("No tutorial conditions configured; using default tutorial condition IDs.");
-	}
-
-	let n = 0
-	if (config["conditions"].length > 1) {
-		let value = await getCounter()
-		await incrementCounter()
-		n = value % config["conditions"].length
-	}
 	try {
-		let orderFile = await loadConfigByName(config["conditions"][n]["order_file"])
-		let storeFile = await loadConfigByName(config["conditions"][n]["store_file"])
+		let orderFile = await loadConfigByName(TUTORIAL_ORDER_FILE)
+		let storeFile = await loadConfigByName(TUTORIAL_STORE_FILE)
 
 		if (!orderFile || !storeFile) {
 			console.error("Could not find files specified in configuration")
@@ -397,13 +383,13 @@ export async function loadGame() {
 			orderConfigs = orderFile
 		}
 	} catch (err) {
-		console.error("Error creating conditions", err)
+		console.error("Error loading fixed datasets", err)
 		return -1
 	}
 	currLocation.set(storeConfigs["startinglocation"]);
 	
 	switchJob(orderConfigs, storeConfigs)
-	return n
+	return 0
 }
 
 export async function createNewUser(id) {
