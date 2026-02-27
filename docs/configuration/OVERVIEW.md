@@ -342,7 +342,7 @@ Participants see new settings on next visit
 
 ## 📞 Questions?
 
-- **Config issues**: Contact Nicholas Chen: PARKSINCHAISRI@gmail.com
+- **Config issues**: Contact Nicholas Chen: nchen06@berkeley.edu
 - **Experiment design**: See [../experiment/EXPERIMENT_DESIGN.md](../experiment/EXPERIMENT_DESIGN.md)
 
 ---

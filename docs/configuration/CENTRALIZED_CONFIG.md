@@ -194,4 +194,4 @@ jq . src/lib/centralConfig.json
 
 ## 📞 Questions?
 
-Contact: Nicholas Chen (PARKSINCHAISRI@gmail.com)
+Contact: Nicholas Chen (nchen06@berkeley.edu)
