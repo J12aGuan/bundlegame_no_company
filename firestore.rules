@@ -49,6 +49,22 @@ service cloud.firestore {
       }
     }
 
+    // Configs collection - for experiment configurations
+    match /Configs/{configId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // MasterData collection - for game data (centralConfig, orders, stores, experiments, etc.)
+    match /MasterData/{docId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
     // Block everything else
     match /{document=**} {
       allow read, write: if false;

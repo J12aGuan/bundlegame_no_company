@@ -1,10 +1,8 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario } from "$lib/bundle.js"
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario, emojisMap, roundTimeLimit } from "$lib/bundle.js"
     import { storeConfig, getDistances } from "$lib/config.js"; // Import getDistances
-    import emojis from "$lib/emojis.json"
-    import centralConfig from "$lib/centralConfig.json"
     
     let config = {}; // Will be set properly in onMount()
     let GameState = 0; // 0:Start, 1:Picking, 2:Moving, 3:Success, 4:Error, 5:Delivery
@@ -48,7 +46,7 @@
     };
 
     // Timer config - now from centralized config
-    const ROUND_TIME_LIMIT = centralConfig.game.roundTimeLimit;
+    $: ROUND_TIME_LIMIT = $roundTimeLimit || 300;
     
     $: numOrders = $orders.length;
     $: elapsedTime = $elapsed - startTimer;
@@ -701,7 +699,7 @@
                             <button class="flex min-h-[60px] flex-col items-center justify-center rounded-lg text-xs font-medium transition
                                 {rowIndex === curLocation[0] && colIndex === curLocation[1] ? 'bg-green-100 border-2 border-green-500 text-green-900 transform scale-105' : 'border border-slate-200 bg-white hover:bg-slate-50'}"
                                 on:click={() => handleCell(cell, rowIndex, colIndex)}>
-                                <span>{cell.toLowerCase()}</span>{#if emojis[cell]}<span class="text-xl mt-0.5">{emojis[cell]}</span>{/if}
+                                <span>{cell.toLowerCase()}</span>{#if $emojisMap[cell]}<span class="text-xl mt-0.5">{$emojisMap[cell]}</span>{/if}
                             </button>
                         {/each}
                     {/each}
@@ -819,7 +817,7 @@
                             <div class="flex min-h-[50px] flex-col items-center justify-center rounded-lg text-xs font-medium border
                                 {rowIndex === curLocation[0] && colIndex === curLocation[1] ? 'bg-green-100 border-2 border-green-500 text-green-900' : 'border-slate-200 bg-slate-50'}">
                                 <span class="font-bold">{cell.toLowerCase()}</span>
-                                {#if emojis[cell]}<span class="text-lg mt-0.5">{emojis[cell]}</span>{/if}
+                                {#if $emojisMap[cell]}<span class="text-lg mt-0.5">{$emojisMap[cell]}</span>{/if}
                             </div>
                         {/each}
                     {/each}
@@ -829,4 +827,3 @@
         </div>
     {/if}
 </main>
-

@@ -1,9 +1,8 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario } from "$lib/tutorial.js"
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario, emojisMap } from "$lib/tutorial.js"
     import { storeConfig } from "$lib/config.js";
-    import emojis from "$lib/emojis.json"
     
     let config = storeConfig($orders[0].store)
     let GameState = 0;
@@ -413,8 +412,8 @@
                                 on:click={() => handleCell(cell, rowIndex, colIndex)}
                             >
                                 <span>{cell}</span>
-                                {#if emojis[cell]}
-                                    <span class="text-lg">{emojis[cell]}</span>
+                                {#if $emojisMap[cell]}
+                                    <span class="text-lg">{$emojisMap[cell]}</span>
                                 {/if}
                             </button>
                         {/each}

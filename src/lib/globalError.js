@@ -10,7 +10,12 @@ console.error = function (...args) {
   const errorMsg = args.map(String).join(" ");
   
   // Ignore non-critical AbortErrors from MapTiler and external SDKs
-  if (errorMsg.includes('AbortError') || errorMsg.includes('Fetch is aborted')) {
+  if (
+    errorMsg.includes('AbortError') ||
+    errorMsg.includes('Fetch is aborted') ||
+    errorMsg.includes('permission-denied') ||
+    errorMsg.includes('Missing or insufficient permissions')
+  ) {
     originalConsoleError.apply(console, args);
     return;
   }
