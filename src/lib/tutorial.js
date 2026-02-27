@@ -1,17 +1,26 @@
 import { writable, readable, derived, get} from 'svelte/store';
-import { addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser, getCounter, incrementCounter } from './firebaseDB';
+import {
+	addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser, getCounter, incrementCounter,
+	getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getEmojisData
+} from './firebaseDB';
 
-import config from "../tutorialconfig.json"
 import { switchJob } from './config';
-import experimentScenarios from "./bundle_experiment_50_rounds_short_times.json";
+const DEFAULT_TUTORIAL_CONDITION = [{ name: "Tutorial", order_file: "order_tutorial.json", store_file: "stores.json" }];
 
-const configModules = import.meta.glob("./tutorialconfigs/*.json");
+let config = {
+	timeLimit: 120,
+	thinkTime: 2,
+	gridSize: 2,
+	tips: false,
+	waiting: false,
+	refresh: false,
+	expire: false,
+	conditions: [...DEFAULT_TUTORIAL_CONDITION],
+	auth: false
+};
 
-// Get filenames (cleaned for display)
-export const configOptions = Object.keys(configModules).map(path => {
-  const name = path.split('/').pop(); // e.g., "config1.json"
-  return { name, importFn: configModules[path] };
-});
+let tutorialScenarios = [];
+let firebaseInitialized = false;
 
 let storeConfigs = {}
 let orderConfigs = []
@@ -21,19 +30,19 @@ let stopTimeInterval;
 let actionCounter = 0;
 export const uniqueSets = writable(0);
 export const orderList = writable([])
-export const FullTimeLimit = config["timeLimit"];
+export let FullTimeLimit = config["timeLimit"];
 
-export const needsAuth = config["auth"]
+export let needsAuth = config["auth"]
 
-export const numCols = config["gridSize"]
+export let numCols = config["gridSize"]
 
 // Experiment round management
 export const currentRound = writable(1);
-export const scenarios = experimentScenarios;
+export let scenarios = tutorialScenarios;
 export const roundStartTime = writable(0);
 
 export function getCurrentScenario(round) {
-  return scenarios.find((s) => s.round === round) ?? scenarios[scenarios.length - 1];
+  return scenarios.find((s) => s.round === round) ?? scenarios[scenarios.length - 1] ?? { round: 1, max_bundle: 3, orders: [] };
 }
 
 const experiment = true
@@ -43,8 +52,9 @@ export const gameText = writable({
 	selector: "None selected",
 })
 
-export const thinkTime = config["thinkTime"];
-export const ordersShown = 4;
+export let thinkTime = config["thinkTime"];
+export let ordersShown = config["ordersShown"] ?? 4;
+export const emojisMap = writable({});
 export const game = writable({
 	inSelect: false,
 	inStore: false,
@@ -53,6 +63,55 @@ export const game = writable({
 	waiting: config["waiting"],
 	refresh: config["refresh"]
 });
+
+export async function initializeFromFirebase() {
+	try {
+		const tutorialConfig = await getTutorialConfig();
+		if (tutorialConfig) {
+			config = {
+				timeLimit: tutorialConfig.timeLimit ?? config.timeLimit,
+				thinkTime: tutorialConfig.thinkTime ?? config.thinkTime,
+				gridSize: tutorialConfig.gridSize ?? config.gridSize,
+				tips: tutorialConfig.tips ?? config.tips,
+				waiting: tutorialConfig.waiting ?? config.waiting,
+				refresh: tutorialConfig.refresh ?? config.refresh,
+				expire: tutorialConfig.expire ?? config.expire,
+				conditions: tutorialConfig.conditions ?? config.conditions,
+				auth: tutorialConfig.auth ?? config.auth
+			};
+			if (!Array.isArray(config.conditions) || config.conditions.length === 0) {
+				config.conditions = [...DEFAULT_TUTORIAL_CONDITION];
+				console.warn("Firebase tutorialConfig has no conditions; using default tutorial condition IDs.");
+			}
+		}
+
+		const fetchedScenarios = await getExperimentScenarios();
+		if (Array.isArray(fetchedScenarios) && fetchedScenarios.length > 0) {
+			tutorialScenarios = fetchedScenarios;
+		}
+
+		const emojisData = await getEmojisData();
+		if (emojisData && Object.keys(emojisData).length > 0) {
+			emojisMap.set(emojisData);
+		}
+	} catch (error) {
+		console.error('Error initializing tutorial data from Firebase:', error);
+	}
+
+	FullTimeLimit = config.timeLimit;
+	needsAuth = config.auth;
+	numCols = config.gridSize;
+	thinkTime = config.thinkTime;
+	ordersShown = config.ordersShown ?? 4;
+	scenarios = tutorialScenarios;
+	game.update((current) => ({
+		...current,
+		tip: config.tips,
+		waiting: config.waiting,
+		refresh: config.refresh
+	}));
+	firebaseInitialized = true;
+}
 
 export const tipTimers = writable([])
 
@@ -281,7 +340,7 @@ export const completeOrder = (orderID) => {
 		earnings: get(earned),
 		ordersComplete: get(finishedOrders).length,
 		uniqueSetsComplete: get(uniqueSets),
-		gametime: FullTimeLimit
+		gametime: get(elapsed)
 	})
 }
 
@@ -290,18 +349,37 @@ export const authUser = (id, pass) => {
 }
 
 export async function loadConfigByName(fileName) {
-  const matchPath = Object.keys(configModules).find(path => path.endsWith(fileName));
+  const normalizedId = fileName?.replace(/\.json$/i, '');
+  const isOrderFile = normalizedId?.startsWith('order');
+  const isStoreFile = normalizedId?.startsWith('stores');
 
-  if (!matchPath) {
-	console.error(`Config file "${fileName}" not found in ../configs/`)
-	return null
+  if (isOrderFile) {
+	const orderData = await getOrdersData(normalizedId);
+	if (Array.isArray(orderData) && orderData.length > 0) {
+		return orderData;
+	}
   }
 
-  const module = await configModules[matchPath]();   // dynamic import
-  return module.default;                             // get JSON content
+  if (isStoreFile) {
+	const storeData = await getStoresData(normalizedId);
+	if (storeData && Array.isArray(storeData.stores) && storeData.stores.length > 0) {
+		return storeData;
+	}
+  }
+  console.error(`Config "${fileName}" not found in Firebase MasterData.`);
+  return null;
 }
 
 export async function loadGame() {
+	if (!firebaseInitialized) {
+		await initializeFromFirebase();
+	}
+
+	if (!Array.isArray(config.conditions) || config.conditions.length === 0) {
+		config.conditions = [...DEFAULT_TUTORIAL_CONDITION];
+		console.warn("No tutorial conditions configured; using default tutorial condition IDs.");
+	}
+
 	let n = 0
 	if (config["conditions"].length > 1) {
 		let value = await getCounter()

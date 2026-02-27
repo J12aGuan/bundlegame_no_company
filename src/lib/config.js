@@ -1,13 +1,17 @@
-import centralConfig from "./centralConfig.json";
-
 let default_job = {}
 let order_list = []
 
 let id = 0;
 let orderid = 0;
 
-// Penalty timeout in seconds (now from centralized config)
-export const PENALTY_TIMEOUT = centralConfig.game.penaltyTimeout;
+// Penalty timeout in seconds (updated at runtime from Firebase central config).
+export let PENALTY_TIMEOUT = 30;
+
+export function setPenaltyTimeout(timeoutSeconds) {
+    if (typeof timeoutSeconds === "number" && Number.isFinite(timeoutSeconds) && timeoutSeconds > 0) {
+        PENALTY_TIMEOUT = timeoutSeconds;
+    }
+}
 
 function gaussianRandom(mean, stdDev) {
     // Using the Box-Muller transform to generate a Gaussian-distributed random number

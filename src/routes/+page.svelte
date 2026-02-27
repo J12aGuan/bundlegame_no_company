@@ -18,10 +18,11 @@
     let completed = ""
     let completed2 = ""
     
-    $: formattedRemaining = formatTime($remainingTime ?? FullTimeLimit);
+    $: formattedRemaining = formatTime($remainingTime ?? $FullTimeLimit);
 
     function formatTime(seconds) {
-        const s = Math.max(0, Math.floor(seconds));
+        const numeric = Number(seconds);
+        const s = Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
         const mins = Math.floor(s / 60);
         const secs = s % 60;
         return `${mins}:${secs.toString().padStart(2, "0")}`;
