@@ -379,10 +379,25 @@ export const getExperimentScenarios = async (scenariosId = 'experimentScenarios'
 }
 
 export const saveExperimentScenarios = async (scenariosData, scenariosId = 'experimentScenarios') => {
+    const sanitizeOrder = (order = {}) => ({
+        id: order.id ?? '',
+        city: order.city ?? '',
+        store: order.store ?? '',
+        earnings: Number(order.earnings) || 0,
+        recommended: Boolean(order.recommended),
+        items: order.items || {}
+    });
+    const sanitizedScenarios = (scenariosData || []).map((scenario = {}) => ({
+        round: Number(scenario.round) || 1,
+        phase: scenario.phase ?? '',
+        scenario_id: scenario.scenario_id ?? '',
+        max_bundle: Number(scenario.max_bundle) || 3,
+        orders: (scenario.orders || []).map((order) => sanitizeOrder(order))
+    }));
     try {
         const docRef = doc(firestore, 'MasterData', scenariosId);
         await setDoc(docRef, {
-            scenarios: scenariosData,
+            scenarios: sanitizedScenarios,
             updatedAt: Timestamp.fromDate(new Date())
         });
         console.log(`Experiment scenarios saved: ${scenariosId}`);
@@ -426,9 +441,9 @@ export const saveTutorialConfig = async (configData) => {
 }
 
 // Orders Data
-export const getOrdersData = async (ordersId = 'order') => {
+export const getOrdersData = async (ordersId = 'order_main') => {
     try {
-        const docSnap = await getDoc(doc(firestore, 'MasterData', `orders_${ordersId}`));
+        const docSnap = await getDoc(doc(firestore, 'MasterData', ordersId));
         if (docSnap.exists()) {
             console.log(`Orders ${ordersId} fetched`);
             return docSnap.data().orders || [];
@@ -442,11 +457,19 @@ export const getOrdersData = async (ordersId = 'order') => {
     }
 }
 
-export const saveOrdersData = async (ordersData, ordersId = 'order') => {
+export const saveOrdersData = async (ordersData, ordersId = 'order_main') => {
+    const sanitizedOrders = (ordersData || []).map((order = {}) => ({
+        id: order.id ?? '',
+        city: order.city ?? '',
+        store: order.store ?? '',
+        earnings: Number(order.earnings) || 0,
+        recommended: Boolean(order.recommended),
+        items: order.items || {}
+    }));
     try {
-        const docRef = doc(firestore, 'MasterData', `orders_${ordersId}`);
+        const docRef = doc(firestore, 'MasterData', ordersId);
         await setDoc(docRef, {
-            orders: ordersData,
+            orders: sanitizedOrders,
             updatedAt: Timestamp.fromDate(new Date())
         });
         console.log(`Orders ${ordersId} saved`);
@@ -458,7 +481,7 @@ export const saveOrdersData = async (ordersData, ordersId = 'order') => {
 }
 
 // Stores Data
-export const getStoresData = async (storesId = 'stores1') => {
+export const getStoresData = async (storesId = 'store') => {
     const decodeStore = (store) => {
         const locations = Array.isArray(store?.locations)
             ? store.locations.map((row) => {
@@ -477,7 +500,7 @@ export const getStoresData = async (storesId = 'stores1') => {
     };
 
     try {
-        const docSnap = await getDoc(doc(firestore, 'MasterData', `stores_${storesId}`));
+        const docSnap = await getDoc(doc(firestore, 'MasterData', storesId));
         if (docSnap.exists()) {
             console.log(`Stores ${storesId} fetched`);
             const data = decodeStoresPayload(docSnap.data() || {});
@@ -502,7 +525,7 @@ export const getStoresData = async (storesId = 'stores1') => {
     }
 }
 
-export const saveStoresData = async (storesData, storesId = 'stores1') => {
+export const saveStoresData = async (storesData, storesId = 'store') => {
     const encodeStore = (store) => {
         const locations = Array.isArray(store?.locations)
             ? store.locations.map((row) => ({ cells: Array.isArray(row) ? row : [] }))
@@ -516,7 +539,7 @@ export const saveStoresData = async (storesData, storesId = 'stores1') => {
     };
 
     try {
-        const docRef = doc(firestore, 'MasterData', `stores_${storesId}`);
+        const docRef = doc(firestore, 'MasterData', storesId);
         const payload = Array.isArray(storesData) ? { stores: storesData } : storesData;
         const encodedPayload = encodeStoresPayload(payload);
         await setDoc(docRef, {

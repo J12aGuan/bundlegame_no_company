@@ -1,12 +1,13 @@
 import { writable, readable, derived, get} from 'svelte/store';
 import { 
-    addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser, getCounter, incrementCounter,
+    addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser,
     getCentralConfig, getExperimentScenarios, getOrdersData, getStoresData, getEmojisData
 } from './firebaseDB';
 
 import { switchJob, setPenaltyTimeout } from './config';
 
-const DEFAULT_MAIN_CONDITION = [{ name: "Default", order_file: "order.json", store_file: "stores1.json" }];
+const MAIN_ORDER_FILE = 'order_main.json';
+const MAIN_STORE_FILE = 'store.json';
 
 // Default config values (must exist in Firebase; these are boot defaults only)
 let config = {
@@ -21,7 +22,7 @@ let config = {
 	ordersShown: 4,
 	roundTimeLimit: 300,
 	penaltyTimeout: 30,
-	conditions: [...DEFAULT_MAIN_CONDITION]
+	scenario_set: 'experimentScenarios'
 };
 
 let experimentScenarios = [];
@@ -44,19 +45,16 @@ export async function initializeFromFirebase() {
 					ordersShown: centralConfigData.game?.ordersShown ?? config.ordersShown,
 					roundTimeLimit: centralConfigData.game?.roundTimeLimit ?? config.roundTimeLimit,
 					penaltyTimeout: centralConfigData.game?.penaltyTimeout ?? config.penaltyTimeout,
-					conditions: centralConfigData.conditions ?? config.conditions
+					scenario_set: centralConfigData.scenario_set ?? config.scenario_set
 				};
-			if (!Array.isArray(config.conditions) || config.conditions.length === 0) {
-				config.conditions = [...DEFAULT_MAIN_CONDITION];
-				console.warn("Firebase centralConfig has no conditions; using default condition IDs.");
-			}
 			console.log('Central config loaded from Firebase:', config);
 		}
 		
-			const scenarios = await getExperimentScenarios();
+			const scenarioSetId = config.scenario_set || 'experimentScenarios';
+			const scenarios = await getExperimentScenarios(scenarioSetId);
 		if (scenarios && Array.isArray(scenarios)) {
 			experimentScenarios = scenarios;
-			console.log('Experiment scenarios loaded from Firebase:', experimentScenarios.length, 'scenarios');
+			console.log(`Experiment scenarios loaded from Firebase (${scenarioSetId}):`, experimentScenarios.length, 'scenarios');
 		}
 
 		const emojisData = await getEmojisData();
@@ -368,7 +366,7 @@ export const authUser = (id, pass) => {
 export async function loadConfigByName(fileName) {
   const normalizedId = fileName?.replace(/\.json$/i, '');
   const isOrderFile = normalizedId?.startsWith('order');
-  const isStoreFile = normalizedId?.startsWith('stores');
+  const isStoreFile = normalizedId?.startsWith('store');
 
   if (isOrderFile) {
 	const orderData = await getOrdersData(normalizedId);
@@ -395,21 +393,9 @@ export async function loadGame() {
 	if (!firebaseInitialized) {
 		await initializeFromFirebase();
 	}
-
-	if (!Array.isArray(config.conditions) || config.conditions.length === 0) {
-		config.conditions = [...DEFAULT_MAIN_CONDITION];
-		console.warn("No conditions configured in central config; using default condition IDs.");
-	}
-
-	let n = 0
-	if (config["conditions"].length > 1) {
-		let value = await getCounter()
-		await incrementCounter()
-		n = value % config["conditions"].length
-	}
 	try {
-		let orderFile = await loadConfigByName(config["conditions"][n]["order_file"])
-		let storeFile = await loadConfigByName(config["conditions"][n]["store_file"])
+		let orderFile = await loadConfigByName(MAIN_ORDER_FILE)
+		let storeFile = await loadConfigByName(MAIN_STORE_FILE)
 
 		if (!orderFile || !storeFile) {
 			console.error("Could not find files specified in configuration")
@@ -418,13 +404,13 @@ export async function loadGame() {
 			orderConfigs = orderFile
 		}
 	} catch (err) {
-		console.error("Error creating conditions", err)
+		console.error("Error loading fixed datasets", err)
 		return -1
 	}
 	currLocation.set(storeConfigs["startinglocation"]);
 	
 	switchJob(orderConfigs, storeConfigs)
-	return n
+	return 0
 }
 
 export async function createNewUser(id) {
