@@ -29,10 +29,10 @@
             refresh: false,
             expire: false
         },
+        scenario_set: 'experimentScenarios',
         stores: [],
         distances: {},
-        startinglocation: 'Berkeley',
-        conditions: []
+        startinglocation: 'Berkeley'
     };
 
     const DEFAULT_TUTORIAL_CONFIG = {
@@ -44,20 +44,13 @@
         waiting: false,
         refresh: false,
         expire: false,
-        conditions: [{ name: 'Tutorial', order_file: 'order_tutorial.json', store_file: 'stores.json' }],
+        scenario_set: 'experimentScenarios',
         auth: false
     };
 
     function normalizeDataId(fileName, fallback = '') {
         if (!fileName || typeof fileName !== 'string') return fallback;
         return fileName.trim().replace(/\.json$/i, '');
-    }
-
-    function extractDatasetIds(conditions, key, fallback) {
-        if (!Array.isArray(conditions)) return [];
-        return conditions
-            .map((condition) => normalizeDataId(condition?.[key], fallback))
-            .filter(Boolean);
     }
 
     function storesCount(value) {
@@ -89,7 +82,6 @@
     function toOrderDraft(order = {}) {
         return {
             id: order.id || '',
-            name: order.name || '',
             city: order.city || '',
             store: order.store || '',
             earnings: order.earnings ?? 0,
@@ -119,7 +111,6 @@
     function fromOrderDraft(order) {
         return {
             id: order.id?.trim(),
-            name: order.name?.trim(),
             city: order.city?.trim(),
             store: order.store?.trim(),
             earnings: Number(order.earnings) || 0,
@@ -229,7 +220,7 @@
     let ordersData = [];
     let editingOrders = false;
     let orderDrafts = [];
-    let selectedOrdersId = 'order';
+    let selectedOrdersId = 'order_main';
     
     // Stores Data
     let storesData = { stores: [] };
@@ -239,7 +230,7 @@
         distanceEntries: [],
         stores: []
     };
-    let selectedStoresId = 'stores1';
+    let selectedStoresId = 'store';
     
     // Emojis Data
     let emojisData = {};
@@ -254,31 +245,24 @@
     let knownScenariosIds = [];
     let syncStatusRows = [];
 
-    $: usedOrdersIds = Array.from(new Set([
-        ...extractDatasetIds(centralConfig?.conditions, 'order_file', 'order'),
-        ...extractDatasetIds(tutorialConfig?.conditions, 'order_file', 'order')
-    ]));
-
-    $: usedStoresIds = Array.from(new Set([
-        ...extractDatasetIds(centralConfig?.conditions, 'store_file', 'stores1'),
-        ...extractDatasetIds(tutorialConfig?.conditions, 'store_file', 'stores1')
-    ]));
+    $: usedOrdersIds = ['order_main', 'order_tutorial'];
+    $: usedStoresIds = ['store'];
 
     $: knownStoresIds = Array.from(new Set([
-        'stores1',
-        'stores2',
-        'stores',
+        'store',
         ...usedStoresIds
     ]));
 
     $: knownOrdersIds = Array.from(new Set([
-        'order',
+        'order_main',
         'order_tutorial',
         ...usedOrdersIds
     ]));
 
     $: knownScenariosIds = Array.from(new Set([
         'experimentScenarios',
+        centralConfig?.scenario_set || '',
+        tutorialConfig?.scenario_set || '',
         selectedScenariosId || ''
     ]));
     
@@ -305,8 +289,6 @@
                 ...DEFAULT_TUTORIAL_CONFIG,
                 ...(await getTutorialConfig() || {})
             };
-            ordersData = await getOrdersData(selectedOrdersId) || [];
-            storesData = await getStoresData(selectedStoresId) || { stores: [] };
             emojisData = await getEmojisData() || {};
             await refreshSyncStatus();
             
@@ -331,7 +313,7 @@
                 key: 'tutorialConfig',
                 label: 'MasterData/tutorialConfig',
                 fetch: async () => await getTutorialConfig(),
-                valid: (value) => Boolean(value && Array.isArray(value.conditions))
+                valid: (value) => Boolean(value && value.timeLimit)
             },
             {
                 key: 'experimentScenarios',
@@ -342,36 +324,22 @@
             },
             {
                 key: 'ordersMain',
-                label: 'MasterData/orders_order',
-                fetch: async () => await getOrdersData('order'),
+                label: 'MasterData/order_main',
+                fetch: async () => await getOrdersData('order_main'),
                 valid: (value) => Array.isArray(value) && value.length > 0,
                 count: (value) => Array.isArray(value) ? `${value.length} orders` : '0 orders'
             },
             {
                 key: 'ordersTutorial',
-                label: 'MasterData/orders_order_tutorial',
+                label: 'MasterData/order_tutorial',
                 fetch: async () => await getOrdersData('order_tutorial'),
                 valid: (value) => Array.isArray(value) && value.length > 0,
                 count: (value) => Array.isArray(value) ? `${value.length} orders` : '0 orders'
             },
             {
-                key: 'stores1',
-                label: 'MasterData/stores_stores1',
-                fetch: async () => await getStoresData('stores1'),
-                valid: (value) => storesCount(value) > 0,
-                count: (value) => `${storesCount(value)} stores`
-            },
-            {
-                key: 'stores2',
-                label: 'MasterData/stores_stores2',
-                fetch: async () => await getStoresData('stores2'),
-                valid: (value) => storesCount(value) > 0,
-                count: (value) => `${storesCount(value)} stores`
-            },
-            {
-                key: 'storesTutorial',
-                label: 'MasterData/stores_stores',
-                fetch: async () => await getStoresData('stores'),
+                key: 'store',
+                label: 'MasterData/store',
+                fetch: async () => await getStoresData('store'),
                 valid: (value) => storesCount(value) > 0,
                 count: (value) => `${storesCount(value)} stores`
             },
@@ -406,55 +374,14 @@
         syncStatusRows = rows;
     }
 
-    function normalizeConditionRows(conditions = []) {
-        if (!Array.isArray(conditions) || conditions.length === 0) {
-            return [{ name: '', order_file: '', store_file: '' }];
-        }
-        return conditions.map((condition) => ({
-            name: condition?.name || '',
-            order_file: formatDatasetId(condition?.order_file, ''),
-            store_file: formatDatasetId(condition?.store_file, '')
-        }));
-    }
-
-    function prepareConditionsForSave(conditions = []) {
-        return (conditions || [])
-            .map((condition, idx) => ({
-                name: condition?.name?.trim() || `Condition ${idx + 1}`,
-                order_file: formatDatasetId(condition?.order_file, 'order'),
-                store_file: formatDatasetId(condition?.store_file, 'stores1')
-            }))
-            .filter((condition) => condition.order_file && condition.store_file);
-    }
-
     function toPersistedCentralConfig(config = {}) {
         return {
             game: {
                 ...DEFAULT_CENTRAL_CONFIG.game,
                 ...(config?.game || {})
             },
-            conditions: prepareConditionsForSave(config?.conditions || [])
+            scenario_set: normalizeDataId(config?.scenario_set, 'experimentScenarios')
         };
-    }
-
-    function addCentralConditionRow() {
-        centralConfig.conditions = [...(centralConfig.conditions || []), { name: '', order_file: '', store_file: '' }];
-        centralConfig = { ...centralConfig };
-    }
-
-    function removeCentralConditionRow(index) {
-        centralConfig.conditions = (centralConfig.conditions || []).filter((_, i) => i !== index);
-        centralConfig = { ...centralConfig };
-    }
-
-    function addTutorialConditionRow() {
-        tutorialConfig.conditions = [...(tutorialConfig.conditions || []), { name: '', order_file: '', store_file: '' }];
-        tutorialConfig = { ...tutorialConfig };
-    }
-
-    function removeTutorialConditionRow(index) {
-        tutorialConfig.conditions = (tutorialConfig.conditions || []).filter((_, i) => i !== index);
-        tutorialConfig = { ...tutorialConfig };
     }
 
     function showMessage(msg, type = 'success') {
@@ -469,7 +396,7 @@
     async function saveCentralConfigHandler() {
         try {
             saving = true;
-            centralConfig.conditions = prepareConditionsForSave(centralConfig.conditions);
+            centralConfig.scenario_set = normalizeDataId(centralConfig.scenario_set, 'experimentScenarios');
             await saveCentralConfig(toPersistedCentralConfig(centralConfig));
             editingCentralConfig = false;
             showMessage('Central configuration saved successfully!');
@@ -561,7 +488,7 @@
     async function saveTutorialConfigHandler() {
         try {
             saving = true;
-            tutorialConfig.conditions = prepareConditionsForSave(tutorialConfig.conditions);
+            tutorialConfig.scenario_set = normalizeDataId(tutorialConfig.scenario_set, 'experimentScenarios');
             await saveTutorialConfig(tutorialConfig);
             editingTutorialConfig = false;
             showMessage('Tutorial configuration saved successfully!');
@@ -812,8 +739,6 @@
                         { id: 'centralConfig', label: 'Central Config' },
                         { id: 'scenarios', label: 'Scenarios' },
                         { id: 'tutorialConfig', label: 'Tutorial Config' },
-                        { id: 'orders', label: 'Orders' },
-                        { id: 'stores', label: 'Stores' },
                         { id: 'emojis', label: 'Emojis' }
                     ] as tab}
                         <button
@@ -865,6 +790,10 @@
                                             <dt class="text-sm text-gray-600">Orders Shown</dt>
                                             <dd class="text-lg font-semibold text-gray-900">{centralConfig.game.ordersShown}</dd>
                                         </div>
+                                        <div>
+                                            <dt class="text-sm text-gray-600">Scenario Set</dt>
+                                            <dd class="text-lg font-semibold text-gray-900">{centralConfig.scenario_set || 'experimentScenarios'}</dd>
+                                        </div>
                                     </dl>
                                 </div>
                                 <div class="bg-gray-50 p-4 rounded">
@@ -882,44 +811,18 @@
                                                 {centralConfig.game.tips ? 'On' : 'Off'}
                                             </span></dd>
                                         </div>
-                                        <div class="flex justify-between">
-                                            <dt class="text-sm text-gray-600">Waiting</dt>
-                                            <dd><span class="px-2 py-1 rounded text-xs font-medium {centralConfig.game.waiting ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-800'}">
-                                                {centralConfig.game.waiting ? 'On' : 'Off'}
-                                            </span></dd>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <dt class="text-sm text-gray-600">Refresh</dt>
-                                            <dd><span class="px-2 py-1 rounded text-xs font-medium {centralConfig.game.refresh ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-800'}">
-                                                {centralConfig.game.refresh ? 'On' : 'Off'}
-                                            </span></dd>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <dt class="text-sm text-gray-600">Expire</dt>
-                                            <dd><span class="px-2 py-1 rounded text-xs font-medium {centralConfig.game.expire ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-800'}">
-                                                {centralConfig.game.expire ? 'On' : 'Off'}
-                                            </span></dd>
-                                        </div>
                                     </dl>
                                 </div>
                             </div>
                             
-                            {#if centralConfig.conditions && centralConfig.conditions.length > 0}
-                                <div class="bg-gray-50 p-4 rounded">
-                                    <h4 class="font-medium text-gray-900 mb-3">Conditions</h4>
-                                    <div class="space-y-2">
-                                        {#each centralConfig.conditions as condition, i}
-                                            <div class="text-sm">
-                                                <span class="font-medium">{condition.name}</span>
-                                                <span class="text-gray-600 ml-2">({condition.order_file} + {condition.store_file})</span>
-                                            </div>
-                                        {/each}
-                                    </div>
-                                </div>
-                            {/if}
+                            <div class="bg-gray-50 p-4 rounded">
+                                <h4 class="font-medium text-gray-900 mb-2">Datasets (Fixed)</h4>
+                                <p class="text-sm text-gray-700">Orders: <span class="font-medium">order_main</span></p>
+                                <p class="text-sm text-gray-700">Stores: <span class="font-medium">store</span></p>
+                            </div>
                             
                             <button
-                                on:click={() => { centralConfig.conditions = normalizeConditionRows(centralConfig.conditions); editingCentralConfig = true; }}
+                                on:click={() => { editingCentralConfig = true; }}
                                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                             >
                                 Edit Configuration
@@ -967,36 +870,25 @@
                                             <input type="checkbox" bind:checked={centralConfig.game.tips} class="rounded border-gray-300" />
                                             <span class="ml-2 text-sm text-gray-700">Enable Tips</span>
                                         </label>
-                                        <label class="flex items-center">
-                                            <input type="checkbox" bind:checked={centralConfig.game.waiting} class="rounded border-gray-300" />
-                                            <span class="ml-2 text-sm text-gray-700">Waiting Mechanic</span>
-                                        </label>
-                                        <label class="flex items-center">
-                                            <input type="checkbox" bind:checked={centralConfig.game.refresh} class="rounded border-gray-300" />
-                                            <span class="ml-2 text-sm text-gray-700">Refresh Orders</span>
-                                        </label>
-                                        <label class="flex items-center">
-                                            <input type="checkbox" bind:checked={centralConfig.game.expire} class="rounded border-gray-300" />
-                                            <span class="ml-2 text-sm text-gray-700">Order Expiration</span>
-                                        </label>
                                     </div>
                                 </fieldset>
 
                                 <fieldset class="border border-gray-300 rounded-lg p-4">
-                                    <legend class="text-sm font-bold text-gray-700 px-2">Conditions (Dataset Mapping)</legend>
-                                    <div class="space-y-2">
-                                        <div class="flex justify-end">
-                                            <button type="button" on:click={addCentralConditionRow} class="px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800">+ Add Condition</button>
-                                        </div>
-                                        {#each centralConfig.conditions as condition, conditionIndex}
-                                            <div class="grid grid-cols-[1fr,1fr,1fr,90px] gap-2 items-end">
-                                                <input type="text" bind:value={condition.name} placeholder="Condition name" class="px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                <input type="text" bind:value={condition.order_file} placeholder="order.json" class="px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                <input type="text" bind:value={condition.store_file} placeholder="stores1.json" class="px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                <button type="button" on:click={() => removeCentralConditionRow(conditionIndex)} class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200">Remove</button>
-                                            </div>
-                                        {/each}
+                                    <legend class="text-sm font-bold text-gray-700 px-2">Scenario Source</legend>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Scenario Set</label>
+                                        <select bind:value={centralConfig.scenario_set} class="mt-1 w-full max-w-md px-3 py-2 border border-gray-300 rounded-md bg-white">
+                                            {#each knownScenariosIds as id}
+                                                <option value={id}>{id}</option>
+                                            {/each}
+                                        </select>
                                     </div>
+                                </fieldset>
+
+                                <fieldset class="border border-gray-300 rounded-lg p-4">
+                                    <legend class="text-sm font-bold text-gray-700 px-2">Datasets (Fixed)</legend>
+                                    <p class="text-sm text-gray-700">Orders dataset is fixed to <span class="font-medium">order_main</span>.</p>
+                                    <p class="text-sm text-gray-700">Stores dataset is fixed to <span class="font-medium">store</span>.</p>
                                 </fieldset>
 
                                 <div class="flex gap-3">
@@ -1098,10 +990,6 @@
                                                             <div>
                                                                 <label class="block text-xs font-medium text-gray-700">Order ID</label>
                                                                 <input type="text" bind:value={order.id} placeholder="Order ID" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                            </div>
-                                                            <div>
-                                                                <label class="block text-xs font-medium text-gray-700">Name</label>
-                                                                <input type="text" bind:value={order.name} placeholder="Name" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
                                                             </div>
                                                             <div>
                                                                 <label class="block text-xs font-medium text-gray-700">City</label>
@@ -1211,6 +1099,10 @@
                                             <dt class="text-sm text-gray-600">Grid Size</dt>
                                             <dd class="text-lg font-semibold text-gray-900">{tutorialConfig.gridSize}x{tutorialConfig.gridSize}</dd>
                                         </div>
+                                        <div>
+                                            <dt class="text-sm text-gray-600">Scenario Set</dt>
+                                            <dd class="text-lg font-semibold text-gray-900">{tutorialConfig.scenario_set || 'experimentScenarios'}</dd>
+                                        </div>
                                     </dl>
                                 </div>
                                 <div class="bg-gray-50 p-4 rounded">
@@ -1228,23 +1120,16 @@
                                                 {tutorialConfig.tips ? 'On' : 'Off'}
                                             </span></dd>
                                         </div>
-                                        <div class="flex justify-between">
-                                            <dt class="text-sm text-gray-600">Waiting</dt>
-                                            <dd><span class="px-2 py-1 rounded text-xs font-medium {tutorialConfig.waiting ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-800'}">
-                                                {tutorialConfig.waiting ? 'On' : 'Off'}
-                                            </span></dd>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <dt class="text-sm text-gray-600">Refresh</dt>
-                                            <dd><span class="px-2 py-1 rounded text-xs font-medium {tutorialConfig.refresh ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-800'}">
-                                                {tutorialConfig.refresh ? 'On' : 'Off'}
-                                            </span></dd>
-                                        </div>
                                     </dl>
                                 </div>
                             </div>
+                            <div class="bg-gray-50 p-4 rounded">
+                                <h4 class="font-medium text-gray-900 mb-2">Datasets (Fixed)</h4>
+                                <p class="text-sm text-gray-700">Orders: <span class="font-medium">order_tutorial</span></p>
+                                <p class="text-sm text-gray-700">Stores: <span class="font-medium">store</span></p>
+                            </div>
                             <button
-                                on:click={() => { tutorialConfig.conditions = normalizeConditionRows(tutorialConfig.conditions); editingTutorialConfig = true; }}
+                                on:click={() => { editingTutorialConfig = true; }}
                                 class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                             >
                                 Edit Configuration
@@ -1284,36 +1169,25 @@
                                             <input type="checkbox" bind:checked={tutorialConfig.tips} class="rounded border-gray-300" />
                                             <span class="ml-2 text-sm text-gray-700">Enable Tips</span>
                                         </label>
-                                        <label class="flex items-center">
-                                            <input type="checkbox" bind:checked={tutorialConfig.waiting} class="rounded border-gray-300" />
-                                            <span class="ml-2 text-sm text-gray-700">Waiting Mechanic</span>
-                                        </label>
-                                        <label class="flex items-center">
-                                            <input type="checkbox" bind:checked={tutorialConfig.refresh} class="rounded border-gray-300" />
-                                            <span class="ml-2 text-sm text-gray-700">Refresh Orders</span>
-                                        </label>
-                                        <label class="flex items-center">
-                                            <input type="checkbox" bind:checked={tutorialConfig.expire} class="rounded border-gray-300" />
-                                            <span class="ml-2 text-sm text-gray-700">Order Expiration</span>
-                                        </label>
                                     </div>
                                 </fieldset>
 
                                 <fieldset class="border border-gray-300 rounded-lg p-4">
-                                    <legend class="text-sm font-bold text-gray-700 px-2">Conditions (Dataset Mapping)</legend>
-                                    <div class="space-y-2">
-                                        <div class="flex justify-end">
-                                            <button type="button" on:click={addTutorialConditionRow} class="px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800">+ Add Condition</button>
-                                        </div>
-                                        {#each tutorialConfig.conditions as condition, conditionIndex}
-                                            <div class="grid grid-cols-[1fr,1fr,1fr,90px] gap-2 items-end">
-                                                <input type="text" bind:value={condition.name} placeholder="Condition name" class="px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                <input type="text" bind:value={condition.order_file} placeholder="order_tutorial.json" class="px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                <input type="text" bind:value={condition.store_file} placeholder="stores.json" class="px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                <button type="button" on:click={() => removeTutorialConditionRow(conditionIndex)} class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200">Remove</button>
-                                            </div>
-                                        {/each}
+                                    <legend class="text-sm font-bold text-gray-700 px-2">Scenario Source</legend>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Scenario Set</label>
+                                        <select bind:value={tutorialConfig.scenario_set} class="mt-1 w-full max-w-md px-3 py-2 border border-gray-300 rounded-md bg-white">
+                                            {#each knownScenariosIds as id}
+                                                <option value={id}>{id}</option>
+                                            {/each}
+                                        </select>
                                     </div>
+                                </fieldset>
+
+                                <fieldset class="border border-gray-300 rounded-lg p-4">
+                                    <legend class="text-sm font-bold text-gray-700 px-2">Datasets (Fixed)</legend>
+                                    <p class="text-sm text-gray-700">Orders dataset is fixed to <span class="font-medium">order_tutorial</span>.</p>
+                                    <p class="text-sm text-gray-700">Stores dataset is fixed to <span class="font-medium">store</span>.</p>
                                 </fieldset>
                                 
                                 <div class="flex gap-3">
@@ -1339,7 +1213,7 @@
                 {/if}
                 
                 <!-- Orders Data Tab -->
-                {#if activeTab === 'orders'}
+                {#if false && activeTab === 'orders'}
                     <div class="space-y-4">
                         <div>
                             <h3 class="text-lg font-medium text-gray-900">Orders Data</h3>
@@ -1405,10 +1279,6 @@
                                                 <div>
                                                     <label class="block text-xs font-medium text-gray-700">Order ID</label>
                                                     <input type="text" bind:value={order.id} placeholder="Order ID" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                </div>
-                                                <div>
-                                                    <label class="block text-xs font-medium text-gray-700">Name</label>
-                                                    <input type="text" bind:value={order.name} placeholder="Name" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
                                                 </div>
                                                 <div>
                                                     <label class="block text-xs font-medium text-gray-700">City</label>
@@ -1490,7 +1360,7 @@
                 {/if}
                 
                 <!-- Stores Data Tab -->
-                {#if activeTab === 'stores'}
+                {#if false && activeTab === 'stores'}
                     <div class="space-y-4">
                         <div>
                             <h3 class="text-lg font-medium text-gray-900">Stores Data</h3>
