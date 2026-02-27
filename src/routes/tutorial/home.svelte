@@ -62,9 +62,11 @@
         //find index of city
         let index = distances["destinations"].indexOf(city)
         if (index == -1) {
-            return;
+            console.warn("Distance not found for", city, "- using fallback travel time");
+            duration = 5;
+        } else {
+            duration = distances["distances"][index] || 5;
         }
-        duration = distances["distances"][index]
         waiting = true;
         travelingTo = city;
         setTimeout(() => {

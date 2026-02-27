@@ -127,7 +127,7 @@
     let travelTimer;
     
     let thinking = false;
-    let thinkRemaining = thinkTime;
+    let thinkRemaining = 0;
     let thinkInterval;
 
     // Penalty Logic (uses PENALTY_TIMEOUT from config.js)
@@ -215,7 +215,7 @@
     function startThinkingTimer() {
         clearTimers();
         thinking = true;
-        thinkRemaining = thinkTime;
+        thinkRemaining = Number($thinkTime) || 0;
         thinkInterval = setInterval(() => {
             thinkRemaining -= 1;
             if (thinkRemaining <= 0) {

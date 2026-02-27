@@ -1,30 +1,88 @@
 import { writable, readable, derived, get} from 'svelte/store';
-import { addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser, getCounter, incrementCounter } from './firebaseDB';
+import { 
+    addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser, getCounter, incrementCounter,
+    getCentralConfig, getExperimentScenarios, getOrdersData, getStoresData, getEmojisData
+} from './firebaseDB';
 
-import centralConfig from "./centralConfig.json"
-import { switchJob } from './config';
-import experimentScenarios from "./bundle_experiment_50_rounds_short_times.json";
+import { switchJob, setPenaltyTimeout } from './config';
 
-// Extract config values from centralized config
-const config = {
-	timeLimit: centralConfig.game.timeLimit,
-	thinkTime: centralConfig.game.thinkTime,
-	gridSize: centralConfig.game.gridSize,
-	auth: centralConfig.game.auth,
-	tips: centralConfig.game.tips,
-	waiting: centralConfig.game.waiting,
-	refresh: centralConfig.game.refresh,
-	expire: centralConfig.game.expire,
-	conditions: centralConfig.conditions
+const DEFAULT_MAIN_CONDITION = [{ name: "Default", order_file: "order.json", store_file: "stores1.json" }];
+
+// Default config values (must exist in Firebase; these are boot defaults only)
+let config = {
+	timeLimit: 1200,
+	thinkTime: 10,
+	gridSize: 3,
+	auth: true,
+	tips: false,
+	waiting: false,
+	refresh: false,
+	expire: false,
+	ordersShown: 4,
+	roundTimeLimit: 300,
+	penaltyTimeout: 30,
+	conditions: [...DEFAULT_MAIN_CONDITION]
 };
 
-const configModules = import.meta.glob("./configs/*.json");
+let experimentScenarios = [];
+let firebaseInitialized = false;
 
-// Get filenames (cleaned for display)
-export const configOptions = Object.keys(configModules).map(path => {
-  const name = path.split('/').pop(); // e.g., "config1.json"
-  return { name, importFn: configModules[path] };
-});
+// Initialize config and scenarios from Firebase
+export async function initializeFromFirebase() {
+	try {
+		const centralConfigData = await getCentralConfig();
+		if (centralConfigData) {
+			config = {
+				timeLimit: centralConfigData.game?.timeLimit ?? config.timeLimit,
+				thinkTime: centralConfigData.game?.thinkTime ?? config.thinkTime,
+				gridSize: centralConfigData.game?.gridSize ?? config.gridSize,
+				auth: centralConfigData.game?.auth ?? config.auth,
+				tips: centralConfigData.game?.tips ?? config.tips,
+				waiting: centralConfigData.game?.waiting ?? config.waiting,
+				refresh: centralConfigData.game?.refresh ?? config.refresh,
+				expire: centralConfigData.game?.expire ?? config.expire,
+					ordersShown: centralConfigData.game?.ordersShown ?? config.ordersShown,
+					roundTimeLimit: centralConfigData.game?.roundTimeLimit ?? config.roundTimeLimit,
+					penaltyTimeout: centralConfigData.game?.penaltyTimeout ?? config.penaltyTimeout,
+					conditions: centralConfigData.conditions ?? config.conditions
+				};
+			if (!Array.isArray(config.conditions) || config.conditions.length === 0) {
+				config.conditions = [...DEFAULT_MAIN_CONDITION];
+				console.warn("Firebase centralConfig has no conditions; using default condition IDs.");
+			}
+			console.log('Central config loaded from Firebase:', config);
+		}
+		
+			const scenarios = await getExperimentScenarios();
+		if (scenarios && Array.isArray(scenarios)) {
+			experimentScenarios = scenarios;
+			console.log('Experiment scenarios loaded from Firebase:', experimentScenarios.length, 'scenarios');
+		}
+
+		const emojisData = await getEmojisData();
+		if (emojisData && Object.keys(emojisData).length > 0) {
+			emojisMap.set(emojisData);
+		}
+	} catch (error) {
+		console.error('Error initializing from Firebase:', error);
+	}
+
+	FullTimeLimit.set(config.timeLimit);
+	needsAuth.set(config.auth);
+	numCols.set(config.gridSize);
+	thinkTime.set(config.thinkTime);
+	ordersShown.set(config.ordersShown);
+	roundTimeLimit.set(config.roundTimeLimit);
+	setPenaltyTimeout(config.penaltyTimeout);
+	scenarios.set(experimentScenarios);
+	game.update((current) => ({
+		...current,
+		tip: config.tips,
+		waiting: config.waiting,
+		refresh: config.refresh
+	}));
+	firebaseInitialized = true;
+}
 
 let storeConfigs = {}
 let orderConfigs = []
@@ -34,19 +92,20 @@ let stopTimeInterval;
 let actionCounter = 0;
 export const uniqueSets = writable(0);
 export const orderList = writable([])
-export const FullTimeLimit = config["timeLimit"];
+export const FullTimeLimit = writable(config["timeLimit"]);
 
-export const needsAuth = config["auth"]
+export const needsAuth = writable(config["auth"])
 
-export const numCols = config["gridSize"]
+export const numCols = writable(config["gridSize"])
 
 // Experiment round management
 export const currentRound = writable(1);
-export const scenarios = experimentScenarios;
+export const scenarios = writable(experimentScenarios);
 export const roundStartTime = writable(0);
 
 export function getCurrentScenario(round) {
-  return scenarios.find((s) => s.round === round) ?? scenarios[scenarios.length - 1];
+  const scenariosArray = get(scenarios);
+  return scenariosArray.find((s) => s.round === round) ?? scenariosArray[scenariosArray.length - 1] ?? { round: 1, max_bundle: 3, orders: [] };
 }
 
 const experiment = true
@@ -56,8 +115,10 @@ export const gameText = writable({
 	selector: "None selected",
 })
 
-export const thinkTime = config["thinkTime"];
-export const ordersShown = centralConfig.game.ordersShown;
+export const thinkTime = writable(config["thinkTime"]);
+export const ordersShown = writable(config["ordersShown"]);
+export const roundTimeLimit = writable(config["roundTimeLimit"]);
+export const emojisMap = writable({});
 export const game = writable({
 	inSelect: false,
 	inStore: false,
@@ -169,18 +230,18 @@ export const penaltyEndTime = writable(0) // Time when penalty expires
 export const earned = writable(0);
 export const currLocation = writable("");
 
-export const elapsed = derived(timeStamp, ($timeStamp, set) => {
+export const elapsed = derived([timeStamp, FullTimeLimit], ([$timeStamp, $FullTimeLimit], set) => {
 	const elapsedSeconds = Math.round($timeStamp / 1000);
-	if (elapsedSeconds >= FullTimeLimit && elapsedSeconds <= FullTimeLimit + 2) {
+	if (elapsedSeconds >= $FullTimeLimit && elapsedSeconds <= $FullTimeLimit + 2) {
 		updateFields(get(id), {
 			earnings: get(earned),
-        	ordersComplete: get(finishedOrders).length,
+	        	ordersComplete: get(finishedOrders).length,
 			uniqueSetsComplete: get(uniqueSets),
-        	gametime: FullTimeLimit
+	        	gametime: $FullTimeLimit
 		})
 		GameOver.set(true);
 		stopTimeInterval?.();
-		set(FullTimeLimit)
+		set($FullTimeLimit)
 		console.log("game over")
 		return;
 	}
@@ -188,8 +249,8 @@ export const elapsed = derived(timeStamp, ($timeStamp, set) => {
 });
 
 export const remainingTime = derived(
-	elapsed,
-	($elapsed) => Math.max(FullTimeLimit - $elapsed, 0)
+	[elapsed, FullTimeLimit],
+	([$elapsed, $FullTimeLimit]) => Math.max($FullTimeLimit - $elapsed, 0)
 );
 
 export const toggleTime = () => {
@@ -296,7 +357,7 @@ export const completeOrder = (orderID) => {
 		earnings: get(earned),
 		ordersComplete: get(finishedOrders).length,
 		uniqueSetsComplete: get(uniqueSets),
-		gametime: FullTimeLimit
+		gametime: get(elapsed)
 	})
 }
 
@@ -305,18 +366,41 @@ export const authUser = (id, pass) => {
 }
 
 export async function loadConfigByName(fileName) {
-  const matchPath = Object.keys(configModules).find(path => path.endsWith(fileName));
+  const normalizedId = fileName?.replace(/\.json$/i, '');
+  const isOrderFile = normalizedId?.startsWith('order');
+  const isStoreFile = normalizedId?.startsWith('stores');
 
-  if (!matchPath) {
-	console.error(`Config file "${fileName}" not found in ../configs/`)
-	return null
+  if (isOrderFile) {
+	const orderData = await getOrdersData(normalizedId);
+	if (Array.isArray(orderData) && orderData.length > 0) {
+		return orderData;
+	}
   }
 
-  const module = await configModules[matchPath]();   // dynamic import
-  return module.default;                             // get JSON content
+  if (isStoreFile) {
+	const storeData = await getStoresData(normalizedId);
+	if (storeData && Array.isArray(storeData.stores) && storeData.stores.length > 0) {
+		return {
+			startinglocation: storeData.startinglocation ?? "Berkeley",
+			distances: storeData.distances ?? {},
+			stores: storeData.stores
+		};
+	}
+  }
+  console.error(`Config "${fileName}" not found in Firebase MasterData.`);
+  return null;
 }
 
 export async function loadGame() {
+	if (!firebaseInitialized) {
+		await initializeFromFirebase();
+	}
+
+	if (!Array.isArray(config.conditions) || config.conditions.length === 0) {
+		config.conditions = [...DEFAULT_MAIN_CONDITION];
+		console.warn("No conditions configured in central config; using default condition IDs.");
+	}
+
 	let n = 0
 	if (config["conditions"].length > 1) {
 		let value = await getCounter()
