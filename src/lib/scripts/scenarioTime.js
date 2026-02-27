@@ -32,7 +32,25 @@ export function estimatePickItemTime(order, context = {}) {
   return walkSeconds + grabSeconds;
 }
 
-export function crossCityExtraTime() {}
+export function crossCityExtraTime(orderCity, currentCity, context = {}) {
+  // No extra travel if same city (or missing values)
+  if (!orderCity || !currentCity || orderCity === currentCity) return 0;
+
+  // Expected shape from store dataset: { distances: { [city]: { destinations: [], distances: [] } } }
+  const distanceTable = context.storeDataset?.distances ?? {};
+  const fromRow = distanceTable[currentCity];
+
+  if (!fromRow) return 0;
+
+  const destinations = Array.isArray(fromRow.destinations) ? fromRow.destinations : [];
+  const times = Array.isArray(fromRow.distances) ? fromRow.distances : [];
+
+  const idx = destinations.indexOf(orderCity);
+  if (idx === -1) return 0;
+
+  const t = Number(times[idx]);
+  return Number.isFinite(t) && t > 0 ? t : 0;
+}
 
 
 // Helper methods

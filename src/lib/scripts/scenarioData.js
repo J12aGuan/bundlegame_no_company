@@ -6,14 +6,6 @@ import {
   getExperimentScenarios
 } from "../firebaseDB.js";
 
-export async function fetchCentralConfigForGeneration() {
-  return await getCentralConfig();
-}
-
-export async function fetchTutorialConfigForGeneration() {
-  return await getTutorialConfig();
-}
-
 export async function fetchOrdersDataset(ordersId = "order_main") {
   return await getOrdersData(ordersId);
 }
