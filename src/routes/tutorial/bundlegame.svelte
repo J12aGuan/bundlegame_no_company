@@ -305,7 +305,7 @@
         <div class="flex flex-wrap gap-2">
             {#each $orders as order, idx}
                 <div class="flex-1 min-w-[180px] rounded-lg bg-slate-50 p-3 text-xs">
-                    <p class="font-semibold text-slate-900 mb-1">Order {idx + 1} for {order.name}</p>
+                    <p class="font-semibold text-slate-900 mb-1">Order {idx + 1}: {order.id || `#${idx + 1}`}</p>
                     <p class="text-slate-600 mb-2">Pay: ${order.earnings}</p>
                     <ul class="space-y-0.5 text-slate-600">
                         {#each Object.keys(order.items) as item}

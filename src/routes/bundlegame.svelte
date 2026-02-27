@@ -652,7 +652,7 @@
                     <div class="bg-slate-50 border border-slate-200 rounded-xl p-2 space-y-1">
                         <div class="flex justify-between items-start">
                             <div>
-                                <h3 class="font-bold text-slate-800 text-sm">Order {idx+1}: {order.name}</h3>
+                                <h3 class="font-bold text-slate-800 text-sm">Order {idx+1}: {order.id || `#${idx + 1}`}</h3>
                                 <p class="text-[10px] text-slate-500">📍 Deliver to: {order.city}</p>
                             </div>
                             <div class="flex flex-col items-end">
