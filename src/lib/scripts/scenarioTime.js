@@ -36,7 +36,12 @@ export function crossCityExtraTime(orderCity, currentCity, context = {}) {
   // No extra travel if same city (or missing values)
   if (!orderCity || !currentCity || orderCity === currentCity) return 0;
 
-  // Expected shape from store dataset: { distances: { [city]: { destinations: [], distances: [] } } }
+  // Preferred shape: cities dataset { travelTimes: { [fromCity]: { [toCity]: seconds } } }
+  const cityTravelTimes = context.citiesDataset?.travelTimes ?? {};
+  const direct = Number(cityTravelTimes?.[currentCity]?.[orderCity]);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+
+  // Backward compatibility: old store dataset shape
   const distanceTable = context.storeDataset?.distances ?? {};
   const fromRow = distanceTable[currentCity];
 
@@ -86,4 +91,3 @@ function findStoreConfigForOrder(storeDataset = {}, storeName = "") {
   const stores = Array.isArray(storeDataset?.stores) ? storeDataset.stores : [];
   return stores.find((s) => String(s?.store) === String(storeName)) ?? null;
 }
-

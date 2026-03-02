@@ -379,26 +379,27 @@ export const getExperimentScenarios = async (scenariosId = 'experimentScenarios'
 }
 
 export const saveExperimentScenarios = async (scenariosData, scenariosId = 'experimentScenarios') => {
-    const sanitizeOrder = (order = {}) => ({
-        id: order.id ?? '',
-        city: order.city ?? '',
-        store: order.store ?? '',
-        earnings: Number(order.earnings) || 0,
-        recommended: Boolean(order.recommended),
-        items: order.items || {}
-    });
+    const toOrderId = (order) => {
+        if (typeof order === 'string') return order.trim();
+        return String(order?.id ?? '').trim();
+    };
     const sanitizedScenarios = (scenariosData || []).map((scenario = {}) => ({
         round: Number(scenario.round) || 1,
         phase: scenario.phase ?? '',
         scenario_id: scenario.scenario_id ?? '',
         max_bundle: Number(scenario.max_bundle) || 3,
-        orders: (scenario.orders || []).map((order) => sanitizeOrder(order))
+        order_ids: (
+            Array.isArray(scenario.order_ids)
+                ? scenario.order_ids
+                : (scenario.orders || [])
+        )
+            .map((order) => toOrderId(order))
+            .filter((id) => id.length > 0)
     }));
     try {
         const docRef = doc(firestore, 'MasterData', scenariosId);
         await setDoc(docRef, {
-            scenarios: sanitizedScenarios,
-            updatedAt: Timestamp.fromDate(new Date())
+            scenarios: sanitizedScenarios
         });
         console.log(`Experiment scenarios saved: ${scenariosId}`);
         return true;
@@ -463,14 +464,13 @@ export const saveOrdersData = async (ordersData, ordersId = 'order_main') => {
         city: order.city ?? '',
         store: order.store ?? '',
         earnings: Number(order.earnings) || 0,
-        recommended: Boolean(order.recommended),
-        items: order.items || {}
+        items: order.items || {},
+        estimatedTime: Number(order.estimatedTime) || 0
     }));
     try {
         const docRef = doc(firestore, 'MasterData', ordersId);
         await setDoc(docRef, {
-            orders: sanitizedOrders,
-            updatedAt: Timestamp.fromDate(new Date())
+            orders: sanitizedOrders
         });
         console.log(`Orders ${ordersId} saved`);
         return true;
@@ -525,6 +525,42 @@ export const getStoresData = async (storesId = 'store') => {
     }
 }
 
+// Cities Data
+export const getCitiesData = async (citiesId = 'cities') => {
+    try {
+        const docSnap = await getDoc(doc(firestore, 'MasterData', citiesId));
+        if (docSnap.exists()) {
+            console.log(`Cities ${citiesId} fetched`);
+            const data = docSnap.data() || {};
+            return {
+                startinglocation: data.startinglocation ?? '',
+                travelTimes: data.travelTimes ?? {}
+            };
+        } else {
+            console.log(`Cities ${citiesId} not found`);
+            return null;
+        }
+    } catch (error) {
+        console.error(`Error fetching cities ${citiesId}:`, error);
+        return null;
+    }
+}
+
+export const saveCitiesData = async (citiesData, citiesId = 'cities') => {
+    try {
+        const docRef = doc(firestore, 'MasterData', citiesId);
+        await setDoc(docRef, {
+            startinglocation: citiesData?.startinglocation ?? '',
+            travelTimes: citiesData?.travelTimes ?? {}
+        });
+        console.log(`Cities ${citiesId} saved`);
+        return true;
+    } catch (error) {
+        console.error(`Error saving cities ${citiesId}:`, error);
+        throw error;
+    }
+}
+
 export const saveStoresData = async (storesData, storesId = 'store') => {
     const encodeStore = (store) => {
         const locations = Array.isArray(store?.locations)
@@ -543,8 +579,7 @@ export const saveStoresData = async (storesData, storesId = 'store') => {
         const payload = Array.isArray(storesData) ? { stores: storesData } : storesData;
         const encodedPayload = encodeStoresPayload(payload);
         await setDoc(docRef, {
-            ...encodedPayload,
-            updatedAt: Timestamp.fromDate(new Date())
+            ...encodedPayload
         });
         console.log(`Stores ${storesId} saved`);
         return true;

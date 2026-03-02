@@ -6,6 +6,7 @@
         getTutorialConfig, saveTutorialConfig,
         getOrdersData, saveOrdersData,
         getStoresData, saveStoresData,
+        getCitiesData, saveCitiesData,
         getEmojisData, saveEmojisData
     } from '$lib/firebaseDB.js';
     
@@ -79,13 +80,13 @@
         };
     }
 
-    function toOrderDraft(order = {}) {
+    function toOrderDraft(order = {}, options = {}) {
         return {
             id: order.id || '',
             city: order.city || '',
             store: order.store || '',
             earnings: order.earnings ?? 0,
-            recommended: Boolean(order.recommended),
+            estimatedTime: order.estimatedTime ?? 0,
             itemRows: toItemRows(order.items || {})
         };
     }
@@ -108,24 +109,27 @@
         return out;
     }
 
-    function fromOrderDraft(order) {
+    function fromOrderDraft(order, options = {}) {
         return {
             id: order.id?.trim(),
             city: order.city?.trim(),
             store: order.store?.trim(),
             earnings: Number(order.earnings) || 0,
-            recommended: Boolean(order.recommended),
+            estimatedTime: Number(order.estimatedTime) || 0,
             items: fromItemRows(order.itemRows)
         };
     }
 
     function toScenarioDraft(scenario = {}) {
+        const orderIds = Array.isArray(scenario.order_ids)
+            ? scenario.order_ids
+            : (scenario.orders || []).map((order) => order?.id || order).filter(Boolean);
         return {
             round: scenario.round ?? 1,
             phase: scenario.phase ?? '',
             scenario_id: scenario.scenario_id ?? '',
             max_bundle: scenario.max_bundle ?? 3,
-            orders: (scenario.orders || []).map((order) => toOrderDraft(order))
+            orders: orderIds.map((id) => toOrderDraft({ id }))
         };
     }
 
@@ -135,7 +139,9 @@
             phase: scenario.phase?.trim() || '',
             scenario_id: scenario.scenario_id?.trim() || '',
             max_bundle: Number(scenario.max_bundle) || 3,
-            orders: (scenario.orders || []).map((order) => fromOrderDraft(order))
+            order_ids: (scenario.orders || [])
+                .map((order) => order?.id?.trim?.() || '')
+                .filter((id) => id.length > 0)
         };
     }
 
@@ -344,6 +350,13 @@
                 count: (value) => `${storesCount(value)} stores`
             },
             {
+                key: 'cities',
+                label: 'MasterData/cities',
+                fetch: async () => await getCitiesData('cities'),
+                valid: (value) => Boolean(value && value.travelTimes && Object.keys(value.travelTimes).length > 0),
+                count: (value) => `${Object.keys(value?.travelTimes || {}).length} cities`
+            },
+            {
                 key: 'emojis',
                 label: 'MasterData/emojis',
                 fetch: async () => await getEmojisData(),
@@ -459,7 +472,10 @@
     }
 
     function addScenarioOrder(scenarioIndex) {
-        scenarioDrafts[scenarioIndex].orders = [...scenarioDrafts[scenarioIndex].orders, toOrderDraft()];
+        scenarioDrafts[scenarioIndex].orders = [
+            ...scenarioDrafts[scenarioIndex].orders,
+            toOrderDraft({})
+        ];
         scenarioDrafts = [...scenarioDrafts];
     }
 
@@ -522,7 +538,7 @@
     }
 
     function addOrderRow() {
-        orderDrafts = [...orderDrafts, toOrderDraft()];
+        orderDrafts = [...orderDrafts, toOrderDraft({})];
     }
 
     function removeOrderRow(index) {
@@ -1003,7 +1019,10 @@
                                                                 <label class="block text-xs font-medium text-gray-700">Earnings</label>
                                                                 <input type="number" bind:value={order.earnings} placeholder="Earnings" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
                                                             </div>
-                                                            <label class="flex items-center text-sm"><input type="checkbox" bind:checked={order.recommended} class="mr-2" /> Recommended</label>
+                                                            <div>
+                                                                <label class="block text-xs font-medium text-gray-700">Estimated Time</label>
+                                                                <input type="number" bind:value={order.estimatedTime} placeholder="Estimated Time (s)" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                                                            </div>
                                                         </div>
                                                         <div class="space-y-2">
                                                             <div class="flex items-center justify-between">
@@ -1292,7 +1311,10 @@
                                                     <label class="block text-xs font-medium text-gray-700">Earnings</label>
                                                     <input type="number" bind:value={order.earnings} placeholder="Earnings" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
                                                 </div>
-                                                <label class="flex items-center text-sm"><input type="checkbox" bind:checked={order.recommended} class="mr-2" /> Recommended</label>
+                                                <div>
+                                                    <label class="block text-xs font-medium text-gray-700">Estimated Time</label>
+                                                    <input type="number" bind:value={order.estimatedTime} placeholder="Estimated Time (s)" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                                                </div>
                                             </div>
                                             <div class="space-y-2">
                                                 <div class="flex items-center justify-between">
