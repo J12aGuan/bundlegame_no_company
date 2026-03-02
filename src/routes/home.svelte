@@ -21,40 +21,8 @@
         return hydratedOrdersCache.get(order.id);
     });
 
-    // 2. Generate Orders for ALL cities (4 orders per city)
-    let cityOrderMap = {};
-    let lastRound = -1; // Track round to only regenerate when needed
-    
-    // Reactive block to regenerate orders when round changes
-    $: {
-        // Only regenerate if round actually changed
-        if ($currentRound !== lastRound) {
-            lastRound = $currentRound;
-            
-            const cities = ["Berkeley", "Oakland", "Emeryville", "Piedmont"];
-            let map = {};
-            
-            // Identify the "Active" city for this round
-            const activeCity = experimentOrders.length > 0 ? experimentOrders[0].city : "Berkeley";
-
-            cities.forEach(city => {
-                if (city === activeCity) {
-                    // Use specific experiment data for the active city
-                    map[city] = experimentOrders;
-                } else {
-                    // Generate consistent filler data for other cities
-                    map[city] = generateFillerOrders(city, $currentRound);
-                }
-            });
-            cityOrderMap = map;
-        }
-    }
-
-    // 3. Display orders for CURRENT location
-    $: localOrders = cityOrderMap[$currLocation] || [];
-    
-    // Detect where the experiment orders actually are
-    $: activeOrderCity = experimentOrders.length > 0 ? experimentOrders[0].city : "";
+    // 2. Show current round scenario orders directly (no city-based filler filtering)
+    $: localOrders = experimentOrders;
 
     // --- HELPER: Hydrate Orders (Fixes Freeze caused by missing items) ---
     function hydrateOrder(order) {
@@ -87,35 +55,6 @@
         };
     }
 
-    // --- HELPER: Generate Filler Orders for non-active cities ---
-    function generateFillerOrders(city, round) {
-        const storeNames = {
-            "Berkeley": "Berkeley Bowl",
-            "Oakland": "Sprouts Farmers Market", 
-            "Emeryville": "Target",
-            "Piedmont": "Safeway"
-        };
-        
-        // Use seeded random based on city and round for consistency
-        const seed = (city.charCodeAt(0) + round * 1000);
-        
-        let fillers = [];
-        for (let i = 1; i <= 4; i++) {
-            // Deterministic earnings based on seed
-            const earnings = 8 + ((seed + i * 7) % 13);
-            
-            fillers.push({
-                id: `fill_${round}_${city}_${i}`,
-                store: storeNames[city],
-                city: city,
-                earnings: earnings,
-                items: { "Apple": 1, "Watermelon": 1 },
-                recommended: false
-            });
-        }
-        return fillers;
-    }
-
     // --- STATE ---
     let waiting = false;
     $: distances = getDistances($currLocation);
@@ -135,6 +74,8 @@
 
     // Map Config
     let map;
+    let mapInitRetryCount = 0;
+    let mapInitRetryTimer;
     const API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
     const cityCoords = {
         "Berkeley": [37.8715, -122.2730],
@@ -241,45 +182,68 @@
         // Helper to update UI if needed
     }
 
+    function isTransientStyleError(error) {
+        const msg = String(error?.message || error || "").toLowerCase();
+        return msg.includes("style is not done loading");
+    }
+
+    function scheduleMapRetry() {
+        if (mapInitRetryCount >= 5) return;
+        mapInitRetryCount += 1;
+        if (mapInitRetryTimer) clearTimeout(mapInitRetryTimer);
+        mapInitRetryTimer = setTimeout(initMap, 250 * mapInitRetryCount);
+    }
+
     // --- MAP INIT ---
     function initMap() {
-        if (!document.getElementById('map')) return;
-        if (map && map.remove) { map.remove(); map = null; }
+        try {
+            if (!document.getElementById('map')) return;
+            if (map && map.remove) { map.remove(); map = null; }
 
-        const currentCoords = cityCoords[$currLocation] || cityCoords["Berkeley"];
+            const currentCoords = cityCoords[$currLocation] || cityCoords["Berkeley"];
 
-        map = L.map('map', {
-            center: currentCoords,
-            zoom: 12
-        });
-
-        L.maptilerLayer({
-            apiKey: API_KEY,
-            style: L.MaptilerStyle.STREETS
-        }).addTo(map);
-
-        Object.entries(cityCoords).forEach(([city, coords]) => {
-            const isCurrent = city === $currLocation;
-            const hasExpOrders = experimentOrders.length > 0 && experimentOrders[0].city === city;
-
-            const marker = L.circleMarker(coords, {
-                color: isCurrent ? '#16a34a' : (hasExpOrders ? '#ef4444' : '#3b82f6'),
-                fillColor: isCurrent ? '#22c55e' : (hasExpOrders ? '#f87171' : '#60a5fa'),
-                fillOpacity: 0.8,
-                radius: 10
-            }).addTo(map);
-
-            let label = city;
-            if (isCurrent) label += " (You)";
-
-            marker.bindTooltip(label, { 
-                permanent: true, 
-                direction: 'top',
-                className: 'font-bold text-slate-700' 
+            map = L.map('map', {
+                center: currentCoords,
+                zoom: 12
             });
 
-            marker.on('click', () => travel(city));
-        });
+            L.maptilerLayer({
+                apiKey: API_KEY,
+                style: L.MaptilerStyle.STREETS
+            }).addTo(map);
+
+            Object.entries(cityCoords).forEach(([city, coords]) => {
+                const isCurrent = city === $currLocation;
+            const hasExpOrders = experimentOrders.some((order) => order.city === city);
+
+                const marker = L.circleMarker(coords, {
+                    color: isCurrent ? '#16a34a' : (hasExpOrders ? '#ef4444' : '#3b82f6'),
+                    fillColor: isCurrent ? '#22c55e' : (hasExpOrders ? '#f87171' : '#60a5fa'),
+                    fillOpacity: 0.8,
+                    radius: 10
+                }).addTo(map);
+
+                let label = city;
+                if (isCurrent) label += " (You)";
+
+                marker.bindTooltip(label, {
+                    permanent: true,
+                    direction: 'top',
+                    className: 'font-bold text-slate-700'
+                });
+
+                marker.on('click', () => travel(city));
+            });
+
+            mapInitRetryCount = 0;
+        } catch (error) {
+            if (map && map.remove) { map.remove(); map = null; }
+            if (isTransientStyleError(error)) {
+                scheduleMapRetry();
+                return;
+            }
+            console.error("Map init failed:", error);
+        }
     }
 
     // --- LIFECYCLE ---
@@ -300,6 +264,7 @@
     onDestroy(() => {
         clearTimers();
         if (map) map.remove();
+        if (mapInitRetryTimer) clearTimeout(mapInitRetryTimer);
     });
 </script>
 
@@ -343,7 +308,7 @@
 
         <div class="grid lg:grid-cols-[55%_45%] gap-4 mt-2">
             <div class="space-y-2">
-                <h2 class="text-base font-semibold text-slate-800">Orders in {$currLocation}</h2>
+                <h2 class="text-base font-semibold text-slate-800">Scenario Orders</h2>
                 
                 <!-- Fixed height grid for 4 orders without scrolling -->
                 <div class="grid grid-cols-2 gap-2">

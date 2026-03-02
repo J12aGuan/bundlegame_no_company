@@ -4,6 +4,7 @@ import {
   fetchTutorialConfigForGeneration,
   fetchOrdersDataset,
   fetchStoreDataset,
+  fetchCitiesDataset,
   fetchExistingScenarioSet
 } from "./scenarioData.js";
 import {
@@ -18,15 +19,28 @@ export {
   fetchTutorialConfigForGeneration,
   fetchOrdersDataset,
   fetchStoreDataset,
+  fetchCitiesDataset,
   fetchExistingScenarioSet,
   estimateLocalTravelTime,
   estimatePickItemTime,
   crossCityExtraTime
 };
 
-export function estimateOrderCompletionTime(order, context = {}) {}
+export function estimateOrderCompletionTime(order, context = {}) {
+    const localTravel = estimateLocalTravelTime();
+    const pickItem = estimatePickItemTime(order, context);
 
-export function createOrderModel(rawOrder, context = {}) {}
+    const currentCity = context.currentCity ?? context.playerCity ?? "";
+    const extraCrossCity = crossCityExtraTime(order?.city, currentCity, context);
+
+    return localTravel + pickItem + extraCrossCity;
+}
+
+export function createOrderModel(rawOrder, context = {}) {
+    const order = {
+        
+    }
+}
 
 export function enumerateBundles(orders = [], kMax = 3) {}
 
