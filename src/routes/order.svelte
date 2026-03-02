@@ -24,7 +24,7 @@
             orderData.earnings = Math.round(orderData.startingearnings*percentIncrease*100)/100
             updateEarnings(index, orderData.earnings);
         }
-        if ($game.refresh && orderData.demand > Math.random()*100) {
+        if ($game.refresh && Number(orderData.refreshChance ?? 0) > Math.random()*100) {
             if (selected) {
                 for (let i=0; i<$orders.length; i++) {
                     if ($orders[i].id == orderData.id) {
@@ -81,16 +81,9 @@
 
 {#if !taken}
     <div class="relative rounded-lg bg-white border transition-all cursor-pointer select-none overflow-hidden
-        {selected ? 'ring-2 ring-green-500 shadow-md transform scale-[1.01]' : 'hover:shadow-md hover:border-blue-300'}
-        {orderData.recommended ? 'border-yellow-400' : ''}"
+        {selected ? 'ring-2 ring-green-500 shadow-md transform scale-[1.01]' : 'hover:shadow-md hover:border-blue-300'}"
         on:click={select}
     >
-        {#if orderData.recommended}
-            <div class="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg z-10 flex items-center gap-1">
-                <span>★ Recommended</span>
-            </div>
-        {/if}
-        
         <div class="p-2 space-y-1">
             <div class="flex justify-between items-start">
                 <div class="flex-1 min-w-0">

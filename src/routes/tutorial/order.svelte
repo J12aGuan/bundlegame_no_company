@@ -24,7 +24,7 @@
             orderData.earnings = Math.round(orderData.startingearnings*percentIncrease*100)/100
             updateEarnings(index, orderData.earnings);
         }
-        if ($game.refresh && orderData.demand > Math.random()*100) {
+        if ($game.refresh && Number(orderData.refreshChance ?? 0) > Math.random()*100) {
             if (selected) {
                 for (let i=0; i<$orders.length; i++) {
                     if ($orders[i].id == orderData.id) {
@@ -108,14 +108,6 @@
         class="relative rounded-2xl bg-white shadow-sm border transition cursor-pointer select-none {selected ? 'ring-2 ring-green-500 shadow-md' : 'hover:shadow-md'}"
         on:click={select}
     >
-        <!-- Recommendation badge -->
-        {#if orderData.recommended}
-            <div class="absolute top-3 right-3 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 flex items-center gap-1 shadow-sm">
-                <span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
-                Recommended
-            </div>
-        {/if}
-        
         <div class="flex flex-col gap-3 p-4">
             <!-- Header row: store name + chips -->
             <div class="flex items-start justify-between gap-3">
@@ -126,15 +118,10 @@
                     <p class="text-xs text-slate-500">{orderData.city}</p>
                 </div>
 
-                <div class="flex flex-wrap gap-1 justify-end {orderData.recommended ? 'mr-24' : ''}">
+                <div class="flex flex-wrap gap-1 justify-end">
                     <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
                         Batch
                     </span>
-                    {#if orderData.demand > 0}
-                        <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
-                            High demand
-                        </span>
-                    {/if}
                 </div>
             </div>
 
@@ -148,7 +135,6 @@
             <div class="flex justify-between gap-4">
                 <div class="space-y-0.5 text-xs text-slate-600 flex-1">
                     <p>{totalItems} total items</p>
-                    <p>Customer: {orderData.name}</p>
                     <p>Zone: {$currLocation}</p>
                 </div>
 

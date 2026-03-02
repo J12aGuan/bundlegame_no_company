@@ -56,5 +56,18 @@ export function storeConfig(store) {
 }
 
 export function getDistances(location) {
-    return default_job["distances"][location]
+    // New structure: default_job.travelTimes[FromCity][ToCity] = seconds
+    if (default_job?.travelTimes && default_job.travelTimes[location]) {
+        const row = default_job.travelTimes[location] || {};
+        const destinations = Object.keys(row);
+        const distances = destinations.map((city) => Number(row[city]) || 0);
+        return { destinations, distances };
+    }
+
+    // Backward compatibility with legacy structure.
+    if (default_job?.distances && default_job.distances[location]) {
+        return default_job.distances[location];
+    }
+
+    return { destinations: [], distances: [] };
 }
