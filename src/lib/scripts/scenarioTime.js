@@ -32,7 +32,30 @@ export function estimatePickItemTime(order, context = {}) {
   return walkSeconds + grabSeconds;
 }
 
-export function crossCityExtraTime() {}
+export function crossCityExtraTime(orderCity, currentCity, context = {}) {
+  // No extra travel if same city (or missing values)
+  if (!orderCity || !currentCity || orderCity === currentCity) return 0;
+
+  // Preferred shape: cities dataset { travelTimes: { [fromCity]: { [toCity]: seconds } } }
+  const cityTravelTimes = context.citiesDataset?.travelTimes ?? {};
+  const direct = Number(cityTravelTimes?.[currentCity]?.[orderCity]);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+
+  // Backward compatibility: old store dataset shape
+  const distanceTable = context.storeDataset?.distances ?? {};
+  const fromRow = distanceTable[currentCity];
+
+  if (!fromRow) return 0;
+
+  const destinations = Array.isArray(fromRow.destinations) ? fromRow.destinations : [];
+  const times = Array.isArray(fromRow.distances) ? fromRow.distances : [];
+
+  const idx = destinations.indexOf(orderCity);
+  if (idx === -1) return 0;
+
+  const t = Number(times[idx]);
+  return Number.isFinite(t) && t > 0 ? t : 0;
+}
 
 
 // Helper methods
@@ -68,4 +91,3 @@ function findStoreConfigForOrder(storeDataset = {}, storeName = "") {
   const stores = Array.isArray(storeDataset?.stores) ? storeDataset.stores : [];
   return stores.find((s) => String(s?.store) === String(storeName)) ?? null;
 }
-

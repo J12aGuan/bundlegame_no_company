@@ -1,12 +1,13 @@
 import { writable, readable, derived, get} from 'svelte/store';
 import {
 	addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser,
-	getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getEmojisData
+	getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getCitiesData, getEmojisData
 } from './firebaseDB';
 
 import { switchJob } from './config';
 const TUTORIAL_ORDER_FILE = 'order_tutorial.json';
 const TUTORIAL_STORE_FILE = 'store.json';
+const TUTORIAL_CITIES_FILE = 'cities.json';
 
 let config = {
 	timeLimit: 120,
@@ -44,6 +45,25 @@ export const roundStartTime = writable(0);
 
 export function getCurrentScenario(round) {
   return scenarios.find((s) => s.round === round) ?? scenarios[scenarios.length - 1] ?? { round: 1, max_bundle: 3, orders: [] };
+}
+
+function hydrateScenariosWithOrders(rawScenarios = [], orders = []) {
+	const byId = new Map((orders || []).map((order) => [String(order?.id ?? ''), order]).filter(([id]) => id));
+	return (rawScenarios || []).map((scenario = {}) => {
+		const ids = Array.isArray(scenario.order_ids)
+			? scenario.order_ids
+			: (scenario.orders || []).map((entry) => (typeof entry === 'string' ? entry : entry?.id));
+		const normalizedIds = ids.map((id) => String(id ?? '').trim()).filter(Boolean);
+		const hydratedOrders = normalizedIds.map((id) => {
+			const found = byId.get(id);
+			return found ? { ...found } : { id, city: '', store: '', items: {}, earnings: 0, estimatedTime: 0 };
+		});
+		return {
+			...scenario,
+			order_ids: normalizedIds,
+			orders: hydratedOrders
+		};
+	});
 }
 
 const experiment = true
@@ -350,6 +370,7 @@ export async function loadConfigByName(fileName) {
   const normalizedId = fileName?.replace(/\.json$/i, '');
   const isOrderFile = normalizedId?.startsWith('order');
   const isStoreFile = normalizedId?.startsWith('store');
+  const isCityFile = normalizedId?.startsWith('cities');
 
   if (isOrderFile) {
 	const orderData = await getOrdersData(normalizedId);
@@ -364,6 +385,13 @@ export async function loadConfigByName(fileName) {
 		return storeData;
 	}
   }
+
+  if (isCityFile) {
+	const cityData = await getCitiesData(normalizedId);
+	if (cityData && cityData.travelTimes) {
+		return cityData;
+	}
+  }
   console.error(`Config "${fileName}" not found in Firebase MasterData.`);
   return null;
 }
@@ -375,12 +403,19 @@ export async function loadGame() {
 	try {
 		let orderFile = await loadConfigByName(TUTORIAL_ORDER_FILE)
 		let storeFile = await loadConfigByName(TUTORIAL_STORE_FILE)
+		let cityFile = await loadConfigByName(TUTORIAL_CITIES_FILE)
 
 		if (!orderFile || !storeFile) {
 			console.error("Could not find files specified in configuration")
 		} else {
-			storeConfigs = storeFile
+			storeConfigs = {
+				stores: storeFile.stores || [],
+				startinglocation: cityFile?.startinglocation ?? storeFile.startinglocation ?? "Berkeley",
+				travelTimes: cityFile?.travelTimes ?? {},
+				distances: storeFile.distances ?? {}
+			}
 			orderConfigs = orderFile
+			scenarios = hydrateScenariosWithOrders(scenarios, orderConfigs);
 		}
 	} catch (err) {
 		console.error("Error loading fixed datasets", err)

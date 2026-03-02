@@ -35,6 +35,8 @@
     
     // DELIVERY STATE
     let deliveryMap;
+    let deliveryMapRetryCount = 0;
+    let deliveryMapRetryTimer;
     let deliveryLocations = [];
     let currentDeliveryCity = ""; // Tracks where the driver currently is
     const API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
@@ -93,6 +95,7 @@
         if (deliveryMap) deliveryMap.remove();
         if (aisleCountdownInterval) clearInterval(aisleCountdownInterval);
         if (deliveryCountdownInterval) clearInterval(deliveryCountdownInterval);
+        if (deliveryMapRetryTimer) clearTimeout(deliveryMapRetryTimer);
     });
 
     function handleCell(value, row, col) {
@@ -320,7 +323,7 @@
             deliveryLocations = selOrders.map(o => ({
                 id: o.id,
                 destination: o.city, // Use city field as destination
-                name: o.name,
+                name: o.id || o.store || o.city,
                 delivered: false
             }));
             
@@ -339,6 +342,18 @@
     let distanceLabels = [];
     let destinationMarkers = [];
 
+    function isTransientStyleError(error) {
+        const msg = String(error?.message || error || "").toLowerCase();
+        return msg.includes("style is not done loading");
+    }
+
+    function scheduleDeliveryMapRetry() {
+        if (deliveryMapRetryCount >= 6) return;
+        deliveryMapRetryCount += 1;
+        if (deliveryMapRetryTimer) clearTimeout(deliveryMapRetryTimer);
+        deliveryMapRetryTimer = setTimeout(initDeliveryMap, 250 * deliveryMapRetryCount);
+    }
+
     function initDeliveryMap() {
         try {
             if (deliveryMap) deliveryMap.remove();
@@ -354,41 +369,48 @@
             }).addTo(deliveryMap);
 
             updateDeliveryMapLayers();
+            deliveryMapRetryCount = 0;
         } catch (error) {
-            console.error('Error initializing delivery map:', error);
-            // Don't throw - allow game to continue without map
+            if (deliveryMap && deliveryMap.remove) {
+                try { deliveryMap.remove(); } catch (_) {}
+            }
             deliveryMap = null;
+            if (isTransientStyleError(error)) {
+                scheduleDeliveryMapRetry();
+                return;
+            }
+            console.error('Error initializing delivery map:', error);
         }
     }
     
     function updateDeliveryMapLayers() {
         if (!deliveryMap) return;
-        
-        // Clear existing layers
-        routeLines.forEach(line => deliveryMap.removeLayer(line));
-        distanceLabels.forEach(label => deliveryMap.removeLayer(label));
-        destinationMarkers.forEach(marker => deliveryMap.removeLayer(marker));
-        if (truckMarker) deliveryMap.removeLayer(truckMarker);
-        
-        routeLines = [];
-        distanceLabels = [];
-        destinationMarkers = [];
-        
-        // Get current location coordinates
-        const currentCoords = cityCoords[currentDeliveryCity] || cityCoords["Berkeley"];
-        
-        // Add Truck Marker at current location
-        const truckIcon = L.divIcon({
-            html: '<div style="font-size:28px;text-shadow:2px 2px 4px rgba(0,0,0,0.3);">🚚</div>',
-            className: 'truck-marker',
-            iconSize: [35, 35],
-            iconAnchor: [17, 17]
-        });
-        truckMarker = L.marker(currentCoords, { icon: truckIcon, zIndexOffset: 1000 }).addTo(deliveryMap);
-        truckMarker.bindPopup(`<b>📍 You are here</b><br>${currentDeliveryCity}`);
-        
-        // Add Destination Markers and Route Lines
-        deliveryLocations.forEach((loc, idx) => {
+        try {
+            // Clear existing layers
+            routeLines.forEach(line => deliveryMap.removeLayer(line));
+            distanceLabels.forEach(label => deliveryMap.removeLayer(label));
+            destinationMarkers.forEach(marker => deliveryMap.removeLayer(marker));
+            if (truckMarker) deliveryMap.removeLayer(truckMarker);
+
+            routeLines = [];
+            distanceLabels = [];
+            destinationMarkers = [];
+
+            // Get current location coordinates
+            const currentCoords = cityCoords[currentDeliveryCity] || cityCoords["Berkeley"];
+
+            // Add Truck Marker at current location
+            const truckIcon = L.divIcon({
+                html: '<div style="font-size:28px;text-shadow:2px 2px 4px rgba(0,0,0,0.3);">🚚</div>',
+                className: 'truck-marker',
+                iconSize: [35, 35],
+                iconAnchor: [17, 17]
+            });
+            truckMarker = L.marker(currentCoords, { icon: truckIcon, zIndexOffset: 1000 }).addTo(deliveryMap);
+            truckMarker.bindPopup(`<b>📍 You are here</b><br>${currentDeliveryCity}`);
+
+            // Add Destination Markers and Route Lines
+            deliveryLocations.forEach((loc, idx) => {
             const destCoords = cityCoords[loc.destination] || cityCoords["Berkeley"];
             
             // Calculate travel time from current location
@@ -467,12 +489,20 @@
                     </div>
                 `);
             }
-        });
-        
-        // Fit map to show all points
-        const allCoords = [currentCoords, ...deliveryLocations.map(loc => cityCoords[loc.destination] || cityCoords["Berkeley"])];
-        const bounds = L.latLngBounds(allCoords);
-        deliveryMap.fitBounds(bounds, { padding: [30, 30] });
+            });
+
+            // Fit map to show all points
+            const allCoords = [currentCoords, ...deliveryLocations.map(loc => cityCoords[loc.destination] || cityCoords["Berkeley"])];
+            const bounds = L.latLngBounds(allCoords);
+            deliveryMap.fitBounds(bounds, { padding: [30, 30] });
+            deliveryMapRetryCount = 0;
+        } catch (error) {
+            if (isTransientStyleError(error)) {
+                scheduleDeliveryMapRetry();
+                return;
+            }
+            console.error("Error updating delivery map layers:", error);
+        }
     }
 
     function deliverTo(idx) {
@@ -595,14 +625,12 @@
         const scenario = getCurrentScenario($currentRound);
         const duration = $elapsed - startTimer; // Calculate directly
         const chosenOrderIds = $orders.map(o => o.id);
-        const recommendedOrderIds = scenario.orders.filter(o => o.recommended).map(o => o.id);
         
         logAction({
             type: "round_summary",
             round_index: $currentRound,
             phase: scenario.phase,
             chosen_orders: chosenOrderIds,
-            recommended_orders: recommendedOrderIds,  // Include for analysis
             success: success,
             earnings: success ? totalEarnings : 0,
             final_location: $currLocation,

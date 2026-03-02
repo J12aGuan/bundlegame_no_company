@@ -1,13 +1,14 @@
 import { writable, readable, derived, get} from 'svelte/store';
 import { 
     addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser,
-    getCentralConfig, getExperimentScenarios, getOrdersData, getStoresData, getEmojisData
+    getCentralConfig, getExperimentScenarios, getOrdersData, getStoresData, getCitiesData, getEmojisData
 } from './firebaseDB';
 
 import { switchJob, setPenaltyTimeout } from './config';
 
 const MAIN_ORDER_FILE = 'order_main.json';
 const MAIN_STORE_FILE = 'store.json';
+const MAIN_CITIES_FILE = 'cities.json';
 
 // Default config values (must exist in Firebase; these are boot defaults only)
 let config = {
@@ -104,6 +105,25 @@ export const roundStartTime = writable(0);
 export function getCurrentScenario(round) {
   const scenariosArray = get(scenarios);
   return scenariosArray.find((s) => s.round === round) ?? scenariosArray[scenariosArray.length - 1] ?? { round: 1, max_bundle: 3, orders: [] };
+}
+
+function hydrateScenariosWithOrders(rawScenarios = [], orders = []) {
+	const byId = new Map((orders || []).map((order) => [String(order?.id ?? ''), order]).filter(([id]) => id));
+	return (rawScenarios || []).map((scenario = {}) => {
+		const ids = Array.isArray(scenario.order_ids)
+			? scenario.order_ids
+			: (scenario.orders || []).map((entry) => (typeof entry === 'string' ? entry : entry?.id));
+		const normalizedIds = ids.map((id) => String(id ?? '').trim()).filter(Boolean);
+		const hydratedOrders = normalizedIds.map((id) => {
+			const found = byId.get(id);
+			return found ? { ...found } : { id, city: '', store: '', items: {}, earnings: 0, estimatedTime: 0 };
+		});
+		return {
+			...scenario,
+			order_ids: normalizedIds,
+			orders: hydratedOrders
+		};
+	});
 }
 
 const experiment = true
@@ -367,6 +387,7 @@ export async function loadConfigByName(fileName) {
   const normalizedId = fileName?.replace(/\.json$/i, '');
   const isOrderFile = normalizedId?.startsWith('order');
   const isStoreFile = normalizedId?.startsWith('store');
+  const isCityFile = normalizedId?.startsWith('cities');
 
   if (isOrderFile) {
 	const orderData = await getOrdersData(normalizedId);
@@ -385,6 +406,13 @@ export async function loadConfigByName(fileName) {
 		};
 	}
   }
+
+  if (isCityFile) {
+	const cityData = await getCitiesData(normalizedId);
+	if (cityData && cityData.travelTimes) {
+		return cityData;
+	}
+  }
   console.error(`Config "${fileName}" not found in Firebase MasterData.`);
   return null;
 }
@@ -396,12 +424,20 @@ export async function loadGame() {
 	try {
 		let orderFile = await loadConfigByName(MAIN_ORDER_FILE)
 		let storeFile = await loadConfigByName(MAIN_STORE_FILE)
+		let cityFile = await loadConfigByName(MAIN_CITIES_FILE)
 
 		if (!orderFile || !storeFile) {
 			console.error("Could not find files specified in configuration")
 		} else {
-			storeConfigs = storeFile
+			storeConfigs = {
+				stores: storeFile.stores || [],
+				// Prefer new cities doc, fallback to legacy fields inside store doc
+				startinglocation: cityFile?.startinglocation ?? storeFile.startinglocation ?? "Berkeley",
+				travelTimes: cityFile?.travelTimes ?? {},
+				distances: storeFile.distances ?? {}
+			}
 			orderConfigs = orderFile
+			scenarios.set(hydrateScenariosWithOrders(get(scenarios), orderConfigs));
 		}
 	} catch (err) {
 		console.error("Error loading fixed datasets", err)

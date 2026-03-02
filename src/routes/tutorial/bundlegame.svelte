@@ -243,7 +243,6 @@
         const scenario = getCurrentScenario($currentRound);
         const duration = $elapsed - $roundStartTime;
         const chosenOrderIds = $orders.map(o => o.id);
-        const recommendedOrderIds = scenario.orders.filter(o => o.recommended).map(o => o.id);
         
         logAction({
             type: "round_summary",
@@ -251,7 +250,6 @@
             phase: scenario.phase,
             scenario_id: scenario.scenario_id,
             available_orders: scenario.orders.map(o => o.id),
-            recommended_orders: recommendedOrderIds,
             chosen_orders: chosenOrderIds,
             bundle_size: chosenOrderIds.length,
             round_duration_s: duration,
@@ -356,7 +354,7 @@
                     {#each Array(numOrders) as _, idx}
                         <div>
                             <h5 class="text-xs font-medium text-slate-700 mb-1">
-                                Bag {idx + 1} - {$orders[idx].name}
+                                Bag {idx + 1} - {$orders[idx].id || $orders[idx].store || $orders[idx].city}
                             </h5>
                             <ul class="text-xs text-slate-600 space-y-0.5 pl-2">
                                 {#each Object.keys(bags[idx]) as key}
