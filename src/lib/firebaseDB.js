@@ -2,6 +2,21 @@ import { timeStamp } from './bundle';
 import {app, firestore} from './firebaseConfig';
 import { collection, collectionGroup, doc, setDoc, getDoc, getDocs, addDoc, arrayUnion, updateDoc, Timestamp, increment, deleteDoc, deleteField } from "firebase/firestore";
 
+function removeUndefinedDeep(value) {
+    if (Array.isArray(value)) {
+        return value.map((item) => removeUndefinedDeep(item));
+    }
+    if (value && typeof value === 'object') {
+        const out = {};
+        for (const [key, nested] of Object.entries(value)) {
+            if (nested === undefined) continue;
+            out[key] = removeUndefinedDeep(nested);
+        }
+        return out;
+    }
+    return value;
+}
+
 export const incrementCounter = async () => {
     const docRef = doc(collection(firestore, 'Global'), "totalusers");
     try {
@@ -179,11 +194,14 @@ export const authenticateUser = async (id, token) => {
 
 export const addAction = async (id, gamestate, name) => {
     const actionDocRef = doc(collection(firestore, 'Users/' + id + '/Actions'), name)
-    gamestate.createdAt = Timestamp.fromDate(new Date())
-    gamestate.updatedAt = Timestamp.fromDate(new Date())
-    gamestate.userID = id
+    const payload = removeUndefinedDeep({
+        ...(gamestate || {}),
+        createdAt: Timestamp.fromDate(new Date()),
+        updatedAt: Timestamp.fromDate(new Date()),
+        userID: id
+    });
     try {
-        await setDoc(actionDocRef, gamestate)
+        await setDoc(actionDocRef, payload)
         console.log("Start action written with id ", id);
     } catch (error) {
         console.error("Error creating actions collection: ", error);
@@ -193,11 +211,14 @@ export const addAction = async (id, gamestate, name) => {
 
 export const addOrder = async (id, gamestate, orderID) => {
     const orderDocRef = doc(collection(firestore, 'Users/' + id + '/Orders'), orderID)
-    gamestate.createdAt = Timestamp.fromDate(new Date())
-    gamestate.updatedAt = Timestamp.fromDate(new Date())
-    gamestate.userID = id
+    const payload = removeUndefinedDeep({
+        ...(gamestate || {}),
+        createdAt: Timestamp.fromDate(new Date()),
+        updatedAt: Timestamp.fromDate(new Date()),
+        userID: id
+    });
     try {
-        await setDoc(orderDocRef, gamestate)
+        await setDoc(orderDocRef, payload)
         console.log("Added an order with ", id);
     } catch (error) {
         console.error("Error adding order: ", error);
@@ -207,9 +228,12 @@ export const addOrder = async (id, gamestate, orderID) => {
 
 export const updateOrder = async (id, gamestate, orderID) => {
     const orderDocRef = doc(collection(firestore, 'Users/' + id + '/Orders'), orderID)
-    gamestate.updatedAt = Timestamp.fromDate(new Date())
+    const payload = removeUndefinedDeep({
+        ...(gamestate || {}),
+        updatedAt: Timestamp.fromDate(new Date())
+    });
     try {
-        await updateDoc(orderDocRef, gamestate)
+        await updateDoc(orderDocRef, payload)
         console.log("Document updated with id: ", id)
     } catch (error) {
         console.error("Error updating document: ", error);
@@ -219,9 +243,12 @@ export const updateOrder = async (id, gamestate, orderID) => {
 
 export const updateFields = async (id, gamestate) => {
     const userDocRef = doc(collection(firestore, 'Users'), id)
-    gamestate.updatedAt = Timestamp.fromDate(new Date())
+    const payload = removeUndefinedDeep({
+        ...(gamestate || {}),
+        updatedAt: Timestamp.fromDate(new Date())
+    });
     try {
-        await updateDoc(userDocRef, gamestate)
+        await updateDoc(userDocRef, payload)
         console.log("Document updated with id: , id")
     } catch (error) {
         console.error("Error updating document: ", error);

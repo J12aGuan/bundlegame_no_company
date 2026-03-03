@@ -29,38 +29,49 @@
     }
     
     async function start() {
-        const auth = await authUser(userInput, userPass)
-        if (auth === 1) {
-            const user = await createNewUser(userInput)
-            if (user != -1) {
-                startTimer();
-                resetTimer();
-                $game.inSelect = true;
-                $id = userInput
-                started = true;
-                $orderList = queueNFixedOrders(ordersShown)
-                completed = generateCompleteId(userInput)
-                completed2 = user
+        try {
+            const auth = await authUser(userInput, userPass)
+            if (auth === 1) {
+                const user = await createNewUser(userInput)
+                if (user != -1) {
+                    startTimer();
+                    resetTimer();
+                    game.update((g) => ({ ...g, inSelect: true, inStore: false }));
+                    $id = userInput
+                    started = true;
+                    $orderList = queueNFixedOrders($ordersShown)
+                    completed = generateCompleteId(userInput)
+                    completed2 = user
+                    return;
+                }
             }
-        } else {
             alert("id and token do not match")
+        } catch (err) {
+            console.error("Start failed:", err);
+            alert(`Unable to enter simulation: ${err?.message || "Unknown error"}`);
         }
-        
     }
 
     async function startNoAuth() {
-        const user = await loadGame()
-        if (user != -1) {
-            startTimer();
-            resetTimer();
-            $game.inSelect = true;
-            started = true;
-            $orderList = queueNFixedOrders(ordersShown)
+        try {
+            const user = await loadGame()
+            if (user != -1) {
+                startTimer();
+                resetTimer();
+                game.update((g) => ({ ...g, inSelect: true, inStore: false }));
+                started = true;
+                $orderList = queueNFixedOrders($ordersShown)
+                return;
+            }
+            alert("Unable to load game configuration.");
+        } catch (err) {
+            console.error("Start (no auth) failed:", err);
+            alert(`Unable to enter simulation: ${err?.message || "Unknown error"}`);
         }
     }
 
     function handleClick(event) {
-        if (needsAuth) {
+        if ($needsAuth) {
             if (event.target.id === 'start' || event.target.id === 'addtobag') {
                 return;
             }
@@ -103,7 +114,7 @@
                 User Access
             </h1>
             
-            {#if needsAuth}
+            {#if $needsAuth}
                 <div class="space-y-4">
                     <div class="space-y-1">
                         <label class="text-sm font-medium text-slate-700">User ID</label>
@@ -166,7 +177,7 @@
                     <li><span class="font-medium">Finished Orders:</span> {$finishedOrders.length}</li>
                     </ul>
                 </div>
-                {#if needsAuth}
+                {#if $needsAuth}
                 <div class="bg-yellow-100 p-4 rounded-xl border border-yellow-400">
                     <h3 class="text-lg font-semibold text-yellow-800 mb-2">
                     Please copy the following two codes back into the Qualtrics survey:

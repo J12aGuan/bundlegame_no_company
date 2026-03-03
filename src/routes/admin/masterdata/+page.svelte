@@ -71,6 +71,22 @@
         return JSON.parse(JSON.stringify(value));
     }
 
+    function sortObjectKeysDeep(value) {
+        if (Array.isArray(value)) return value.map((item) => sortObjectKeysDeep(item));
+        if (value && typeof value === 'object') {
+            const out = {};
+            for (const key of Object.keys(value).sort()) {
+                out[key] = sortObjectKeysDeep(value[key]);
+            }
+            return out;
+        }
+        return value;
+    }
+
+    function formatJsonStable(value) {
+        return JSON.stringify(sortObjectKeysDeep(value), null, 2);
+    }
+
     function formatDatasetId(fileName, fallback = '') {
         const normalized = normalizeDataId(fileName, fallback);
         return normalized ? `${normalized}.json` : '';
@@ -221,7 +237,7 @@
     
     // Experiment Scenarios
     let experimentScenarios = [];
-    let selectedScenariosId = 'experiment';
+    let selectedScenariosId = '';
     let selectedScenarioRound = null;
     let selectedScenarioOrder = null;
     let selectedScenarioSolution = null;
@@ -259,11 +275,13 @@
     let knownOrdersIds = [];
     let knownStoresIds = [];
     let knownScenariosIds = [];
+    let scenarioSetOptions = [];
     let allScenarioSetIds = [];
     let syncStatusRows = [];
     let generatingScenarios = false;
     let deletingScenarioSet = false;
     let generationValidationError = '';
+    let generationPayFieldsInvalid = false;
     const generationForm = {
         datasetName: '',
         targetDifficulty: 'easy',
@@ -290,6 +308,7 @@
         tutorialConfig?.scenario_set || '',
         selectedScenariosId || ''
     ].filter(Boolean)));
+    $: scenarioSetOptions = Array.isArray(allScenarioSetIds) ? allScenarioSetIds : [];
     $: selectedScenarioInUseBy = (() => {
         const selected = normalizeDataId(selectedScenariosId, '');
         if (!selected) return [];
@@ -318,7 +337,13 @@
                 }
             };
             allScenarioSetIds = await getScenarioDatasetNames() || [];
-            experimentScenarios = await getExperimentScenarios(selectedScenariosId) || [];
+            const centralSet = normalizeDataId(centralLoaded?.scenario_set, '');
+            const tutorialSet = normalizeDataId((await getTutorialConfig() || {})?.scenario_set, '');
+            const preferredSet = [selectedScenariosId, centralSet, tutorialSet].find((id) => id && allScenarioSetIds.includes(id));
+            selectedScenariosId = preferredSet || allScenarioSetIds[0] || '';
+            experimentScenarios = selectedScenariosId
+                ? (await getExperimentScenarios(selectedScenariosId) || [])
+                : [];
             await loadScenarioSetDetails();
             tutorialConfig = {
                 ...DEFAULT_TUTORIAL_CONFIG,
@@ -417,6 +442,8 @@
     async function validateGenerationForm() {
         const validation = await validateGenerationOptionsForAdmin(generationForm);
         generationValidationError = validation?.ok ? '' : (validation?.error || 'Invalid generation options.');
+        generationPayFieldsInvalid = Boolean(generationValidationError)
+            && /(pay|earnings|divisible|range|difficulty)/i.test(generationValidationError);
         return validation;
     }
 
@@ -425,7 +452,6 @@
             generatingScenarios = true;
             const validation = await validateGenerationForm();
             if (!validation?.ok) {
-                showMessage(generationValidationError, 'error');
                 return;
             }
 
@@ -506,6 +532,14 @@
     async function switchScenariosId() {
         try {
             loading = true;
+            if (!selectedScenariosId) {
+                experimentScenarios = [];
+                selectedScenarioRound = null;
+                selectedScenarioOrder = null;
+                selectedScenarioSolution = null;
+                await loadScenarioSetDetails();
+                return;
+            }
             experimentScenarios = await getExperimentScenarios(selectedScenariosId) || [];
             selectedScenarioRound = null;
             selectedScenarioOrder = null;
@@ -519,6 +553,11 @@
     }
 
     async function loadScenarioSetDetails() {
+        if (!selectedScenariosId) {
+            scenarioOrdersById = {};
+            scenarioSolutionsByScenarioId = {};
+            return;
+        }
         const bundle = await getScenarioDatasetBundle(selectedScenariosId);
         const orders = Array.isArray(bundle?.orders) ? bundle.orders : [];
         const optimal = Array.isArray(bundle?.optimal) ? bundle.optimal : [];
@@ -1043,8 +1082,8 @@
                                     <input
                                         type="number"
                                         bind:value={generationForm.payMin}
-                                        on:blur={validateGenerationForm}
-                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                        on:input={validateGenerationForm}
+                                        class={`mt-1 w-full px-3 py-2 border rounded-md ${generationPayFieldsInvalid ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                     />
                                 </div>
                                 <div>
@@ -1052,8 +1091,8 @@
                                     <input
                                         type="number"
                                         bind:value={generationForm.payMax}
-                                        on:blur={validateGenerationForm}
-                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                        on:input={validateGenerationForm}
+                                        class={`mt-1 w-full px-3 py-2 border rounded-md ${generationPayFieldsInvalid ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                     />
                                 </div>
                                 <div>
@@ -1062,15 +1101,12 @@
                                         type="number"
                                         min="1"
                                         bind:value={generationForm.earningsStep}
-                                        on:blur={validateGenerationForm}
-                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                        on:input={validateGenerationForm}
+                                        class={`mt-1 w-full px-3 py-2 border rounded-md ${generationPayFieldsInvalid ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                     />
                                 </div>
                             </div>
                             <p class="text-xs text-gray-600">Orders per scenario is fixed to 4.</p>
-                            {#if generationValidationError}
-                                <p class="text-sm text-red-700">{generationValidationError}</p>
-                            {/if}
                             <div>
                                 <button
                                     on:click={generateScenarioSetHandler}
@@ -1089,9 +1125,13 @@
                                 on:change={switchScenariosId}
                                 class="mt-1 h-10 w-full px-3 border border-gray-300 rounded-md bg-white appearance-none"
                             >
-                                {#each knownScenariosIds as id}
-                                    <option value={id}>{id}</option>
-                                {/each}
+                                {#if scenarioSetOptions.length === 0}
+                                    <option value="">No scenario sets found</option>
+                                {:else}
+                                    {#each scenarioSetOptions as id}
+                                        <option value={id}>{id}</option>
+                                    {/each}
+                                {/if}
                             </select>
                             {#if selectedScenarioInUseBy.length > 0}
                                 <p class="mt-2 text-sm text-amber-700">
@@ -1198,7 +1238,7 @@
                                         </div>
                                         <div>
                                             <div class="font-medium mb-1">Raw JSON</div>
-                                            <pre class="rounded bg-gray-50 border border-gray-200 p-3 text-xs overflow-x-auto">{JSON.stringify(selectedScenarioRound, null, 2)}</pre>
+                                            <pre class="rounded bg-gray-50 border border-gray-200 p-3 text-xs overflow-x-auto">{formatJsonStable(selectedScenarioRound)}</pre>
                                         </div>
                                     </div>
                                 </div>
@@ -1230,7 +1270,7 @@
                                         {#if selectedScenarioOrder.missing}
                                             <p class="text-amber-700">Order not found in dataset orders list.</p>
                                         {/if}
-                                        <pre class="rounded bg-gray-50 border border-gray-200 p-3 text-xs overflow-x-auto">{JSON.stringify(selectedScenarioOrder, null, 2)}</pre>
+                                        <pre class="rounded bg-gray-50 border border-gray-200 p-3 text-xs overflow-x-auto">{formatJsonStable(selectedScenarioOrder)}</pre>
                                     </div>
                                 </div>
                             </div>
@@ -1261,7 +1301,7 @@
                                         {#if selectedScenarioSolution.missing}
                                             <p class="text-amber-700">Solution not found for this round.</p>
                                         {/if}
-                                        <pre class="rounded bg-gray-50 border border-gray-200 p-3 text-xs overflow-x-auto">{JSON.stringify(normalizeSolutionForDisplay(selectedScenarioSolution), null, 2)}</pre>
+                                        <pre class="rounded bg-gray-50 border border-gray-200 p-3 text-xs overflow-x-auto">{formatJsonStable(normalizeSolutionForDisplay(selectedScenarioSolution))}</pre>
                                     </div>
                                 </div>
                             </div>
