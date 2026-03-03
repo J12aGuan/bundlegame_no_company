@@ -297,7 +297,8 @@ export const logAction = (action) => {
 	action.gametime = get(elapsed)
 	action.uniqueSetsComplete = get(uniqueSets)
 	console.log(action)
-	addAction(get(id), action, actionCounter + "_" + action.buttonID)
+	const actionName = String(action?.buttonID ?? "unknown").trim() || "unknown";
+	addAction(get(id), action, actionCounter + "_" + actionName)
 	actionCounter += 1;
 }
 

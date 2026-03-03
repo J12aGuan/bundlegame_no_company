@@ -1,5 +1,5 @@
 export function estimateLocalTravelTime() {
-  return Math.floor(Math.random() * 7) + 4; // 4..10 seconds
+  return Math.floor(Math.random() * 5) + 2; // 2..6 seconds
 }
 
 export function estimatePickItemTime(order, context = {}) {
