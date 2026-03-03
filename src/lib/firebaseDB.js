@@ -1,6 +1,6 @@
 import { timeStamp } from './bundle';
 import {app, firestore} from './firebaseConfig';
-import { collection, collectionGroup, doc, setDoc, getDoc, getDocs, addDoc, arrayUnion, updateDoc, Timestamp, increment, deleteDoc } from "firebase/firestore";
+import { collection, collectionGroup, doc, setDoc, getDoc, getDocs, addDoc, arrayUnion, updateDoc, Timestamp, increment, deleteDoc, deleteField } from "firebase/firestore";
 
 export const incrementCounter = async () => {
     const docRef = doc(collection(firestore, 'Global'), "totalusers");
@@ -329,6 +329,47 @@ export const deleteConfig = async (configId) => {
 
 // ============ MasterData Management ============
 
+const normalizeMasterDataId = (value = '') => String(value || '').trim().replace(/\.json$/i, '');
+const DATASETS_DOC_ID = 'datasets';
+
+const resolveDatasetRootFromId = (id = '') => {
+    const normalized = normalizeMasterDataId(id);
+    if (!normalized) return '';
+    return normalized
+        .replace(/(Scenarios|Orders|Optimal)(?=_|$)/ig, '')
+        .replace(/(_scenarios|_orders|_optimal)$/i, '')
+        .replace(/__+/g, '_')
+        .replace(/^_|_$/g, '')
+        .trim();
+};
+
+const getDatasetsMap = (docData = {}) => {
+    const datasets = docData?.datasets;
+    return datasets && typeof datasets === 'object' ? datasets : {};
+};
+
+const readDatasetEntry = async (datasetId = '') => {
+    const root = resolveDatasetRootFromId(datasetId);
+    if (!root) return { root: '', entry: null };
+    const snap = await getDoc(doc(firestore, 'MasterData', DATASETS_DOC_ID));
+    if (!snap.exists()) return { root, entry: null };
+    const datasets = getDatasetsMap(snap.data() || {});
+    const entry = datasets[root] ?? null;
+    return { root, entry };
+};
+
+const writeDatasetEntry = async (datasetId = '', entry = {}) => {
+    const root = resolveDatasetRootFromId(datasetId);
+    if (!root) throw new Error('Invalid dataset id');
+    const payload = {
+        datasets: {
+            [root]: entry
+        }
+    };
+    await setDoc(doc(firestore, 'MasterData', DATASETS_DOC_ID), payload, { merge: true });
+    return root;
+};
+
 // Central Game Configuration
 export const getCentralConfig = async () => {
     try {
@@ -362,23 +403,24 @@ export const saveCentralConfig = async (configData) => {
 }
 
 // Experiment Scenarios
-export const getExperimentScenarios = async (scenariosId = 'experimentScenarios') => {
+export const getExperimentScenarios = async (scenariosId = 'experiment') => {
     try {
-        const docSnap = await getDoc(doc(firestore, 'MasterData', scenariosId));
-        if (docSnap.exists()) {
-            console.log(`Experiment scenarios fetched: ${scenariosId}`);
-            return docSnap.data().scenarios || [];
-        } else {
-            console.log(`Experiment scenarios not found: ${scenariosId}`);
-            return [];
+        const { root, entry } = await readDatasetEntry(scenariosId);
+        const grouped = entry?.scenarios || [];
+        if (Array.isArray(grouped)) {
+            console.log(`Experiment scenarios fetched: ${root}`);
+            return grouped;
         }
+
+        console.log(`Experiment scenarios not found: ${scenariosId}`);
+        return [];
     } catch (error) {
         console.error(`Error fetching experiment scenarios (${scenariosId}):`, error);
         return [];
     }
 }
 
-export const saveExperimentScenarios = async (scenariosData, scenariosId = 'experimentScenarios') => {
+export const saveExperimentScenarios = async (scenariosData, scenariosId = 'experiment') => {
     const toOrderId = (order) => {
         if (typeof order === 'string') return order.trim();
         return String(order?.id ?? '').trim();
@@ -397,11 +439,15 @@ export const saveExperimentScenarios = async (scenariosData, scenariosId = 'expe
             .filter((id) => id.length > 0)
     }));
     try {
-        const docRef = doc(firestore, 'MasterData', scenariosId);
-        await setDoc(docRef, {
+        const { root, entry } = await readDatasetEntry(scenariosId);
+        const next = {
+            type: 'scenario_dataset',
+            version: 1,
+            ...(entry && typeof entry === 'object' ? entry : {}),
             scenarios: sanitizedScenarios
-        });
-        console.log(`Experiment scenarios saved: ${scenariosId}`);
+        };
+        await writeDatasetEntry(root, next);
+        console.log(`Experiment scenarios saved: ${root}`);
         return true;
     } catch (error) {
         console.error(`Error saving experiment scenarios (${scenariosId}):`, error);
@@ -442,23 +488,24 @@ export const saveTutorialConfig = async (configData) => {
 }
 
 // Orders Data
-export const getOrdersData = async (ordersId = 'order_main') => {
+export const getOrdersData = async (ordersId = 'experiment') => {
     try {
-        const docSnap = await getDoc(doc(firestore, 'MasterData', ordersId));
-        if (docSnap.exists()) {
-            console.log(`Orders ${ordersId} fetched`);
-            return docSnap.data().orders || [];
-        } else {
-            console.log(`Orders ${ordersId} not found`);
-            return [];
+        const { root, entry } = await readDatasetEntry(ordersId);
+        const grouped = entry?.orders || [];
+        if (Array.isArray(grouped)) {
+            console.log(`Orders fetched: ${root}`);
+            return grouped;
         }
+
+        console.log(`Orders ${ordersId} not found`);
+        return [];
     } catch (error) {
         console.error(`Error fetching orders ${ordersId}:`, error);
         return [];
     }
 }
 
-export const saveOrdersData = async (ordersData, ordersId = 'order_main') => {
+export const saveOrdersData = async (ordersData, ordersId = 'experiment') => {
     const sanitizedOrders = (ordersData || []).map((order = {}) => ({
         id: order.id ?? '',
         city: order.city ?? '',
@@ -468,14 +515,167 @@ export const saveOrdersData = async (ordersData, ordersId = 'order_main') => {
         estimatedTime: Number(order.estimatedTime) || 0
     }));
     try {
-        const docRef = doc(firestore, 'MasterData', ordersId);
-        await setDoc(docRef, {
+        const { root, entry } = await readDatasetEntry(ordersId);
+        const next = {
+            type: 'scenario_dataset',
+            version: 1,
+            ...(entry && typeof entry === 'object' ? entry : {}),
             orders: sanitizedOrders
-        });
-        console.log(`Orders ${ordersId} saved`);
+        };
+        await writeDatasetEntry(root, next);
+        console.log(`Orders saved: ${root}`);
         return true;
     } catch (error) {
         console.error(`Error saving orders ${ordersId}:`, error);
+        throw error;
+    }
+}
+
+// Optimal Bundle Data
+export const saveOptimalData = async (optimalData, optimalId = 'optimal', metadata = {}) => {
+    const sanitizedOptimal = (optimalData || []).map((entry = {}) => ({
+        scenario_id: entry.scenario_id ?? '',
+        best_bundle_ids: Array.isArray(entry.best_bundle_ids) ? entry.best_bundle_ids.map((id) => String(id ?? '').trim()).filter(Boolean) : [],
+        second_best_bundle_ids: Array.isArray(entry.second_best_bundle_ids) ? entry.second_best_bundle_ids.map((id) => String(id ?? '').trim()).filter(Boolean) : [],
+        ending_city_best: entry.ending_city_best ?? ''
+    }));
+    try {
+        const { root, entry } = await readDatasetEntry(optimalId);
+        const next = {
+            type: 'scenario_dataset',
+            version: 1,
+            ...(entry && typeof entry === 'object' ? entry : {}),
+            optimal: sanitizedOptimal,
+            metadata: metadata && typeof metadata === 'object' ? metadata : {}
+        };
+        await writeDatasetEntry(root, next);
+        console.log(`Optimal saved: ${root}`);
+        return true;
+    } catch (error) {
+        console.error(`Error saving optimal ${optimalId}:`, error);
+        throw error;
+    }
+}
+
+// Grouped Scenario Dataset (single-doc structure)
+export const saveScenarioDatasetBundle = async (
+    datasetRoot,
+    payload = { scenarios: [], orders: [], optimal: [], metadata: {} }
+) => {
+    const id = resolveDatasetRootFromId(datasetRoot);
+    if (!id) throw new Error('Invalid datasetRoot');
+    const scenarios = Array.isArray(payload?.scenarios) ? payload.scenarios : [];
+    const orders = Array.isArray(payload?.orders) ? payload.orders : [];
+    const optimal = Array.isArray(payload?.optimal) ? payload.optimal : [];
+    const metadata = payload?.metadata && typeof payload.metadata === 'object' ? payload.metadata : {};
+
+    try {
+        await writeDatasetEntry(id, {
+            type: 'scenario_dataset',
+            version: 1,
+            scenarios,
+            orders,
+            optimal,
+            metadata
+        });
+        console.log(`Grouped scenario dataset saved: ${id}`);
+        return true;
+    } catch (error) {
+        console.error(`Error saving grouped scenario dataset (${id}):`, error);
+        throw error;
+    }
+}
+
+export const getScenarioDatasetBundle = async (datasetRoot = 'experiment') => {
+    try {
+        const { root: id, entry: data } = await readDatasetEntry(datasetRoot);
+        if (!data) return null;
+        return {
+            scenarios: Array.isArray(data.scenarios) ? data.scenarios : [],
+            orders: Array.isArray(data.orders) ? data.orders : [],
+            optimal: Array.isArray(data.optimal) ? data.optimal : [],
+            metadata: data.metadata && typeof data.metadata === 'object' ? data.metadata : {},
+            type: data.type ?? '',
+            version: data.version ?? 1
+        };
+    } catch (error) {
+        console.error(`Error fetching grouped scenario dataset (${datasetRoot}):`, error);
+        return null;
+    }
+}
+
+export const getScenarioDatasetNames = async () => {
+    try {
+        const snap = await getDoc(doc(firestore, 'MasterData', DATASETS_DOC_ID));
+        if (!snap.exists()) return [];
+        const datasets = getDatasetsMap(snap.data() || {});
+        return Object.entries(datasets)
+            .filter(([, value]) => value && typeof value === 'object' && value.type === 'scenario_dataset')
+            .map(([key]) => key)
+            .sort();
+    } catch (error) {
+        console.error('Error fetching scenario dataset names:', error);
+        return [];
+    }
+}
+
+export const deleteScenarioDatasetBundle = async (datasetRoot = 'experiment') => {
+    const id = resolveDatasetRootFromId(datasetRoot);
+    if (!id) throw new Error('Invalid datasetRoot');
+
+    try {
+        const datasetsRef = doc(firestore, 'MasterData', DATASETS_DOC_ID);
+        await updateDoc(datasetsRef, {
+            [`datasets.${id}`]: deleteField()
+        });
+        console.log(`Grouped scenario dataset deleted: ${id}`);
+        return true;
+    } catch (error) {
+        console.error(`Error deleting grouped scenario dataset (${id}):`, error);
+        throw error;
+    }
+}
+
+export const migrateLegacyScenarioSetToGrouped = async ({
+    legacyScenarioId = 'experimentScenarios',
+    legacyOrdersId = 'order_main',
+    legacyOptimalId = 'optimal',
+    datasetRoot = 'experiment',
+    metadata = {}
+} = {}) => {
+    try {
+        const [scenarioSnap, ordersSnap, optimalSnap] = await Promise.all([
+            getDoc(doc(firestore, 'MasterData', normalizeMasterDataId(legacyScenarioId))),
+            getDoc(doc(firestore, 'MasterData', normalizeMasterDataId(legacyOrdersId))),
+            getDoc(doc(firestore, 'MasterData', normalizeMasterDataId(legacyOptimalId)))
+        ]);
+
+        const scenarios = scenarioSnap.exists() ? (scenarioSnap.data()?.scenarios || []) : [];
+        const orders = ordersSnap.exists() ? (ordersSnap.data()?.orders || []) : [];
+        const optimal = optimalSnap.exists() ? (optimalSnap.data()?.optimal || []) : [];
+        const mergedMetadata = {
+            ...(optimalSnap.exists() ? (optimalSnap.data()?.metadata || {}) : {}),
+            ...(metadata || {})
+        };
+
+        await saveScenarioDatasetBundle(datasetRoot, {
+            scenarios: Array.isArray(scenarios) ? scenarios : [],
+            orders: Array.isArray(orders) ? orders : [],
+            optimal: Array.isArray(optimal) ? optimal : [],
+            metadata: mergedMetadata
+        });
+
+        return {
+            migrated: true,
+            datasetRoot: resolveDatasetRootFromId(datasetRoot),
+            counts: {
+                scenarios: Array.isArray(scenarios) ? scenarios.length : 0,
+                orders: Array.isArray(orders) ? orders.length : 0,
+                optimal: Array.isArray(optimal) ? optimal.length : 0
+            }
+        };
+    } catch (error) {
+        console.error('Error migrating legacy scenario set to grouped structure:', error);
         throw error;
     }
 }

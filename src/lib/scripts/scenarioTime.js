@@ -58,6 +58,7 @@ export function crossCityExtraTime(orderCity, currentCity, context = {}) {
 }
 
 
+
 // Helper methods
 function manhattanDistance(a = [0, 0], b = [0, 0]) {
   return Math.abs((a[0] ?? 0) - (b[0] ?? 0)) + Math.abs((a[1] ?? 0) - (b[1] ?? 0));

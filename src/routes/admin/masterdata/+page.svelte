@@ -2,13 +2,20 @@
     import { onMount } from 'svelte';
     import { 
         getCentralConfig, saveCentralConfig,
-        getExperimentScenarios, saveExperimentScenarios,
+        getExperimentScenarios,
+        getScenarioDatasetBundle,
+        getScenarioDatasetNames,
+        deleteScenarioDatasetBundle,
         getTutorialConfig, saveTutorialConfig,
         getOrdersData, saveOrdersData,
         getStoresData, saveStoresData,
         getCitiesData, saveCitiesData,
         getEmojisData, saveEmojisData
     } from '$lib/firebaseDB.js';
+    import {
+        validateGenerationOptionsForAdmin,
+        runScenarioGenerationPipeline
+    } from '$lib/scripts/generateScenarios.js';
     
     let activeTab = 'centralConfig';
     let loading = true;
@@ -30,7 +37,7 @@
             refresh: false,
             expire: false
         },
-        scenario_set: 'experimentScenarios',
+        scenario_set: 'experiment',
         stores: [],
         distances: {},
         startinglocation: 'Berkeley'
@@ -45,7 +52,7 @@
         waiting: false,
         refresh: false,
         expire: false,
-        scenario_set: 'experimentScenarios',
+        scenario_set: 'experiment_tutorial',
         auth: false
     };
 
@@ -214,9 +221,12 @@
     
     // Experiment Scenarios
     let experimentScenarios = [];
-    let editingScenarios = false;
-    let scenarioDrafts = [];
-    let selectedScenariosId = 'experimentScenarios';
+    let selectedScenariosId = 'experiment';
+    let selectedScenarioRound = null;
+    let selectedScenarioOrder = null;
+    let selectedScenarioSolution = null;
+    let scenarioOrdersById = {};
+    let scenarioSolutionsByScenarioId = {};
     
     // Tutorial Config
     let tutorialConfig = { ...DEFAULT_TUTORIAL_CONFIG };
@@ -226,7 +236,7 @@
     let ordersData = [];
     let editingOrders = false;
     let orderDrafts = [];
-    let selectedOrdersId = 'order_main';
+    let selectedOrdersId = 'experiment';
     
     // Stores Data
     let storesData = { stores: [] };
@@ -249,9 +259,22 @@
     let knownOrdersIds = [];
     let knownStoresIds = [];
     let knownScenariosIds = [];
+    let allScenarioSetIds = [];
     let syncStatusRows = [];
+    let generatingScenarios = false;
+    let deletingScenarioSet = false;
+    let generationValidationError = '';
+    const generationForm = {
+        datasetName: '',
+        targetDifficulty: 'easy',
+        totalRounds: 10,
+        maxBundle: 3,
+        payMin: 8,
+        payMax: 24,
+        earningsStep: 1
+    };
 
-    $: usedOrdersIds = ['order_main', 'order_tutorial'];
+    $: usedOrdersIds = [centralConfig?.scenario_set || '', tutorialConfig?.scenario_set || ''].filter(Boolean);
     $: usedStoresIds = ['store'];
 
     $: knownStoresIds = Array.from(new Set([
@@ -259,18 +282,22 @@
         ...usedStoresIds
     ]));
 
-    $: knownOrdersIds = Array.from(new Set([
-        'order_main',
-        'order_tutorial',
-        ...usedOrdersIds
-    ]));
+    $: knownOrdersIds = Array.from(new Set([...usedOrdersIds, selectedOrdersId || ''].filter(Boolean)));
 
     $: knownScenariosIds = Array.from(new Set([
-        'experimentScenarios',
+        ...(Array.isArray(allScenarioSetIds) ? allScenarioSetIds : []),
         centralConfig?.scenario_set || '',
         tutorialConfig?.scenario_set || '',
         selectedScenariosId || ''
-    ]));
+    ].filter(Boolean)));
+    $: selectedScenarioInUseBy = (() => {
+        const selected = normalizeDataId(selectedScenariosId, '');
+        if (!selected) return [];
+        const usedBy = [];
+        if (selected === normalizeDataId(centralConfig?.scenario_set, 'experiment')) usedBy.push('Central Config');
+        if (selected === normalizeDataId(tutorialConfig?.scenario_set, 'experiment_tutorial')) usedBy.push('Tutorial Config');
+        return usedBy;
+    })();
     
     onMount(async () => {
         await loadAllData();
@@ -290,7 +317,9 @@
                     ...(centralLoaded?.game || {})
                 }
             };
+            allScenarioSetIds = await getScenarioDatasetNames() || [];
             experimentScenarios = await getExperimentScenarios(selectedScenariosId) || [];
+            await loadScenarioSetDetails();
             tutorialConfig = {
                 ...DEFAULT_TUTORIAL_CONFIG,
                 ...(await getTutorialConfig() || {})
@@ -320,27 +349,6 @@
                 label: 'MasterData/tutorialConfig',
                 fetch: async () => await getTutorialConfig(),
                 valid: (value) => Boolean(value && value.timeLimit)
-            },
-            {
-                key: 'experimentScenarios',
-                label: 'MasterData/experimentScenarios',
-                fetch: async () => await getExperimentScenarios('experimentScenarios'),
-                valid: (value) => Array.isArray(value) && value.length > 0,
-                count: (value) => Array.isArray(value) ? `${value.length} scenarios` : '0 scenarios'
-            },
-            {
-                key: 'ordersMain',
-                label: 'MasterData/order_main',
-                fetch: async () => await getOrdersData('order_main'),
-                valid: (value) => Array.isArray(value) && value.length > 0,
-                count: (value) => Array.isArray(value) ? `${value.length} orders` : '0 orders'
-            },
-            {
-                key: 'ordersTutorial',
-                label: 'MasterData/order_tutorial',
-                fetch: async () => await getOrdersData('order_tutorial'),
-                valid: (value) => Array.isArray(value) && value.length > 0,
-                count: (value) => Array.isArray(value) ? `${value.length} orders` : '0 orders'
             },
             {
                 key: 'store',
@@ -393,7 +401,7 @@
                 ...DEFAULT_CENTRAL_CONFIG.game,
                 ...(config?.game || {})
             },
-            scenario_set: normalizeDataId(config?.scenario_set, 'experimentScenarios')
+            scenario_set: normalizeDataId(config?.scenario_set, 'experiment')
         };
     }
 
@@ -405,11 +413,85 @@
             error = null;
         }, 3000);
     }
+
+    async function validateGenerationForm() {
+        const validation = await validateGenerationOptionsForAdmin(generationForm);
+        generationValidationError = validation?.ok ? '' : (validation?.error || 'Invalid generation options.');
+        return validation;
+    }
+
+    async function generateScenarioSetHandler() {
+        try {
+            generatingScenarios = true;
+            const validation = await validateGenerationForm();
+            if (!validation?.ok) {
+                showMessage(generationValidationError, 'error');
+                return;
+            }
+
+            const result = await runScenarioGenerationPipeline({
+                datasetName: validation.normalizedDataset,
+                targetDifficulty: generationForm.targetDifficulty,
+                totalRounds: Number(generationForm.totalRounds),
+                maxBundle: Number(generationForm.maxBundle),
+                payMin: Number(generationForm.payMin),
+                payMax: Number(generationForm.payMax),
+                earningsStep: Number(generationForm.earningsStep)
+            });
+
+            selectedScenariosId = result?.datasetName || validation.normalizedDataset;
+            showMessage(`Scenario set "${selectedScenariosId}" generated successfully.`);
+            await loadAllData();
+            await switchScenariosId();
+            generationValidationError = '';
+        } catch (err) {
+            showMessage(`Generation failed: ${err?.message || 'Unknown error.'}`, 'error');
+        } finally {
+            generatingScenarios = false;
+        }
+    }
+
+    async function deleteScenarioSetHandler() {
+        try {
+            const datasetId = normalizeDataId(selectedScenariosId, '');
+            if (!datasetId) {
+                showMessage('No scenario set selected.', 'error');
+                return;
+            }
+
+            const centralInUse = normalizeDataId(centralConfig?.scenario_set, 'experiment');
+            const tutorialInUse = normalizeDataId(tutorialConfig?.scenario_set, 'experiment_tutorial');
+            if (datasetId === centralInUse || datasetId === tutorialInUse) {
+                showMessage(`Cannot delete "${datasetId}" because it is currently used by Central/Tutorial config.`, 'error');
+                return;
+            }
+
+            const confirmed = window.confirm(`Delete scenario set "${datasetId}" from Firebase? This cannot be undone.`);
+            if (!confirmed) return;
+
+            deletingScenarioSet = true;
+            await deleteScenarioDatasetBundle(datasetId);
+
+            await loadAllData();
+            if (!allScenarioSetIds.includes(selectedScenariosId)) {
+                selectedScenariosId = allScenarioSetIds?.[0] || '';
+                await switchScenariosId();
+            } else {
+                await loadScenarioSetDetails();
+            }
+
+            showMessage(`Scenario set "${datasetId}" deleted successfully.`);
+        } catch (err) {
+            showMessage(`Failed to delete scenario set: ${err?.message || 'Unknown error.'}`, 'error');
+        } finally {
+            deletingScenarioSet = false;
+        }
+    }
     
     async function saveCentralConfigHandler() {
         try {
             saving = true;
-            centralConfig.scenario_set = normalizeDataId(centralConfig.scenario_set, 'experimentScenarios');
+            centralConfig.scenario_set = normalizeDataId(centralConfig.scenario_set, 'experiment');
             await saveCentralConfig(toPersistedCentralConfig(centralConfig));
             editingCentralConfig = false;
             showMessage('Central configuration saved successfully!');
@@ -421,32 +503,14 @@
         }
     }
     
-    // Experiment Scenarios handlers
-    async function saveExperimentScenariosHandler() {
-        try {
-            saving = true;
-            const parsed = scenarioDrafts.map((scenario) => fromScenarioDraft(scenario));
-            await saveExperimentScenarios(parsed, selectedScenariosId);
-            editingScenarios = false;
-            showMessage(`Experiment scenarios (${selectedScenariosId}) saved successfully!`);
-            await loadAllData();
-        } catch (err) {
-            showMessage('Invalid JSON or save failed: ' + err.message, 'error');
-        } finally {
-            saving = false;
-        }
-    }
-    
-    function editExperimentScenarios() {
-        scenarioDrafts = (experimentScenarios || []).map((scenario) => toScenarioDraft(scenario));
-        editingScenarios = true;
-    }
-
     async function switchScenariosId() {
         try {
             loading = true;
             experimentScenarios = await getExperimentScenarios(selectedScenariosId) || [];
-            editingScenarios = false;
+            selectedScenarioRound = null;
+            selectedScenarioOrder = null;
+            selectedScenarioSolution = null;
+            await loadScenarioSetDetails();
         } catch (err) {
             showMessage('Failed to load scenarios: ' + err.message, 'error');
         } finally {
@@ -454,57 +518,63 @@
         }
     }
 
-    function addScenario() {
-        scenarioDrafts = [
-            ...scenarioDrafts,
-            {
-                round: (scenarioDrafts.at(-1)?.round ?? scenarioDrafts.length) + 1,
-                phase: '',
-                scenario_id: '',
-                max_bundle: 3,
-                orders: []
-            }
-        ];
+    async function loadScenarioSetDetails() {
+        const bundle = await getScenarioDatasetBundle(selectedScenariosId);
+        const orders = Array.isArray(bundle?.orders) ? bundle.orders : [];
+        const optimal = Array.isArray(bundle?.optimal) ? bundle.optimal : [];
+
+        scenarioOrdersById = Object.fromEntries(
+            orders
+                .map((order) => [String(order?.id || ''), order])
+                .filter(([id]) => id.length > 0)
+        );
+
+        scenarioSolutionsByScenarioId = Object.fromEntries(
+            optimal
+                .map((entry) => [String(entry?.scenario_id || ''), entry])
+                .filter(([scenarioId]) => scenarioId.length > 0)
+        );
     }
 
-    function removeScenario(index) {
-        scenarioDrafts = scenarioDrafts.filter((_, i) => i !== index);
+    function openScenarioRoundModal(scenario) {
+        selectedScenarioRound = scenario || null;
     }
 
-    function addScenarioOrder(scenarioIndex) {
-        scenarioDrafts[scenarioIndex].orders = [
-            ...scenarioDrafts[scenarioIndex].orders,
-            toOrderDraft({})
-        ];
-        scenarioDrafts = [...scenarioDrafts];
+    function closeScenarioRoundModal() {
+        selectedScenarioRound = null;
     }
 
-    function removeScenarioOrder(scenarioIndex, orderIndex) {
-        scenarioDrafts[scenarioIndex].orders = scenarioDrafts[scenarioIndex].orders.filter((_, i) => i !== orderIndex);
-        scenarioDrafts = [...scenarioDrafts];
+    function openScenarioOrderModal(orderId) {
+        const key = String(orderId || '');
+        selectedScenarioOrder = scenarioOrdersById?.[key] || { id: key, missing: true };
     }
 
-    function addScenarioOrderItemRow(scenarioIndex, orderIndex) {
-        scenarioDrafts[scenarioIndex].orders[orderIndex].itemRows = [
-            ...(scenarioDrafts[scenarioIndex].orders[orderIndex].itemRows || []),
-            { item: '', qty: 1 }
-        ];
-        scenarioDrafts = [...scenarioDrafts];
+    function closeScenarioOrderModal() {
+        selectedScenarioOrder = null;
     }
 
-    function removeScenarioOrderItemRow(scenarioIndex, orderIndex, itemIndex) {
-        const rows = scenarioDrafts[scenarioIndex].orders[orderIndex].itemRows || [];
-        scenarioDrafts[scenarioIndex].orders[orderIndex].itemRows = rows.filter((_, i) => i !== itemIndex);
-        if (scenarioDrafts[scenarioIndex].orders[orderIndex].itemRows.length === 0) {
-            scenarioDrafts[scenarioIndex].orders[orderIndex].itemRows = [{ item: '', qty: 1 }];
-        }
-        scenarioDrafts = [...scenarioDrafts];
+    function openScenarioSolutionModal(scenario) {
+        const scenarioId = String(scenario?.scenario_id || '');
+        selectedScenarioSolution = scenarioSolutionsByScenarioId?.[scenarioId] || { scenario_id: scenarioId, missing: true };
+    }
+
+    function closeScenarioSolutionModal() {
+        selectedScenarioSolution = null;
+    }
+
+    function normalizeSolutionForDisplay(solution = {}) {
+        return {
+            scenario_id: solution?.scenario_id || '',
+            best_bundle_ids: Array.isArray(solution?.best_bundle_ids) ? solution.best_bundle_ids : [],
+            second_best_bundle_ids: Array.isArray(solution?.second_best_bundle_ids) ? solution.second_best_bundle_ids : [],
+            ending_city_best: solution?.ending_city_best || ''
+        };
     }
     
     async function saveTutorialConfigHandler() {
         try {
             saving = true;
-            tutorialConfig.scenario_set = normalizeDataId(tutorialConfig.scenario_set, 'experimentScenarios');
+            tutorialConfig.scenario_set = normalizeDataId(tutorialConfig.scenario_set, 'experiment_tutorial');
             await saveTutorialConfig(tutorialConfig);
             editingTutorialConfig = false;
             showMessage('Tutorial configuration saved successfully!');
@@ -753,8 +823,8 @@
                 <nav class="flex space-x-8 px-6" aria-label="Tabs">
                     {#each [
                         { id: 'centralConfig', label: 'Central Config' },
-                        { id: 'scenarios', label: 'Scenarios' },
                         { id: 'tutorialConfig', label: 'Tutorial Config' },
+                        { id: 'scenarios', label: 'Scenarios' },
                         { id: 'emojis', label: 'Emojis' }
                     ] as tab}
                         <button
@@ -808,7 +878,7 @@
                                         </div>
                                         <div>
                                             <dt class="text-sm text-gray-600">Scenario Set</dt>
-                                            <dd class="text-lg font-semibold text-gray-900">{centralConfig.scenario_set || 'experimentScenarios'}</dd>
+                                            <dd class="text-lg font-semibold text-gray-900">{centralConfig.scenario_set || 'experiment'}</dd>
                                         </div>
                                     </dl>
                                 </div>
@@ -829,12 +899,6 @@
                                         </div>
                                     </dl>
                                 </div>
-                            </div>
-                            
-                            <div class="bg-gray-50 p-4 rounded">
-                                <h4 class="font-medium text-gray-900 mb-2">Datasets (Fixed)</h4>
-                                <p class="text-sm text-gray-700">Orders: <span class="font-medium">order_main</span></p>
-                                <p class="text-sm text-gray-700">Stores: <span class="font-medium">store</span></p>
                             </div>
                             
                             <button
@@ -901,12 +965,6 @@
                                     </div>
                                 </fieldset>
 
-                                <fieldset class="border border-gray-300 rounded-lg p-4">
-                                    <legend class="text-sm font-bold text-gray-700 px-2">Datasets (Fixed)</legend>
-                                    <p class="text-sm text-gray-700">Orders dataset is fixed to <span class="font-medium">order_main</span>.</p>
-                                    <p class="text-sm text-gray-700">Stores dataset is fixed to <span class="font-medium">store</span>.</p>
-                                </fieldset>
-
                                 <div class="flex gap-3">
                                     <button
                                         type="submit"
@@ -933,162 +991,292 @@
                 {#if activeTab === 'scenarios'}
                     <div class="space-y-4">
                         <h3 class="text-lg font-medium text-gray-900">Experiment Scenarios</h3>
+
+                        <div class="border border-gray-300 rounded-lg p-4 bg-gray-50 space-y-3">
+                            <h4 class="text-sm font-semibold text-gray-900">Generate Scenario Set</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Dataset Name</label>
+                                    <input
+                                        type="text"
+                                        bind:value={generationForm.datasetName}
+                                        on:blur={validateGenerationForm}
+                                        placeholder="e.g. experiment_v2"
+                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Difficulty</label>
+                                    <select
+                                        bind:value={generationForm.targetDifficulty}
+                                        on:change={validateGenerationForm}
+                                        class="mt-1 h-10 w-full px-3 border border-gray-300 rounded-md bg-white appearance-none"
+                                    >
+                                        <option value="easy">easy</option>
+                                        <option value="medium">medium</option>
+                                        <option value="hard">hard</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Total Rounds (> 1)</label>
+                                    <input
+                                        type="number"
+                                        min="2"
+                                        bind:value={generationForm.totalRounds}
+                                        on:blur={validateGenerationForm}
+                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Max Bundle (1-4)</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="4"
+                                        bind:value={generationForm.maxBundle}
+                                        on:blur={validateGenerationForm}
+                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Pay Min</label>
+                                    <input
+                                        type="number"
+                                        bind:value={generationForm.payMin}
+                                        on:blur={validateGenerationForm}
+                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Pay Max</label>
+                                    <input
+                                        type="number"
+                                        bind:value={generationForm.payMax}
+                                        on:blur={validateGenerationForm}
+                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Earnings Step</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        bind:value={generationForm.earningsStep}
+                                        on:blur={validateGenerationForm}
+                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-600">Orders per scenario is fixed to 4.</p>
+                            {#if generationValidationError}
+                                <p class="text-sm text-red-700">{generationValidationError}</p>
+                            {/if}
+                            <div>
+                                <button
+                                    on:click={generateScenarioSetHandler}
+                                    disabled={saving || generatingScenarios}
+                                    class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                                >
+                                    {generatingScenarios ? 'Generating...' : 'Generate Scenario Set'}
+                                </button>
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Scenario Set</label>
                             <select
                                 bind:value={selectedScenariosId}
                                 on:change={switchScenariosId}
-                                class="mt-1 w-full max-w-md px-3 py-2 border border-gray-300 rounded-md bg-white"
+                                class="mt-1 h-10 w-full px-3 border border-gray-300 rounded-md bg-white appearance-none"
                             >
                                 {#each knownScenariosIds as id}
                                     <option value={id}>{id}</option>
                                 {/each}
                             </select>
+                            {#if selectedScenarioInUseBy.length > 0}
+                                <p class="mt-2 text-sm text-amber-700">
+                                    This scenario set is currently used by: {selectedScenarioInUseBy.join(', ')}. Deletion is disabled.
+                                </p>
+                            {/if}
                         </div>
                         <p class="text-sm text-gray-600">Total scenarios: {experimentScenarios.length}</p>
                         
-                        {#if !editingScenarios}
-                            <div class="bg-gray-50 rounded p-4 max-h-96 overflow-y-auto">
-                                <div class="space-y-2">
-                                    {#each experimentScenarios.slice(0, 10) as scenario}
-                                        <div class="flex items-center justify-between bg-white border border-gray-200 rounded p-2 text-sm">
-                                            <span>Round {scenario.round}</span>
-                                            <span class="text-gray-600">Max bundle: {scenario.max_bundle} • Orders: {scenario.orders?.length || 0}</span>
+                        <div class="bg-gray-50 rounded p-4 max-h-[calc(100vh-18rem)] overflow-y-auto">
+                            {#if experimentScenarios.length === 0}
+                                <p class="text-sm text-gray-600">No scenarios found for this set.</p>
+                            {:else}
+                                <div class="space-y-3">
+                                    {#each experimentScenarios as scenario}
+                                        <div class="bg-white border border-gray-200 rounded p-3 text-sm space-y-2">
+                                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                                <button
+                                                    type="button"
+                                                    on:click={() => openScenarioRoundModal(scenario)}
+                                                    class="font-semibold text-blue-700 hover:text-blue-800 hover:underline"
+                                                >
+                                                    Round {scenario.round}
+                                                </button>
+                                                <span class="text-gray-600">Max bundle: {scenario.max_bundle}</span>
+                                            </div>
+                                            <div class="text-gray-700">
+                                                <span class="font-medium">Scenario ID:</span> {scenario.scenario_id || '-'}
+                                            </div>
+                                            <div>
+                                                <div class="font-medium text-gray-700 mb-1">Order IDs</div>
+                                                <div class="flex flex-wrap gap-1">
+                                                    {#if Array.isArray(scenario.order_ids) && scenario.order_ids.length > 0}
+                                                        {#each scenario.order_ids as orderId}
+                                                            <button
+                                                                type="button"
+                                                                on:click={() => openScenarioOrderModal(orderId)}
+                                                                class="px-2 py-0.5 rounded bg-gray-100 border border-gray-200 text-blue-700 hover:text-blue-800 hover:underline"
+                                                            >
+                                                                {orderId}
+                                                            </button>
+                                                        {/each}
+                                                    {:else}
+                                                        <span class="text-gray-500">No order IDs</span>
+                                                    {/if}
+                                                </div>
+                                            </div>
                                         </div>
                                     {/each}
                                 </div>
-                            </div>
-                            <button
-                                on:click={editExperimentScenarios}
-                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            {/if}
+                        </div>
+
+                        {#if selectedScenarioRound}
+                            <div
+                                class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                                on:click={closeScenarioRoundModal}
                             >
-                                Edit Scenarios
-                            </button>
-                        {:else}
-                            <div class="flex flex-col gap-4 max-h-[calc(100vh-16rem)] min-h-0">
-                                <div class="shrink-0">
-                                    <button on:click={addScenario} class="px-3 py-2 text-sm bg-gray-700 text-white rounded-md hover:bg-gray-800">+ Add Scenario</button>
-                                </div>
-                                <div class="space-y-4 flex-1 min-h-0 overflow-y-auto pr-2">
-                                    {#each scenarioDrafts as scenario, scenarioIndex}
-                                        <div class="border border-gray-300 rounded-lg p-4 bg-gray-50 space-y-3">
-                                            <div class="grid grid-cols-3 gap-3">
-                                                <div>
-                                                    <label class="block text-xs font-medium text-gray-700">Round</label>
-                                                    <input type="number" bind:value={scenario.round} class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md" />
-                                                </div>
-                                                <div>
-                                                    <label class="block text-xs font-medium text-gray-700">Phase</label>
-                                                    <input type="text" bind:value={scenario.phase} placeholder="A / B" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md" />
-                                                </div>
-                                                <div>
-                                                    <label class="block text-xs font-medium text-gray-700">Scenario ID</label>
-                                                    <input type="text" bind:value={scenario.scenario_id} placeholder="A01" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md" />
-                                                </div>
-                                            </div>
-                                            <div class="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <label class="block text-xs font-medium text-gray-700">Max Bundle</label>
-                                                    <input type="number" bind:value={scenario.max_bundle} class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md" />
-                                                </div>
-                                                <div class="flex items-end">
-                                                    <button on:click={() => removeScenario(scenarioIndex)} class="px-3 py-1.5 text-xs bg-red-600 text-white rounded-md hover:bg-red-700">Remove Scenario</button>
-                                                </div>
-                                            </div>
-                                            <div class="space-y-2">
-                                                <div class="flex items-center justify-between">
-                                                    <h4 class="text-sm font-semibold text-gray-800">Orders</h4>
-                                                    <button on:click={() => addScenarioOrder(scenarioIndex)} class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">+ Add Order</button>
-                                                </div>
-                                                {#each scenario.orders as order, orderIndex}
-                                                    <div class="bg-white border border-gray-200 rounded p-3 space-y-2">
-                                                        <div class="grid grid-cols-2 gap-2">
-                                                            <div>
-                                                                <label class="block text-xs font-medium text-gray-700">Order ID</label>
-                                                                <input type="text" bind:value={order.id} placeholder="Order ID" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                            </div>
-                                                            <div>
-                                                                <label class="block text-xs font-medium text-gray-700">City</label>
-                                                                <input type="text" bind:value={order.city} placeholder="City" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                            </div>
-                                                            <div>
-                                                                <label class="block text-xs font-medium text-gray-700">Store</label>
-                                                                <input type="text" bind:value={order.store} placeholder="Store" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                            </div>
-                                                            <div>
-                                                                <label class="block text-xs font-medium text-gray-700">Earnings</label>
-                                                                <input type="number" bind:value={order.earnings} placeholder="Earnings" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                            </div>
-                                                            <div>
-                                                                <label class="block text-xs font-medium text-gray-700">Estimated Time</label>
-                                                                <input type="number" bind:value={order.estimatedTime} placeholder="Estimated Time (s)" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                                                            </div>
-                                                        </div>
-                                                        <div class="space-y-2">
-                                                            <div class="flex items-center justify-between">
-                                                                <label class="block text-xs font-medium text-gray-700">Items</label>
-                                                                <button on:click={() => addScenarioOrderItemRow(scenarioIndex, orderIndex)} class="px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800">+ Item</button>
-                                                            </div>
-                                                            <div class="space-y-1">
-                                                                {#each order.itemRows as itemRow, itemIndex}
-                                                                    <div class="grid grid-cols-[1fr,100px,90px] gap-2">
-                                                                        <div>
-                                                                            <label class="block text-xs font-medium text-gray-700">Item Name</label>
-                                                                            <input
-                                                                                type="text"
-                                                                                bind:value={itemRow.item}
-                                                                                placeholder="Item name"
-                                                                                aria-label={`Scenario order item ${itemIndex + 1} name`}
-                                                                                class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                                                                            />
-                                                                        </div>
-                                                                        <div>
-                                                                            <label class="block text-xs font-medium text-gray-700">Qty</label>
-                                                                            <input
-                                                                                type="number"
-                                                                                min="0"
-                                                                                bind:value={itemRow.qty}
-                                                                                placeholder="Qty"
-                                                                                aria-label={`Scenario order item ${itemIndex + 1} quantity`}
-                                                                                class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
-                                                                            />
-                                                                        </div>
-                                                                        <button
-                                                                            on:click={() => removeScenarioOrderItemRow(scenarioIndex, orderIndex, itemIndex)}
-                                                                            aria-label={`Remove scenario order item ${itemIndex + 1}`}
-                                                                            class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                                                                        >
-                                                                            Remove
-                                                                        </button>
-                                                                    </div>
-                                                                {/each}
-                                                            </div>
-                                                        </div>
-                                                        <button on:click={() => removeScenarioOrder(scenarioIndex, orderIndex)} class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200">Remove Order</button>
-                                                    </div>
-                                                {/each}
+                                <div
+                                    class="w-full max-w-2xl rounded-lg bg-white shadow-xl border border-gray-200"
+                                    on:click|stopPropagation
+                                >
+                                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+                                        <h4 class="text-lg font-semibold text-gray-900">
+                                            Round {selectedScenarioRound.round} Details
+                                        </h4>
+                                        <div class="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                on:click={() => openScenarioSolutionModal(selectedScenarioRound)}
+                                                class="px-2 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                                            >
+                                                View Solution
+                                            </button>
+                                            <button
+                                                type="button"
+                                                on:click={closeScenarioRoundModal}
+                                                class="px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                                            >
+                                                Close
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="p-4 space-y-3 text-sm text-gray-800 max-h-[70vh] overflow-y-auto">
+                                        <div><span class="font-medium">Scenario ID:</span> {selectedScenarioRound.scenario_id || '-'}</div>
+                                        <div><span class="font-medium">Max Bundle:</span> {selectedScenarioRound.max_bundle}</div>
+                                        <div>
+                                            <div class="font-medium mb-1">Order IDs</div>
+                                            <div class="flex flex-wrap gap-1">
+                                                {#if Array.isArray(selectedScenarioRound.order_ids) && selectedScenarioRound.order_ids.length > 0}
+                                                    {#each selectedScenarioRound.order_ids as orderId}
+                                                        <button
+                                                            type="button"
+                                                            on:click={() => openScenarioOrderModal(orderId)}
+                                                            class="px-2 py-0.5 rounded bg-gray-100 border border-gray-200 text-blue-700 hover:text-blue-800 hover:underline"
+                                                        >
+                                                            {orderId}
+                                                        </button>
+                                                    {/each}
+                                                {:else}
+                                                    <span class="text-gray-500">No order IDs</span>
+                                                {/if}
                                             </div>
                                         </div>
-                                    {/each}
-                                </div>
-                                <div class="flex gap-3 shrink-0">
-                                    <button
-                                        on:click={saveExperimentScenariosHandler}
-                                        disabled={saving}
-                                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
-                                    >
-                                        {saving ? 'Saving...' : 'Save'}
-                                    </button>
-                                    <button
-                                        on:click={() => editingScenarios = false}
-                                        disabled={saving}
-                                        class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-                                    >
-                                        Cancel
-                                    </button>
+                                        <div>
+                                            <div class="font-medium mb-1">Raw JSON</div>
+                                            <pre class="rounded bg-gray-50 border border-gray-200 p-3 text-xs overflow-x-auto">{JSON.stringify(selectedScenarioRound, null, 2)}</pre>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         {/if}
+
+                        {#if selectedScenarioOrder}
+                            <div
+                                class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                                on:click={closeScenarioOrderModal}
+                            >
+                                <div
+                                    class="w-full max-w-2xl rounded-lg bg-white shadow-xl border border-gray-200"
+                                    on:click|stopPropagation
+                                >
+                                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+                                        <h4 class="text-lg font-semibold text-gray-900">
+                                            Order {selectedScenarioOrder.id || '(unknown)'}
+                                        </h4>
+                                        <button
+                                            type="button"
+                                            on:click={closeScenarioOrderModal}
+                                            class="px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                    <div class="p-4 space-y-2 text-sm text-gray-800 max-h-[70vh] overflow-y-auto">
+                                        {#if selectedScenarioOrder.missing}
+                                            <p class="text-amber-700">Order not found in dataset orders list.</p>
+                                        {/if}
+                                        <pre class="rounded bg-gray-50 border border-gray-200 p-3 text-xs overflow-x-auto">{JSON.stringify(selectedScenarioOrder, null, 2)}</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        {/if}
+
+                        {#if selectedScenarioSolution}
+                            <div
+                                class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                                on:click={closeScenarioSolutionModal}
+                            >
+                                <div
+                                    class="w-full max-w-2xl rounded-lg bg-white shadow-xl border border-gray-200"
+                                    on:click|stopPropagation
+                                >
+                                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+                                        <h4 class="text-lg font-semibold text-gray-900">
+                                            Solution for {selectedScenarioSolution.scenario_id || '(unknown scenario)'}
+                                        </h4>
+                                        <button
+                                            type="button"
+                                            on:click={closeScenarioSolutionModal}
+                                            class="px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                    <div class="p-4 space-y-2 text-sm text-gray-800 max-h-[70vh] overflow-y-auto">
+                                        {#if selectedScenarioSolution.missing}
+                                            <p class="text-amber-700">Solution not found for this round.</p>
+                                        {/if}
+                                        <pre class="rounded bg-gray-50 border border-gray-200 p-3 text-xs overflow-x-auto">{JSON.stringify(normalizeSolutionForDisplay(selectedScenarioSolution), null, 2)}</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        {/if}
+
+                        <div class="pt-2 border-t border-gray-200">
+                            <button
+                                type="button"
+                                on:click={deleteScenarioSetHandler}
+                                disabled={saving || loading || generatingScenarios || deletingScenarioSet || !selectedScenariosId || selectedScenarioInUseBy.length > 0}
+                                class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                            >
+                                {deletingScenarioSet ? 'Deleting...' : 'Delete Scenario Set'}
+                            </button>
+                        </div>
                     </div>
                 {/if}
                 
@@ -1120,7 +1308,7 @@
                                         </div>
                                         <div>
                                             <dt class="text-sm text-gray-600">Scenario Set</dt>
-                                            <dd class="text-lg font-semibold text-gray-900">{tutorialConfig.scenario_set || 'experimentScenarios'}</dd>
+                                            <dd class="text-lg font-semibold text-gray-900">{tutorialConfig.scenario_set || 'experiment_tutorial'}</dd>
                                         </div>
                                     </dl>
                                 </div>
@@ -1141,11 +1329,6 @@
                                         </div>
                                     </dl>
                                 </div>
-                            </div>
-                            <div class="bg-gray-50 p-4 rounded">
-                                <h4 class="font-medium text-gray-900 mb-2">Datasets (Fixed)</h4>
-                                <p class="text-sm text-gray-700">Orders: <span class="font-medium">order_tutorial</span></p>
-                                <p class="text-sm text-gray-700">Stores: <span class="font-medium">store</span></p>
                             </div>
                             <button
                                 on:click={() => { editingTutorialConfig = true; }}
@@ -1203,12 +1386,6 @@
                                     </div>
                                 </fieldset>
 
-                                <fieldset class="border border-gray-300 rounded-lg p-4">
-                                    <legend class="text-sm font-bold text-gray-700 px-2">Datasets (Fixed)</legend>
-                                    <p class="text-sm text-gray-700">Orders dataset is fixed to <span class="font-medium">order_tutorial</span>.</p>
-                                    <p class="text-sm text-gray-700">Stores dataset is fixed to <span class="font-medium">store</span>.</p>
-                                </fieldset>
-                                
                                 <div class="flex gap-3">
                                     <button
                                         type="submit"
