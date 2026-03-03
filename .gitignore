@@ -33,3 +33,4 @@ phase1_possibilities.json
 data analysis/data/*.json
 data analysis/*.csv
 data analysis/.ipynb_checkpoints.claude/settings.local.json
+.vercel
