@@ -1,7 +1,7 @@
 <script>
     import { orders, currLocation, gameText, orderList, game, currentRound, getCurrentScenario } from "$lib/bundle.js"
     import { onMount, onDestroy } from 'svelte';
-    import { queueNFixedOrders, storeConfig } from "$lib/config.js";
+    import { queueNFixedOrders, storeConfig, getDistances } from "$lib/config.js";
    
     export let orderData;
     export let index;
@@ -15,6 +15,16 @@
     $: totalItems = Object.values(orderData.items || {}).reduce((a, b) => a + b, 0);
     $: scenario = getCurrentScenario($currentRound);
     $: maxBundle = scenario.max_bundle ?? 3;
+    $: baseEstimateSeconds = Number(orderData?.estimatedTime) || 0;
+    $: extraCrossCitySeconds = (() => {
+        const destinationCity = String(orderData?.city || "");
+        const fromCity = String($currLocation || "");
+        if (!destinationCity || !fromCity || destinationCity === fromCity) return 0;
+        const distData = getDistances(fromCity);
+        const idx = (distData?.destinations || []).indexOf(destinationCity);
+        return idx >= 0 ? (Number(distData?.distances?.[idx]) || 0) : 0;
+    })();
+    $: displayEstimateSeconds = Math.max(0, Math.round(baseEstimateSeconds + extraCrossCitySeconds));
 
     function updateTimer() {
         timer += 1;
@@ -92,6 +102,7 @@
                 </div>
                 <div class="text-right ml-2">
                     <span class="block font-bold text-green-600 text-sm">${orderData.earnings}</span>
+                    <span class="block text-[10px] text-slate-500">⏱ {displayEstimateSeconds}s</span>
                 </div>
             </div>
 

@@ -133,6 +133,60 @@ function combine(source, targetSize, startIdx, path, out) {
   }
 }
 
+// Generates all permutations for a small array (max bundle is <= 4).
+function permutations(source = []) {
+  const arr = Array.isArray(source) ? source : [];
+  if (arr.length <= 1) return [arr];
+
+  const out = [];
+  const used = new Array(arr.length).fill(false);
+  const path = [];
+
+  function dfs() {
+    if (path.length === arr.length) {
+      out.push([...path]);
+      return;
+    }
+    for (let i = 0; i < arr.length; i += 1) {
+      if (used[i]) continue;
+      used[i] = true;
+      path.push(arr[i]);
+      dfs();
+      path.pop();
+      used[i] = false;
+    }
+  }
+
+  dfs();
+  return out;
+}
+
+// Scores all delivery sequences for one bundle and keeps the best one.
+function scoreBundleBestSequence(bundle = [], context = {}) {
+  const sequenceCandidates = permutations(bundle);
+  let best = null;
+
+  for (const sequence of sequenceCandidates) {
+    const scored = computeBundleScore(sequence, context);
+    if (!best || (Number(scored?.score) || 0) > (Number(best?.score) || 0)) {
+      best = {
+        ...scored,
+        bundleIds: sequence.map((o) => o?.id ?? "")
+      };
+    }
+  }
+
+  return best || {
+    score: 0,
+    normalizedScore: null,
+    totalPay: 0,
+    totalTime: 0,
+    endingCity: context.currentCity ?? "",
+    perOrder: [],
+    bundleIds: []
+  };
+}
+
 // Normalizes a score relative to best score so best maps to 100.
 function normalizeToBest100(score, bestScore) {
   const s = Number(score) || 0;
@@ -388,13 +442,22 @@ function validatePipelineInputs(input = {}) {
   if (!Number.isFinite(earningsStep) || earningsStep <= 0) {
     throw new Error("earningsStep must be > 0.");
   }
-  validateEarningsStepFeasibility(payMin, payMax, earningsStep);
+  validateEarningsStepFeasibility(payMin, payMax, earningsStep, difficulty);
 }
 
-function validateEarningsStepFeasibility(payMin, payMax, earningsStep) {
+function validateEarningsStepFeasibility(payMin, payMax, earningsStep, difficulty = "medium") {
   const range = payMax - payMin;
-  if (range < earningsStep * 2) {
-    throw new Error("payMax - payMin must be at least 2x earningsStep.");
+  const target = normalizeDifficulty(difficulty);
+
+  if (range % earningsStep !== 0) {
+    throw new Error("payMax - payMin must be divisible by earningsStep.");
+  }
+
+  // Wider ranges provide more earning levels and reduce tuning dead-ends.
+  // easy: 9 levels, medium: 6 levels, hard: 4 levels minimum.
+  const minMultiplier = target === "easy" ? 8 : target === "medium" ? 5 : 3;
+  if (range < earningsStep * minMultiplier) {
+    throw new Error(`For ${target || "this"} difficulty, payMax - payMin must be at least ${minMultiplier}x earningsStep.`);
   }
 }
 
@@ -430,15 +493,25 @@ export async function validateGenerationOptionsForAdmin(options = {}) {
 
 
 // Algorithm Methods
-// Estimates total completion time for one order from local, pick, and cross-city travel.
-export function estimateOrderCompletionTime(order, context = {}) {
+// Estimates base completion time for one order (local travel + item pick only).
+export function estimateBaseOrderTime(order, context = {}) {
   const localTravel = estimateLocalTravelTime();
   const pickItem = estimatePickItemTime(order, context);
+  return localTravel + pickItem;
+}
+
+// Estimates runtime completion time by adding cross-city travel from current city.
+export function estimateOrderCompletionTime(order, context = {}) {
+  // Prefer stored base estimate when available to keep scoring deterministic.
+  const storedBase = Number(order?.estimatedTime);
+  const baseTime = Number.isFinite(storedBase) && storedBase > 0
+    ? storedBase
+    : estimateBaseOrderTime(order, context);
 
   const currentCity = context.currentCity ?? context.playerCity ?? "";
   const extraCrossCity = crossCityExtraTime(order?.city, currentCity, context);
 
-  return localTravel + pickItem + extraCrossCity;
+  return baseTime + extraCrossCity;
 }
 
 // Builds one synthetic order with generated city/store/items/earnings/time.
@@ -451,7 +524,6 @@ export function createOrderModel(context = {}) {
     citiesDataset = {},
     forcedCity = "",
     forceRandomCity = false,
-    currentCity = "", // player current city for cross-city extra time
     payMin = 8,
     payMax = 24
   } = context;
@@ -495,11 +567,10 @@ export function createOrderModel(context = {}) {
     estimatedTime: 0
   };
 
-  // Compute estimated time if not already provided
+  // Store only base estimate (local + pick). Cross-city is runtime/simulation-dependent.
   if (!order.estimatedTime || !Number.isFinite(order.estimatedTime)) {
-    order.estimatedTime = estimateOrderCompletionTime(order, {
+    order.estimatedTime = estimateBaseOrderTime(order, {
       ...context,
-      currentCity,
       citiesDataset,
       storeDataset
     });
@@ -631,10 +702,9 @@ export function solveBestAndSecondBundle(orders = [], context = {}) {
 
   // 2) Score each bundle once (avoid re-scoring randomness)
   const scored = bundles.map((bundle) => {
-    const scoreResult = computeBundleScore(bundle, context);
+    const scoreResult = scoreBundleBestSequence(bundle, context);
     return {
       bundle,
-      bundleIds: bundle.map((o) => o?.id ?? ""),
       ...scoreResult
     };
   });
@@ -886,9 +956,8 @@ export async function runScenarioGenerationPipeline(options = {}) {
   let previousBestCity = currentCity;
 
   for (let round = 1; round <= Number(totalRounds); round += 1) {
-    const isEvenRound = round % 2 === 0;
-    const isOddRoundAfterFirst = round % 2 === 1 && round > 1;
-    const forcedCity = isOddRoundAfterFirst ? previousBestCity : "";
+    const isEvenRoundAfterFirst = round % 2 === 0 && round > 1;
+    const forcedCity = isEvenRoundAfterFirst ? previousBestCity : "";
 
     const caseResult = generateCaseUntilDifficultyMatch(targetDifficulty, {
       scenarioIndex: round,
@@ -899,7 +968,7 @@ export async function runScenarioGenerationPipeline(options = {}) {
       payMax,
       earningsStep,
       forcedCity,
-      forceRandomCity: isEvenRound,
+      forceRandomCity: !isEvenRoundAfterFirst,
       currentCity,
       storeDataset,
       citiesDataset,
