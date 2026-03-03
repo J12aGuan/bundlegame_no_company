@@ -6,7 +6,6 @@ import {
 
 import { switchJob, setPenaltyTimeout } from './config';
 
-const MAIN_ORDER_FILE = 'order_main.json';
 const MAIN_STORE_FILE = 'store.json';
 const MAIN_CITIES_FILE = 'cities.json';
 
@@ -23,7 +22,7 @@ let config = {
 	ordersShown: 4,
 	roundTimeLimit: 300,
 	penaltyTimeout: 30,
-	scenario_set: 'experimentScenarios'
+	scenario_set: 'experiment'
 };
 
 let experimentScenarios = [];
@@ -51,7 +50,7 @@ export async function initializeFromFirebase() {
 			console.log('Central config loaded from Firebase:', config);
 		}
 		
-			const scenarioSetId = config.scenario_set || 'experimentScenarios';
+			const scenarioSetId = config.scenario_set || 'experiment';
 			const scenarios = await getExperimentScenarios(scenarioSetId);
 		if (scenarios && Array.isArray(scenarios)) {
 			experimentScenarios = scenarios;
@@ -422,7 +421,8 @@ export async function loadGame() {
 		await initializeFromFirebase();
 	}
 	try {
-		let orderFile = await loadConfigByName(MAIN_ORDER_FILE)
+		const datasetId = config.scenario_set || 'experiment';
+		let orderFile = await getOrdersData(datasetId)
 		let storeFile = await loadConfigByName(MAIN_STORE_FILE)
 		let cityFile = await loadConfigByName(MAIN_CITIES_FILE)
 
