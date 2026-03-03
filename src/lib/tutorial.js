@@ -5,7 +5,6 @@ import {
 } from './firebaseDB';
 
 import { switchJob } from './config';
-const TUTORIAL_ORDER_FILE = 'order_tutorial.json';
 const TUTORIAL_STORE_FILE = 'store.json';
 const TUTORIAL_CITIES_FILE = 'cities.json';
 
@@ -17,7 +16,7 @@ let config = {
 	waiting: false,
 	refresh: false,
 	expire: false,
-	scenario_set: 'experimentScenarios',
+	scenario_set: 'experiment_tutorial',
 	auth: false
 };
 
@@ -102,7 +101,7 @@ export async function initializeFromFirebase() {
 			};
 		}
 
-		const scenarioSetId = config.scenario_set || 'experimentScenarios';
+		const scenarioSetId = config.scenario_set || 'experiment_tutorial';
 		const fetchedScenarios = await getExperimentScenarios(scenarioSetId);
 		if (Array.isArray(fetchedScenarios) && fetchedScenarios.length > 0) {
 			tutorialScenarios = fetchedScenarios;
@@ -401,7 +400,8 @@ export async function loadGame() {
 		await initializeFromFirebase();
 	}
 	try {
-		let orderFile = await loadConfigByName(TUTORIAL_ORDER_FILE)
+		const datasetId = config.scenario_set || 'experiment_tutorial';
+		let orderFile = await getOrdersData(datasetId)
 		let storeFile = await loadConfigByName(TUTORIAL_STORE_FILE)
 		let cityFile = await loadConfigByName(TUTORIAL_CITIES_FILE)
 
