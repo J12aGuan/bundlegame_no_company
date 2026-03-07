@@ -1,0 +1,7 @@
+{
+  "startinglocation": "Berkeley",
+  "travelTimes": {
+    "Berkeley": {"Berkeley": 0, "Oakland": 8},
+    "Oakland": {"Oakland": 0, "Berkeley": 8}
+  }
+}

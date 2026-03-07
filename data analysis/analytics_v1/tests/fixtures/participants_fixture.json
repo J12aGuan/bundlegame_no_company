@@ -1,0 +1,49 @@
+[
+  {
+    "id": "p1",
+    "cohort": "new",
+    "actions": [
+      {
+        "id": "a1",
+        "type": "round_summary",
+        "round_index": 1,
+        "chosen_orders": ["o1", "o2"],
+        "success": true,
+        "earnings": 18,
+        "duration": 42,
+        "final_location": "Berkeley",
+        "createdAt": {"seconds": 100}
+      },
+      {
+        "id": "a2",
+        "type": "round_summary",
+        "round_index": 2,
+        "chosen_orders": ["o4", "o3"],
+        "success": false,
+        "earnings": 0,
+        "duration": 60,
+        "final_location": "Oakland",
+        "createdAt": {"seconds": 200}
+      }
+    ],
+    "orders": []
+  },
+  {
+    "id": "p2",
+    "cohort": "experienced",
+    "actions": [
+      {
+        "id": "a3",
+        "type": "round_summary",
+        "round_index": 1,
+        "chosen_orders": ["o2", "o1"],
+        "success": true,
+        "earnings": 17,
+        "duration": 48,
+        "final_location": "Berkeley",
+        "createdAt": {"seconds": 150}
+      }
+    ],
+    "orders": []
+  }
+]

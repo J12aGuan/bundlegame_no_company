@@ -1,0 +1,18 @@
+{
+  "stores": [
+    {
+      "store": "StoreA",
+      "city": "Berkeley",
+      "Entrance": [0, 0],
+      "cellDistance": 1000,
+      "locations": [["apple", "banana"], ["", ""]]
+    },
+    {
+      "store": "StoreB",
+      "city": "Oakland",
+      "Entrance": [0, 0],
+      "cellDistance": 1000,
+      "locations": [["pear", "grape"], ["", ""]]
+    }
+  ]
+}
