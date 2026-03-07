@@ -1,11 +1,7 @@
 import { saveScenarioDatasetBundle } from "../firebaseDB.js";
 import {
-  fetchCentralConfigForGeneration,
-  fetchTutorialConfigForGeneration,
-  fetchOrdersDataset,
   fetchStoreDataset,
   fetchCitiesDataset,
-  fetchExistingScenarioSet,
   fetchScenarioDatasetBundle
 } from "./scenarioData.js";
 import {
@@ -13,16 +9,11 @@ import {
   estimatePickItemTime,
   crossCityExtraTime
 } from "./scenarioTime.js";
+import { applySharedItemBundleSavings } from "../bundleTime.js";
 
-// Loads all required datasets/config for generation (to be implemented).
-export async function fetchGenerationInputs(options = {}) {}
 export {
-  fetchCentralConfigForGeneration,
-  fetchTutorialConfigForGeneration,
-  fetchOrdersDataset,
   fetchStoreDataset,
   fetchCitiesDataset,
-  fetchExistingScenarioSet,
   fetchScenarioDatasetBundle,
   estimateLocalTravelTime,
   estimatePickItemTime,
@@ -41,6 +32,52 @@ function pickRandom(arr = []) {
   return arr[randomInt(0, arr.length - 1)];
 }
 
+// Shuffles a copy of an array.
+function shuffle(arr = []) {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = randomInt(0, i);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+// Picks one entry from weighted candidates: [{ value, weight }].
+function pickWeighted(candidates = []) {
+  const valid = (Array.isArray(candidates) ? candidates : [])
+    .filter((c) => c && Number(c.weight) > 0);
+  if (!valid.length) return null;
+
+  const total = valid.reduce((sum, c) => sum + Number(c.weight || 0), 0);
+  if (total <= 0) return valid[0]?.value ?? null;
+
+  let roll = Math.random() * total;
+  for (const item of valid) {
+    roll -= Number(item.weight || 0);
+    if (roll <= 0) return item.value;
+  }
+  return valid[valid.length - 1]?.value ?? null;
+}
+
+// Fair target-city selector for odd rounds:
+// least-used cities first, then weighted preference for reference city.
+function selectFairTargetCity(cities = [], targetCityCount = {}, referenceCity = "") {
+  const uniqueCities = [...new Set((Array.isArray(cities) ? cities : []).map((c) => String(c || "").trim()).filter(Boolean))];
+  if (!uniqueCities.length) return "";
+
+  const counts = uniqueCities.map((city) => Number(targetCityCount?.[city]) || 0);
+  const minCount = Math.min(...counts);
+  const candidateCities = uniqueCities.filter((city) => (Number(targetCityCount?.[city]) || 0) <= (minCount + 1));
+
+  const ref = String(referenceCity || "").trim();
+  const weighted = candidateCities.map((city) => ({
+    value: city,
+    weight: city === ref ? 3 : 1
+  }));
+
+  return String(pickWeighted(weighted) || candidateCities[0] || uniqueCities[0] || "");
+}
+
 // Extracts available city names from the cities travel-time matrix.
 function getCitiesFromTravelTimes(citiesDataset = {}) {
   return Object.keys(citiesDataset?.travelTimes || {});
@@ -50,6 +87,57 @@ function getCitiesFromTravelTimes(citiesDataset = {}) {
 function getStoresInCity(storeDataset = {}, city = "") {
   const stores = Array.isArray(storeDataset?.stores) ? storeDataset.stores : [];
   return stores.filter((s) => String(s?.city) === String(city));
+}
+
+// Returns whether any store exists in a city.
+function hasStoresInCity(storeDataset = {}, city = "") {
+  return getStoresInCity(storeDataset, city).length > 0;
+}
+
+// Builds per-order city assignments with max 2 cities per round.
+function buildCityAssignments({
+  count = 4,
+  cities = [],
+  storeDataset = {},
+  targetCity = "",
+  forcedCity = ""
+} = {}) {
+  const validCities = (Array.isArray(cities) ? cities : [])
+    .map((c) => String(c || "").trim())
+    .filter((c) => c && hasStoresInCity(storeDataset, c));
+
+  if (!validCities.length) return new Array(count).fill("Berkeley");
+
+  const forced = String(forcedCity || "").trim();
+  if (forced && validCities.includes(forced)) {
+    return new Array(count).fill(forced);
+  }
+
+  const target = String(targetCity || "").trim();
+  const primary = target && validCities.includes(target) ? target : (pickRandom(validCities) || validCities[0]);
+  const secondaryPool = validCities.filter((c) => c !== primary);
+  const secondary = secondaryPool.length ? (pickRandom(secondaryPool) || secondaryPool[0]) : "";
+
+  if (!secondary) {
+    return new Array(count).fill(primary);
+  }
+
+  // For 4 orders, use either 2/2 or 3/1 split to encourage bundle opportunities.
+  let primaryCount = count;
+  if (count >= 4) {
+    primaryCount = pickRandom([2, 3]);
+  } else if (count === 3) {
+    primaryCount = 2;
+  } else if (count === 2) {
+    primaryCount = 1;
+  }
+  const secondaryCount = Math.max(0, count - primaryCount);
+
+  const assignments = [
+    ...new Array(primaryCount).fill(primary),
+    ...new Array(secondaryCount).fill(secondary)
+  ];
+  return shuffle(assignments);
 }
 
 // Collects item names from store config (explicit list or scanned grid).
@@ -205,6 +293,7 @@ function tuneCaseByDeltaSearch(seedCase = {}, targetDifficulty = "", context = {
 
   const payMin = Number(context.payMin ?? 1);
   const payMax = Number(context.payMax ?? 99);
+  const allowTuneAbovePayMax = false;
   let step = Math.max(1, Math.floor((payMax - payMin) / 2));
   const maxIters = Math.max(8, Number(context.tuningIters ?? 24));
   const targetCenter = getTargetGapCenter(targetDifficulty);
@@ -218,7 +307,14 @@ function tuneCaseByDeltaSearch(seedCase = {}, targetDifficulty = "", context = {
     if (step < 1) break;
 
     const needIncrease = shouldIncreaseGap(Number(solution?.relativeGap) || 0, targetDifficulty);
-    const trialOrders = applyGapDelta(orders, solution, needIncrease ? step : -step, payMin, payMax);
+    const trialOrders = applyGapDelta(
+      orders,
+      solution,
+      needIncrease ? step : -step,
+      payMin,
+      payMax,
+      { allowTuneAbovePayMax }
+    );
 
     // No tunable movement available for this step size.
     if (!trialOrders.changed) {
@@ -254,7 +350,8 @@ function clamp(value, min, max) {
 }
 
 // Applies an earnings delta to best/second bundles to increase or decrease gap.
-function applyGapDelta(orders = [], solution = {}, delta = 0, payMin = 1, payMax = 99) {
+function applyGapDelta(orders = [], solution = {}, delta = 0, payMin = 1, payMax = 99, options = {}) {
+  const allowTuneAbovePayMax = options?.allowTuneAbovePayMax !== false;
   const bestIds = new Set(solution?.best?.bundleIds || []);
   const secondIds = new Set(solution?.second?.bundleIds || []);
   const bestOnly = [...bestIds].filter((id) => !secondIds.has(id));
@@ -271,8 +368,8 @@ function applyGapDelta(orders = [], solution = {}, delta = 0, payMin = 1, payMax
     : [-magnitude, magnitude]; // decrease gap
 
   let changed = false;
-  changed = moveEarnings(byId, bestTarget, bestMove, payMin, payMax) || changed;
-  changed = moveEarnings(byId, secondTarget, secondMove, payMin, payMax) || changed;
+  changed = moveEarnings(byId, bestTarget, bestMove, payMin, payMax, allowTuneAbovePayMax) || changed;
+  changed = moveEarnings(byId, secondTarget, secondMove, payMin, payMax, allowTuneAbovePayMax) || changed;
 
   return {
     changed,
@@ -281,13 +378,15 @@ function applyGapDelta(orders = [], solution = {}, delta = 0, payMin = 1, payMax
 }
 
 // Moves earnings for a list of order IDs and reports if any value changed.
-function moveEarnings(byId, ids = [], delta = 0, payMin = 1, payMax = 99) {
+function moveEarnings(byId, ids = [], delta = 0, payMin = 1, payMax = 99, allowTuneAbovePayMax = true) {
   let changed = false;
   for (const id of ids) {
     const order = byId.get(String(id));
     if (!order) continue;
     const prev = Number(order.earnings) || 0;
-    const next = clamp(prev + delta, payMin, payMax);
+    const rawNext = prev + delta;
+    const upper = allowTuneAbovePayMax && delta > 0 ? Number.POSITIVE_INFINITY : payMax;
+    const next = clamp(rawNext, payMin, upper);
     if (next !== prev) changed = true;
     order.earnings = next;
     byId.set(String(id), order);
@@ -593,7 +692,13 @@ export function enumerateBundles(orders = [], kMax = 3) {
     combine(source, size, 0, [], bundles);
   }
 
-  return bundles;
+  // Gameplay rule consistency:
+  // Bundles with more than 1 order must all come from the same store.
+  return bundles.filter((bundle) => {
+    if (!Array.isArray(bundle) || bundle.length <= 1) return true;
+    const firstStore = String(bundle[0]?.store || "");
+    return bundle.every((order) => String(order?.store || "") === firstStore);
+  });
 }
 
 // Computes score and summary metrics for a single bundle.
@@ -638,8 +743,15 @@ export function computeBundleScore(bundle = [], context = {}) {
     if (order?.city) simulatedCity = String(order.city);
   }
 
+  const discounted = applySharedItemBundleSavings(
+    bundle,
+    perOrder.map((entry) => Number(entry?.orderTime) || 0),
+    { storeDataset: context?.storeDataset || {} }
+  );
+  const effectiveTotalTime = discounted.discountedTotalTime;
+
   // Avoid divide by zero
-  const safeTime = totalTime > 0 ? totalTime : 1e-9;
+  const safeTime = effectiveTotalTime > 0 ? effectiveTotalTime : 1e-9;
   const score = totalPay / safeTime;
   const normalizedScore = context?.bestScore != null
     ? normalizeToBest100(score, context.bestScore)
@@ -649,7 +761,9 @@ export function computeBundleScore(bundle = [], context = {}) {
     score,
     normalizedScore,
     totalPay,
-    totalTime,
+    totalTime: effectiveTotalTime,
+    rawTotalTime: totalTime,
+    bundleTimeDiscount: discounted.savingsSeconds,
     endingCity: simulatedCity,
     perOrder
   };
@@ -747,18 +861,31 @@ export function generateCandidateCase(context = {}) {
     ordersPerScenario = 4,
     startOrderIndex = 1,
     orderIdPrefix = "",
-    maxBundle = 3
+    maxBundle = 3,
+    storeDataset = {},
+    citiesDataset = {},
+    targetCity = "",
+    forcedCity = ""
   } = context;
 
   const count = Math.max(1, Number(ordersPerScenario) || 1);
   const orders = [];
+  const cities = getCitiesFromTravelTimes(citiesDataset);
+  const cityAssignments = buildCityAssignments({
+    count,
+    cities,
+    storeDataset,
+    targetCity,
+    forcedCity
+  });
 
   for (let i = 0; i < count; i += 1) {
     const order = createOrderModel({
       ...context,
       scenarioIndex,
       orderIndex: startOrderIndex + i,
-      orderIdPrefix
+      orderIdPrefix,
+      forcedCity: cityAssignments[i] || ""
     });
     orders.push(order);
   }
@@ -797,6 +924,9 @@ export function generateCaseUntilDifficultyMatch(targetDifficulty, context = {})
     ordersPerScenario = 4,
     startOrderIndex = 1
   } = context;
+  const targetCity = String(context.targetCity || "").trim();
+  const mustEnforceTargetCity = targetCity && hasStoresInCity(context?.storeDataset || {}, targetCity);
+
   while (true) {
     const seedCase = generateCandidateCase({
       ...context,
@@ -804,8 +934,21 @@ export function generateCaseUntilDifficultyMatch(targetDifficulty, context = {})
       ordersPerScenario,
       startOrderIndex
     });
+
+    if (mustEnforceTargetCity) {
+      const hasTargetCityOrder = seedCase?.orders?.some((o) => String(o?.city || "") === targetCity);
+      if (!hasTargetCityOrder) continue;
+    }
+
     const tunedCase = tuneCaseByDeltaSearch(seedCase, targetDifficulty, context);
-    if (caseMatchesDifficulty(tunedCase, targetDifficulty)) return tunedCase;
+    if (!caseMatchesDifficulty(tunedCase, targetDifficulty)) continue;
+
+    if (mustEnforceTargetCity) {
+      const endingCity = String(tunedCase?.solution?.best?.endingCity || "");
+      if (endingCity !== targetCity) continue;
+    }
+
+    return tunedCase;
   }
 }
 
@@ -954,9 +1097,17 @@ export async function runScenarioGenerationPipeline(options = {}) {
   let nextOrderIndex = 1;
   let currentCity = String(citiesDataset?.startinglocation || "Berkeley");
   let previousBestCity = currentCity;
+  const allCities = getCitiesFromTravelTimes(citiesDataset);
+  const targetCityCount = Object.fromEntries(allCities.map((city) => [city, 0]));
 
   for (let round = 1; round <= Number(totalRounds); round += 1) {
-    const isEvenRoundAfterFirst = round % 2 === 0 && round > 1;
+    const isEvenRoundAfterFirst = round % 2 === 0;
+    const targetCity = isEvenRoundAfterFirst
+      ? ""
+      : selectFairTargetCity(allCities, targetCityCount, previousBestCity);
+    if (targetCity) {
+      targetCityCount[targetCity] = (Number(targetCityCount[targetCity]) || 0) + 1;
+    }
     const forcedCity = isEvenRoundAfterFirst ? previousBestCity : "";
 
     const caseResult = generateCaseUntilDifficultyMatch(targetDifficulty, {
@@ -967,6 +1118,7 @@ export async function runScenarioGenerationPipeline(options = {}) {
       payMin,
       payMax,
       earningsStep,
+      targetCity,
       forcedCity,
       forceRandomCity: !isEvenRoundAfterFirst,
       currentCity,

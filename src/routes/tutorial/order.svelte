@@ -1,7 +1,8 @@
 <script>
     import { orders, currLocation, gameText, orderList, game, currentRound, getCurrentScenario } from "$lib/tutorial.js"
     import { onMount, onDestroy } from 'svelte';
-    import { queueNFixedOrders, storeConfig } from "$lib/config.js";
+    import { queueNFixedOrders, storeConfig, getDistances } from "$lib/config.js";
+    import { applySharedItemBundleSavings } from "$lib/bundleTime.js";
    
     export let orderData;
     export let index;
@@ -79,16 +80,38 @@
             selected = false
         }
         if ($orders.length > 0) {
+            const orderTimes = $orders.map((order) => {
+                const base = Number(order?.estimatedTime) || 0;
+                const destinationCity = String(order?.city || "");
+                const fromCity = String($currLocation || "");
+                let extra = 0;
+                if (destinationCity && fromCity && destinationCity !== fromCity) {
+                    const distData = getDistances(fromCity);
+                    const idx = (distData?.destinations || []).indexOf(destinationCity);
+                    extra = idx >= 0 ? (Number(distData?.distances?.[idx]) || 0) : 0;
+                }
+                return base + extra;
+            });
+
+            const { discountedTotalTime, savingsSeconds } = applySharedItemBundleSavings(
+                $orders,
+                orderTimes,
+                { getStoreConfig: (name) => storeConfig(name) }
+            );
+            const roundedTime = Math.max(0, Math.round(discountedTotalTime));
+            const roundedSave = Math.max(0, Math.round(savingsSeconds));
+
             if ($orders[0].city == $currLocation) {
-                $gameText.selector = `Go to store (${$orders.length} ${$orders.length === 1 ? 'order' : 'orders'})`
+                $gameText.selector = `Go to store (${$orders.length} ${$orders.length === 1 ? 'order' : 'orders'}, est ${roundedTime}s${roundedSave > 0 ? `, save ${roundedSave}s` : ''})`
             } else {
-                $gameText.selector = `Travel to ${$orders[0].city} (${$orders.length} ${$orders.length === 1 ? 'order' : 'orders'})`
+                $gameText.selector = `Travel to ${$orders[0].city} (${$orders.length} ${$orders.length === 1 ? 'order' : 'orders'}, est ${roundedTime}s${roundedSave > 0 ? `, save ${roundedSave}s` : ''})`
             }
         } else {
             $gameText.selector = "None selected"
         }
         console.log($orders)
     }
+
 </script>
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
