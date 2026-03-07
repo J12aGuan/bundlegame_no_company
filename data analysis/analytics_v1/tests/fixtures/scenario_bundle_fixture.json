@@ -1,0 +1,17 @@
+{
+  "scenarios": [
+    {"round": 1, "scenario_id": "s1", "max_bundle": 3, "order_ids": ["o1", "o2"]},
+    {"round": 2, "scenario_id": "s2", "max_bundle": 3, "order_ids": ["o3", "o4"]}
+  ],
+  "orders": [
+    {"id": "o1", "city": "Berkeley", "store": "StoreA", "items": {"apple": 1}, "earnings": 10, "estimatedTime": 10},
+    {"id": "o2", "city": "Berkeley", "store": "StoreA", "items": {"banana": 1}, "earnings": 8, "estimatedTime": 10},
+    {"id": "o3", "city": "Oakland", "store": "StoreB", "items": {"pear": 1}, "earnings": 12, "estimatedTime": 12},
+    {"id": "o4", "city": "Oakland", "store": "StoreB", "items": {"grape": 1}, "earnings": 9, "estimatedTime": 12}
+  ],
+  "optimal": [
+    {"scenario_id": "s1", "best_bundle_ids": ["o1", "o2"], "second_best_bundle_ids": ["o2", "o1"], "ending_city_best": "Berkeley"},
+    {"scenario_id": "s2", "best_bundle_ids": ["o3", "o4"], "second_best_bundle_ids": ["o4", "o3"], "ending_city_best": "Oakland"}
+  ],
+  "metadata": {"startinglocation": "Berkeley"}
+}
