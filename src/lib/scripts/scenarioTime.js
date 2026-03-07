@@ -12,24 +12,23 @@ export function estimatePickItemTime(order, context = {}) {
 
   // store cellDistance is in ms in existing gameplay code
   const secondsPerCell = Number(storeConfig.cellDistance ?? 1000) / 1000;
-  const grabSecondsPerItem = Number(context.grabSecondsPerItem ?? 2);
-
+  const secondsPerUniqueItem = Number(context.grabSecondsPerUniqueItem ?? 3);
   const lineItems = normalizeOrderItems(order?.items);
   let currentPos = entrance;
   let totalWalkSteps = 0;
-  let totalUnits = 0;
+  const uniqueItems = new Set();
 
   for (const item of lineItems) {
+    uniqueItems.add(String(item.name || "").toLowerCase().trim());
     const position = findItemPosition(locations, item.name);
     if (!position) continue;
     totalWalkSteps += manhattanDistance(currentPos, position);
     currentPos = position;
-    totalUnits += item.qty;
   }
 
   const walkSeconds = totalWalkSteps * secondsPerCell;
-  const grabSeconds = totalUnits * grabSecondsPerItem;
-  return walkSeconds + grabSeconds;
+  const itemHandlingSeconds = uniqueItems.size * Math.max(0, secondsPerUniqueItem);
+  return walkSeconds + itemHandlingSeconds;
 }
 
 export function crossCityExtraTime(orderCity, currentCity, context = {}) {
