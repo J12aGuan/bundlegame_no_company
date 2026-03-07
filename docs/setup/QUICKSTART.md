@@ -105,10 +105,10 @@ git push origin main
 | `src/routes/bundlegame.svelte` | Main game (5000+ lines) |
 | `src/lib/bundle.js` | Game logic & calculations |
 | `src/lib/firebaseDB.js` | Database operations |
-| `src/lib/bundle_experiment_50_rounds_short_times.json` | All 50 rounds data |
-| `src/lib/configs/stores1.json` | Store layouts & city distances |
+| `src/routes/admin/masterdata/+page.svelte` | Config/dataset admin management |
+| `src/lib/scripts/generateScenarios.js` | Scenario generation + optimal solver |
 
-**Full guide**: See [../architecture/PROJECT_STRUCTURE.md](../architecture/PROJECT_STRUCTURE.md)
+**Full guide**: See [../current/ARCHITECTURE.md](../current/ARCHITECTURE.md)
 
 **Environment details**: See [ENVIRONMENT.md](ENVIRONMENT.md)
 
@@ -117,5 +117,5 @@ git push origin main
 ## Need Help?
 
 1. Check [../../README.md](../../README.md) for quick reference
-2. Check [../architecture/PROJECT_STRUCTURE.md](../architecture/PROJECT_STRUCTURE.md) for code details
+2. Check [../current/ARCHITECTURE.md](../current/ARCHITECTURE.md) for code details
 3. Contact Nicholas: nchen06@berkeley.edu

@@ -122,10 +122,10 @@ In rounds 16-35, two orders are marked with `"recommended": true`. These form th
 
 ## File Reference
 
-- **Experiment Data**: `src/lib/bundle_experiment_50_rounds_short_times.json`
+- **Experiment Data**: Firestore grouped dataset entry selected by `centralConfig.scenario_set`
 - **Core Game Logic**: `src/lib/bundle.js`
-- **Quick Reference**: `experiment_reference.csv` (in project root)
-- **Visual Reference**: `experiment_reference_table.html` (open in browser)
+- **Quick Reference**: `docs/experiment/experiment_reference.csv`
+- **Current Data Model Guide**: `docs/current/CONFIG_AND_DATASETS.md`
 
 ## JSON Schema
 
