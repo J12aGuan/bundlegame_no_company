@@ -19,7 +19,7 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 ### 3. 📖 Understand the Code (10 minutes)
 **Goal**: Navigate the codebase confidently
 
-→ [**Architecture Overview**](architecture/OVERVIEW.md)
+→ [**Current Architecture**](current/ARCHITECTURE.md)
 
 ---
 
@@ -37,18 +37,16 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [architecture/OVERVIEW.md](architecture/OVERVIEW.md) | High-level architecture | Everyone |
-| [architecture/CODEMAP.md](architecture/CODEMAP.md) | src/ organization guide | Developers |
-| [architecture/PROJECT_STRUCTURE.md](architecture/PROJECT_STRUCTURE.md) | Complete file tree | Developers |
-| [architecture/FILE_EXPLANATIONS.md](architecture/FILE_EXPLANATIONS.md) | What each file does | Developers |
+| [current/ARCHITECTURE.md](current/ARCHITECTURE.md) | Current runtime architecture | Everyone |
+| [current/CONFIG_AND_DATASETS.md](current/CONFIG_AND_DATASETS.md) | Firestore config and dataset model | Developers |
+| [archive/README.md](archive/README.md) | Archived legacy docs index | Developers |
 
 ### ⚙️ Configuration
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [configuration/OVERVIEW.md](configuration/OVERVIEW.md) | Config system overview | Everyone |
-| [configuration/CENTRALIZED_CONFIG.md](configuration/CENTRALIZED_CONFIG.md) | centralConfig.json guide | Developers |
-| [configuration/PARAMETERS.md](configuration/PARAMETERS.md) | Detailed parameter reference | Researchers |
+| [current/CONFIG_AND_DATASETS.md](current/CONFIG_AND_DATASETS.md) | Current config + dataset operations | Everyone |
+| [archive/legacy-2026-03/](archive/legacy-2026-03/) | Legacy static-config documentation | Researchers |
 
 ### 🔐 Security
 
@@ -69,26 +67,26 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 
 ### By Role
 
-**I'm a new developer** → Start with [setup/QUICKSTART.md](setup/QUICKSTART.md), then [architecture/CODEMAP.md](architecture/CODEMAP.md)
+**I'm a new developer** → Start with [setup/QUICKSTART.md](setup/QUICKSTART.md), then [current/ARCHITECTURE.md](current/ARCHITECTURE.md)
 
-**I'm a researcher customizing experiments** → Read [configuration/PARAMETERS.md](configuration/PARAMETERS.md) and [experiment/EXPERIMENT_DESIGN.md](experiment/EXPERIMENT_DESIGN.md)
+**I'm a researcher customizing experiments** → Read [current/CONFIG_AND_DATASETS.md](current/CONFIG_AND_DATASETS.md) and [experiment/EXPERIMENT_DESIGN.md](experiment/EXPERIMENT_DESIGN.md)
 
 **I'm deploying to production** → Follow [../SECURITY.md](../SECURITY.md) first, then deploy
 
-**I'm fixing a bug** → Check [architecture/FILE_EXPLANATIONS.md](architecture/FILE_EXPLANATIONS.md) to find the right file
+**I'm fixing a bug** → Check [current/ARCHITECTURE.md](current/ARCHITECTURE.md) to find the right file
 
 ### By Task
 
 | I want to... | Read this... |
 |--------------|-------------|
 | Run the project locally | [setup/QUICKSTART.md](setup/QUICKSTART.md) |
-| Understand the codebase | [architecture/OVERVIEW.md](architecture/OVERVIEW.md) |
-| Change game timers/parameters | [configuration/CENTRALIZED_CONFIG.md](configuration/CENTRALIZED_CONFIG.md) |
-| Modify experiment rounds | [configuration/PARAMETERS.md](configuration/PARAMETERS.md) |
+| Understand the codebase | [current/ARCHITECTURE.md](current/ARCHITECTURE.md) |
+| Change game timers/parameters | [current/CONFIG_AND_DATASETS.md](current/CONFIG_AND_DATASETS.md) |
+| Modify experiment rounds | [current/CONFIG_AND_DATASETS.md](current/CONFIG_AND_DATASETS.md) |
 | Secure the database | [../SECURITY.md](../SECURITY.md) |
 | Add a new feature | [../README.md#-contributing](../README.md#-contributing) |
 | Export participant data | [../README.md](../README.md#-data-export) |
-| Understand store layouts | [configuration/PARAMETERS.md](configuration/PARAMETERS.md#store-configuration) |
+| Understand legacy config docs | [archive/README.md](archive/README.md) |
 
 ---
 
@@ -118,4 +116,4 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 
 ---
 
-*Last updated: February 2026*
+*Last updated: March 2026*

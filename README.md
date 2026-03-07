@@ -59,8 +59,8 @@ npm run dev
 | Topic | Link |
 |-------|------|
 | **Getting Started** | [Setup Guide](docs/setup/QUICKSTART.md) |
-| **Code Structure** | [Architecture Overview](docs/architecture/OVERVIEW.md) |
-| **Configuration** | [Config Guide](docs/configuration/OVERVIEW.md) |
+| **Code Structure** | [Current Architecture](docs/current/ARCHITECTURE.md) |
+| **Configuration** | [Current Config & Datasets](docs/current/CONFIG_AND_DATASETS.md) |
 | **Experiment Design** | [Experiment Guide](docs/experiment/EXPERIMENT_DESIGN.md) |
 
 ---
@@ -71,33 +71,41 @@ npm run dev
 bundlegame_no_company/
 ├── src/
 │   ├── lib/                    # Shared libraries (Firebase, game logic)
-│   │   ├── centralConfig.json  # ⭐ Main configuration file
 │   │   ├── firebaseDB.js       # Database operations
-│   │   └── bundle.js           # Core game logic
-│   └── routes/                 # SvelteKit pages
-│       ├── +page.svelte        # Login page
-│       ├── bundlegame.svelte   # Main game
-│       └── downloader/         # Data export (password-protected)
+│   │   ├── bundle.js           # Main game runtime state
+│   │   └── tutorial.js         # Tutorial runtime state
+│   ├── routes/                 # SvelteKit pages
+│   │   ├── +page.svelte        # Login page
+│   │   ├── bundlegame.svelte   # Main game
+│   │   ├── admin/masterdata    # Config + dataset admin UI
+│   │   └── downloader/         # Data export (password-protected)
 │
-├── docs/                       # 📚 All documentation
+├── docs/current/               # ✅ Authoritative architecture/config docs
+├── docs/archive/               # Archived legacy docs
+├── data analysis/analytics_v1/ # Analytics pipeline (v1)
 ├── firestore.rules             # 🔐 Database security rules
 └── package.json
 ```
 
-**Detailed structure**: [docs/architecture/PROJECT_STRUCTURE.md](docs/architecture/PROJECT_STRUCTURE.md)
+**Current architecture doc**: [docs/current/ARCHITECTURE.md](docs/current/ARCHITECTURE.md)
 
 ---
 
 ## ⚙️ Configuration
 
-All settings centralized in [`src/lib/centralConfig.json`](src/lib/centralConfig.json):
+Runtime configuration is stored in Firestore MasterData (not local static JSON):
+- `MasterData/centralConfig`
+- `MasterData/tutorialConfig`
+- grouped scenario datasets in `MasterData/datasets`
 
-| Setting | Default | Docs |
-|---------|---------|------|
-| Round timer | 300s | [Config Guide](docs/configuration/CENTRALIZED_CONFIG.md) |
-| Orders per round | 4 | [Config Guide](docs/configuration/CENTRALIZED_CONFIG.md) |
-| Store layouts | 4 stores | [Parameters](docs/configuration/PARAMETERS.md) |
-| Experiment rounds | 50 rounds | [Experiment Design](docs/experiment/EXPERIMENT_DESIGN.md) |
+**Config & dataset operations**: [docs/current/CONFIG_AND_DATASETS.md](docs/current/CONFIG_AND_DATASETS.md)
+
+| Setting | Source |
+|---------|--------|
+| Round timer / penalties | `centralConfig.game` |
+| Active main scenario set | `centralConfig.scenario_set` |
+| Active tutorial scenario set | `tutorialConfig.scenario_set` |
+| Scenario rounds / orders / optimal bundles | grouped dataset entry (`scenarios`, `orders`, `optimal`) |
 
 ---
 
@@ -151,7 +159,7 @@ git checkout -b docs/what-you-changed       # documentation
 2. Enter password (from `.env`)
 3. Download JSON with all participant data
 
-**Analysis**: Jupyter notebooks in [`data analysis/`](data%20analysis/)
+**Analysis**: notebooks and pipeline in [`data analysis/`](data%20analysis/)
 
 ---
 
@@ -160,4 +168,3 @@ git checkout -b docs/what-you-changed       # documentation
 - **Maintainer**: Nicholas Chen ([nchen06@berkeley.edu](mailto:nchen06@berkeley.edu))
 - **Firebase Project**: `bundling-63c10`
 - **GitHub**: [nnicholas-c/bundlegame_no_company](https://github.com/nnicholas-c/bundlegame_no_company)
-
