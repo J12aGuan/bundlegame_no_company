@@ -2,6 +2,7 @@
     import { orders, currLocation, gameText, orderList, game, currentRound, getCurrentScenario } from "$lib/bundle.js"
     import { onMount, onDestroy } from 'svelte';
     import { queueNFixedOrders, storeConfig, getDistances } from "$lib/config.js";
+    import { applySharedItemBundleSavings } from "$lib/bundleTime.js";
    
     export let orderData;
     export let index;
@@ -12,7 +13,6 @@
     let taken = false;
     let config = storeConfig(orderData.store)
 
-    $: totalItems = Object.values(orderData.items || {}).reduce((a, b) => a + b, 0);
     $: scenario = getCurrentScenario($currentRound);
     $: maxBundle = scenario.max_bundle ?? 3;
     $: baseEstimateSeconds = Number(orderData?.estimatedTime) || 0;
@@ -86,7 +86,38 @@
             selected = false
         }
         $orders = $orders; 
+
+        if ($orders.length > 0) {
+            const orderTimes = $orders.map((order) => {
+                const base = Number(order?.estimatedTime) || 0;
+                const destinationCity = String(order?.city || "");
+                const fromCity = String($currLocation || "");
+                let extra = 0;
+                if (destinationCity && fromCity && destinationCity !== fromCity) {
+                    const distData = getDistances(fromCity);
+                    const idx = (distData?.destinations || []).indexOf(destinationCity);
+                    extra = idx >= 0 ? (Number(distData?.distances?.[idx]) || 0) : 0;
+                }
+                return base + extra;
+            });
+
+            const { discountedTotalTime, savingsSeconds } = applySharedItemBundleSavings(
+                $orders,
+                orderTimes,
+                { getStoreConfig: (name) => storeConfig(name) }
+            );
+            const roundedTime = Math.max(0, Math.round(discountedTotalTime));
+            const roundedSave = Math.max(0, Math.round(savingsSeconds));
+            const destination = String($orders[0]?.city || "");
+            const action = destination === String($currLocation || "") ? "Go to store" : `Travel to ${destination}`;
+            const orderLabel = `${$orders.length} ${$orders.length === 1 ? "order" : "orders"}`;
+            const savingsLabel = roundedSave > 0 ? `, save ${roundedSave}s` : "";
+            $gameText.selector = `${action} (${orderLabel}, est ${roundedTime}s${savingsLabel})`;
+        } else {
+            $gameText.selector = "None selected";
+        }
     }
+
 </script>
 
 {#if !taken}
