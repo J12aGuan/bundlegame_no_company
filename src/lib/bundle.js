@@ -1,7 +1,7 @@
 import { writable, readable, derived, get} from 'svelte/store';
 import { 
     addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser,
-    getCentralConfig, getExperimentScenarios, getOrdersData, getStoresData, getCitiesData, getEmojisData
+    getCentralConfig, getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getCitiesData, getEmojisData
 } from './firebaseDB';
 
 import { switchJob, setPenaltyTimeout } from './config';
@@ -27,31 +27,51 @@ let config = {
 
 let experimentScenarios = [];
 let firebaseInitialized = false;
+let initializedMode = null;
 
 // Initialize config and scenarios from Firebase
-export async function initializeFromFirebase() {
+export async function initializeFromFirebase(mode = 'main') {
 	try {
-		const centralConfigData = await getCentralConfig();
-		if (centralConfigData) {
-			config = {
-				timeLimit: centralConfigData.game?.timeLimit ?? config.timeLimit,
-				thinkTime: centralConfigData.game?.thinkTime ?? config.thinkTime,
-				gridSize: centralConfigData.game?.gridSize ?? config.gridSize,
-				auth: centralConfigData.game?.auth ?? config.auth,
-				tips: centralConfigData.game?.tips ?? config.tips,
-				waiting: centralConfigData.game?.waiting ?? config.waiting,
-				refresh: centralConfigData.game?.refresh ?? config.refresh,
-				expire: centralConfigData.game?.expire ?? config.expire,
+		if (mode === 'tutorial') {
+			const tutorialConfigData = await getTutorialConfig();
+			if (tutorialConfigData) {
+				config = {
+					...config,
+					timeLimit: tutorialConfigData.timeLimit ?? config.timeLimit,
+					thinkTime: tutorialConfigData.thinkTime ?? config.thinkTime,
+					gridSize: tutorialConfigData.gridSize ?? config.gridSize,
+					auth: tutorialConfigData.auth ?? config.auth,
+					tips: tutorialConfigData.tips ?? config.tips,
+					waiting: tutorialConfigData.waiting ?? config.waiting,
+					refresh: tutorialConfigData.refresh ?? config.refresh,
+					expire: tutorialConfigData.expire ?? config.expire,
+					scenario_set: tutorialConfigData.scenario_set ?? config.scenario_set
+				};
+				console.log('Tutorial config loaded from Firebase:', config);
+			}
+		} else {
+			const centralConfigData = await getCentralConfig();
+			if (centralConfigData) {
+				config = {
+					timeLimit: centralConfigData.game?.timeLimit ?? config.timeLimit,
+					thinkTime: centralConfigData.game?.thinkTime ?? config.thinkTime,
+					gridSize: centralConfigData.game?.gridSize ?? config.gridSize,
+					auth: centralConfigData.game?.auth ?? config.auth,
+					tips: centralConfigData.game?.tips ?? config.tips,
+					waiting: centralConfigData.game?.waiting ?? config.waiting,
+					refresh: centralConfigData.game?.refresh ?? config.refresh,
+					expire: centralConfigData.game?.expire ?? config.expire,
 					ordersShown: centralConfigData.game?.ordersShown ?? config.ordersShown,
 					roundTimeLimit: centralConfigData.game?.roundTimeLimit ?? config.roundTimeLimit,
 					penaltyTimeout: centralConfigData.game?.penaltyTimeout ?? config.penaltyTimeout,
 					scenario_set: centralConfigData.scenario_set ?? config.scenario_set
 				};
-			console.log('Central config loaded from Firebase:', config);
+				console.log('Central config loaded from Firebase:', config);
+			}
 		}
 		
-			const scenarioSetId = config.scenario_set || 'experiment';
-			const scenarios = await getExperimentScenarios(scenarioSetId);
+		const scenarioSetId = config.scenario_set || 'experiment';
+		const scenarios = await getExperimentScenarios(scenarioSetId);
 		if (scenarios && Array.isArray(scenarios)) {
 			experimentScenarios = scenarios;
 			console.log(`Experiment scenarios loaded from Firebase (${scenarioSetId}):`, experimentScenarios.length, 'scenarios');
@@ -80,6 +100,7 @@ export async function initializeFromFirebase() {
 		refresh: config.refresh
 	}));
 	firebaseInitialized = true;
+	initializedMode = mode;
 }
 
 let storeConfigs = {}
@@ -417,9 +438,9 @@ export async function loadConfigByName(fileName) {
   return null;
 }
 
-export async function loadGame() {
-	if (!firebaseInitialized) {
-		await initializeFromFirebase();
+export async function loadGame(mode = 'main') {
+	if (!firebaseInitialized || initializedMode !== mode) {
+		await initializeFromFirebase(mode);
 	}
 	try {
 		const datasetId = config.scenario_set || 'experiment';
@@ -450,8 +471,8 @@ export async function loadGame() {
 	return 0
 }
 
-export async function createNewUser(id) {
-	let n = await loadGame()
+export async function createNewUser(id, mode = 'main') {
+	let n = await loadGame(mode)
 	await createUser(id, n)
     return n
 }
