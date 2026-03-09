@@ -17,6 +17,7 @@
     let started = false;
     let completed = ""
     let completed2 = ""
+    let authResolved = false;
     
     $: formattedRemaining = formatTime($remainingTime ?? $FullTimeLimit);
 
@@ -92,6 +93,13 @@
     }
 
     onMount(() => {
+        // Preload main config so auth gate reflects Firebase before rendering login UI.
+        loadGame()
+            .catch((err) => console.error("Main preload failed:", err))
+            .finally(() => {
+                authResolved = true;
+            });
+
         window.addEventListener('click', handleClick)
         return () => {
             console.log("listener removed")
@@ -114,7 +122,9 @@
                 User Access
             </h1>
             
-            {#if $needsAuth}
+            {#if !authResolved}
+                <p class="text-sm text-slate-600 text-center">Loading configuration...</p>
+            {:else if $needsAuth}
                 <div class="space-y-4">
                     <div class="space-y-1">
                         <label class="text-sm font-medium text-slate-700">User ID</label>
