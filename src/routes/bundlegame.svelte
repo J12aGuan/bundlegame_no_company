@@ -1,7 +1,7 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario, emojisMap, roundTimeLimit } from "$lib/bundle.js"
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarios, emojisMap, roundTimeLimit } from "$lib/bundle.js"
     import { storeConfig, getDistances } from "$lib/config.js"; // Import getDistances
     
     let config = {}; // Will be set properly in onMount()
@@ -623,18 +623,46 @@
 
     function logRoundCompletion(success) {
         const scenario = getCurrentScenario($currentRound);
+        const scenarioId = String(scenario?.scenario_id ?? scenario?.phase ?? `round_${$currentRound}`).trim();
         const duration = $elapsed - startTimer; // Calculate directly
         const chosenOrderIds = $orders.map(o => o.id);
+        const optimal = getOptimalForScenario(scenarioId);
+        const chosenSorted = [...chosenOrderIds].map((id) => String(id ?? '').trim()).sort();
+        const bestSorted = Array.isArray(optimal?.best_bundle_ids)
+            ? optimal.best_bundle_ids.map((id) => String(id ?? '').trim()).sort()
+            : [];
+        const isOptimalChoice = success
+            && bestSorted.length > 0
+            && bestSorted.length === chosenSorted.length
+            && bestSorted.every((id, index) => id === chosenSorted[index]);
+        const totalRounds = get(scenarios).length;
+        const completedGame = success && totalRounds > 0 && $currentRound >= totalRounds;
         
         logAction({
             type: "round_summary",
             round_index: $currentRound,
+            scenario_id: scenarioId,
             phase: scenario.phase,
             chosen_orders: chosenOrderIds,
+            chosen_count: chosenOrderIds.length,
+            is_optimal_choice: isOptimalChoice,
             success: success,
             earnings: success ? totalEarnings : 0,
             final_location: $currLocation,
-            duration: duration
+            duration: duration,
+            completed_game: completedGame
+        });
+
+        saveScenarioProgress({
+            scenarioId,
+            roundIndex: $currentRound,
+            chosenOrders: chosenOrderIds,
+            chosenCount: chosenOrderIds.length,
+            isOptimalChoice,
+            success,
+            duration,
+            finalLocation: $currLocation,
+            completedGame
         });
 
         if (success) currentRound.update(r => r + 1);
