@@ -1,6 +1,6 @@
 <script>
     import { onMount } from 'svelte';
-    import { retrieveData, getCounter } from '$lib/firebaseDB.js';
+    import { retrieveData } from '$lib/firebaseDB.js';
     
     let stats = {
         totalUsers: 0,

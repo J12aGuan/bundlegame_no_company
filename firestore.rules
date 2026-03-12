@@ -47,6 +47,14 @@ service cloud.firestore {
         allow update: if true;  // Allow updating order status
         allow delete: if false;
       }
+
+      // Summary subcollection
+      match /Summary/{summaryId} {
+        allow create: if true;
+        allow read: if true;
+        allow update: if true;
+        allow delete: if false;
+      }
     }
 
     // Configs collection - for experiment configurations
