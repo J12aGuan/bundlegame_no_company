@@ -9,10 +9,42 @@
     let sortField = 'id';
     let sortAsc = true;
     let selectedUser = null;
+
+    function toNumber(value, fallback = 0) {
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? numeric : fallback;
+    }
+
+    function formatTime(seconds) {
+        const total = Math.max(0, Math.floor(toNumber(seconds, 0)));
+        const mins = Math.floor(total / 60);
+        const secs = total % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function hydrateUser(user) {
+        const progress = user.progressSummary || {};
+        const roundsCompleted = toNumber(progress.roundsCompleted, user.uniqueSetsComplete || 0);
+        const optimalChoices = toNumber(progress.optimalChoices, 0);
+        const totalGameTime = toNumber(progress.totalGameTime, user.gametime || 0);
+        const completedGame = Boolean(progress.completedGame);
+        const totalRounds = toNumber(progress.totalRounds, 0);
+        const optimalRate = roundsCompleted > 0 ? (optimalChoices / roundsCompleted) * 100 : 0;
+
+        return {
+            ...user,
+            roundsCompleted,
+            optimalChoices,
+            totalGameTime,
+            completedGame,
+            totalRounds,
+            optimalRate
+        };
+    }
     
     onMount(async () => {
         try {
-            users = await retrieveData();
+            users = (await retrieveData()).map(hydrateUser);
             loading = false;
         } catch (err) {
             console.error('Error loading results:', err);
@@ -45,18 +77,38 @@
             sortAsc = true;
         }
     }
+
+    function normalizeExportValue(value) {
+        if (value?.toDate && typeof value.toDate === 'function') {
+            return value.toDate().toISOString();
+        }
+        if (Array.isArray(value)) {
+            return JSON.stringify(value.map((item) => normalizeExportValue(item)));
+        }
+        if (value && typeof value === 'object') {
+            return JSON.stringify(
+                Object.fromEntries(
+                    Object.entries(value).map(([key, nested]) => [key, normalizeExportValue(nested)])
+                )
+            );
+        }
+        if (value === undefined || value === null) {
+            return '';
+        }
+        return String(value);
+    }
     
     function exportResults() {
+        const exportKeys = Array.from(
+            sortedUsers.reduce((keys, user) => {
+                Object.keys(user || {}).forEach((key) => keys.add(key));
+                return keys;
+            }, new Set())
+        ).sort();
+
         const csv = [
-            ['ID', 'Earnings', 'Orders Complete', 'Unique Sets', 'Configuration', 'Created At'],
-            ...sortedUsers.map(u => [
-                u.id,
-                u.earnings || 0,
-                u.ordersComplete || 0,
-                u.uniqueSetsComplete || 0,
-                u.configuration || '-',
-                u.createdAt?.toDate?.().toISOString() || '-'
-            ])
+            exportKeys,
+            ...sortedUsers.map((user) => exportKeys.map((key) => normalizeExportValue(user?.[key])))
         ]
         .map(row => row.map(cell => `"${cell}"`).join(','))
         .join('\n');
@@ -135,14 +187,27 @@
                             </th>
                             <th class="px-6 py-3 text-left">
                                 <button 
-                                    on:click={() => toggleSort('uniqueSetsComplete')}
+                                    on:click={() => toggleSort('roundsCompleted')}
                                     class="text-xs font-medium text-gray-700 uppercase tracking-wider hover:text-gray-900"
                                 >
-                                    Unique Sets {sortField === 'uniqueSetsComplete' ? (sortAsc ? '↑' : '↓') : ''}
+                                    Rounds {sortField === 'roundsCompleted' ? (sortAsc ? '↑' : '↓') : ''}
                                 </button>
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                                Config
+                            <th class="px-6 py-3 text-left">
+                                <button 
+                                    on:click={() => toggleSort('optimalChoices')}
+                                    class="text-xs font-medium text-gray-700 uppercase tracking-wider hover:text-gray-900"
+                                >
+                                    Optimal {sortField === 'optimalChoices' ? (sortAsc ? '↑' : '↓') : ''}
+                                </button>
+                            </th>
+                            <th class="px-6 py-3 text-left">
+                                <button 
+                                    on:click={() => toggleSort('totalGameTime')}
+                                    class="text-xs font-medium text-gray-700 uppercase tracking-wider hover:text-gray-900"
+                                >
+                                    Time {sortField === 'totalGameTime' ? (sortAsc ? '↑' : '↓') : ''}
+                                </button>
                             </th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                                 Action
@@ -162,10 +227,13 @@
                                     {user.ordersComplete || 0}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    {user.uniqueSetsComplete || 0}
+                                    {user.roundsCompleted || 0}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    Config {user.configuration !== undefined ? user.configuration : '-'}
+                                    {user.optimalChoices || 0} ({(user.optimalRate || 0).toFixed(0)}%)
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    {formatTime(user.totalGameTime || 0)}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                                     <button 
@@ -205,11 +273,11 @@
             </div>
             <div class="bg-white overflow-hidden shadow rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Avg Earnings</dt>
+                    <dt class="text-sm font-medium text-gray-500 truncate">Avg Optimal Rate</dt>
                     <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                        ${(sortedUsers.length > 0 
-                            ? (sortedUsers.reduce((sum, u) => sum + (u.earnings || 0), 0) / sortedUsers.length).toFixed(2)
-                            : 0)}
+                        {(sortedUsers.length > 0 
+                            ? (sortedUsers.reduce((sum, u) => sum + (u.optimalRate || 0), 0) / sortedUsers.length).toFixed(1)
+                            : 0)}%
                     </dd>
                 </div>
             </div>
@@ -232,12 +300,20 @@
                         <p class="text-lg text-gray-900">{selectedUser.ordersComplete || 0}</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Unique Sets Completed</label>
-                        <p class="text-lg text-gray-900">{selectedUser.uniqueSetsComplete || 0}</p>
+                        <label class="block text-sm font-medium text-gray-700">Rounds Completed</label>
+                        <p class="text-lg text-gray-900">{selectedUser.roundsCompleted || 0}</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Configuration</label>
-                        <p class="text-lg text-gray-900">Config {selectedUser.configuration !== undefined ? selectedUser.configuration : '-'}</p>
+                        <label class="block text-sm font-medium text-gray-700">Optimal Choices</label>
+                        <p class="text-lg text-gray-900">{selectedUser.optimalChoices || 0} ({(selectedUser.optimalRate || 0).toFixed(1)}%)</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Total Game Time</label>
+                        <p class="text-lg text-gray-900">{formatTime(selectedUser.totalGameTime || 0)}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Completed Game</label>
+                        <p class="text-lg text-gray-900">{selectedUser.completedGame ? 'Yes' : 'No'}</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Total Orders</label>

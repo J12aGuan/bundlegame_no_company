@@ -1,8 +1,7 @@
 <script>
     import { globalError } from "$lib/globalError.js"
     import Bundlegame from "../bundlegame.svelte";
-    import { game, elapsed, resetTimer, earned, currLocation, id, logAction, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime } from "$lib/bundle.js";
-    import { generateCompleteId } from "$lib/firebaseDB.js";
+    import { game, elapsed, resetTimer, earned, currLocation, id, logAction, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, participantResultUrl } from "$lib/bundle.js";
 	import Home from "../home.svelte";
 	import { onMount } from "svelte";
     import { queueNFixedOrders } from "$lib/config.js";
@@ -21,9 +20,16 @@
     let userPass = '';
 
     let started = false;
-    let completed = "";
-    let completed2 = "";
     let authResolved = false;
+
+    async function copyResultUrl() {
+        if (!$participantResultUrl) return;
+        try {
+            await navigator.clipboard.writeText($participantResultUrl);
+        } catch (err) {
+            console.error('Failed to copy result URL:', err);
+        }
+    }
     async function start() {
         const auth = await authUser(userInput, userPass)
         if (auth === 1) {
@@ -35,8 +41,6 @@
                 $id = userInput
                 started = true;
                 $orderList = queueNFixedOrders(ordersShown)
-                completed = generateCompleteId(userInput)
-                completed2 = user
             }
         } else {
             alert("id and token do not match")
@@ -157,17 +161,20 @@
                     <li><span class="font-medium">Finished Orders:</span> {$finishedOrders.length}</li>
                     </ul>
                 </div>
-                {#if $needsAuth}
-                <div class="bg-yellow-100 p-4 rounded border border-yellow-400">
-                    <h3 class="text-lg font-semibold text-yellow-800 mb-2">
-                    Please copy the following two codes back into the Qualtrics survey:
-                    </h3>
-                    <p class="text-gray-800">
-                    <span class="font-semibold">Code #1:</span><span class="text-blue-600 font-mono">{completed}</span>
+                {#if $participantResultUrl}
+                <div class="bg-slate-100 p-4 rounded border border-slate-200 text-left">
+                    <h3 class="text-lg font-semibold text-slate-900 mb-2">Participant Result URL</h3>
+                    <p class="break-all text-sm text-slate-700 font-mono">{$participantResultUrl}</p>
+                    <p class="mt-2 text-sm text-slate-600">
+                        Copy this URL into the Qualtrics survey submission.
                     </p>
-                    <p class="text-gray-800">
-                    <span class="font-semibold">Code #2:</span><span class="text-blue-600 font-mono">{completed2}</span>
-                    </p>
+                    <button
+                        type="button"
+                        class="mt-3 w-full rounded-lg bg-slate-900 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition"
+                        on:click={copyResultUrl}
+                    >
+                        Copy Result URL
+                    </button>
                 </div>
                 {/if}
             </div>
