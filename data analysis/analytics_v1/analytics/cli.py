@@ -245,6 +245,7 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
     overall = _build_kpi_rows(fact_rows, None, args.bootstrap_b, args.seed)
     by_round = _build_kpi_rows(fact_rows, "round_index", args.bootstrap_b, args.seed)
     by_participant = _build_kpi_rows(fact_rows, "participant_id", args.bootstrap_b, args.seed)
+    by_classification = _build_kpi_rows(fact_rows, "classification", args.bootstrap_b, args.seed)
     by_scenario = _build_kpi_rows(fact_rows, "scenario_id", args.bootstrap_b, args.seed)
 
     cohort_comparisons = []
@@ -261,6 +262,7 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
     _write_csv(out_dir / "kpi_overall.csv", overall)
     _write_csv(out_dir / "kpi_by_round.csv", by_round)
     _write_csv(out_dir / "kpi_by_participant.csv", by_participant)
+    _write_csv(out_dir / "kpi_by_classification.csv", by_classification)
     _write_csv(out_dir / "kpi_by_scenario.csv", by_scenario)
     _write_csv(out_dir / "qa_issues.csv", qa_issues)
     if args.cohort_col:

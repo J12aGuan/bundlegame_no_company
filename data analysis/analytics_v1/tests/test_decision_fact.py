@@ -57,3 +57,24 @@ def test_near_optimal_threshold_and_failure_bucket():
         if row["score_ratio_to_best"] is not None:
             expected = int(row["score_ratio_to_best"] >= 0.95)
             assert row["is_near_optimal"] == expected
+
+
+def test_classification_propagation_and_phase_fallback():
+    participants = _load("participants_fixture.json")
+    scenario_bundle = _load("scenario_bundle_fixture.json")
+    stores = _load("stores_fixture.json")
+    cities = _load("cities_fixture.json")
+
+    rows, issues = build_decision_fact(
+        participants=participants,
+        scenario_bundle=scenario_bundle,
+        dataset_root="experiment",
+        cities_dataset=cities,
+        store_dataset=stores,
+    )
+
+    p1_r1 = next(r for r in rows if r["participant_id"] == "p1" and r["round_index"] == 1)
+    p1_r2 = next(r for r in rows if r["participant_id"] == "p1" and r["round_index"] == 2)
+    assert p1_r1["classification"] in {"easy", "medium", "hard", "unclassified"}
+    assert p1_r2["phase"] == "B"
+    assert not any(issue["issue_type"] == "missing_classification" for issue in issues)
