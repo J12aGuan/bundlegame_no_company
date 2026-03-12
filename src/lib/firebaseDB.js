@@ -1,6 +1,6 @@
 import { timeStamp } from './bundle';
-import {app, firestore} from './firebaseConfig';
-import { collection, collectionGroup, doc, setDoc, getDoc, getDocs, addDoc, arrayUnion, updateDoc, Timestamp, increment, deleteDoc, deleteField } from "firebase/firestore";
+import {firestore} from './firebaseConfig';
+import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, increment, deleteDoc, deleteField } from "firebase/firestore";
 
 function removeUndefinedDeep(value) {
     if (Array.isArray(value)) {
@@ -17,32 +17,8 @@ function removeUndefinedDeep(value) {
     return value;
 }
 
-export const incrementCounter = async () => {
-    const docRef = doc(collection(firestore, 'Global'), "totalusers");
-    try {
-        await updateDoc(docRef, {
-            count: increment(1)
-        });
-        console.log("Count incremented");
-    } catch (error) {
-        console.error("Error adding document: ", error);
-    }
-}
-
-export const getCounter = async () => {
-    const docRef = doc(collection(firestore, 'Global'), "totalusers");
-    try {
-        const docSnap = await getDoc(docRef);
-        let count = docSnap.data().count
-        console.log("Count retrieved");
-        return count
-    } catch (error) {
-        console.error("Error adding document: ", error);
-    }
-    return 0
-}
-
 export const createUser = async (id, n) => {
+    if (!id) return '';
     const data = {
         earnings: 0,
         ordersComplete: 0,
@@ -78,6 +54,120 @@ export const createUser = async (id, n) => {
     
     return id
 }
+
+function getSummaryRef(id) {
+    return doc(collection(firestore, 'Users/' + id + '/Summary'), 'summary');
+}
+
+function generateResultAccessKey() {
+    const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const length = 24;
+    let key = '';
+
+    if (globalThis.crypto?.getRandomValues) {
+        const bytes = new Uint8Array(length);
+        globalThis.crypto.getRandomValues(bytes);
+        for (let i = 0; i < bytes.length; i += 1) {
+            key += alphabet[bytes[i] % alphabet.length];
+        }
+        return key;
+    }
+
+    for (let i = 0; i < length; i += 1) {
+        key += alphabet[Math.floor(Math.random() * alphabet.length)];
+    }
+    return key;
+}
+
+export const initializeUserProgress = async (id, progress = {}) => {
+    if (!id) return;
+    const resultAccessKey = String(progress?.resultAccessKey ?? generateResultAccessKey()).trim();
+    const payload = removeUndefinedDeep({
+        scenarioSet: String(progress?.scenarioSet ?? '').trim(),
+        totalRounds: Number(progress?.totalRounds) || 0,
+        roundsCompleted: 0,
+        optimalChoices: 0,
+        totalGameTime: 0,
+        completedGame: false,
+        earnings: 0,
+        resultAccessKey,
+        createdAt: Timestamp.fromDate(new Date()),
+        updatedAt: Timestamp.fromDate(new Date())
+    });
+
+    try {
+        await setDoc(getSummaryRef(id), payload);
+        console.log("Summary initialized for ", id);
+        return payload;
+    } catch (error) {
+        console.error("Error initializing summary: ", error);
+        return null;
+    }
+};
+
+export const recordScenarioProgress = async (id, progress = {}) => {
+    if (!id) return;
+    const scenarioId = String(progress?.scenarioId ?? progress?.scenarioName ?? '').trim();
+    if (!scenarioId) return;
+
+    const summaryUpdate = removeUndefinedDeep({
+        scenarioSet: String(progress?.scenarioSet ?? '').trim(),
+        totalRounds: Number(progress?.totalRounds) || 0,
+        roundsCompleted: progress?.success ? increment(1) : increment(0),
+        optimalChoices: progress?.isOptimalChoice ? increment(1) : increment(0),
+        totalGameTime: Number(progress?.totalGameTime) || 0,
+        completedGame: Boolean(progress?.completedGame),
+        earnings: Number(progress?.earnings) || 0,
+        updatedAt: Timestamp.fromDate(new Date())
+    });
+
+    try {
+        await setDoc(getSummaryRef(id), summaryUpdate, { merge: true });
+        console.log("Summary updated for ", id, scenarioId);
+    } catch (error) {
+        console.error("Error updating summary from scenario progress: ", error);
+    }
+};
+
+export const updateUserProgressSummary = async (id, progress = {}) => {
+    if (!id) return;
+    const payload = removeUndefinedDeep({
+        scenarioSet: progress?.scenarioSet,
+        totalRounds: Number(progress?.totalRounds) || undefined,
+        totalGameTime: Number(progress?.totalGameTime),
+        completedGame: progress?.completedGame,
+        earnings: Number(progress?.earnings),
+        updatedAt: Timestamp.fromDate(new Date())
+    });
+
+    try {
+        await setDoc(getSummaryRef(id), payload, { merge: true });
+        console.log("Summary updated for ", id);
+    } catch (error) {
+        console.error("Error updating summary: ", error);
+    }
+};
+
+export const getUserSummary = async (id) => {
+    if (!id) return null;
+    try {
+        const snap = await getDoc(getSummaryRef(id));
+        if (!snap.exists()) return null;
+        return { id: snap.id, ...snap.data() };
+    } catch (error) {
+        console.error("Error fetching user summary: ", error);
+        return null;
+    }
+};
+
+export const getParticipantResultSummary = async (userId, accessKey) => {
+    const summary = await getUserSummary(userId);
+    if (!summary) return null;
+    if (String(summary.resultAccessKey ?? '').trim() !== String(accessKey ?? '').trim()) {
+        return null;
+    }
+    return summary;
+};
 
 //function for a random number given a seed
 //written by CHATGPT
@@ -155,12 +245,6 @@ function generateToken(id) {
     let third = generateNumber(random, 11) //B
     let fourth = generateNumber(random, 10) //A
     return first + "-" + second + "-" + third + "-" + fourth
-}
-
-export const generateCompleteId = (id) => {
-    let newId = id + "qq"
-    let generatedToken = generateToken(newId)
-    return generatedToken
 }
 
 //returns 0 on error and 1 on success
@@ -279,13 +363,16 @@ export const retrieveData = async () => {
             // Fetch subcollections for each document
             const orders = await getSubcollections(docId, '/Orders');
             const actions = await getSubcollections(docId, '/Actions');
+            const summaryDocs = await getSubcollections(docId, '/Summary');
+            const progressSummary = summaryDocs.find((entry) => entry.id === 'summary') || null;
             
             
             data.push({
             id: docId,  // Include document ID
             ...docData,
             orders,
-            actions  // Attach subcollections
+            actions,
+            progressSummary
             });
         } else {
             console.log("not adding to data")

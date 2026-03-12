@@ -1,7 +1,9 @@
 import { writable, readable, derived, get} from 'svelte/store';
+import { browser } from '$app/environment';
 import { 
     addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser,
-    getCentralConfig, getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getCitiesData, getEmojisData
+    getCentralConfig, getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getCitiesData, getEmojisData,
+    getScenarioDatasetBundle, initializeUserProgress, recordScenarioProgress, updateUserProgressSummary
 } from './firebaseDB';
 
 import { switchJob, setPenaltyTimeout } from './config';
@@ -26,6 +28,7 @@ let config = {
 };
 
 let experimentScenarios = [];
+let optimalByScenarioId = new Map();
 let firebaseInitialized = false;
 let initializedMode = null;
 
@@ -112,6 +115,7 @@ let actionCounter = 0;
 export const uniqueSets = writable(0);
 export const orderList = writable([])
 export const FullTimeLimit = writable(config["timeLimit"]);
+export const participantResultUrl = writable("");
 
 export const needsAuth = writable(config["auth"])
 
@@ -125,6 +129,12 @@ export const roundStartTime = writable(0);
 export function getCurrentScenario(round) {
   const scenariosArray = get(scenarios);
   return scenariosArray.find((s) => s.round === round) ?? scenariosArray[scenariosArray.length - 1] ?? { round: 1, max_bundle: 3, orders: [] };
+}
+
+export function getOptimalForScenario(scenarioId) {
+	const id = String(scenarioId ?? '').trim();
+	if (!id) return null;
+	return optimalByScenarioId.get(id) ?? null;
 }
 
 function hydrateScenariosWithOrders(rawScenarios = [], orders = []) {
@@ -277,6 +287,13 @@ export const elapsed = derived([timeStamp, FullTimeLimit], ([$timeStamp, $FullTi
 			uniqueSetsComplete: get(uniqueSets),
 	        	gametime: $FullTimeLimit
 		})
+		updateUserProgressSummary(get(id), {
+			scenarioSet: config.scenario_set,
+			totalRounds: get(scenarios).length,
+			totalGameTime: $FullTimeLimit,
+			completedGame: true,
+			earnings: get(earned)
+		});
 		GameOver.set(true);
 		stopTimeInterval?.();
 		set($FullTimeLimit)
@@ -404,6 +421,19 @@ export const authUser = (id, pass) => {
 	return authenticateUser(id, pass)
 }
 
+export const saveScenarioProgress = (progress) => {
+	if (!get(needsAuth)) {
+		return;
+	}
+	recordScenarioProgress(get(id), {
+		...progress,
+		scenarioSet: config.scenario_set,
+		totalRounds: get(scenarios).length,
+		totalGameTime: get(elapsed),
+		earnings: get(earned)
+	});
+}
+
 export async function loadConfigByName(fileName) {
   const normalizedId = fileName?.replace(/\.json$/i, '');
   const isOrderFile = normalizedId?.startsWith('order');
@@ -444,13 +474,23 @@ export async function loadGame(mode = 'main') {
 	}
 	try {
 		const datasetId = config.scenario_set || 'experiment';
-		let orderFile = await getOrdersData(datasetId)
+		const datasetBundle = await getScenarioDatasetBundle(datasetId);
+		let orderFile = Array.isArray(datasetBundle?.orders) ? datasetBundle.orders : await getOrdersData(datasetId)
 		let storeFile = await loadConfigByName(MAIN_STORE_FILE)
 		let cityFile = await loadConfigByName(MAIN_CITIES_FILE)
 
 		if (!orderFile || !storeFile) {
 			console.error("Could not find files specified in configuration")
 		} else {
+			if (Array.isArray(datasetBundle?.scenarios) && datasetBundle.scenarios.length > 0) {
+				experimentScenarios = datasetBundle.scenarios;
+			}
+			const optimalList = Array.isArray(datasetBundle?.optimal) ? datasetBundle.optimal : [];
+			optimalByScenarioId = new Map(
+				optimalList
+					.map((entry = {}) => [String(entry?.scenario_id ?? '').trim(), entry])
+					.filter(([scenarioId]) => scenarioId.length > 0)
+			);
 			storeConfigs = {
 				stores: storeFile.stores || [],
 				// Prefer new cities doc, fallback to legacy fields inside store doc
@@ -459,7 +499,7 @@ export async function loadGame(mode = 'main') {
 				distances: storeFile.distances ?? {}
 			}
 			orderConfigs = orderFile
-			scenarios.set(hydrateScenariosWithOrders(get(scenarios), orderConfigs));
+			scenarios.set(hydrateScenariosWithOrders(experimentScenarios, orderConfigs));
 		}
 	} catch (err) {
 		console.error("Error loading fixed datasets", err)
@@ -474,5 +514,14 @@ export async function loadGame(mode = 'main') {
 export async function createNewUser(id, mode = 'main') {
 	let n = await loadGame(mode)
 	await createUser(id, n)
+	const summary = await initializeUserProgress(id, {
+		scenarioSet: config.scenario_set,
+		totalRounds: get(scenarios).length
+	});
+	if (browser && summary?.resultAccessKey) {
+		participantResultUrl.set(`${window.location.origin}/result?userId=${encodeURIComponent(id)}&key=${encodeURIComponent(summary.resultAccessKey)}`);
+	} else {
+		participantResultUrl.set("");
+	}
     return n
 }
