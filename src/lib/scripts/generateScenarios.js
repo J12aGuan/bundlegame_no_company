@@ -985,7 +985,10 @@ export function buildScenarioRound(caseResult, context = {}) {
       round,
       scenario_id: scenarioId,
       max_bundle: maxBundle,
-      order_ids: orderIds
+      order_ids: orderIds,
+      classification: String(caseResult?.solution?.difficulty || "unclassified"),
+      score_gap: Number(caseResult?.solution?.gap) || 0,
+      relative_gap: Number(caseResult?.solution?.relativeGap) || 0
     },
     optimal: {
       scenario_id: scenarioId,

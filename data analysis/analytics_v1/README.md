@@ -25,7 +25,16 @@ Optional modeled-time parity inputs:
 - `kpi_overall.csv`
 - `kpi_by_round.csv`
 - `kpi_by_participant.csv`
+- `kpi_by_classification.csv`
 - `kpi_by_scenario.csv`
 - `qa_issues.csv`
 - `cohort_comparisons.csv` (when `--cohort-col` is passed)
 - `run_metadata.json`
+
+`decision_fact.csv` includes RL-ready columns used by the admin dashboard:
+- `dataset_root`, `participant_id`, `round_index`, `scenario_id`
+- `classification`, `phase`, `current_city`
+- `chosen_orders`, `best_bundle_ids`, `bundle_size`
+- `success`, `is_failure`, `duration`, `participant_earnings`
+- `participant_modeled_time`, `participant_score`, `best_score`
+- `score_ratio_to_best`, `percent_regret`, `is_exact_optimal`, `is_near_optimal`

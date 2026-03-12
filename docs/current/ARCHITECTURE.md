@@ -13,6 +13,8 @@ This document describes the **current** runtime architecture used by the app.
 - `src/lib/firebaseDB.js`: Firestore data access (users, actions, orders, master data datasets)
 - `src/routes/bundlegame.svelte`: gameplay UI and round lifecycle
 - `src/routes/admin/masterdata/+page.svelte`: admin management for configs and scenario datasets
+- `src/routes/admin/analysis/+page.svelte`: live participant-vs-optimal admin analytics dashboard
+- `src/lib/analysis/engine.js`: shared client-side analytics engine + decision-fact/stat models
 - `src/lib/scripts/generateScenarios.js`: scenario generation + optimal bundle solving pipeline
 
 ## Data Model (MasterData)
@@ -24,6 +26,7 @@ It reads from Firestore `MasterData`, especially:
 
 Grouped dataset entry shape:
 - `scenarios[]` (round -> scenario_id, max_bundle, order_ids)
+  - generated datasets also include `classification`, `score_gap`, `relative_gap`
 - `orders[]` (order details)
 - `optimal[]` (best_bundle_ids, second_best_bundle_ids)
 - `metadata` (generation settings)
@@ -37,3 +40,5 @@ Grouped dataset entry shape:
 
 ## Notes
 Legacy docs from pre-MasterData static-file architecture are archived in `docs/archive/legacy-2026-03/`.
+
+For analytics and RL export details, see `docs/current/ANALYTICS_AND_RL_EXPORTS.md`.
