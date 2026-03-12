@@ -39,6 +39,7 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 |----------|---------|----------|
 | [current/ARCHITECTURE.md](current/ARCHITECTURE.md) | Current runtime architecture | Everyone |
 | [current/CONFIG_AND_DATASETS.md](current/CONFIG_AND_DATASETS.md) | Firestore config and dataset model | Developers |
+| [current/ANALYTICS_AND_RL_EXPORTS.md](current/ANALYTICS_AND_RL_EXPORTS.md) | Admin analysis dashboard + RL export contract | Developers/Researchers |
 | [archive/README.md](archive/README.md) | Archived legacy docs index | Developers |
 
 ### ⚙️ Configuration
@@ -46,6 +47,7 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 | Document | Purpose | Audience |
 |----------|---------|----------|
 | [current/CONFIG_AND_DATASETS.md](current/CONFIG_AND_DATASETS.md) | Current config + dataset operations | Everyone |
+| [current/ANALYTICS_AND_RL_EXPORTS.md](current/ANALYTICS_AND_RL_EXPORTS.md) | Analysis metrics, exports, and workflow | Researchers |
 | [archive/legacy-2026-03/](archive/legacy-2026-03/) | Legacy static-config documentation | Researchers |
 
 ### 🔐 Security
@@ -83,6 +85,7 @@ Welcome to the Bundle Game documentation! This is your central hub for all proje
 | Understand the codebase | [current/ARCHITECTURE.md](current/ARCHITECTURE.md) |
 | Change game timers/parameters | [current/CONFIG_AND_DATASETS.md](current/CONFIG_AND_DATASETS.md) |
 | Modify experiment rounds | [current/CONFIG_AND_DATASETS.md](current/CONFIG_AND_DATASETS.md) |
+| Analyze participant behavior and export RL-ready data | [current/ANALYTICS_AND_RL_EXPORTS.md](current/ANALYTICS_AND_RL_EXPORTS.md) |
 | Secure the database | [../SECURITY.md](../SECURITY.md) |
 | Add a new feature | [../README.md#-contributing](../README.md#-contributing) |
 | Export participant data | [../README.md](../README.md#-data-export) |

@@ -28,7 +28,8 @@
     const navItems = [
         { label: 'Dashboard', href: '/admin' },
         { label: 'Master Data', href: '/admin/masterdata' },
-        { label: 'Results', href: '/admin/results' }
+        { label: 'Results', href: '/admin/results' },
+        { label: 'Analysis', href: '/admin/analysis' }
     ];
     
     function isActive(href) {

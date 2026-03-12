@@ -95,12 +95,18 @@
     <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:px-6">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <a 
                     href="/admin/results"
                     class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
                 >
                     View Results
+                </a>
+                <a 
+                    href="/admin/analysis"
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+                >
+                    View Analysis
                 </a>
                 <a 
                     href="/"

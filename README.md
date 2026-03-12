@@ -61,6 +61,7 @@ npm run dev
 | **Getting Started** | [Setup Guide](docs/setup/QUICKSTART.md) |
 | **Code Structure** | [Current Architecture](docs/current/ARCHITECTURE.md) |
 | **Configuration** | [Current Config & Datasets](docs/current/CONFIG_AND_DATASETS.md) |
+| **Analysis & RL Exports** | [Analytics Guide](docs/current/ANALYTICS_AND_RL_EXPORTS.md) |
 | **Experiment Design** | [Experiment Guide](docs/experiment/EXPERIMENT_DESIGN.md) |
 
 ---
@@ -78,6 +79,7 @@ bundlegame_no_company/
 │   │   ├── +page.svelte        # Login page
 │   │   ├── bundlegame.svelte   # Main game
 │   │   ├── admin/masterdata    # Config + dataset admin UI
+│   │   ├── admin/analysis      # Participant-vs-optimal analytics dashboard
 │   │   └── downloader/         # Data export (password-protected)
 │
 ├── docs/current/               # ✅ Authoritative architecture/config docs
@@ -160,6 +162,9 @@ git checkout -b docs/what-you-changed       # documentation
 3. Download JSON with all participant data
 
 **Analysis**: notebooks and pipeline in [`data analysis/`](data%20analysis/)
+
+For live analysis in the app, use `/admin/analysis` (admin dashboard).  
+Exported analytics include RL-ready `decision_fact.csv/.json` plus grouped KPI CSVs.
 
 ---
 

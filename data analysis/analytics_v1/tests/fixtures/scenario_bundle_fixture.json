@@ -1,7 +1,7 @@
 {
   "scenarios": [
-    {"round": 1, "scenario_id": "s1", "max_bundle": 3, "order_ids": ["o1", "o2"]},
-    {"round": 2, "scenario_id": "s2", "max_bundle": 3, "order_ids": ["o3", "o4"]}
+    {"round": 1, "scenario_id": "s1", "max_bundle": 3, "order_ids": ["o1", "o2"], "classification": "easy", "phase": "A"},
+    {"round": 2, "scenario_id": "s2", "max_bundle": 3, "order_ids": ["o3", "o4"], "classification": "hard", "phase": "B"}
   ],
   "orders": [
     {"id": "o1", "city": "Berkeley", "store": "StoreA", "items": {"apple": 1}, "earnings": 10, "estimatedTime": 10},
