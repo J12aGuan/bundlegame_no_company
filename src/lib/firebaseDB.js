@@ -573,12 +573,19 @@ export const saveExperimentScenarios = async (scenariosData, scenariosId = 'expe
 }
 
 // Tutorial Configuration
+function sanitizeTutorialConfig(configData = {}) {
+    const next = { ...(configData || {}) };
+    delete next.timeLimit;
+    delete next.updatedAt;
+    return next;
+}
+
 export const getTutorialConfig = async () => {
     try {
         const docSnap = await getDoc(doc(firestore, 'MasterData', 'tutorialConfig'));
         if (docSnap.exists()) {
             console.log('Tutorial config fetched');
-            return docSnap.data();
+            return sanitizeTutorialConfig(docSnap.data());
         } else {
             console.log('Tutorial config not found');
             return null;
@@ -592,8 +599,9 @@ export const getTutorialConfig = async () => {
 export const saveTutorialConfig = async (configData) => {
     try {
         const docRef = doc(firestore, 'MasterData', 'tutorialConfig');
+        const payload = sanitizeTutorialConfig(configData);
         await setDoc(docRef, {
-            ...configData,
+            ...payload,
             updatedAt: Timestamp.fromDate(new Date())
         });
         console.log('Tutorial config saved');

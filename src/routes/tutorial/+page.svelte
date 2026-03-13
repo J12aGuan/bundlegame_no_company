@@ -1,13 +1,14 @@
 <script>
     import { globalError } from "$lib/globalError.js"
     import Bundlegame from "../bundlegame.svelte";
-    import { game, elapsed, resetTimer, earned, currLocation, id, logAction, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, participantResultUrl } from "$lib/bundle.js";
+    import { game, elapsed, resetTimer, earned, currLocation, id, logAction, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, participantResultUrl, gameMode } from "$lib/bundle.js";
 	import Home from "../home.svelte";
 	import { onMount } from "svelte";
     import { queueNFixedOrders } from "$lib/config.js";
     import '../../app.css';
 
     function formatTime(seconds) {
+        if (seconds == null) return "None";
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
@@ -22,13 +23,20 @@
     let started = false;
     let authResolved = false;
 
-    async function copyResultUrl() {
-        if (!$participantResultUrl) return;
+    async function copyResultCode() {
+        const resultCode = displayResultCode($participantResultUrl);
+        if (!resultCode) return;
         try {
-            await navigator.clipboard.writeText($participantResultUrl);
+            await navigator.clipboard.writeText(resultCode);
         } catch (err) {
-            console.error('Failed to copy result URL:', err);
+            console.error('Failed to copy result code:', err);
         }
+    }
+
+    function displayResultCode(url) {
+        if (!url) return '';
+        const queryIndex = url.indexOf('?');
+        return queryIndex >= 0 ? url.slice(queryIndex + 1) : url;
     }
     async function start() {
         const auth = await authUser(userInput, userPass)
@@ -151,32 +159,8 @@
     <!-- Game View or Game Over -->
     {#if $GameOver}
         <div class="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-            <div class="max-w-xl w-full p-6 bg-white rounded-2xl shadow-md text-center space-y-6">
-                <h3 class="text-2xl font-bold text-red-600">Game Over!</h3>
-
-                <div>
-                    <h4 class="text-xl font-semibold text-gray-800">Your Stats:</h4>
-                    <ul class="list-disc list-inside text-left text-gray-700 mt-2 space-y-1">
-                    <li><span class="font-medium">Earnings:</span> ${$earned}</li>
-                    <li><span class="font-medium">Finished Orders:</span> {$finishedOrders.length}</li>
-                    </ul>
-                </div>
-                {#if $participantResultUrl}
-                <div class="bg-slate-100 p-4 rounded border border-slate-200 text-left">
-                    <h3 class="text-lg font-semibold text-slate-900 mb-2">Participant Result URL</h3>
-                    <p class="break-all text-sm text-slate-700 font-mono">{$participantResultUrl}</p>
-                    <p class="mt-2 text-sm text-slate-600">
-                        Copy this URL into the Qualtrics survey submission.
-                    </p>
-                    <button
-                        type="button"
-                        class="mt-3 w-full rounded-lg bg-slate-900 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition"
-                        on:click={copyResultUrl}
-                    >
-                        Copy Result URL
-                    </button>
-                </div>
-                {/if}
+            <div class="max-w-xl w-full p-8 bg-white rounded-2xl shadow-md text-center">
+                <h3 class="text-2xl font-bold text-green-700">Tutorial Complete</h3>
             </div>
         </div>
     {:else}
@@ -188,7 +172,7 @@
                         <div class="flex items-center gap-4 text-sm">
                             <div class="flex items-center gap-1.5">
                                 <span class="text-slate-700">Time:</span>
-                                <span class="font-mono font-semibold text-green-600">{formatTime($remainingTime)}</span>
+                                <span class="font-mono font-semibold text-green-600">{$gameMode === 'tutorial' ? 'None' : formatTime($remainingTime)}</span>
                             </div>
                             <div class="flex items-center gap-1.5">
                                 <span class="text-slate-700">Earned:</span>
