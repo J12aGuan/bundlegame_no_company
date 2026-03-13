@@ -16,13 +16,20 @@
     let started = false;
     let authResolved = false;
     
-    async function copyResultUrl() {
-        if (!$participantResultUrl) return;
+    async function copyResultCode() {
+        const resultCode = displayResultCode($participantResultUrl);
+        if (!resultCode) return;
         try {
-            await navigator.clipboard.writeText($participantResultUrl);
+            await navigator.clipboard.writeText(resultCode);
         } catch (err) {
-            console.error('Failed to copy result URL:', err);
+            console.error('Failed to copy result code:', err);
         }
+    }
+
+    function displayResultCode(url) {
+        if (!url) return '';
+        const queryIndex = url.indexOf('?');
+        return queryIndex >= 0 ? url.slice(queryIndex + 1) : url;
     }
     
     $: formattedRemaining = formatTime($remainingTime ?? $FullTimeLimit);
@@ -193,17 +200,17 @@
                 </div>
                 {#if $participantResultUrl}
                 <div class="bg-slate-100 p-4 rounded-xl border border-slate-200 text-left">
-                    <h3 class="text-lg font-semibold text-slate-900 mb-2">Participant Result URL</h3>
-                    <p class="break-all text-sm text-slate-700 font-mono">{$participantResultUrl}</p>
+                    <h3 class="text-lg font-semibold text-slate-900 mb-2">Participant Result Code</h3>
+                    <p class="break-all text-sm text-slate-700 font-mono">{displayResultCode($participantResultUrl)}</p>
                     <p class="mt-2 text-sm text-slate-600">
-                        Copy this URL into the Qualtrics survey submission.
+                        Copy this code into the Qualtrics survey submission.
                     </p>
                     <button
                         type="button"
                         class="mt-3 w-full rounded-lg bg-slate-900 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition"
-                        on:click={copyResultUrl}
+                        on:click={copyResultCode}
                     >
-                        Copy Result URL
+                        Copy Result Code
                     </button>
                 </div>
                 {/if}

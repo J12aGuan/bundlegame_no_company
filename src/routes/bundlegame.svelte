@@ -1,7 +1,7 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarios, emojisMap, roundTimeLimit } from "$lib/bundle.js"
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarios, emojisMap, roundTimeLimit, gameMode, endGameSession } from "$lib/bundle.js"
     import { storeConfig, getDistances } from "$lib/config.js"; // Import getDistances
     
     let config = {}; // Will be set properly in onMount()
@@ -48,11 +48,12 @@
     };
 
     // Timer config - now from centralized config
-    $: ROUND_TIME_LIMIT = $roundTimeLimit || 300;
+    $: hasRoundTimeLimit = $gameMode !== 'tutorial' && Number.isFinite(Number($roundTimeLimit)) && Number($roundTimeLimit) > 0;
+    $: ROUND_TIME_LIMIT = hasRoundTimeLimit ? Number($roundTimeLimit) : null;
     
     $: numOrders = $orders.length;
     $: elapsedTime = $elapsed - startTimer;
-    $: countdownTimer = Math.max(0, ROUND_TIME_LIMIT - elapsedTime);
+    $: countdownTimer = hasRoundTimeLimit ? Math.max(0, ROUND_TIME_LIMIT - elapsedTime) : null;
     $: locationLabel = config["locations"]?.[curLocation[0]]?.[curLocation[1]]?.toLowerCase() || "entrance";
 
     // Auto clear input
@@ -72,6 +73,11 @@
     const colClassMap = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-5', 6: 'grid-cols-6', 7: 'grid-cols-7', 8: 'grid-cols-8', 9: 'grid-cols-9' };
     let gridColsClass = colClassMap[numCols] || 'grid-cols-1';
 
+    function getEntrancePosition(nextConfig) {
+        const entrance = nextConfig?.Entrance;
+        return Array.isArray(entrance) && entrance.length >= 2 ? [...entrance] : [0, 0];
+    }
+
     onMount(() => {
         const selOrders = get(orders)
         startEarnings = selOrders.reduce((sum, order) => sum + order.earnings, 0)
@@ -84,7 +90,7 @@
             config = { Entrance: [0, 0], locations: [[""]], cellDistance: 1000 };
         }
         
-        curLocation = config["Entrance"]
+        curLocation = getEntrancePosition(config)
         currentDeliveryCity = selOrders[0].city; // Start delivery from Store City
         
         if ($game.tip) intervalId = setInterval(updateTip, 1000);
@@ -213,7 +219,7 @@
             config = { Entrance: [0, 0], locations: [[""]], cellDistance: 1000 };
         }
         
-        curLocation = config["Entrance"]; // Reset to entrance when starting
+        curLocation = getEntrancePosition(config); // Reset to entrance when starting
         GameState = 1;
     }
     
@@ -589,8 +595,9 @@
         console.log("finishSuccess() called - completing round");
         
         // 1. Never let logging crash the game
+        let completedGame = false;
         try {
-            logRoundCompletion(true);
+            completedGame = logRoundCompletion(true);
         } catch (err) {
             console.error("logRoundCompletion failed", err);
         }
@@ -617,6 +624,12 @@
         // The next round's orders will be generated from $currLocation in home.svelte
         
         // 3. Immediately advance to next round (no Round Complete screen)
+        if (completedGame) {
+            console.log("Final round complete - ending session");
+            endGameSession();
+            return;
+        }
+
         console.log("Round complete - immediately advancing to next round");
         exit();
     }
@@ -665,7 +678,8 @@
             completedGame
         });
 
-        if (success) currentRound.update(r => r + 1);
+        if (success && !completedGame) currentRound.update(r => r + 1);
+        return completedGame;
     }
 </script>
 
@@ -677,8 +691,12 @@
         </div>
         <div class="text-right">
              <div class="text-lg font-bold text-green-600">${totalEarnings}</div>
-             <div class="text-xs text-slate-400 font-mono {countdownTimer < 60 ? 'text-red-500 font-bold' : ''}">
-                 ⏱️ {Math.floor(countdownTimer / 60)}:{(countdownTimer % 60).toString().padStart(2, '0')}
+             <div class="text-xs text-slate-400 font-mono {hasRoundTimeLimit && countdownTimer < 60 ? 'text-red-500 font-bold' : ''}">
+                 {#if hasRoundTimeLimit}
+                    ⏱️ {Math.floor(countdownTimer / 60)}:{(countdownTimer % 60).toString().padStart(2, '0')}
+                 {:else}
+                    ⏱️ No time limit
+                 {/if}
              </div>
         </div>
     </div>
@@ -761,7 +779,9 @@
                     {/each}
                 </div>
                 <div class="flex justify-between pt-2 border-t">
+                    {#if $gameMode !== 'tutorial'}
                     <button class="text-red-500 font-bold text-sm" on:click={giveUp}>Give Up</button>
+                    {/if}
                     <button class="bg-green-600 text-white px-5 py-2 rounded-full font-bold shadow text-sm" on:click={checkoutOrders}>Checkout & Deliver</button>
                 </div>
             </div>
