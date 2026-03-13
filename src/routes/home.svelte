@@ -1,6 +1,6 @@
 <script>
     import { get } from 'svelte/store';
-    import { game, orders, gameText, currLocation, logOrders, orderList, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed } from "$lib/bundle.js";
+    import { game, orders, gameText, currLocation, logOrders, orderList, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed, gameMode, scenarios } from "$lib/bundle.js";
     import { getDistances, storeConfig, PENALTY_TIMEOUT } from "$lib/config.js";
     import Order from "./order.svelte";
     import { onMount, onDestroy } from "svelte";
@@ -8,6 +8,11 @@
     // --- EXPERIMENT DATA PROCESSING ---
     $: scenario = getCurrentScenario($currentRound);
     $: maxBundle = scenario.max_bundle ?? 3;
+    $: isTutorialRoundOne = $gameMode === 'tutorial' && $currentRound === 1;
+    $: isTutorialRoundTwo = $gameMode === 'tutorial' && $currentRound === 2;
+    $: selectorPrompt = isTutorialRoundOne
+        ? "Select 1 Order to Start"
+        : (isTutorialRoundTwo ? "Select 2+ Orders to Start" : "Select Orders to Start");
     
     // Cache for hydrated orders to prevent infinite reactive loops
     let hydratedOrdersCache = new Map();
@@ -98,6 +103,14 @@
             alert(`Please select at least 1 order.`);
             return;
         }
+        if (isTutorialRoundOne && selOrders.length !== 1) {
+            alert("Round 1 of the tutorial only allows 1 order.");
+            return;
+        }
+        if (isTutorialRoundTwo && selOrders.length < 2) {
+            alert("Round 2 of the tutorial requires bundling at least 2 orders.");
+            return;
+        }
         if (selOrders.length > maxBundle) {
             alert(`You can only select up to ${maxBundle} orders this round!`);
             return;
@@ -153,15 +166,30 @@
 
     function startThinkingTimer() {
         clearTimers();
-        thinking = true;
         thinkRemaining = Number($thinkTime) || 0;
+        if (thinkRemaining <= 0) {
+            thinking = false;
+            thinkInterval = null;
+            return;
+        }
+        thinking = true;
         thinkInterval = setInterval(() => {
             thinkRemaining -= 1;
             if (thinkRemaining <= 0) {
                 thinking = false;
                 clearInterval(thinkInterval);
+                thinkInterval = null;
             }
         }, 1000);
+    }
+
+    function skipThinking() {
+        thinking = false;
+        thinkRemaining = 0;
+        if (thinkInterval) {
+            clearInterval(thinkInterval);
+            thinkInterval = null;
+        }
     }
 
     function startPenalty() {
@@ -295,13 +323,13 @@
     {:else}
         <div class="flex flex-wrap items-end justify-between gap-2">
             <div>
-                <h1 class="text-xl font-bold text-slate-900">Round {$currentRound} / 50</h1>
+                <h1 class="text-xl font-bold text-slate-900">Round {$currentRound} / {$scenarios.length || 0}</h1>
                 <p class="text-sm text-slate-500">Current Location: <span class="font-bold text-blue-600">{$currLocation}</span></p>
             </div>
             {#if thinking}
                 <div class="bg-blue-50 px-3 py-1.5 rounded-lg text-blue-800 text-xs font-medium border border-blue-100">
                     ⏱️ Review Time: {thinkRemaining}s
-                    <button class="ml-2 text-xs underline opacity-60 hover:opacity-100" on:click={() => thinkRemaining = 0}>Skip</button>
+                    <button class="ml-2 text-xs underline opacity-60 hover:opacity-100" on:click={skipThinking}>Skip</button>
                 </div>
             {/if}
         </div>
@@ -313,7 +341,7 @@
                 <!-- Fixed height grid for 4 orders without scrolling -->
                 <div class="grid grid-cols-2 gap-2">
                     {#each localOrders as order, i (order.id)}
-                        <Order orderData={order} index={i} updateEarnings={updateEarnings}/>
+                        <Order orderData={order} index={i} updateEarnings={updateEarnings} disabled={thinking}/>
                     {/each}
                 </div>
 
@@ -321,9 +349,9 @@
                     <button id="startorder"
                         class="w-full bg-green-600 text-white font-bold py-2.5 rounded-xl shadow-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
                         on:click={start}
-                        disabled={$orders.length === 0}
+                        disabled={$orders.length === 0 || thinking}
                     >
-                        {$gameText.selector === "None selected" ? "Select Orders to Start" : $gameText.selector}
+                        {$gameText.selector === "None selected" ? selectorPrompt : $gameText.selector}
                     </button>
                 </div>
             </div>

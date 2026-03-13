@@ -1,5 +1,5 @@
 <script>
-    import { orders, currLocation, gameText, orderList, game, currentRound, getCurrentScenario } from "$lib/bundle.js"
+    import { orders, currLocation, gameText, orderList, game, currentRound, getCurrentScenario, gameMode } from "$lib/bundle.js"
     import { onMount, onDestroy } from 'svelte';
     import { queueNFixedOrders, storeConfig, getDistances } from "$lib/config.js";
     import { applySharedItemBundleSavings } from "$lib/bundleTime.js";
@@ -7,6 +7,7 @@
     export let orderData;
     export let index;
     export let updateEarnings;
+    export let disabled = false;
     let selected = false;
     let timer = 0;
     let intervalId;
@@ -15,6 +16,7 @@
 
     $: scenario = getCurrentScenario($currentRound);
     $: maxBundle = scenario.max_bundle ?? 3;
+    $: isTutorialRoundOne = $gameMode === 'tutorial' && $currentRound === 1;
     $: baseEstimateSeconds = Number(orderData?.estimatedTime) || 0;
     $: extraCrossCitySeconds = (() => {
         const destinationCity = String(orderData?.city || "");
@@ -72,7 +74,12 @@
 
     
     function select() {
+        if (disabled) return;
         if (!selected) {
+            if (isTutorialRoundOne && $orders.length >= 1) {
+                alert("Round 1 of the tutorial only allows 1 order.");
+                return;
+            }
             if ($orders.length >= maxBundle) return;
             $orders.push(orderData)
             selected = true
@@ -122,7 +129,8 @@
 
 {#if !taken}
     <div class="relative rounded-lg bg-white border transition-all cursor-pointer select-none overflow-hidden
-        {selected ? 'ring-2 ring-green-500 shadow-md transform scale-[1.01]' : 'hover:shadow-md hover:border-blue-300'}"
+        {disabled ? 'opacity-60 cursor-not-allowed' : ''}
+        {selected ? 'ring-2 ring-green-500 shadow-md transform scale-[1.01]' : (!disabled ? 'hover:shadow-md hover:border-blue-300' : '')}"
         on:click={select}
     >
         <div class="p-2 space-y-1">

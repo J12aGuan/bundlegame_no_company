@@ -38,18 +38,19 @@ export async function initializeFromFirebase(mode = 'main') {
 		if (mode === 'tutorial') {
 			const tutorialConfigData = await getTutorialConfig();
 			if (tutorialConfigData) {
-				config = {
-					...config,
-					timeLimit: tutorialConfigData.timeLimit ?? config.timeLimit,
-					thinkTime: tutorialConfigData.thinkTime ?? config.thinkTime,
-					gridSize: tutorialConfigData.gridSize ?? config.gridSize,
-					auth: tutorialConfigData.auth ?? config.auth,
-					tips: tutorialConfigData.tips ?? config.tips,
-					waiting: tutorialConfigData.waiting ?? config.waiting,
-					refresh: tutorialConfigData.refresh ?? config.refresh,
-					expire: tutorialConfigData.expire ?? config.expire,
-					scenario_set: tutorialConfigData.scenario_set ?? config.scenario_set
-				};
+					config = {
+						...config,
+						timeLimit: null,
+						thinkTime: tutorialConfigData.thinkTime ?? config.thinkTime,
+						gridSize: tutorialConfigData.gridSize ?? config.gridSize,
+						auth: tutorialConfigData.auth ?? config.auth,
+						tips: tutorialConfigData.tips ?? config.tips,
+						waiting: tutorialConfigData.waiting ?? config.waiting,
+						refresh: tutorialConfigData.refresh ?? config.refresh,
+						expire: tutorialConfigData.expire ?? config.expire,
+						roundTimeLimit: null,
+						scenario_set: tutorialConfigData.scenario_set ?? config.scenario_set
+					};
 				console.log('Tutorial config loaded from Firebase:', config);
 			}
 		} else {
@@ -94,6 +95,7 @@ export async function initializeFromFirebase(mode = 'main') {
 	thinkTime.set(config.thinkTime);
 	ordersShown.set(config.ordersShown);
 	roundTimeLimit.set(config.roundTimeLimit);
+	gameMode.set(mode);
 	setPenaltyTimeout(config.penaltyTimeout);
 	scenarios.set(experimentScenarios);
 	game.update((current) => ({
@@ -116,6 +118,7 @@ export const uniqueSets = writable(0);
 export const orderList = writable([])
 export const FullTimeLimit = writable(config["timeLimit"]);
 export const participantResultUrl = writable("");
+export const gameMode = writable('main');
 
 export const needsAuth = writable(config["auth"])
 
@@ -280,20 +283,23 @@ export const currLocation = writable("");
 
 export const elapsed = derived([timeStamp, FullTimeLimit], ([$timeStamp, $FullTimeLimit], set) => {
 	const elapsedSeconds = Math.round($timeStamp / 1000);
-	if (elapsedSeconds >= $FullTimeLimit && elapsedSeconds <= $FullTimeLimit + 2) {
-		updateFields(get(id), {
-			earnings: get(earned),
-	        	ordersComplete: get(finishedOrders).length,
-			uniqueSetsComplete: get(uniqueSets),
-	        	gametime: $FullTimeLimit
-		})
-		updateUserProgressSummary(get(id), {
-			scenarioSet: config.scenario_set,
-			totalRounds: get(scenarios).length,
-			totalGameTime: $FullTimeLimit,
-			completedGame: true,
-			earnings: get(earned)
-		});
+	const hasOverallLimit = Number.isFinite(Number($FullTimeLimit)) && Number($FullTimeLimit) > 0;
+	if (hasOverallLimit && elapsedSeconds >= $FullTimeLimit && elapsedSeconds <= $FullTimeLimit + 2) {
+		if (get(needsAuth) && get(id)) {
+			updateFields(get(id), {
+				earnings: get(earned),
+		        	ordersComplete: get(finishedOrders).length,
+				uniqueSetsComplete: get(uniqueSets),
+		        	gametime: $FullTimeLimit
+			})
+			updateUserProgressSummary(get(id), {
+				scenarioSet: config.scenario_set,
+				totalRounds: get(scenarios).length,
+				totalGameTime: $FullTimeLimit,
+				completedGame: true,
+				earnings: get(earned)
+			});
+		}
 		GameOver.set(true);
 		stopTimeInterval?.();
 		set($FullTimeLimit)
@@ -305,7 +311,10 @@ export const elapsed = derived([timeStamp, FullTimeLimit], ([$timeStamp, $FullTi
 
 export const remainingTime = derived(
 	[elapsed, FullTimeLimit],
-	([$elapsed, $FullTimeLimit]) => Math.max($FullTimeLimit - $elapsed, 0)
+	([$elapsed, $FullTimeLimit]) => {
+		const hasOverallLimit = Number.isFinite(Number($FullTimeLimit)) && Number($FullTimeLimit) > 0;
+		return hasOverallLimit ? Math.max($FullTimeLimit - $elapsed, 0) : null;
+	}
 );
 
 export const toggleTime = () => {
@@ -324,10 +333,40 @@ export const toggleTime = () => {
 	}
 }
 
+function resetRuntimeState() {
+	orders.set([]);
+	finishedOrders.set([]);
+	failedOrders.set([]);
+	earned.set(0);
+	uniqueSets.set(0);
+	currentRound.set(1);
+	roundStartTime.set(0);
+	penaltyEndTime.set(0);
+	GameOver.set(false);
+	gameText.set({
+		selector: "None selected",
+	});
+	game.set({
+		inSelect: false,
+		inStore: false,
+		bundled: false,
+		tip: config["tips"],
+		waiting: config["waiting"],
+		refresh: config["refresh"],
+		penaltyTriggered: false
+	});
+	actionCounter = 0;
+}
+
+export const endGameSession = () => {
+	GameOver.set(true);
+	stopTimeInterval?.();
+};
+
 
 
 export const logAction = (action) => {
-	if (!needsAuth) {
+	if (!get(needsAuth)) {
 		return
 	}
 	action.earnings = get(earned)
@@ -341,7 +380,7 @@ export const logAction = (action) => {
 }
 
 export const logOrder = (order, options) => {
-	if (!needsAuth) {
+	if (!get(needsAuth)) {
 		return
 	}
 	order.startgametime = get(elapsed)
@@ -355,7 +394,7 @@ export const logOrder = (order, options) => {
 	addOrder(get(id), order, order.id)
 }
 export const logBundledOrder = (order1, order2, options) => {
-	if (!needsAuth) {
+	if (!get(needsAuth)) {
 		return
 	}
 	order1.startgametime = get(elapsed)
@@ -378,7 +417,7 @@ export const logBundledOrder = (order1, order2, options) => {
 
 // New function to handle 1-3 orders flexibly
 export const logOrders = (selectedOrders, allOptions) => {
-	if (!needsAuth) {
+	if (!get(needsAuth)) {
 		return
 	}
 	const startTime = get(elapsed)
@@ -401,7 +440,7 @@ export const logOrders = (selectedOrders, allOptions) => {
 //whether the order was completed succesfully or not
 //how many tries it took, etc
 export const completeOrder = (orderID) => {
-	if (!needsAuth) {
+	if (!get(needsAuth)) {
 		return
 	}
 	let state = {
@@ -505,6 +544,7 @@ export async function loadGame(mode = 'main') {
 		console.error("Error loading fixed datasets", err)
 		return -1
 	}
+	resetRuntimeState();
 	currLocation.set(storeConfigs["startinglocation"]);
 	
 	switchJob(orderConfigs, storeConfigs)

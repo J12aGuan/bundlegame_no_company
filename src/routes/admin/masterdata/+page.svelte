@@ -45,7 +45,6 @@
 
     const DEFAULT_TUTORIAL_CONFIG = {
         name: 'Tutorial',
-        timeLimit: 120,
         thinkTime: 2,
         gridSize: 2,
         tips: false,
@@ -373,7 +372,13 @@
                 key: 'tutorialConfig',
                 label: 'MasterData/tutorialConfig',
                 fetch: async () => await getTutorialConfig(),
-                valid: (value) => Boolean(value && value.timeLimit)
+                valid: (value) => Boolean(
+                    value &&
+                    typeof value.name === 'string' &&
+                    Number.isFinite(Number(value.thinkTime)) &&
+                    Number.isFinite(Number(value.gridSize)) &&
+                    typeof value.scenario_set === 'string'
+                )
             },
             {
                 key: 'store',
@@ -1335,12 +1340,12 @@
                                             <dd class="text-lg font-semibold text-gray-900">{tutorialConfig.name}</dd>
                                         </div>
                                         <div>
-                                            <dt class="text-sm text-gray-600">Time Limit</dt>
-                                            <dd class="text-lg font-semibold text-gray-900">{tutorialConfig.timeLimit}s</dd>
-                                        </div>
-                                        <div>
                                             <dt class="text-sm text-gray-600">Think Time</dt>
                                             <dd class="text-lg font-semibold text-gray-900">{tutorialConfig.thinkTime}s</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-sm text-gray-600">Time Limit</dt>
+                                            <dd class="text-lg font-semibold text-gray-900">None</dd>
                                         </div>
                                         <div>
                                             <dt class="text-sm text-gray-600">Grid Size</dt>
@@ -1385,10 +1390,6 @@
                                 <fieldset class="border border-gray-300 rounded-lg p-4">
                                     <legend class="text-sm font-bold text-gray-700 px-2">Settings</legend>
                                     <div class="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700">Time Limit (seconds)</label>
-                                            <input type="number" bind:value={tutorialConfig.timeLimit} class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md" />
-                                        </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700">Think Time (seconds)</label>
                                             <input type="number" bind:value={tutorialConfig.thinkTime} class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md" />
