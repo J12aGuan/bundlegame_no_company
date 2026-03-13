@@ -1,7 +1,7 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarios, emojisMap, roundTimeLimit, gameMode, endGameSession } from "$lib/bundle.js"
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarios, emojisMap, roundTimeLimit, gameMode, endGameSession, notifyTutorialRoundProgress, notifyMainGameComplete } from "$lib/bundle.js"
     import { storeConfig, getDistances } from "$lib/config.js"; // Import getDistances
     
     let config = {}; // Will be set properly in onMount()
@@ -605,6 +605,12 @@
         // 2. Award earnings / mark orders complete
         $earned += totalEarnings;
         $uniqueSets += 1;
+        const completedRounds = get(uniqueSets);
+        const totalRounds = get(scenarios).length;
+
+        if ($gameMode === 'tutorial') {
+            notifyTutorialRoundProgress(completedRounds, totalRounds);
+        }
         
         const selOrders = get(orders);
         selOrders.forEach(order => {
@@ -626,6 +632,9 @@
         // 3. Immediately advance to next round (no Round Complete screen)
         if (completedGame) {
             console.log("Final round complete - ending session");
+            if ($gameMode !== 'tutorial') {
+                notifyMainGameComplete('all_rounds_complete', completedRounds, totalRounds);
+            }
             endGameSession();
             return;
         }
