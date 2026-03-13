@@ -42,6 +42,7 @@ def test_cli_json_pipeline_outputs(tmp_path: Path):
         "kpi_overall.csv",
         "kpi_by_round.csv",
         "kpi_by_participant.csv",
+        "kpi_by_classification.csv",
         "kpi_by_scenario.csv",
         "qa_issues.csv",
         "cohort_comparisons.csv",
@@ -49,3 +50,7 @@ def test_cli_json_pipeline_outputs(tmp_path: Path):
     ]
     for name in required:
         assert (tmp_path / name).exists()
+
+    decision_header = (tmp_path / "decision_fact.csv").read_text(encoding="utf-8").splitlines()[0]
+    for field in ["classification", "phase", "score_ratio_to_best", "percent_regret"]:
+        assert field in decision_header

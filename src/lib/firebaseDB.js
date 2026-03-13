@@ -544,6 +544,9 @@ export const saveExperimentScenarios = async (scenariosData, scenariosId = 'expe
         phase: scenario.phase ?? '',
         scenario_id: scenario.scenario_id ?? '',
         max_bundle: Number(scenario.max_bundle) || 3,
+        classification: String(scenario.classification || '').trim() || 'unclassified',
+        score_gap: Number(scenario.score_gap) || 0,
+        relative_gap: Number(scenario.relative_gap) || 0,
         order_ids: (
             Array.isArray(scenario.order_ids)
                 ? scenario.order_ids

@@ -22,6 +22,13 @@ def _safe_float(value: Any) -> float | None:
     return f
 
 
+def _normalize_classification(value: Any) -> str:
+    normalized = str(value or "").strip().lower()
+    if normalized in {"easy", "medium", "hard"}:
+        return normalized
+    return "unclassified"
+
+
 def build_decision_fact(
     participants: list[dict[str, Any]],
     scenario_bundle: dict[str, Any],
@@ -47,6 +54,7 @@ def build_decision_fact(
     )
 
     fact_rows: list[dict[str, Any]] = []
+    missing_classification_scenarios: set[str] = set()
 
     for decision in decisions:
         participant_id = decision["participant_id"]
@@ -91,6 +99,22 @@ def build_decision_fact(
                 )
             )
             continue
+
+        classification = _normalize_classification(scenario.get("classification"))
+        if classification == "unclassified" and scenario_id not in missing_classification_scenarios:
+            missing_classification_scenarios.add(scenario_id)
+            qa_issues.append(
+                asdict(
+                    QAIssue(
+                        severity="warning",
+                        issue_type="missing_classification",
+                        participant_id="",
+                        round_index=round_index,
+                        scenario_id=scenario_id,
+                        message='Scenario missing classification; assigned to "unclassified".',
+                    )
+                )
+            )
 
         allowed_ids = {str(x) for x in scenario.get("order_ids", []) if str(x)}
         unknown = [order_id for order_id in chosen_orders if order_id not in allowed_ids]
@@ -200,7 +224,8 @@ def build_decision_fact(
             "participant_id": participant_id,
             "round_index": round_index,
             "scenario_id": scenario_id,
-            "phase": decision.get("phase", ""),
+            "classification": classification,
+            "phase": decision.get("phase", "") or scenario.get("phase", ""),
             "current_city": current_city,
             "chosen_orders": json.dumps(chosen_orders),
             "best_bundle_ids": json.dumps(best_ids),

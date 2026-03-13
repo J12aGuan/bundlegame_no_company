@@ -106,6 +106,8 @@ git push origin main
 | `src/lib/bundle.js` | Game logic & calculations |
 | `src/lib/firebaseDB.js` | Database operations |
 | `src/routes/admin/masterdata/+page.svelte` | Config/dataset admin management |
+| `src/routes/admin/analysis/+page.svelte` | Participant-vs-optimal analytics dashboard |
+| `src/lib/analysis/engine.js` | Client-side analytics/stat model engine |
 | `src/lib/scripts/generateScenarios.js` | Scenario generation + optimal solver |
 
 **Full guide**: See [../current/ARCHITECTURE.md](../current/ARCHITECTURE.md)
