@@ -114,6 +114,7 @@ let orderConfigs = []
 let start;
 let stopTimeInterval;
 let actionCounter = 0;
+let completionMessageSent = false;
 export const uniqueSets = writable(0);
 export const orderList = writable([])
 export const FullTimeLimit = writable(config["timeLimit"]);
@@ -300,6 +301,7 @@ export const elapsed = derived([timeStamp, FullTimeLimit], ([$timeStamp, $FullTi
 				earnings: get(earned)
 			});
 		}
+		notifyMainGameComplete('time_expired', get(uniqueSets), get(scenarios).length);
 		GameOver.set(true);
 		stopTimeInterval?.();
 		set($FullTimeLimit)
@@ -333,6 +335,39 @@ export const toggleTime = () => {
 	}
 }
 
+function postParentMessage(payload = {}) {
+	if (!browser || typeof window === 'undefined' || !window.parent || window.parent === window) {
+		return;
+	}
+
+	window.parent.postMessage(
+		{
+			source: 'bundlegame',
+			...payload
+		},
+		'*'
+	);
+}
+
+export function notifyTutorialRoundProgress(roundsCompleted = 0, totalRounds = 0) {
+	postParentMessage({
+		type: 'tutorialRoundComplete',
+		roundsCompleted: Number(roundsCompleted) || 0,
+		totalRounds: Number(totalRounds) || 0
+	});
+}
+
+export function notifyMainGameComplete(reason = 'completed', roundsCompleted = 0, totalRounds = 0) {
+	if (completionMessageSent) return;
+	completionMessageSent = true;
+	postParentMessage({
+		type: 'mainGameComplete',
+		reason: String(reason || 'completed'),
+		roundsCompleted: Number(roundsCompleted) || 0,
+		totalRounds: Number(totalRounds) || 0
+	});
+}
+
 function resetRuntimeState() {
 	orders.set([]);
 	finishedOrders.set([]);
@@ -356,6 +391,7 @@ function resetRuntimeState() {
 		penaltyTriggered: false
 	});
 	actionCounter = 0;
+	completionMessageSent = false;
 }
 
 export const endGameSession = () => {
