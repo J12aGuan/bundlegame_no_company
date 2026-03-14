@@ -1,8 +1,7 @@
 import {
   getStoresData,
   getCitiesData,
-  getScenarioDatasetBundle,
-  getScenarioDatasetNames
+  getScenarioDatasetBundle
 } from "../firebaseDB.js";
 
 export async function fetchStoreDataset(storeId = "store") {
@@ -17,8 +16,4 @@ export async function fetchCitiesDataset(citiesId = "cities") {
 
 export async function fetchScenarioDatasetBundle(datasetName = "experiment") {
   return await getScenarioDatasetBundle(datasetName);
-}
-
-export async function fetchScenarioDatasetNames() {
-  return await getScenarioDatasetNames();
 }

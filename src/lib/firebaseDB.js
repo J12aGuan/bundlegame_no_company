@@ -1,6 +1,6 @@
 import { timeStamp } from './bundle';
 import {firestore} from './firebaseConfig';
-import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, increment, deleteDoc, deleteField } from "firebase/firestore";
+import { collection, doc, setDoc, getDoc, updateDoc, Timestamp, increment, deleteField } from "firebase/firestore";
 
 function removeUndefinedDeep(value) {
     if (Array.isArray(value)) {
@@ -383,64 +383,6 @@ export const retrieveData = async () => {
     return data;
 }
 
-// ===== CONFIG MANAGEMENT (EXPERIMENTS) =====
-
-export const getAllConfigs = async () => {
-    try {
-        const querySnapshot = await getDocs(collection(firestore, 'Configs'));
-        console.log('Fetched all configs');
-        return querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-    } catch (error) {
-        console.error('Error fetching configs:', error);
-        return [];
-    }
-}
-
-export const getConfigByName = async (configName) => {
-    try {
-        const docSnap = await getDoc(doc(firestore, 'Configs', configName));
-        if (docSnap.exists()) {
-            console.log('Config found:', configName);
-            return { id: docSnap.id, ...docSnap.data() };
-        } else {
-            console.log('Config not found:', configName);
-            return null;
-        }
-    } catch (error) {
-        console.error('Error fetching config:', error);
-        return null;
-    }
-}
-
-export const saveConfig = async (configId, configData) => {
-    try {
-        const docRef = doc(firestore, 'Configs', configId);
-        await setDoc(docRef, {
-            ...configData,
-            updatedAt: Timestamp.fromDate(new Date()),
-            createdAt: configData.createdAt || Timestamp.fromDate(new Date())
-        });
-        console.log('Config saved:', configId);
-        return configId;
-    } catch (error) {
-        console.error('Error saving config:', error);
-        throw error;
-    }
-}
-
-export const deleteConfig = async (configId) => {
-    try {
-        await deleteDoc(doc(firestore, 'Configs', configId));
-        console.log('Config deleted:', configId);
-    } catch (error) {
-        console.error('Error deleting config:', error);
-        throw error;
-    }
-}
-
 // ============ MasterData Management ============
 
 const normalizeMasterDataId = (value = '') => String(value || '').trim().replace(/\.json$/i, '');
@@ -544,9 +486,6 @@ export const saveExperimentScenarios = async (scenariosData, scenariosId = 'expe
         phase: scenario.phase ?? '',
         scenario_id: scenario.scenario_id ?? '',
         max_bundle: Number(scenario.max_bundle) || 3,
-        classification: String(scenario.classification || '').trim() || 'unclassified',
-        score_gap: Number(scenario.score_gap) || 0,
-        relative_gap: Number(scenario.relative_gap) || 0,
         order_ids: (
             Array.isArray(scenario.order_ids)
                 ? scenario.order_ids
@@ -656,32 +595,6 @@ export const saveOrdersData = async (ordersData, ordersId = 'experiment') => {
     }
 }
 
-// Optimal Bundle Data
-export const saveOptimalData = async (optimalData, optimalId = 'optimal', metadata = {}) => {
-    const sanitizedOptimal = (optimalData || []).map((entry = {}) => ({
-        scenario_id: entry.scenario_id ?? '',
-        best_bundle_ids: Array.isArray(entry.best_bundle_ids) ? entry.best_bundle_ids.map((id) => String(id ?? '').trim()).filter(Boolean) : [],
-        second_best_bundle_ids: Array.isArray(entry.second_best_bundle_ids) ? entry.second_best_bundle_ids.map((id) => String(id ?? '').trim()).filter(Boolean) : [],
-        ending_city_best: entry.ending_city_best ?? ''
-    }));
-    try {
-        const { root, entry } = await readDatasetEntry(optimalId);
-        const next = {
-            type: 'scenario_dataset',
-            version: 1,
-            ...(entry && typeof entry === 'object' ? entry : {}),
-            optimal: sanitizedOptimal,
-            metadata: metadata && typeof metadata === 'object' ? metadata : {}
-        };
-        await writeDatasetEntry(root, next);
-        console.log(`Optimal saved: ${root}`);
-        return true;
-    } catch (error) {
-        console.error(`Error saving optimal ${optimalId}:`, error);
-        throw error;
-    }
-}
-
 // Grouped Scenario Dataset (single-doc structure)
 export const saveScenarioDatasetBundle = async (
     datasetRoot,
@@ -757,50 +670,6 @@ export const deleteScenarioDatasetBundle = async (datasetRoot = 'experiment') =>
         return true;
     } catch (error) {
         console.error(`Error deleting grouped scenario dataset (${id}):`, error);
-        throw error;
-    }
-}
-
-export const migrateLegacyScenarioSetToGrouped = async ({
-    legacyScenarioId = 'experimentScenarios',
-    legacyOrdersId = 'order_main',
-    legacyOptimalId = 'optimal',
-    datasetRoot = 'experiment',
-    metadata = {}
-} = {}) => {
-    try {
-        const [scenarioSnap, ordersSnap, optimalSnap] = await Promise.all([
-            getDoc(doc(firestore, 'MasterData', normalizeMasterDataId(legacyScenarioId))),
-            getDoc(doc(firestore, 'MasterData', normalizeMasterDataId(legacyOrdersId))),
-            getDoc(doc(firestore, 'MasterData', normalizeMasterDataId(legacyOptimalId)))
-        ]);
-
-        const scenarios = scenarioSnap.exists() ? (scenarioSnap.data()?.scenarios || []) : [];
-        const orders = ordersSnap.exists() ? (ordersSnap.data()?.orders || []) : [];
-        const optimal = optimalSnap.exists() ? (optimalSnap.data()?.optimal || []) : [];
-        const mergedMetadata = {
-            ...(optimalSnap.exists() ? (optimalSnap.data()?.metadata || {}) : {}),
-            ...(metadata || {})
-        };
-
-        await saveScenarioDatasetBundle(datasetRoot, {
-            scenarios: Array.isArray(scenarios) ? scenarios : [],
-            orders: Array.isArray(orders) ? orders : [],
-            optimal: Array.isArray(optimal) ? optimal : [],
-            metadata: mergedMetadata
-        });
-
-        return {
-            migrated: true,
-            datasetRoot: resolveDatasetRootFromId(datasetRoot),
-            counts: {
-                scenarios: Array.isArray(scenarios) ? scenarios.length : 0,
-                orders: Array.isArray(orders) ? orders.length : 0,
-                optimal: Array.isArray(optimal) ? optimal.length : 0
-            }
-        };
-    } catch (error) {
-        console.error('Error migrating legacy scenario set to grouped structure:', error);
         throw error;
     }
 }
