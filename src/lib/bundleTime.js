@@ -1,7 +1,7 @@
 // Estimates bundle savings from shared items in same store+city groups.
 // Rule: if an item appears in multiple orders of the same store+city,
 // item travel-to-location time is counted once; duplicates are saved.
-const LOCAL_TRAVEL_BUNDLE_SAVE_RATE = 0.25; // 25% local-travel reduction for bundled groups
+const SHARED_ITEM_ACCESS_SAVE_RATE = 1; // Same shared item means we only travel to that location once
 
 function normalizeItemKeys(items = {}) {
   if (!items || typeof items !== "object") return [];
@@ -42,26 +42,6 @@ function itemAccessSeconds(storeConfig = {}, itemName = "") {
   return manhattanDistance(entrance, pos) * secondsPerCell;
 }
 
-function estimatePickItemSeconds(order = {}, storeConfig = {}) {
-  const locations = Array.isArray(storeConfig?.locations) ? storeConfig.locations : [];
-  const entrance = Array.isArray(storeConfig?.Entrance) ? storeConfig.Entrance : [0, 0];
-  const secondsPerCell = (Number(storeConfig?.cellDistance ?? 1000) || 1000) / 1000;
-  const secondsPerUniqueItem = 3;
-
-  const uniqueItems = normalizeItemKeys(order?.items);
-  let currentPos = entrance;
-  let walkSteps = 0;
-
-  for (const item of uniqueItems) {
-    const pos = findItemPosition(locations, item);
-    if (!pos) continue;
-    walkSteps += manhattanDistance(currentPos, pos);
-    currentPos = pos;
-  }
-
-  return (walkSteps * secondsPerCell) + (uniqueItems.length * secondsPerUniqueItem);
-}
-
 export function calculateSharedItemTravelSavings(orders = [], options = {}) {
   const list = Array.isArray(orders) ? orders : [];
   if (list.length <= 1) return 0;
@@ -95,17 +75,8 @@ export function calculateSharedItemTravelSavings(orders = [], options = {}) {
     for (const [item, count] of itemCounts.entries()) {
       if (count <= 1) continue;
       const access = itemAccessSeconds(cfg, item);
-      savingsSeconds += access * (count - 1);
+      savingsSeconds += access * (count - 1) * SHARED_ITEM_ACCESS_SAVE_RATE;
     }
-
-    // Extra bundle benefit: local delivery-time reduction for bundled orders.
-    // local = baseEstimatedTime - pickTime, clamped at 0.
-    const totalLocalTravel = groupOrders.reduce((sum, order) => {
-      const base = Math.max(0, Number(order?.estimatedTime) || 0);
-      const pick = Math.max(0, estimatePickItemSeconds(order, cfg));
-      return sum + Math.max(0, base - pick);
-    }, 0);
-    savingsSeconds += totalLocalTravel * LOCAL_TRAVEL_BUNDLE_SAVE_RATE;
   }
 
   return savingsSeconds;
