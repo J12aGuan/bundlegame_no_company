@@ -283,12 +283,10 @@
     let generationPayFieldsInvalid = false;
     const generationForm = {
         datasetName: '',
-        targetDifficulty: 'easy',
         totalRounds: 10,
         maxBundle: 3,
         payMin: 8,
-        payMax: 24,
-        earningsStep: 1
+        payMax: 24
     };
 
     $: usedOrdersIds = [centralConfig?.scenario_set || '', tutorialConfig?.scenario_set || ''].filter(Boolean);
@@ -448,7 +446,7 @@
         const validation = await validateGenerationOptionsForAdmin(generationForm);
         generationValidationError = validation?.ok ? '' : (validation?.error || 'Invalid generation options.');
         generationPayFieldsInvalid = Boolean(generationValidationError)
-            && /(pay|earnings|divisible|range|difficulty)/i.test(generationValidationError);
+            && /(pay|range)/i.test(generationValidationError);
         return validation;
     }
 
@@ -462,12 +460,10 @@
 
             const result = await runScenarioGenerationPipeline({
                 datasetName: validation.normalizedDataset,
-                targetDifficulty: generationForm.targetDifficulty,
                 totalRounds: Number(generationForm.totalRounds),
                 maxBundle: Number(generationForm.maxBundle),
                 payMin: Number(generationForm.payMin),
-                payMax: Number(generationForm.payMax),
-                earningsStep: Number(generationForm.earningsStep)
+                payMax: Number(generationForm.payMax)
             });
 
             selectedScenariosId = result?.datasetName || validation.normalizedDataset;
@@ -1050,18 +1046,6 @@
                                     />
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700">Difficulty</label>
-                                    <select
-                                        bind:value={generationForm.targetDifficulty}
-                                        on:change={validateGenerationForm}
-                                        class="mt-1 h-10 w-full px-3 border border-gray-300 rounded-md bg-white appearance-none"
-                                    >
-                                        <option value="easy">easy</option>
-                                        <option value="medium">medium</option>
-                                        <option value="hard">hard</option>
-                                    </select>
-                                </div>
-                                <div>
                                     <label class="block text-sm font-medium text-gray-700">Total Rounds (> 1)</label>
                                     <input
                                         type="number"
@@ -1096,16 +1080,6 @@
                                     <input
                                         type="number"
                                         bind:value={generationForm.payMax}
-                                        on:input={validateGenerationForm}
-                                        class={`mt-1 w-full px-3 py-2 border rounded-md ${generationPayFieldsInvalid ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                                    />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Earnings Step</label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        bind:value={generationForm.earningsStep}
                                         on:input={validateGenerationForm}
                                         class={`mt-1 w-full px-3 py-2 border rounded-md ${generationPayFieldsInvalid ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                     />

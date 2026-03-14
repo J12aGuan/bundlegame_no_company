@@ -180,11 +180,6 @@ function normalizeIdBase(base = "") {
     .replace(/[_-]+$/g, "");
 }
 
-// Canonicalizes difficulty strings.
-function normalizeDifficulty(value = "") {
-  return String(value || "").toLowerCase().trim();
-}
-
 // Reads whether a scenario dataset already exists in Firebase.
 async function datasetExists(datasetName = "") {
   return Boolean(await fetchScenarioDatasetBundle(datasetName));
@@ -266,163 +261,12 @@ function scoreBundleBestSequence(bundle = [], context = {}) {
 
   return best || {
     score: 0,
-    normalizedScore: null,
     totalPay: 0,
     totalTime: 0,
     endingCity: context.currentCity ?? "",
     perOrder: [],
     bundleIds: []
   };
-}
-
-// Normalizes a score relative to best score so best maps to 100.
-function normalizeToBest100(score, bestScore) {
-  const s = Number(score) || 0;
-  const best = Number(bestScore) || 0;
-  if (best <= 0) return 0;
-
-  const normalized = (s / best) * 100;
-  return Math.max(0, Math.min(100, Number(normalized.toFixed(2))));
-}
-
-// Tunes a candidate case by adjusting earnings with step-halving delta search.
-function tuneCaseByDeltaSearch(seedCase = {}, targetDifficulty = "", context = {}) {
-  const maxBundle = Number(context.maxBundle ?? context.kMax ?? 3);
-  let orders = Array.isArray(seedCase?.orders) ? seedCase.orders.map((o) => ({ ...o })) : [];
-  let solution = seedCase?.solution ?? solveBestAndSecondBundle(orders, { ...context, maxBundle });
-
-  const payMin = Number(context.payMin ?? 1);
-  const payMax = Number(context.payMax ?? 99);
-  const allowTuneAbovePayMax = false;
-  let step = Math.max(1, Math.floor((payMax - payMin) / 2));
-  const maxIters = Math.max(8, Number(context.tuningIters ?? 24));
-  const targetCenter = getTargetGapCenter(targetDifficulty);
-
-  let bestOrders = orders;
-  let bestSolution = solution;
-  let bestDist = distanceToTargetGap(Number(solution?.relativeGap) || 0, targetDifficulty, targetCenter);
-
-  for (let i = 0; i < maxIters; i += 1) {
-    if (caseMatchesDifficulty({ solution }, targetDifficulty)) break;
-    if (step < 1) break;
-
-    const needIncrease = shouldIncreaseGap(Number(solution?.relativeGap) || 0, targetDifficulty);
-    const trialOrders = applyGapDelta(
-      orders,
-      solution,
-      needIncrease ? step : -step,
-      payMin,
-      payMax,
-      { allowTuneAbovePayMax }
-    );
-
-    // No tunable movement available for this step size.
-    if (!trialOrders.changed) {
-      if (step === 1) break;
-      step = Math.max(1, Math.floor(step / 2));
-      continue;
-    }
-
-    const trialSolution = solveBestAndSecondBundle(trialOrders.orders, { ...context, maxBundle });
-    const trialDist = distanceToTargetGap(Number(trialSolution?.relativeGap) || 0, targetDifficulty, targetCenter);
-
-    if (trialDist <= bestDist) {
-      orders = trialOrders.orders;
-      solution = trialSolution;
-      bestOrders = orders;
-      bestSolution = solution;
-      bestDist = trialDist;
-    } else {
-      step = Math.max(1, Math.floor(step / 2));
-    }
-  }
-
-  return {
-    scenarioIndex: seedCase?.scenarioIndex ?? 1,
-    orders: bestOrders,
-    solution: bestSolution
-  };
-}
-
-// Clamps numeric value to [min, max].
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-// Applies an earnings delta to best/second bundles to increase or decrease gap.
-function applyGapDelta(orders = [], solution = {}, delta = 0, payMin = 1, payMax = 99, options = {}) {
-  const allowTuneAbovePayMax = options?.allowTuneAbovePayMax !== false;
-  const bestIds = new Set(solution?.best?.bundleIds || []);
-  const secondIds = new Set(solution?.second?.bundleIds || []);
-  const bestOnly = [...bestIds].filter((id) => !secondIds.has(id));
-  const secondOnly = [...secondIds].filter((id) => !bestIds.has(id));
-  const bestTarget = bestOnly.length ? bestOnly : [...bestIds];
-  const secondTarget = secondOnly.length ? secondOnly : [...secondIds];
-
-  const byId = new Map((orders || []).map((o) => [String(o?.id ?? ""), { ...o }]));
-  const magnitude = Math.abs(Number(delta) || 0);
-  if (magnitude <= 0) return { changed: false, orders: orders.map((o) => ({ ...o })) };
-
-  const [bestMove, secondMove] = delta > 0
-    ? [magnitude, -magnitude] // increase gap
-    : [-magnitude, magnitude]; // decrease gap
-
-  let changed = false;
-  changed = moveEarnings(byId, bestTarget, bestMove, payMin, payMax, allowTuneAbovePayMax) || changed;
-  changed = moveEarnings(byId, secondTarget, secondMove, payMin, payMax, allowTuneAbovePayMax) || changed;
-
-  return {
-    changed,
-    orders: orders.map((o) => byId.get(String(o?.id ?? "")) || { ...o })
-  };
-}
-
-// Moves earnings for a list of order IDs and reports if any value changed.
-function moveEarnings(byId, ids = [], delta = 0, payMin = 1, payMax = 99, allowTuneAbovePayMax = true) {
-  let changed = false;
-  for (const id of ids) {
-    const order = byId.get(String(id));
-    if (!order) continue;
-    const prev = Number(order.earnings) || 0;
-    const rawNext = prev + delta;
-    const upper = allowTuneAbovePayMax && delta > 0 ? Number.POSITIVE_INFINITY : payMax;
-    const next = clamp(rawNext, payMin, upper);
-    if (next !== prev) changed = true;
-    order.earnings = next;
-    byId.set(String(id), order);
-  }
-  return changed;
-}
-
-// Decides whether current gap should be increased for the target difficulty.
-function shouldIncreaseGap(relativeGap = 0, targetDifficulty = "") {
-  const target = normalizeDifficulty(targetDifficulty);
-  if (target === "easy") return relativeGap < 0.25;
-  if (target === "hard") return relativeGap >= 0.10;
-  if (target === "medium") {
-    if (relativeGap < 0.10) return true;
-    if (relativeGap >= 0.25) return false;
-  }
-  return false;
-}
-
-// Computes how far current relative gap is from target band/center.
-function distanceToTargetGap(relativeGap = 0, targetDifficulty = "", targetCenter = 0.175) {
-  const target = normalizeDifficulty(targetDifficulty);
-  if (target === "easy") return relativeGap >= 0.25 ? 0 : 0.25 - relativeGap;
-  if (target === "hard") return relativeGap < 0.10 ? 0 : relativeGap - 0.10;
-  if (target === "medium") {
-    if (relativeGap >= 0.10 && relativeGap < 0.25) return 0;
-  }
-  return Math.abs(relativeGap - targetCenter);
-}
-
-// Returns a default target-gap center value per difficulty class.
-function getTargetGapCenter(targetDifficulty = "") {
-  const target = normalizeDifficulty(targetDifficulty);
-  if (target === "easy") return 0.35;
-  if (target === "hard") return 0.05;
-  return 0.175; // medium/default center
 }
 
 // Resolves a stable scenario ID prefix from context.
@@ -473,9 +317,6 @@ function sanitizeGenerationMetadata(metadata = {}) {
   const datasetName = String(metadata.datasetName ?? metadata.name ?? "").trim();
   if (datasetName) cleaned.datasetName = datasetName;
 
-  const targetDifficulty = String(metadata.targetDifficulty ?? "").trim();
-  if (targetDifficulty) cleaned.targetDifficulty = targetDifficulty;
-
   const totalRounds = Number(metadata.totalRounds);
   if (Number.isFinite(totalRounds) && totalRounds > 0) cleaned.totalRounds = Math.floor(totalRounds);
 
@@ -488,20 +329,10 @@ function sanitizeGenerationMetadata(metadata = {}) {
   const payMax = Number(metadata.payMax);
   if (Number.isFinite(payMax)) cleaned.payMax = payMax;
 
-  const earningsStep = Number(metadata.earningsStep ?? metadata.earningStep);
-  if (Number.isFinite(earningsStep) && earningsStep > 0) cleaned.earningsStep = earningsStep;
-
   // Verify numeric fields only when all are present.
-  if (
-    Number.isFinite(cleaned.payMin) &&
-    Number.isFinite(cleaned.payMax) &&
-    Number.isFinite(cleaned.earningsStep)
-  ) {
+  if (Number.isFinite(cleaned.payMin) && Number.isFinite(cleaned.payMax)) {
     if (cleaned.payMax <= cleaned.payMin) {
       throw new Error("Invalid metadata: payMax must be greater than payMin.");
-    }
-    if (cleaned.earningsStep > (cleaned.payMax - cleaned.payMin)) {
-      throw new Error("Invalid metadata: earningsStep must be <= (payMax - payMin).");
     }
   }
 
@@ -511,11 +342,6 @@ function sanitizeGenerationMetadata(metadata = {}) {
 function validatePipelineInputs(input = {}) {
   const name = String(input.datasetName || "").trim();
   if (!name) throw new Error("datasetName is required.");
-
-  const difficulty = normalizeDifficulty(input.targetDifficulty);
-  if (!["easy", "medium", "hard"].includes(difficulty)) {
-    throw new Error("targetDifficulty must be one of: easy, medium, hard.");
-  }
 
   const totalRounds = Number(input.totalRounds);
   if (!Number.isFinite(totalRounds) || totalRounds <= 1) {
@@ -533,30 +359,13 @@ function validatePipelineInputs(input = {}) {
 
   const payMin = Number(input.payMin);
   const payMax = Number(input.payMax);
-  const earningsStep = Number(input.earningsStep);
 
   if (!Number.isFinite(payMin) || !Number.isFinite(payMax) || payMax <= payMin) {
     throw new Error("Invalid pay range: payMax must be greater than payMin.");
   }
-  if (!Number.isFinite(earningsStep) || earningsStep <= 0) {
-    throw new Error("earningsStep must be > 0.");
-  }
-  validateEarningsStepFeasibility(payMin, payMax, earningsStep, difficulty);
-}
-
-function validateEarningsStepFeasibility(payMin, payMax, earningsStep, difficulty = "medium") {
-  const range = payMax - payMin;
-  const target = normalizeDifficulty(difficulty);
-
-  if (range % earningsStep !== 0) {
-    throw new Error("payMax - payMin must be divisible by earningsStep.");
-  }
-
-  // Wider ranges provide more earning levels and reduce tuning dead-ends.
-  // easy: 9 levels, medium: 6 levels, hard: 4 levels minimum.
-  const minMultiplier = target === "easy" ? 8 : target === "medium" ? 5 : 3;
-  if (range < earningsStep * minMultiplier) {
-    throw new Error(`For ${target || "this"} difficulty, payMax - payMin must be at least ${minMultiplier}x earningsStep.`);
+  const minimumPayRange = 8;
+  if ((payMax - payMin) < minimumPayRange) {
+    throw new Error(`payMax - payMin must be at least ${minimumPayRange}.`);
   }
 }
 
@@ -593,14 +402,14 @@ export async function validateGenerationOptionsForAdmin(options = {}) {
 
 // Algorithm Methods
 // Estimates base completion time for one order (local travel + item pick only).
-export function estimateBaseOrderTime(order, context = {}) {
+function estimateBaseOrderTime(order, context = {}) {
   const localTravel = estimateLocalTravelTime();
   const pickItem = estimatePickItemTime(order, context);
   return localTravel + pickItem;
 }
 
 // Estimates runtime completion time by adding cross-city travel from current city.
-export function estimateOrderCompletionTime(order, context = {}) {
+function estimateOrderCompletionTime(order, context = {}) {
   // Prefer stored base estimate when available to keep scoring deterministic.
   const storedBase = Number(order?.estimatedTime);
   const baseTime = Number.isFinite(storedBase) && storedBase > 0
@@ -614,7 +423,7 @@ export function estimateOrderCompletionTime(order, context = {}) {
 }
 
 // Builds one synthetic order with generated city/store/items/earnings/time.
-export function createOrderModel(context = {}) {
+function createOrderModel(context = {}) {
   const {
     scenarioIndex = 1, // 1-based
     orderIndex = 1, // 1-based global or per scenario
@@ -679,7 +488,7 @@ export function createOrderModel(context = {}) {
 }
 
 // Enumerates all order bundles of size 1..kMax.
-export function enumerateBundles(orders = [], kMax = 3) {
+function enumerateBundles(orders = [], kMax = 3) {
   const source = Array.isArray(orders) ? orders : [];
   const n = source.length;
 
@@ -702,12 +511,11 @@ export function enumerateBundles(orders = [], kMax = 3) {
 }
 
 // Computes score and summary metrics for a single bundle.
-export function computeBundleScore(bundle = [], context = {}) {
+function computeBundleScore(bundle = [], context = {}) {
   // Empty bundle => zero score
   if (!Array.isArray(bundle) || bundle.length === 0) {
     return {
       score: 0,
-      normalizedScore: context?.bestScore != null ? normalizeToBest100(0, context.bestScore) : null,
       totalPay: 0,
       totalTime: 0,
       endingCity: context.currentCity ?? "",
@@ -753,50 +561,18 @@ export function computeBundleScore(bundle = [], context = {}) {
   // Avoid divide by zero
   const safeTime = effectiveTotalTime > 0 ? effectiveTotalTime : 1e-9;
   const score = totalPay / safeTime;
-  const normalizedScore = context?.bestScore != null
-    ? normalizeToBest100(score, context.bestScore)
-    : null;
 
   return {
     score,
-    normalizedScore,
     totalPay,
     totalTime: effectiveTotalTime,
-    rawTotalTime: totalTime,
-    bundleTimeDiscount: discounted.savingsSeconds,
     endingCity: simulatedCity,
     perOrder
   };
 }
 
-// Computes absolute and relative gap between best and second scores.
-export function computeGap(bestScore, secondScore) {
-  const best = Number(bestScore) || 0;
-  const second = Number(secondScore) || 0;
-
-  // Keep non-negative and stable if inputs are weird
-  const gap = Math.max(0, best - second);
-  const relativeGap = best > 0 ? gap / best : 0;
-
-  return { gap, relativeGap };
-}
-
-// Maps relative gap to easy/medium/hard difficulty.
-export function classifyDifficulty(relativeGap) {
-  const g = Number(relativeGap) || 0;
-
-  // Easy: clear winner
-  if (g >= 0.25) return "easy";
-
-  // Medium: somewhat close
-  if (g >= 0.10) return "medium";
-
-  // Hard: near tie
-  return "hard";
-}
-
 // Solves all candidate bundles and returns best/second plus scoring diagnostics.
-export function solveBestAndSecondBundle(orders = [], context = {}) {
+function solveBestAndSecondBundle(orders = [], context = {}) {
   const maxBundle = Number(context.maxBundle ?? context.kMax ?? 3);
 
   // 1) Generate all candidate bundles
@@ -805,12 +581,8 @@ export function solveBestAndSecondBundle(orders = [], context = {}) {
     return {
       best: null,
       second: null,
-      all: [],
       bestScore: 0,
-      secondScore: 0,
-      gap: 0,
-      relativeGap: 0,
-      difficulty: "hard"
+      secondScore: 0
     };
   }
 
@@ -828,34 +600,19 @@ export function solveBestAndSecondBundle(orders = [], context = {}) {
 
   const bestScore = Number(scored[0]?.score) || 0;
   const secondScore = Number(scored[1]?.score) || 0;
-
-  // 4) Add normalized score (best = 100)
-  const normalized = scored.map((row) => ({
-    ...row,
-    normalizedScore: normalizeToBest100(row.score, bestScore)
-  }));
-
-  const best = normalized[0] ?? null;
-  const second = normalized[1] ?? null;
-
-  // 5) Gap metrics + difficulty
-  const { gap, relativeGap } = computeGap(bestScore, secondScore);
-  const difficulty = classifyDifficulty(relativeGap);
+  const best = scored[0] ?? null;
+  const second = scored[1] ?? null;
 
   return {
     best,
     second,
-    all: normalized,
     bestScore,
-    secondScore,
-    gap,
-    relativeGap,
-    difficulty
+    secondScore
   };
 }
 
 // Generates one candidate scenario case and solves its bundles.
-export function generateCandidateCase(context = {}) {
+function generateCandidateCase(context = {}) {
   const {
     scenarioIndex = 1,
     ordersPerScenario = 4,
@@ -902,58 +659,47 @@ export function generateCandidateCase(context = {}) {
   };
 }
 
-// Checks whether a generated case falls in the requested difficulty band.
-export function caseMatchesDifficulty(caseResult, targetDifficulty) {
-  const relativeGap = Number(caseResult?.solution?.relativeGap);
-  if (!Number.isFinite(relativeGap)) return false;
-
-  const target = normalizeDifficulty(targetDifficulty);
-
-  if (target === "easy") return relativeGap >= 0.25;
-  if (target === "medium") return relativeGap >= 0.10 && relativeGap < 0.25;
-  if (target === "hard") return relativeGap < 0.10;
-
-  // Unknown target => no filter
-  return true;
-}
-
-// Repeats generation+tuning until a case matches the requested difficulty.
-export function generateCaseUntilDifficultyMatch(targetDifficulty, context = {}) {
+// Generates a case while preserving the requested city-targeting rule.
+function generateCaseWithCityTarget(context = {}) {
   const {
     scenarioIndex = 1,
     ordersPerScenario = 4,
-    startOrderIndex = 1
+    startOrderIndex = 1,
+    maxAttempts = 200
   } = context;
   const targetCity = String(context.targetCity || "").trim();
   const mustEnforceTargetCity = targetCity && hasStoresInCity(context?.storeDataset || {}, targetCity);
+  let lastCase = null;
 
-  while (true) {
-    const seedCase = generateCandidateCase({
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const candidateCase = generateCandidateCase({
       ...context,
       scenarioIndex,
       ordersPerScenario,
       startOrderIndex
     });
+    lastCase = candidateCase;
 
     if (mustEnforceTargetCity) {
-      const hasTargetCityOrder = seedCase?.orders?.some((o) => String(o?.city || "") === targetCity);
+      const hasTargetCityOrder = candidateCase?.orders?.some((o) => String(o?.city || "") === targetCity);
       if (!hasTargetCityOrder) continue;
-    }
-
-    const tunedCase = tuneCaseByDeltaSearch(seedCase, targetDifficulty, context);
-    if (!caseMatchesDifficulty(tunedCase, targetDifficulty)) continue;
-
-    if (mustEnforceTargetCity) {
-      const endingCity = String(tunedCase?.solution?.best?.endingCity || "");
+      const endingCity = String(candidateCase?.solution?.best?.endingCity || "");
       if (endingCity !== targetCity) continue;
     }
 
-    return tunedCase;
+    return candidateCase;
   }
+
+  return lastCase || generateCandidateCase({
+    ...context,
+    scenarioIndex,
+    ordersPerScenario,
+    startOrderIndex
+  });
 }
 
 // Builds the persisted round/scenario shape from a matched case.
-export function buildScenarioRound(caseResult, context = {}) {
+function buildScenarioRound(caseResult, context = {}) {
   const round = Number(context.round ?? context.scenarioIndex ?? caseResult?.scenarioIndex ?? 1);
   const maxBundle = Number(context.maxBundle ?? context.kMax ?? 3);
   const scenarioId = String(
@@ -985,10 +731,7 @@ export function buildScenarioRound(caseResult, context = {}) {
       round,
       scenario_id: scenarioId,
       max_bundle: maxBundle,
-      order_ids: orderIds,
-      classification: String(caseResult?.solution?.difficulty || "unclassified"),
-      score_gap: Number(caseResult?.solution?.gap) || 0,
-      relative_gap: Number(caseResult?.solution?.relativeGap) || 0
+      order_ids: orderIds
     },
     optimal: {
       scenario_id: scenarioId,
@@ -1000,7 +743,7 @@ export function buildScenarioRound(caseResult, context = {}) {
 }
 
 // Serializes generated scenarios and metadata for storage/output.
-export function serializeScenarioOutput(scenarios = [], metadata = {}) {
+function serializeScenarioOutput(scenarios = [], metadata = {}) {
   const rounds = Array.isArray(scenarios) ? scenarios : [];
 
   const allOrders = [];
@@ -1025,7 +768,7 @@ export function serializeScenarioOutput(scenarios = [], metadata = {}) {
 }
 
 // Persists generated scenario set to Firebase MasterData.
-export async function saveGeneratedScenarioSet(scenarios = [], scenarioSetId = "experiment", options = {}) {
+async function saveGeneratedScenarioSet(scenarios = [], scenarioSetId = "experiment", options = {}) {
   const serialized = isSerializedPayload(scenarios)
     ? scenarios
     : serializeScenarioOutput(scenarios, options.metadata ?? {});
@@ -1069,24 +812,20 @@ export async function runScenarioGenerationPipeline(options = {}) {
   const FIXED_ORDERS_PER_SCENARIO = 4;
   const {
     datasetName = "experiment",
-    targetDifficulty = "easy",
     totalRounds = 10,
     maxBundle = 3,
     payMin = 8,
     payMax = 24,
-    earningsStep = 1,
     scenarioSetId = datasetName
   } = options;
 
   const normalizedDataset = resolveDatasetRootName(datasetName);
   const normalizedInput = {
     datasetName: normalizedDataset,
-    targetDifficulty,
     totalRounds,
     maxBundle,
     payMin,
     payMax,
-    earningsStep,
     ordersPerScenario: FIXED_ORDERS_PER_SCENARIO
   };
 
@@ -1113,14 +852,13 @@ export async function runScenarioGenerationPipeline(options = {}) {
     }
     const forcedCity = isEvenRoundAfterFirst ? previousBestCity : "";
 
-    const caseResult = generateCaseUntilDifficultyMatch(targetDifficulty, {
+    const caseResult = generateCaseWithCityTarget({
       scenarioIndex: round,
       startOrderIndex: nextOrderIndex,
       ordersPerScenario: FIXED_ORDERS_PER_SCENARIO,
       maxBundle,
       payMin,
       payMax,
-      earningsStep,
       targetCity,
       forcedCity,
       forceRandomCity: !isEvenRoundAfterFirst,
@@ -1146,12 +884,10 @@ export async function runScenarioGenerationPipeline(options = {}) {
 
   const metadata = {
     datasetName: normalizedDataset,
-    targetDifficulty,
     totalRounds: Number(totalRounds),
     maxBundle: Number(maxBundle),
     payMin: Number(payMin),
-    payMax: Number(payMax),
-    earningsStep: Number(earningsStep)
+    payMax: Number(payMax)
   };
 
   const serialized = serializeScenarioOutput(roundOutputs, metadata);
