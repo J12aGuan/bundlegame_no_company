@@ -322,10 +322,6 @@
 
     {:else}
         <div class="flex flex-wrap items-end justify-between gap-2">
-            <div>
-                <h1 class="text-xl font-bold text-slate-900">Round {$currentRound} / {$scenarios.length || 0}</h1>
-                <p class="text-sm text-slate-500">Current Location: <span class="font-bold text-blue-600">{$currLocation}</span></p>
-            </div>
             {#if thinking}
                 <div class="bg-blue-50 px-3 py-1.5 rounded-lg text-blue-800 text-xs font-medium border border-blue-100">
                     ⏱️ Review Time: {thinkRemaining}s
