@@ -1,6 +1,6 @@
 import { timeStamp } from './bundle';
 import {firestore} from './firebaseConfig';
-import { collection, doc, setDoc, getDoc, updateDoc, Timestamp, increment, deleteField } from "firebase/firestore";
+import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, increment, deleteField } from "firebase/firestore";
 
 function removeUndefinedDeep(value) {
     if (Array.isArray(value)) {
