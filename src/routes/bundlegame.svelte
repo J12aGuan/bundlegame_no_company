@@ -32,6 +32,7 @@
     
     let totalEarnings;
     let curTip = 0;
+    $: pickerColumns = Math.max(2, numOrders + 1);
     
     // DELIVERY STATE
     let deliveryMap;
@@ -719,60 +720,63 @@
         </div>
         
     {:else if GameState == 1}
-        <div class="grid lg:grid-cols-[1fr,2fr] gap-4">
-            <div class="space-y-3">
-                <div class="bg-white p-3 rounded-xl border shadow-sm space-y-2 sticky top-2 z-10">
-                    <label class="block text-xs font-bold text-slate-700 uppercase">1. Identify Item</label>
-                    <input class="w-full text-base border-2 border-slate-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none" 
-                        bind:value={wordInput} placeholder="Type item name..."/>
-                    <button class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg shadow hover:bg-blue-700 transition text-sm"
-                        on:click={addBag}>Add to Selected Bags</button>
-                    <button class="w-full bg-slate-500 text-white font-bold py-1.5 rounded-lg shadow hover:bg-slate-600 transition text-xs"
-                        on:click={() => showStoreMap = true}>📍 Show Store Map</button>
-                </div>
-                
-                {#each $orders as order, idx}
-                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-2 space-y-1">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h3 class="font-bold text-slate-800 text-sm">Order {idx+1}: {order.id || `#${idx + 1}`}</h3>
-                                <p class="text-[10px] text-slate-500">📍 Deliver to: {order.city}</p>
-                            </div>
-                            <div class="flex flex-col items-end">
-                                <label class="text-[10px] font-bold text-slate-500 uppercase">Qty</label>
-                                <input type="number" min="0" class="w-14 text-center font-bold border rounded p-1 text-sm" bind:value={bagInputs[idx]} placeholder="0"/>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-1 text-xs">
-                            <div class="bg-white p-1.5 rounded border">
-                                <p class="font-semibold text-slate-500 text-[10px]">Shopping List</p>
-                                {#each Object.entries(order.items) as [item, qty]}
-                                    <div class="flex justify-between"><span>{item.toLowerCase()}</span><span>x{qty}</span></div>
-                                {/each}
-                            </div>
-                            <div class="bg-blue-50 p-1.5 rounded border border-blue-100">
-                                <p class="font-semibold text-blue-600 text-[10px]">In Bag</p>
-                                {#each Object.entries(bags[idx]) as [item, qty]}
-                                    <div class="flex justify-between items-center gap-1">
-                                        <span class="truncate">{item}</span>
-                                        <div class="flex items-center gap-0.5">
-                                            <button class="w-4 h-4 bg-slate-200 rounded text-[10px] hover:bg-slate-300" 
-                                                on:click|stopPropagation={() => decreaseQuantity(idx, item)}>-</button>
-                                            <span class="min-w-[16px] text-center">{qty}</span>
-                                            <button class="w-4 h-4 bg-slate-200 rounded text-[10px] hover:bg-slate-300" 
-                                                on:click|stopPropagation={() => increaseQuantity(idx, item)}>+</button>
-                                            <button class="w-4 h-4 bg-red-100 text-red-600 rounded text-[10px] hover:bg-red-200 ml-0.5" 
-                                                on:click|stopPropagation={() => removeFromBag(idx, item)}>×</button>
-                                        </div>
-                                    </div>
-                                {/each}
-                                {#if Object.keys(bags[idx]).length === 0}
-                                    <p class="text-slate-400 text-[10px] italic">Empty</p>
-                                {/if}
-                            </div>
-                        </div>
+        <div class="space-y-4">
+            <div
+                class="grid gap-3"
+                style={`grid-template-columns: repeat(${pickerColumns}, minmax(0, 1fr));`}
+            >
+                    <div class="min-w-0 bg-white p-3 rounded-xl border shadow-sm space-y-2">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">1. Identify Item</label>
+                        <input class="w-full text-base border-2 border-slate-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none" 
+                            bind:value={wordInput} placeholder="Type item name..."/>
+                        <button class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg shadow hover:bg-blue-700 transition text-sm"
+                            on:click={addBag}>Add to Selected Bags</button>
+                        <button class="w-full bg-slate-500 text-white font-bold py-1.5 rounded-lg shadow hover:bg-slate-600 transition text-xs"
+                            on:click={() => showStoreMap = true}>📍 Show Store Map</button>
                     </div>
-                {/each}
+
+                    {#each $orders as order, idx}
+                        <div class="min-w-0 bg-slate-50 border border-slate-200 rounded-xl p-2 space-y-1">
+                            <div class="flex justify-between items-start">
+                                <div class="min-w-0">
+                                    <h3 class="font-bold text-slate-800 text-sm">Order {idx+1}: {order.id || `#${idx + 1}`}</h3>
+                                    <p class="text-[10px] text-slate-500 truncate">📍 Deliver to: {order.city}</p>
+                                </div>
+                                <div class="flex flex-col items-end">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase">Qty</label>
+                                    <input type="number" min="0" class="w-14 text-center font-bold border rounded p-1 text-sm" bind:value={bagInputs[idx]} placeholder="0"/>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-1 text-xs">
+                                <div class="bg-white p-1.5 rounded border">
+                                    <p class="font-semibold text-slate-500 text-[10px]">Shopping List</p>
+                                    {#each Object.entries(order.items) as [item, qty]}
+                                        <div class="flex justify-between gap-1"><span class="truncate">{item.toLowerCase()}</span><span class="shrink-0">x{qty}</span></div>
+                                    {/each}
+                                </div>
+                                <div class="bg-blue-50 p-1.5 rounded border border-blue-100">
+                                    <p class="font-semibold text-blue-600 text-[10px]">In Bag</p>
+                                    {#each Object.entries(bags[idx]) as [item, qty]}
+                                        <div class="flex justify-between items-center gap-1">
+                                            <span class="truncate">{item}</span>
+                                            <div class="flex items-center gap-0.5">
+                                                <button class="w-4 h-4 bg-slate-200 rounded text-[10px] hover:bg-slate-300" 
+                                                    on:click|stopPropagation={() => decreaseQuantity(idx, item)}>-</button>
+                                                <span class="min-w-[16px] text-center">{qty}</span>
+                                                <button class="w-4 h-4 bg-slate-200 rounded text-[10px] hover:bg-slate-300" 
+                                                    on:click|stopPropagation={() => increaseQuantity(idx, item)}>+</button>
+                                                <button class="w-4 h-4 bg-red-100 text-red-600 rounded text-[10px] hover:bg-red-200 ml-0.5" 
+                                                    on:click|stopPropagation={() => removeFromBag(idx, item)}>×</button>
+                                            </div>
+                                        </div>
+                                    {/each}
+                                    {#if Object.keys(bags[idx]).length === 0}
+                                        <p class="text-slate-400 text-[10px] italic">Empty</p>
+                                    {/if}
+                                </div>
+                            </div>
+                        </div>
+                    {/each}
             </div>
 
             <div class="space-y-3">
@@ -780,7 +784,7 @@
                     {#each config["locations"] as row, rowIndex}
                         {#each row as cell, colIndex}
                             <button class="flex min-h-[60px] flex-col items-center justify-center rounded-lg text-xs font-medium transition
-                                {rowIndex === curLocation[0] && colIndex === curLocation[1] ? 'bg-green-100 border-2 border-green-500 text-green-900 transform scale-105' : 'border border-slate-200 bg-white hover:bg-slate-50'}"
+                                {rowIndex === curLocation[0] && colIndex === curLocation[1] ? 'bg-green-100 border-2 border-green-500 text-green-900 shadow-sm' : 'border border-slate-200 bg-white hover:bg-slate-50'}"
                                 on:click={() => handleCell(cell, rowIndex, colIndex)}>
                                 <span>{cell.toLowerCase()}</span>{#if $emojisMap[cell]}<span class="text-xl mt-0.5">{$emojisMap[cell]}</span>{/if}
                             </button>
