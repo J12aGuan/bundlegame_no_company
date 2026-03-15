@@ -255,6 +255,7 @@ export const startTimer = () => {
 
 let pausedAt = null;
 let pauseDuration = 0;
+let timeoutGameOverProcessed = false;
 
 export const timeStamp = derived(time, ($time) => {
 	const now = $time.getTime();
@@ -285,7 +286,8 @@ export const currLocation = writable("");
 export const elapsed = derived([timeStamp, FullTimeLimit], ([$timeStamp, $FullTimeLimit], set) => {
 	const elapsedSeconds = Math.round($timeStamp / 1000);
 	const hasOverallLimit = Number.isFinite(Number($FullTimeLimit)) && Number($FullTimeLimit) > 0;
-	if (hasOverallLimit && elapsedSeconds >= $FullTimeLimit && elapsedSeconds <= $FullTimeLimit + 2) {
+	if (hasOverallLimit && elapsedSeconds >= $FullTimeLimit && !timeoutGameOverProcessed) {
+		timeoutGameOverProcessed = true;
 		if (get(needsAuth) && get(id)) {
 			updateFields(get(id), {
 				earnings: get(earned),
@@ -392,6 +394,7 @@ function resetRuntimeState() {
 	});
 	actionCounter = 0;
 	completionMessageSent = false;
+	timeoutGameOverProcessed = false;
 }
 
 export const endGameSession = () => {

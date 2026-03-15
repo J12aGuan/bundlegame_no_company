@@ -123,26 +123,28 @@
     </div>
 {:else if !started && !$GameOver}
     <!-- Entry Screen -->
-    <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
-        <div class="bg-white rounded-3xl shadow-2xl px-12 py-10 w-full max-w-lg">
-            <h1 class="text-3xl font-bold text-center mb-8 text-slate-900">Tutorial</h1>
+    <main class="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 md:p-10 w-full max-w-md">
+            <h1 class="text-center text-2xl font-semibold text-slate-900 mb-6">
+                Tutorial
+            </h1>
             {#if !authResolved}
                 <p class="text-sm text-slate-600 text-center">Loading configuration...</p>
             {:else if $needsAuth}
-                <div class="space-y-5">
-                    <div>
-                        <label class="block text-base font-medium text-slate-700 mb-2">User ID</label>
+                <div class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">User ID</label>
                         <input
-                            class="w-full rounded-xl border border-slate-300 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
                             type="text"
                             bind:value={userInput}
                             placeholder="Enter user ID"
                         />
                     </div>
-                    <div>
-                        <label class="block text-base font-medium text-slate-700 mb-2">Token (include dashes)</label>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">Token (include dashes)</label>
                         <input
-                            class="w-full rounded-xl border border-slate-300 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
                             type="password"
                             bind:value={userPass}
                             placeholder="XXXX-XXXX-XXXX"
@@ -151,7 +153,7 @@
                     <button
                         id="start"
                         on:click={start}
-                        class="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                        class="mt-4 w-full rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
                     >
                         Enter Simulation
                     </button>
@@ -160,13 +162,13 @@
                 <button
                     id="start"
                     on:click={startNoAuth}
-                    class="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                    class="w-full rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
                 >
                     Enter Simulation
                 </button>
             {/if}
         </div>
-    </div>
+    </main>
 {:else}
     <!-- Game View or Game Over -->
     {#if $GameOver}
@@ -177,29 +179,15 @@
         </div>
     {:else}
         <div class="min-h-screen bg-slate-50">
-            <header class="sticky top-0 z-50 bg-white/90 backdrop-blur shadow-sm border-b border-slate-200">
-                <div class="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
-                    <div class="text-sm font-semibold text-red-600">Do not refresh or close the page!</div>
-                    {#if started}
-                        <div class="flex items-center gap-4 text-sm">
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-slate-700">Round:</span>
-                                <span class="font-semibold text-slate-900">{$currentRound} / {$scenarios.length || 0}</span>
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-slate-700">Time:</span>
-                                <span class="font-mono font-semibold text-green-600">{$gameMode === 'tutorial' ? 'None' : formatTime($remainingTime)}</span>
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-slate-700">Earned:</span>
-                                <span class="font-mono font-semibold text-green-600">${$earned}</span>
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-slate-700">Location:</span>
-                                <span class="text-slate-900">{$currLocation}</span>
-                            </div>
-                        </div>
-                    {/if}
+            <header class="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-slate-100">
+                <div class="flex items-center justify-between px-4 py-3 text-xs sm:text-sm text-slate-700 flex-wrap gap-2">
+                    <span class="font-semibold text-red-600">Please do not refresh or close the page!</span>
+                    <div class="flex flex-wrap gap-4">
+                        <span><span class="font-semibold text-slate-900">Round:</span> {$currentRound} / {$scenarios.length || 0}</span>
+                        <span><span class="font-semibold text-slate-900">Time left:</span> None</span>
+                        <span><span class="font-semibold text-slate-900">Earned:</span> ${$earned}</span>
+                        <span><span class="font-semibold text-slate-900">Location:</span> {$currLocation}</span>
+                    </div>
                 </div>
             </header>
             
