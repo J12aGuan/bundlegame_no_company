@@ -1,7 +1,7 @@
 <script>
     import { globalError } from "$lib/globalError.js"
     import Bundlegame from "./bundlegame.svelte";
-    import { game, elapsed, resetTimer, earned, currLocation, id, logAction, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, FullTimeLimit, participantResultUrl } from "$lib/bundle.js";
+    import { game, elapsed, resetTimer, earned, currLocation, id, logAction, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios } from "$lib/bundle.js";
 	import Home from "./home.svelte";
 	import { onMount } from "svelte";
     import { queueNFixedOrders } from "$lib/config.js";
@@ -220,9 +220,10 @@
         <!-- Main Game View with sticky header -->
         <div class="min-h-screen bg-slate-50">
             <header class="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-slate-100">
-                <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 text-xs sm:text-sm text-slate-700 flex-wrap gap-2">
+                <div class="flex items-center justify-between px-4 py-3 text-xs sm:text-sm text-slate-700 flex-wrap gap-2">
                     <span class="font-semibold text-red-600">Please do not refresh or close the page!</span>
                     <div class="flex flex-wrap gap-4">
+                        <span><span class="font-semibold text-slate-900">Round:</span> {$currentRound} / {$scenarios.length || 0}</span>
                         <span><span class="font-semibold text-slate-900">Time left:</span> {formattedRemaining}</span>
                         <span><span class="font-semibold text-slate-900">Earned:</span> ${$earned}</span>
                         <span><span class="font-semibold text-slate-900">Location:</span> {$currLocation}</span>

@@ -1,7 +1,7 @@
 <script>
     import { globalError } from "$lib/globalError.js"
     import Bundlegame from "../bundlegame.svelte";
-    import { game, elapsed, resetTimer, earned, currLocation, id, logAction, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, participantResultUrl, gameMode } from "$lib/bundle.js";
+    import { game, elapsed, resetTimer, earned, currLocation, id, logAction, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, participantResultUrl, gameMode, uniqueSets, currentRound, scenarios } from "$lib/bundle.js";
 	import Home from "../home.svelte";
 	import { onMount } from "svelte";
     import { queueNFixedOrders } from "$lib/config.js";
@@ -22,6 +22,12 @@
 
     let started = false;
     let authResolved = false;
+    let showPracticeChoice = false;
+    let practiceChoiceHandled = false;
+
+    $: if (started && !$GameOver && $uniqueSets >= 2 && !practiceChoiceHandled) {
+        showPracticeChoice = true;
+    }
 
     async function copyResultCode() {
         const resultCode = displayResultCode($participantResultUrl);
@@ -38,6 +44,12 @@
         const queryIndex = url.indexOf('?');
         return queryIndex >= 0 ? url.slice(queryIndex + 1) : url;
     }
+
+    function dismissPracticeChoice() {
+        practiceChoiceHandled = true;
+        showPracticeChoice = false;
+    }
+
     async function start() {
         const auth = await authUser(userInput, userPass)
         if (auth === 1) {
@@ -171,6 +183,10 @@
                     {#if started}
                         <div class="flex items-center gap-4 text-sm">
                             <div class="flex items-center gap-1.5">
+                                <span class="text-slate-700">Round:</span>
+                                <span class="font-semibold text-slate-900">{$currentRound} / {$scenarios.length || 0}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
                                 <span class="text-slate-700">Time:</span>
                                 <span class="font-mono font-semibold text-green-600">{$gameMode === 'tutorial' ? 'None' : formatTime($remainingTime)}</span>
                             </div>
@@ -195,6 +211,26 @@
                     <Bundlegame />
                 {/if}
             </div>
+
+            {#if showPracticeChoice}
+                <div class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 px-4">
+                    <div class="w-full max-w-xl rounded-3xl bg-white p-8 shadow-2xl">
+                        <h2 class="text-2xl font-bold text-slate-900">You finished 2 tutorial rounds</h2>
+                        <p class="mt-3 text-base leading-7 text-slate-600">
+                            You may now move on to the Qualtrics survey, or continue playing if you would like more practice.
+                        </p>
+                        <div class="mt-6 flex justify-end">
+                            <button
+                                type="button"
+                                class="rounded-2xl bg-slate-900 px-5 py-3 text-base font-semibold text-white transition hover:bg-slate-800"
+                                on:click={dismissPracticeChoice}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {/if}
         </div>
     {/if}
 {/if}
