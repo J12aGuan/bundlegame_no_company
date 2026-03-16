@@ -165,13 +165,6 @@
                         Enter Simulation
                     </button>
 
-                    <button
-                        type="button"
-                        class="w-full text-center text-xs text-slate-500 hover:text-slate-700 mt-2 transition"
-                        on:click={() => window.location.href = '/'}
-                    >
-                        Return to overview
-                    </button>
                 </div>
             {:else}
                 <button
