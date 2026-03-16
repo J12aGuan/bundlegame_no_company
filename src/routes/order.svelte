@@ -136,16 +136,16 @@
         <div class="p-2 space-y-1">
             <div class="flex justify-between items-start">
                 <div class="flex-1 min-w-0">
-                    <h3 class="font-bold text-slate-800 text-xs truncate">{orderData.store}</h3>
-                    <p class="text-[10px] text-slate-500">📍 {orderData.city}</p>
+                    <h3 class="font-bold text-slate-800 text-sm truncate">{orderData.store}</h3>
+                    <p class="text-xs text-slate-500">📍 {orderData.city}</p>
                 </div>
                 <div class="text-right ml-2">
-                    <span class="block font-bold text-green-600 text-sm">${orderData.earnings}</span>
-                    <span class="block text-[10px] text-slate-500">⏱ {displayEstimateSeconds}s</span>
+                    <span class="block font-bold text-green-600 text-base">${orderData.earnings}</span>
+                    <span class="block text-xs text-slate-500">⏱ {displayEstimateSeconds}s</span>
                 </div>
             </div>
 
-            <div class="bg-slate-50 rounded p-1.5 text-[10px] text-slate-600 space-y-0.5 max-h-[60px] overflow-y-auto">
+            <div class="bg-slate-50 rounded p-1.5 text-xs text-slate-600 space-y-0.5 max-h-[60px] overflow-y-auto">
                 {#each Object.entries(orderData.items) as [item, qty]}
                     <div class="flex justify-between border-b border-slate-100 last:border-0 pb-0.5 last:pb-0">
                         <span class="truncate">{item.toLowerCase()}</span>
@@ -155,7 +155,7 @@
             </div>
 
             <div class="pt-1">
-                <button class="w-full py-1 text-[10px] font-bold rounded-md transition-colors
+                <button class="w-full py-1.5 text-xs font-bold rounded-md transition-colors
                     {selected ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
                     {selected ? 'Selected ✓' : 'Add to Tasks'}
                 </button>
