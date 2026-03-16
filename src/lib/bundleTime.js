@@ -22,24 +22,29 @@ function manhattanDistance(a = [0, 0], b = [0, 0]) {
   return Math.abs((a[0] ?? 0) - (b[0] ?? 0)) + Math.abs((a[1] ?? 0) - (b[1] ?? 0));
 }
 
-function findItemPosition(locations = [], itemName = "") {
+function findItemPositions(locations = [], itemName = "") {
   const needle = String(itemName || "").toLowerCase().trim();
+  const positions = [];
   for (let r = 0; r < locations.length; r += 1) {
     const row = Array.isArray(locations[r]) ? locations[r] : (Array.isArray(locations[r]?.cells) ? locations[r].cells : []);
     for (let c = 0; c < row.length; c += 1) {
-      if (String(row[c] || "").toLowerCase().trim() === needle) return [r, c];
+      if (String(row[c] || "").toLowerCase().trim() === needle) positions.push([r, c]);
     }
   }
-  return null;
+  return positions;
 }
 
 function itemAccessSeconds(storeConfig = {}, itemName = "") {
   const locations = Array.isArray(storeConfig?.locations) ? storeConfig.locations : [];
   const entrance = Array.isArray(storeConfig?.Entrance) ? storeConfig.Entrance : [0, 0];
   const secondsPerCell = (Number(storeConfig?.cellDistance ?? 1000) || 1000) / 1000;
-  const pos = findItemPosition(locations, itemName);
-  if (!pos) return 0;
-  return manhattanDistance(entrance, pos) * secondsPerCell;
+  const positions = findItemPositions(locations, itemName);
+  if (positions.length === 0) return 0;
+  const nearestDistance = positions.reduce((best, pos) => {
+    const distance = manhattanDistance(entrance, pos);
+    return Math.min(best, distance);
+  }, Number.POSITIVE_INFINITY);
+  return nearestDistance * secondsPerCell;
 }
 
 export function calculateSharedItemTravelSavings(orders = [], options = {}) {
