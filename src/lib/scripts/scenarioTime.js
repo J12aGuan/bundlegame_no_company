@@ -20,7 +20,7 @@ export function estimatePickItemTime(order, context = {}) {
 
   for (const item of lineItems) {
     uniqueItems.add(String(item.name || "").toLowerCase().trim());
-    const position = findItemPosition(locations, item.name);
+    const position = findNearestItemPosition(locations, item.name, currentPos);
     if (!position) continue;
     totalWalkSteps += manhattanDistance(currentPos, position);
     currentPos = position;
@@ -63,17 +63,37 @@ function manhattanDistance(a = [0, 0], b = [0, 0]) {
   return Math.abs((a[0] ?? 0) - (b[0] ?? 0)) + Math.abs((a[1] ?? 0) - (b[1] ?? 0));
 }
 
-function findItemPosition(locations = [], itemName = "") {
+function findItemPositions(locations = [], itemName = "") {
   const needle = String(itemName).toLowerCase().trim();
+  const positions = [];
   for (let r = 0; r < locations.length; r += 1) {
     const row = Array.isArray(locations[r]) ? locations[r] : [];
     for (let c = 0; c < row.length; c += 1) {
       if (String(row[c]).toLowerCase().trim() === needle) {
-        return [r, c];
+        positions.push([r, c]);
       }
     }
   }
-  return null;
+  return positions;
+}
+
+function findNearestItemPosition(locations = [], itemName = "", fromPos = [0, 0]) {
+  const positions = findItemPositions(locations, itemName);
+  if (positions.length === 0) return null;
+
+  let best = positions[0];
+  let bestDistance = manhattanDistance(fromPos, best);
+
+  for (let i = 1; i < positions.length; i += 1) {
+    const candidate = positions[i];
+    const distance = manhattanDistance(fromPos, candidate);
+    if (distance < bestDistance) {
+      best = candidate;
+      bestDistance = distance;
+    }
+  }
+
+  return best;
 }
 
 function normalizeOrderItems(items) {
