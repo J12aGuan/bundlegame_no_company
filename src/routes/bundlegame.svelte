@@ -56,6 +56,7 @@
     $: elapsedTime = $elapsed - startTimer;
     $: countdownTimer = hasRoundTimeLimit ? Math.max(0, ROUND_TIME_LIMIT - elapsedTime) : null;
     $: locationLabel = config["locations"]?.[curLocation[0]]?.[curLocation[1]]?.toLowerCase() || "entrance";
+    $: locationRows = Array.isArray(config["locations"]) ? config["locations"] : [];
 
     // Auto clear input
     $: if (curLocation) {
@@ -77,6 +78,10 @@
     function getEntrancePosition(nextConfig) {
         const entrance = nextConfig?.Entrance;
         return Array.isArray(entrance) && entrance.length >= 2 ? [...entrance] : [0, 0];
+    }
+
+    function getCellValue(rowIndex, colIndex) {
+        return String(locationRows?.[rowIndex]?.[colIndex] ?? "");
     }
 
     function isAtItemAisle(itemName) {
@@ -144,7 +149,7 @@
     }
 
     function addBag() {
-        let item = config["locations"][curLocation[0]][curLocation[1]].toLowerCase()
+        let item = getCellValue(curLocation[0], curLocation[1]).toLowerCase()
         
         // Alert if trying to add from entrance or empty location
         if (item == "" || item == "entrance") {
@@ -791,15 +796,20 @@
             </div>
 
             <div class="space-y-3">
-                 <div class={`grid gap-1.5 ${gridColsClass}`}>
-                    {#each config["locations"] as row, rowIndex}
-                        {#each row as cell, colIndex}
-                            <button class="flex min-h-[60px] flex-col items-center justify-center rounded-lg text-xs font-medium transition
-                                {rowIndex === curLocation[0] && colIndex === curLocation[1] ? 'bg-green-100 border-2 border-green-500 text-green-900 shadow-sm' : 'border border-slate-200 bg-white hover:bg-slate-50'}"
-                                on:click={() => handleCell(cell, rowIndex, colIndex)}>
-                                <span>{cell.toLowerCase()}</span>{#if $emojisMap[cell]}<span class="text-xl mt-0.5">{$emojisMap[cell]}</span>{/if}
-                            </button>
-                        {/each}
+                 <div class="space-y-1.5">
+                    {#each locationRows as row, rowIndex}
+                        <div
+                            class="grid gap-1.5"
+                            style={`grid-template-columns: repeat(${Math.max(1, row.length)}, minmax(0, 1fr));`}
+                        >
+                            {#each row as cell, colIndex}
+                                <button class="flex min-h-[60px] flex-col items-center justify-center rounded-lg text-xs font-medium transition
+                                    {rowIndex === curLocation[0] && colIndex === curLocation[1] ? 'bg-green-100 border-2 border-green-500 text-green-900 shadow-sm' : 'border border-slate-200 bg-white hover:bg-slate-50'}"
+                                    on:click={() => handleCell(cell, rowIndex, colIndex)}>
+                                    <span>{cell.toLowerCase()}</span>{#if $emojisMap[cell]}<span class="text-xl mt-0.5">{$emojisMap[cell]}</span>{/if}
+                                </button>
+                            {/each}
+                        </div>
                     {/each}
                 </div>
                 <div class="flex justify-between pt-2 border-t">
@@ -911,15 +921,20 @@
                     <h2 class="text-xl font-bold text-slate-800">📍 Store Layout: {$orders[0].store}</h2>
                     <button class="text-slate-400 hover:text-slate-600 text-2xl" on:click={() => showStoreMap = false}>&times;</button>
                 </div>
-                <div class={`grid gap-1.5 ${gridColsClass}`}>
-                    {#each config["locations"] as row, rowIndex}
-                        {#each row as cell, colIndex}
-                            <div class="flex min-h-[50px] flex-col items-center justify-center rounded-lg text-xs font-medium border
-                                {rowIndex === curLocation[0] && colIndex === curLocation[1] ? 'bg-green-100 border-2 border-green-500 text-green-900' : 'border-slate-200 bg-slate-50'}">
-                                <span class="font-bold">{cell.toLowerCase()}</span>
-                                {#if $emojisMap[cell]}<span class="text-lg mt-0.5">{$emojisMap[cell]}</span>{/if}
-                            </div>
-                        {/each}
+                <div class="space-y-1.5">
+                    {#each locationRows as row, rowIndex}
+                        <div
+                            class="grid gap-1.5"
+                            style={`grid-template-columns: repeat(${Math.max(1, row.length)}, minmax(0, 1fr));`}
+                        >
+                            {#each row as cell, colIndex}
+                                <div class="flex min-h-[50px] flex-col items-center justify-center rounded-lg text-xs font-medium border
+                                    {rowIndex === curLocation[0] && colIndex === curLocation[1] ? 'bg-green-100 border-2 border-green-500 text-green-900' : 'border-slate-200 bg-slate-50'}">
+                                    <span class="font-bold">{cell.toLowerCase()}</span>
+                                    {#if $emojisMap[cell]}<span class="text-lg mt-0.5">{$emojisMap[cell]}</span>{/if}
+                                </div>
+                            {/each}
+                        </div>
                     {/each}
                 </div>
                 <p class="text-center text-xs text-slate-500 mt-3">Your current location is highlighted in green</p>
