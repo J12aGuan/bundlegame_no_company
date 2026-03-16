@@ -736,7 +736,7 @@
                 style={`grid-template-columns: repeat(${pickerColumns}, minmax(0, 1fr));`}
             >
                     <div class="min-w-0 bg-white p-3 rounded-xl border shadow-sm space-y-2">
-                        <label class="block text-xs font-bold text-slate-700 uppercase">1. Item to Be Picked</label>
+                        <label class="block text-xs font-bold text-slate-700 uppercase">Item to Be Picked</label>
                         <input class="w-full text-base border-2 border-slate-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none" 
                             bind:value={wordInput} placeholder="Type item name..."/>
                         <button class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg shadow hover:bg-blue-700 transition text-sm"
