@@ -88,6 +88,12 @@
         "Emeryville": [37.8313, -122.2852],
         "Piedmont": [37.8238, -122.2316]
     };
+    const cityTooltipConfig = {
+        "Berkeley": { direction: 'top', offset: [0, -12] },
+        "Oakland": { direction: 'left', offset: [-16, 0] },
+        "Emeryville": { direction: 'bottom', offset: [0, 12] },
+        "Piedmont": { direction: 'right', offset: [16, 0] }
+    };
 
     // --- HELPERS ---
     function clearTimers() {
@@ -232,7 +238,13 @@
 
             map = L.map('map', {
                 center: currentCoords,
-                zoom: 12
+                zoom: 12,
+                zoomControl: false,
+                scrollWheelZoom: false,
+                doubleClickZoom: false,
+                boxZoom: false,
+                keyboard: false,
+                touchZoom: false
             });
 
             L.maptilerLayer({
@@ -242,7 +254,8 @@
 
             Object.entries(cityCoords).forEach(([city, coords]) => {
                 const isCurrent = city === $currLocation;
-            const hasExpOrders = experimentOrders.some((order) => order.city === city);
+                const hasExpOrders = experimentOrders.some((order) => order.city === city);
+                const tooltipConfig = cityTooltipConfig[city] || { direction: 'top', offset: [0, -12] };
 
                 const marker = L.circleMarker(coords, {
                     color: isCurrent ? '#16a34a' : (hasExpOrders ? '#ef4444' : '#3b82f6'),
@@ -256,12 +269,22 @@
 
                 marker.bindTooltip(label, {
                     permanent: true,
-                    direction: 'top',
+                    direction: tooltipConfig.direction,
+                    offset: tooltipConfig.offset,
                     className: 'font-bold text-slate-700'
                 });
 
                 marker.on('click', () => travel(city));
             });
+
+            const bounds = L.latLngBounds(Object.values(cityCoords));
+            map.fitBounds(bounds, {
+                padding: [56, 56],
+                maxZoom: 13
+            });
+            map.setMinZoom(map.getZoom());
+            map.setMaxZoom(map.getZoom());
+            map.invalidateSize();
 
             mapInitRetryCount = 0;
         } catch (error) {
