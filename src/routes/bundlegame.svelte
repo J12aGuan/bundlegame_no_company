@@ -79,6 +79,10 @@
         return Array.isArray(entrance) && entrance.length >= 2 ? [...entrance] : [0, 0];
     }
 
+    function isAtItemAisle(itemName) {
+        return String(locationLabel || "").toLowerCase() === String(itemName || "").toLowerCase();
+    }
+
     onMount(() => {
         const selOrders = get(orders)
         startEarnings = selOrders.reduce((sum, order) => sum + order.earnings, 0)
@@ -202,6 +206,7 @@
 
     // Function to increase quantity of an item
     function increaseQuantity(bagIdx, itemName) {
+        if (!isAtItemAisle(itemName)) return;
         if (bags[bagIdx][itemName]) {
             bags[bagIdx][itemName] += 1;
             bags = [...bags]; // Trigger reactivity
@@ -726,13 +731,11 @@
                 style={`grid-template-columns: repeat(${pickerColumns}, minmax(0, 1fr));`}
             >
                     <div class="min-w-0 bg-white p-3 rounded-xl border shadow-sm space-y-2">
-                        <label class="block text-xs font-bold text-slate-700 uppercase">1. Identify Item</label>
+                        <label class="block text-xs font-bold text-slate-700 uppercase">1. Item to Be Picked</label>
                         <input class="w-full text-base border-2 border-slate-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none" 
                             bind:value={wordInput} placeholder="Type item name..."/>
                         <button class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg shadow hover:bg-blue-700 transition text-sm"
                             on:click={addBag}>Add to Selected Bags</button>
-                        <button class="w-full bg-slate-500 text-white font-bold py-1.5 rounded-lg shadow hover:bg-slate-600 transition text-xs"
-                            on:click={() => showStoreMap = true}>📍 Show Store Map</button>
                     </div>
 
                     {#each $orders as order, idx}
@@ -763,8 +766,16 @@
                                                 <button class="w-4 h-4 bg-slate-200 rounded text-[10px] hover:bg-slate-300" 
                                                     on:click|stopPropagation={() => decreaseQuantity(idx, item)}>-</button>
                                                 <span class="min-w-[16px] text-center">{qty}</span>
-                                                <button class="w-4 h-4 bg-slate-200 rounded text-[10px] hover:bg-slate-300" 
-                                                    on:click|stopPropagation={() => increaseQuantity(idx, item)}>+</button>
+                                                <button
+                                                    class={`w-4 h-4 rounded text-[10px] ${
+                                                        isAtItemAisle(item)
+                                                            ? "bg-slate-200 hover:bg-slate-300"
+                                                            : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                                    }`}
+                                                    disabled={!isAtItemAisle(item)}
+                                                    title={isAtItemAisle(item) ? "Add one more" : `Go to the ${item} aisle to add more`}
+                                                    on:click|stopPropagation={() => increaseQuantity(idx, item)}
+                                                >+</button>
                                                 <button class="w-4 h-4 bg-red-100 text-red-600 rounded text-[10px] hover:bg-red-200 ml-0.5" 
                                                     on:click|stopPropagation={() => removeFromBag(idx, item)}>×</button>
                                             </div>

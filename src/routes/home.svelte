@@ -297,7 +297,7 @@
 </script>
 
 {#if $game.inSelect}
-<section class="mx-auto max-w-7xl px-3 py-3 space-y-3">
+<section class="mx-auto max-w-7xl px-3 pt-0 pb-3 space-y-3">
 
     {#if isPenalty}
         <div class="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center space-y-3 shadow-lg">
@@ -321,18 +321,18 @@
         </div>
 
     {:else}
-        <div class="flex flex-wrap items-end justify-between gap-2">
-            {#if thinking}
+        {#if thinking}
+            <div class="flex flex-wrap items-end justify-between gap-2">
                 <div class="bg-blue-50 px-3 py-1.5 rounded-lg text-blue-800 text-xs font-medium border border-blue-100">
                     ⏱️ Review Time: {thinkRemaining}s
                     <button class="ml-2 text-xs underline opacity-60 hover:opacity-100" on:click={skipThinking}>Skip</button>
                 </div>
-            {/if}
-        </div>
+            </div>
+        {/if}
 
-        <div class="grid lg:grid-cols-[55%_45%] gap-4 mt-2">
+        <div class="grid lg:grid-cols-[55%_45%] gap-4">
             <div class="space-y-2">
-                <h2 class="text-base font-semibold text-slate-800">Scenario Orders</h2>
+                <h2 class="text-base font-semibold text-slate-800">Available Orders</h2>
                 
                 <!-- Fixed height grid for 4 orders without scrolling -->
                 <div class="grid grid-cols-2 gap-2">
