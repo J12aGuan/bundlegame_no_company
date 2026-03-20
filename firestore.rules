@@ -55,6 +55,22 @@ service cloud.firestore {
         allow update: if true;
         allow delete: if false;
       }
+
+      // ScenarioSet progress subcollection
+      match /ScenarioSet/{docId} {
+        allow create: if true;
+        allow read: if true;
+        allow update: if true;
+        allow delete: if false;
+      }
+
+      // Structured action summary subcollection
+      match /Action/{docId} {
+        allow create: if true;
+        allow read: if true;
+        allow update: if true;
+        allow delete: if false;
+      }
     }
 
     // Configs collection - for experiment configurations
