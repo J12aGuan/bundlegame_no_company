@@ -310,12 +310,31 @@ function resolveDatasetRootName(value = "") {
     .replace(/^_|_$/g, "");
 }
 
+function padDatePart(value) {
+  return String(value).padStart(2, "0");
+}
+
+function createScenarioSetVersionId(datasetName = "", now = new Date()) {
+  const normalizedDataset = normalizeDatasetName(datasetName || "dataset") || "dataset";
+  const date = now instanceof Date ? now : new Date();
+  const year = date.getFullYear();
+  const month = padDatePart(date.getMonth() + 1);
+  const day = padDatePart(date.getDate());
+  const hour = padDatePart(date.getHours());
+  const minute = padDatePart(date.getMinutes());
+  const second = padDatePart(date.getSeconds());
+  return `${normalizedDataset}_${year}_${month}_${day}_${hour}_${minute}_${second}`;
+}
+
 // Keeps only approved metadata keys and validates numeric constraints when present.
 function sanitizeGenerationMetadata(metadata = {}) {
   const cleaned = {};
 
   const datasetName = String(metadata.datasetName ?? metadata.name ?? "").trim();
   if (datasetName) cleaned.datasetName = datasetName;
+
+  const scenarioSetVersionId = String(metadata.scenarioSetVersionId ?? "").trim();
+  if (scenarioSetVersionId) cleaned.scenarioSetVersionId = scenarioSetVersionId;
 
   const totalRounds = Number(metadata.totalRounds);
   if (Number.isFinite(totalRounds) && totalRounds > 0) cleaned.totalRounds = Math.floor(totalRounds);
@@ -403,7 +422,7 @@ export async function validateGenerationOptionsForAdmin(options = {}) {
 // Algorithm Methods
 // Estimates base completion time for one order (local travel + item pick only).
 function estimateBaseOrderTime(order, context = {}) {
-  const localTravel = estimateLocalTravelTime();
+  const localTravel = Number(order?.localTravelTime) || 0;
   const pickItem = estimatePickItemTime(order, context);
   return localTravel + pickItem;
 }
@@ -472,8 +491,11 @@ function createOrderModel(context = {}) {
     store: String(chosenStore),
     items,
     earnings: randomInt(payMin, payMax),
-    estimatedTime: 0
+    estimatedTime: 0,
+    localTravelTime: 0
   };
+
+  order.localTravelTime = estimateLocalTravelTime();
 
   // Store only base estimate (local + pick). Cross-city is runtime/simulation-dependent.
   if (!order.estimatedTime || !Number.isFinite(order.estimatedTime)) {
@@ -725,7 +747,8 @@ function buildScenarioRound(caseResult, context = {}) {
       store: String(order.store ?? ""),
       items: order.items && typeof order.items === "object" ? { ...order.items } : {},
       earnings: Number(order.earnings) || 0,
-      estimatedTime: Number(order.estimatedTime) || 0
+      estimatedTime: Number(order.estimatedTime) || 0,
+      localTravelTime: Number(order.localTravelTime) || 0
     })),
     scenario: {
       round,
@@ -782,6 +805,12 @@ async function saveGeneratedScenarioSet(scenarios = [], scenarioSetId = "experim
   const metadata = sanitizeGenerationMetadata(
     serialized?.metadata && typeof serialized.metadata === "object" ? serialized.metadata : {}
   );
+  if (!metadata.scenarioSetVersionId) {
+    metadata.scenarioSetVersionId = createScenarioSetVersionId(datasetRoot);
+  }
+  if (!metadata.datasetName) {
+    metadata.datasetName = datasetRoot;
+  }
 
   await saveScenarioDatasetBundle(datasetRoot, {
     scenarios: scenariosArray,
@@ -884,6 +913,7 @@ export async function runScenarioGenerationPipeline(options = {}) {
 
   const metadata = {
     datasetName: normalizedDataset,
+    scenarioSetVersionId: createScenarioSetVersionId(normalizedDataset),
     totalRounds: Number(totalRounds),
     maxBundle: Number(maxBundle),
     payMin: Number(payMin),

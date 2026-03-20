@@ -1,12 +1,13 @@
 <script>
     import { get } from 'svelte/store';
-    import { game, orders, gameText, currLocation, logOrders, orderList, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed, gameMode, scenarios } from "$lib/bundle.js";
+    import { game, orders, gameText, currLocation, orderList, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed, gameMode, scenarios, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase } from "$lib/bundle.js";
     import { getDistances, storeConfig, PENALTY_TIMEOUT } from "$lib/config.js";
     import Order from "./order.svelte";
     import { onMount, onDestroy } from "svelte";
 
     // --- EXPERIMENT DATA PROCESSING ---
     $: scenario = getCurrentScenario($currentRound);
+    $: activeScenarioId = String(scenario?.scenario_id ?? '').trim();
     $: maxBundle = scenario.max_bundle ?? 3;
     $: isTutorialRoundOne = $gameMode === 'tutorial' && $currentRound === 1;
     $: isTutorialRoundTwo = $gameMode === 'tutorial' && $currentRound === 2;
@@ -96,10 +97,19 @@
     };
 
     // --- HELPERS ---
+    function stopSelectionPhases() {
+        stopScenarioPhase(activeScenarioId, 'thinkingTime');
+        stopScenarioPhase(activeScenarioId, 'penaltyTime');
+    }
+
     function clearTimers() {
         if (travelTimer) clearInterval(travelTimer);
         if (thinkInterval) clearInterval(thinkInterval);
         if (penaltyInterval) clearInterval(penaltyInterval);
+        travelTimer = null;
+        thinkInterval = null;
+        penaltyInterval = null;
+        stopSelectionPhases();
     }
 
     function start() {
@@ -130,8 +140,6 @@
         }
 
         clearTimers();
-        // Log the selected orders against all available orders
-        logOrders(selOrders, localOrders);
         $game.inStore = true;
         $game.inSelect = false;
     }
@@ -143,15 +151,21 @@
         let index = distances["destinations"].indexOf(city);
         if (index == -1) {
             console.warn("Distance not found for", city);
-            duration = 5; // fallback
+            duration = 0;
         } else {
-            duration = distances["distances"][index] || 5;
+            duration = Number(distances["distances"][index]) || 0;
         }
         
         clearTimers();
         waiting = true;
         travelingTo = city;
         travelProgress = duration;
+        addScenarioTime(activeScenarioId, 'cityTravelTime', duration);
+
+        if (duration <= 0) {
+            completeTravel(city);
+            return;
+        }
 
         travelTimer = setInterval(() => {
             travelProgress -= 1;
@@ -207,6 +221,7 @@
             if (penaltyRemaining <= 0) {
                 isPenalty = false;
                 clearInterval(penaltyInterval);
+                penaltyInterval = null;
                 $game.penaltyTriggered = false; 
             }
         }, 1000);
@@ -219,6 +234,13 @@
     function isTransientStyleError(error) {
         const msg = String(error?.message || error || "").toLowerCase();
         return msg.includes("style is not done loading");
+    }
+
+    function isValidCoords(coords) {
+        return Array.isArray(coords)
+            && coords.length >= 2
+            && Number.isFinite(Number(coords[0]))
+            && Number.isFinite(Number(coords[1]));
     }
 
     function scheduleMapRetry() {
@@ -234,7 +256,9 @@
             if (!document.getElementById('map')) return;
             if (map && map.remove) { map.remove(); map = null; }
 
-            const currentCoords = cityCoords[$currLocation] || cityCoords["Berkeley"];
+            const fallbackCoords = cityCoords["Berkeley"];
+            const rawCurrentCoords = cityCoords[$currLocation];
+            const currentCoords = isValidCoords(rawCurrentCoords) ? rawCurrentCoords : fallbackCoords;
 
             map = L.map('map', {
                 center: currentCoords,
@@ -253,6 +277,7 @@
             }).addTo(map);
 
             Object.entries(cityCoords).forEach(([city, coords]) => {
+                if (!isValidCoords(coords)) return;
                 const isCurrent = city === $currLocation;
                 const hasExpOrders = experimentOrders.some((order) => order.city === city);
                 const tooltipConfig = cityTooltipConfig[city] || { direction: 'top', offset: [0, -12] };
@@ -277,11 +302,14 @@
                 marker.on('click', () => travel(city));
             });
 
-            const bounds = L.latLngBounds(Object.values(cityCoords));
-            map.fitBounds(bounds, {
-                padding: [56, 56],
-                maxZoom: 13
-            });
+            const validCoords = Object.values(cityCoords).filter(isValidCoords);
+            if (validCoords.length > 0) {
+                const bounds = L.latLngBounds(validCoords);
+                map.fitBounds(bounds, {
+                    padding: [56, 56],
+                    maxZoom: 13
+                });
+            }
             map.setMinZoom(map.getZoom());
             map.setMaxZoom(map.getZoom());
             map.invalidateSize();
@@ -299,6 +327,7 @@
 
     // --- LIFECYCLE ---
     onMount(() => {
+        setScenarioInProgress(activeScenarioId);
         if ($game.penaltyTriggered) startPenalty();
         else startThinkingTimer();
         
@@ -310,6 +339,18 @@
     // Re-render map when state changes to selection mode
     $: if (!waiting && !isPenalty && $game.inSelect) {
         setTimeout(initMap, 200);
+    }
+
+    $: if ($gameMode !== 'tutorial' && $game.inSelect && activeScenarioId) {
+        if (isPenalty) {
+            startScenarioPhase(activeScenarioId, 'penaltyTime');
+        } else if (!waiting) {
+            startScenarioPhase(activeScenarioId, 'thinkingTime');
+        } else {
+            stopSelectionPhases();
+        }
+    } else {
+        stopSelectionPhases();
     }
 
     onDestroy(() => {

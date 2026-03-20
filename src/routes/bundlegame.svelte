@@ -1,7 +1,7 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, logAction, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarios, emojisMap, roundTimeLimit, gameMode, endGameSession, notifyTutorialRoundProgress, notifyMainGameComplete } from "$lib/bundle.js"
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarios, emojisMap, roundTimeLimit, gameMode, endGameSession, notifyTutorialRoundProgress, notifyMainGameComplete, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase } from "$lib/bundle.js"
     import { storeConfig, getDistances } from "$lib/config.js"; // Import getDistances
     
     let config = {}; // Will be set properly in onMount()
@@ -29,24 +29,14 @@
     let deliveryCountdown = 0;
     let deliveryCountdownInterval = null;
     let deliveringToCity = "";
+    let currentDeliveryTotalTime = 0;
     
     let totalEarnings;
     let curTip = 0;
     $: pickerColumns = Math.max(2, numOrders + 1);
     
-    // DELIVERY STATE
-    let deliveryMap;
-    let deliveryMapRetryCount = 0;
-    let deliveryMapRetryTimer;
     let deliveryLocations = [];
     let currentDeliveryCity = ""; // Tracks where the driver currently is
-    const API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
-    const cityCoords = {
-        "Berkeley": [37.8715, -122.2730],
-        "Oakland": [37.8044, -122.2712],
-        "Emeryville": [37.8313, -122.2852],
-        "Piedmont": [37.8238, -122.2316]
-    };
 
     // Timer config - now from centralized config
     $: hasRoundTimeLimit = $gameMode !== 'tutorial' && Number.isFinite(Number($roundTimeLimit)) && Number($roundTimeLimit) > 0;
@@ -57,6 +47,8 @@
     $: countdownTimer = hasRoundTimeLimit ? Math.max(0, ROUND_TIME_LIMIT - elapsedTime) : null;
     $: locationLabel = config["locations"]?.[curLocation[0]]?.[curLocation[1]]?.toLowerCase() || "entrance";
     $: locationRows = Array.isArray(config["locations"]) ? config["locations"] : [];
+    $: activeScenario = getCurrentScenario($currentRound);
+    $: activeScenarioId = String(activeScenario?.scenario_id ?? '').trim();
 
     // Auto clear input
     $: if (curLocation) {
@@ -88,7 +80,14 @@
         return String(locationLabel || "").toLowerCase() === String(itemName || "").toLowerCase();
     }
 
+    function stopStorePhases() {
+        stopScenarioPhase(activeScenarioId, 'startPickingConfirmationTime');
+        stopScenarioPhase(activeScenarioId, 'itemAddToCartTime');
+        stopScenarioPhase(activeScenarioId, 'idleOrOtherTime');
+    }
+
     onMount(() => {
+        setScenarioInProgress(activeScenarioId);
         const selOrders = get(orders)
         startEarnings = selOrders.reduce((sum, order) => sum + order.earnings, 0)
         totalEarnings = startEarnings
@@ -108,10 +107,9 @@
 
     onDestroy(() => {
         if ($game.tip) clearInterval(intervalId);
-        if (deliveryMap) deliveryMap.remove();
         if (aisleCountdownInterval) clearInterval(aisleCountdownInterval);
         if (deliveryCountdownInterval) clearInterval(deliveryCountdownInterval);
-        if (deliveryMapRetryTimer) clearTimeout(deliveryMapRetryTimer);
+        stopStorePhases();
     });
 
     function handleCell(value, row, col) {
@@ -133,6 +131,7 @@
         GameState = 2;
         
         const travelTime = dist * config["cellDistance"];
+        addScenarioTime(activeScenarioId, 'aisleTravelTime', travelTime / 1000);
         
         // Start aisle countdown
         aisleCountdown = travelTime / 1000; // Convert to seconds
@@ -163,7 +162,6 @@
             alert("Incorrect! You must type the name of the item: " + item)
             action.mistake = "itemtypo"
             wordInput = ""; bagInputs = ["", "", ""];
-            logAction(action)
             return;
         }
 
@@ -185,7 +183,6 @@
 
         bags = [...bags]; // Reactivity trigger
         wordInput = ""; bagInputs = ["", "", ""];
-        logAction(action)
     }
 
     // Function to remove items from a bag
@@ -193,7 +190,6 @@
         if (bags[bagIdx][itemName]) {
             delete bags[bagIdx][itemName];
             bags = [...bags]; // Trigger reactivity
-            logAction({ buttonID: "removefromBag", bagIndex: bagIdx, item: itemName });
         }
     }
 
@@ -205,7 +201,6 @@
                 delete bags[bagIdx][itemName];
             }
             bags = [...bags]; // Trigger reactivity
-            logAction({ buttonID: "decreaseQty", bagIndex: bagIdx, item: itemName });
         }
     }
 
@@ -215,7 +210,6 @@
         if (bags[bagIdx][itemName]) {
             bags[bagIdx][itemName] += 1;
             bags = [...bags]; // Trigger reactivity
-            logAction({ buttonID: "increaseQty", bagIndex: bagIdx, item: itemName });
         }
     }
 
@@ -244,7 +238,39 @@
             exit();
         }
     }
-    
+
+    function getDeliveryTravelTime(orderLike) {
+        const destination = String(orderLike?.destination || orderLike?.city || "");
+        const localTravel = Number(orderLike?.localTravelTime) || 0;
+        if (!destination) return localTravel;
+
+        const distData = getDistances(currentDeliveryCity);
+        const destIndex = (distData?.destinations || []).indexOf(destination);
+        const crossCity = currentDeliveryCity !== destination && destIndex !== -1
+            ? (Number(distData?.distances?.[destIndex]) || 0)
+            : 0;
+
+        return Math.max(0, localTravel + crossCity);
+    }
+
+    function getDeliveryTimeBreakdown(orderLike) {
+        const destination = String(orderLike?.destination || orderLike?.city || "");
+        const localTravel = Math.max(0, Number(orderLike?.localTravelTime) || 0);
+        if (!destination) {
+            return { localTravel, crossCity: 0, total: localTravel };
+        }
+        const distData = getDistances(currentDeliveryCity);
+        const destIndex = (distData?.destinations || []).indexOf(destination);
+        const crossCity = currentDeliveryCity !== destination && destIndex !== -1
+            ? Math.max(0, Number(distData?.distances?.[destIndex]) || 0)
+            : 0;
+        return {
+            localTravel,
+            crossCity,
+            total: Math.max(0, localTravel + crossCity)
+        };
+    }
+
     function exit() {
         console.log("exit() called - switching back to home");
         console.log("Before: $game.inSelect =", $game.inSelect, "$game.inStore =", $game.inStore);
@@ -258,16 +284,6 @@
         totalEarnings = 0;
         curTip = 0;
         deliveryLocations = [];
-
-        // Make sure delivery map is fully torn down
-        if (deliveryMap) {
-            try {
-                deliveryMap.remove();
-            } catch (err) {
-                console.error("Failed to remove delivery map", err);
-            }
-            deliveryMap = null;
-        }
 
         // Keep `currLocation` as whatever you last delivered to;
         // Home uses `$currLocation` to decide which city's orders to show,
@@ -341,191 +357,22 @@
                 id: o.id,
                 destination: o.city, // Use city field as destination
                 name: o.id || o.store || o.city,
-                delivered: false
+                delivered: false,
+                localTravelTime: Number(o?.localTravelTime) || 0
             }));
             
             // Start Delivery Phase
             GameState = 5;
-            setTimeout(initDeliveryMap, 100);
         } else {
             logRoundCompletion(false);
             GameState = 4;
         }
     }
 
-    // Map layer references for updating
-    let truckMarker = null;
-    let routeLines = [];
-    let distanceLabels = [];
-    let destinationMarkers = [];
-
-    function isTransientStyleError(error) {
-        const msg = String(error?.message || error || "").toLowerCase();
-        return msg.includes("style is not done loading");
-    }
-
-    function scheduleDeliveryMapRetry() {
-        if (deliveryMapRetryCount >= 6) return;
-        deliveryMapRetryCount += 1;
-        if (deliveryMapRetryTimer) clearTimeout(deliveryMapRetryTimer);
-        deliveryMapRetryTimer = setTimeout(initDeliveryMap, 250 * deliveryMapRetryCount);
-    }
-
-    function initDeliveryMap() {
-        try {
-            if (deliveryMap) deliveryMap.remove();
-            
-            deliveryMap = L.map('delivery-map', {
-                center: [37.84, -122.25],
-                zoom: 12
-            });
-
-            L.maptilerLayer({
-                apiKey: API_KEY,
-                style: L.MaptilerStyle.STREETS
-            }).addTo(deliveryMap);
-
-            updateDeliveryMapLayers();
-            deliveryMapRetryCount = 0;
-        } catch (error) {
-            if (deliveryMap && deliveryMap.remove) {
-                try { deliveryMap.remove(); } catch (_) {}
-            }
-            deliveryMap = null;
-            if (isTransientStyleError(error)) {
-                scheduleDeliveryMapRetry();
-                return;
-            }
-            console.error('Error initializing delivery map:', error);
-        }
-    }
-    
-    function updateDeliveryMapLayers() {
-        if (!deliveryMap) return;
-        try {
-            // Clear existing layers
-            routeLines.forEach(line => deliveryMap.removeLayer(line));
-            distanceLabels.forEach(label => deliveryMap.removeLayer(label));
-            destinationMarkers.forEach(marker => deliveryMap.removeLayer(marker));
-            if (truckMarker) deliveryMap.removeLayer(truckMarker);
-
-            routeLines = [];
-            distanceLabels = [];
-            destinationMarkers = [];
-
-            // Get current location coordinates
-            const currentCoords = cityCoords[currentDeliveryCity] || cityCoords["Berkeley"];
-
-            // Add Truck Marker at current location
-            const truckIcon = L.divIcon({
-                html: '<div style="font-size:28px;text-shadow:2px 2px 4px rgba(0,0,0,0.3);">🚚</div>',
-                className: 'truck-marker',
-                iconSize: [35, 35],
-                iconAnchor: [17, 17]
-            });
-            truckMarker = L.marker(currentCoords, { icon: truckIcon, zIndexOffset: 1000 }).addTo(deliveryMap);
-            truckMarker.bindPopup(`<b>📍 You are here</b><br>${currentDeliveryCity}`);
-
-            // Add Destination Markers and Route Lines
-            deliveryLocations.forEach((loc, idx) => {
-            const destCoords = cityCoords[loc.destination] || cityCoords["Berkeley"];
-            
-            // Calculate travel time from current location
-            const distData = getDistances(currentDeliveryCity);
-            let travelTime = 0;
-            if (currentDeliveryCity !== loc.destination) {
-                const destIndex = distData.destinations.indexOf(loc.destination);
-                if (destIndex !== -1) {
-                    travelTime = distData.distances[destIndex];
-                } else {
-                    travelTime = 2;
-                }
-            } else {
-                travelTime = 2;
-            }
-            
-            if (!loc.delivered) {
-                // Draw route line from current location to destination
-                const routeLine = L.polyline([currentCoords, destCoords], {
-                    color: '#3b82f6',
-                    weight: 3,
-                    opacity: 0.7,
-                    dashArray: '10, 10'
-                }).addTo(deliveryMap);
-                routeLines.push(routeLine);
-                
-                // Add distance/time label at midpoint of line
-                const midLat = (currentCoords[0] + destCoords[0]) / 2;
-                const midLng = (currentCoords[1] + destCoords[1]) / 2;
-                
-                const labelIcon = L.divIcon({
-                    html: `<div style="background:#3b82f6;color:white;padding:2px 6px;border-radius:10px;font-size:11px;font-weight:bold;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.2);">🚗 ${travelTime}s</div>`,
-                    className: 'distance-label',
-                    iconSize: [60, 20],
-                    iconAnchor: [30, 10]
-                });
-                const label = L.marker([midLat, midLng], { icon: labelIcon, interactive: false }).addTo(deliveryMap);
-                distanceLabels.push(label);
-            }
-            
-            // Destination marker
-            const markerIcon = L.divIcon({
-                html: `<div style="font-size:24px;${loc.delivered ? 'opacity:0.4;' : ''}">${loc.delivered ? '✅' : '📦'}</div>`,
-                className: 'dest-marker',
-                iconSize: [30, 30],
-                iconAnchor: [15, 15]
-            });
-            
-            const marker = L.marker(destCoords, { icon: markerIcon }).addTo(deliveryMap);
-            destinationMarkers.push(marker);
-            
-            // Popup with delivery info
-            if (!loc.delivered) {
-                marker.bindPopup(`
-                    <div style="text-align:center;min-width:120px;">
-                        <b style="font-size:14px;">${loc.name}</b><br>
-                        <span style="color:#666;">📍 ${loc.destination}</span><br>
-                        <div style="background:#e0f2fe;padding:4px 8px;border-radius:6px;margin:6px 0;">
-                            <span style="font-size:16px;font-weight:bold;color:#0369a1;">🚗 ${travelTime}s</span>
-                        </div>
-                        <div style="font-size:11px;color:#16a34a;font-weight:bold;">
-                            Click to deliver
-                        </div>
-                    </div>
-                `);
-                
-                marker.on('click', () => {
-                    console.log("Marker clicked for idx:", idx);
-                    deliverTo(idx);
-                });
-            } else {
-                marker.bindPopup(`
-                    <div style="text-align:center;">
-                        <b>${loc.name}</b><br>
-                        <span style="color:#16a34a;">✅ Delivered</span>
-                    </div>
-                `);
-            }
-            });
-
-            // Fit map to show all points
-            const allCoords = [currentCoords, ...deliveryLocations.map(loc => cityCoords[loc.destination] || cityCoords["Berkeley"])];
-            const bounds = L.latLngBounds(allCoords);
-            deliveryMap.fitBounds(bounds, { padding: [30, 30] });
-            deliveryMapRetryCount = 0;
-        } catch (error) {
-            if (isTransientStyleError(error)) {
-                scheduleDeliveryMapRetry();
-                return;
-            }
-            console.error("Error updating delivery map layers:", error);
-        }
-    }
-
     function deliverTo(idx) {
         console.log("deliverTo called with idx:", idx, "deliveryLocations:", deliveryLocations);
-        if (!deliveryMap || !deliveryLocations.length || deliveryInProgress) {
-            console.log("Early return: deliveryMap:", deliveryMap, "deliveryLocations.length:", deliveryLocations.length, "deliveryInProgress:", deliveryInProgress);
+        if (!deliveryLocations.length || deliveryInProgress) {
+            console.log("Early return: deliveryLocations.length:", deliveryLocations.length, "deliveryInProgress:", deliveryInProgress);
             return;
         }
         
@@ -536,27 +383,22 @@
             return;
         }
 
-        // Calculate Travel Time from Current City -> Target City
-        const distData = getDistances(currentDeliveryCity);
-        let travelTime = 0;
-        
-        if (currentDeliveryCity !== targetLoc.destination) {
-            const destIndex = distData.destinations.indexOf(targetLoc.destination);
-            if (destIndex !== -1) {
-                travelTime = distData.distances[destIndex];
-            } else {
-                travelTime = 2; // Fallback for same city
-            }
-        } else {
-            travelTime = 2; // Intra-city travel
-        }
-        
+        const breakdown = getDeliveryTimeBreakdown(targetLoc);
+        const travelTime = breakdown.total;
+        addScenarioTime(activeScenarioId, 'cityTravelTime', breakdown.crossCity);
+        addScenarioTime(activeScenarioId, 'localDeliveryTime', breakdown.localTravel);
+
         // Start delivery countdown (auto-completes after time)
         deliveryInProgress = true;
         deliveringToCity = targetLoc.destination;
         deliveryCountdown = travelTime;
+        currentDeliveryTotalTime = travelTime;
         
         if (deliveryCountdownInterval) clearInterval(deliveryCountdownInterval);
+        if (travelTime <= 0) {
+            completeDelivery(idx, targetLoc);
+            return;
+        }
         deliveryCountdownInterval = setInterval(() => {
             deliveryCountdown = Math.max(0, deliveryCountdown - 0.1);
             if (deliveryCountdown <= 0) {
@@ -574,23 +416,12 @@
         currLocation.set(targetLoc.destination);
         deliveryInProgress = false;
         deliveringToCity = "";
+        currentDeliveryTotalTime = 0;
         
         // Force array update to trigger reactivity
         deliveryLocations = [...deliveryLocations];
         
         console.log("After delivery update:", deliveryLocations.map(d => ({name: d.name, delivered: d.delivered})));
-        
-        // Safely close popup
-        if (deliveryMap && deliveryMap.closePopup) {
-            try {
-                deliveryMap.closePopup();
-            } catch (err) {
-                console.error("Failed to close popup", err);
-            }
-        }
-        
-        // Update map to show new current location and recalculate distances
-        updateDeliveryMapLayers();
         
         // Check if all deliveries complete
         const allDelivered = deliveryLocations.every(d => d.delivered);
@@ -598,11 +429,11 @@
         
         if (allDelivered) {
             console.log("All deliveries complete! Calling finishSuccess()");
-            finishSuccess();
+            void finishSuccess();
         }
     }
 
-    function finishSuccess() {
+    async function finishSuccess() {
         console.log("finishSuccess() called - completing round");
         
         // 1. Never let logging crash the game
@@ -618,7 +449,6 @@
         $uniqueSets += 1;
         const completedRounds = get(uniqueSets);
         const totalRounds = get(scenarios).length;
-
         if ($gameMode === 'tutorial') {
             notifyTutorialRoundProgress(completedRounds, totalRounds);
         }
@@ -644,6 +474,15 @@
         if (completedGame) {
             console.log("Final round complete - ending session");
             if ($gameMode !== 'tutorial') {
+                await saveCurrentProgress({
+                    totalRounds,
+                    roundsCompleted: completedRounds,
+                    totalGameTime: get(elapsed),
+                    earnings: get(earned),
+                    completedGame: true
+                });
+            }
+            if ($gameMode !== 'tutorial') {
                 notifyMainGameComplete('all_rounds_complete', completedRounds, totalRounds);
             }
             endGameSession();
@@ -668,24 +507,12 @@
             && bestSorted.length > 0
             && bestSorted.length === chosenSorted.length
             && bestSorted.every((id, index) => id === chosenSorted[index]);
+        if (isOptimalChoice) {
+            incrementOptimalChoices();
+        }
         const totalRounds = get(scenarios).length;
         const completedGame = success && totalRounds > 0 && $currentRound >= totalRounds;
         
-        logAction({
-            type: "round_summary",
-            round_index: $currentRound,
-            scenario_id: scenarioId,
-            phase: scenario.phase,
-            chosen_orders: chosenOrderIds,
-            chosen_count: chosenOrderIds.length,
-            is_optimal_choice: isOptimalChoice,
-            success: success,
-            earnings: success ? totalEarnings : 0,
-            final_location: $currLocation,
-            duration: duration,
-            completed_game: completedGame
-        });
-
         saveScenarioProgress({
             scenarioId,
             roundIndex: $currentRound,
@@ -695,11 +522,28 @@
             success,
             duration,
             finalLocation: $currLocation,
-            completedGame
+            completedGame,
+            roundsCompleted: get(uniqueSets) + (success ? 1 : 0),
+            optimalChoices: get(optimalChoices),
+            earnings: get(earned) + (success ? totalEarnings : 0)
         });
 
         if (success && !completedGame) currentRound.update(r => r + 1);
         return completedGame;
+    }
+
+    $: if ($gameMode !== 'tutorial' && $game.inStore && activeScenarioId) {
+        if (GameState === 0) {
+            startScenarioPhase(activeScenarioId, 'startPickingConfirmationTime');
+        } else if (GameState === 1) {
+            startScenarioPhase(activeScenarioId, 'itemAddToCartTime');
+        } else if (GameState === 5 && !deliveryInProgress) {
+            startScenarioPhase(activeScenarioId, 'idleOrOtherTime');
+        } else {
+            stopStorePhases();
+        }
+    } else {
+        stopStorePhases();
     }
 </script>
 
@@ -838,7 +682,7 @@
                     </div>
                     <div class="w-48 h-2 bg-slate-200 rounded-full mt-3 mx-auto overflow-hidden">
                         <div class="h-full bg-blue-500 transition-all duration-100 rounded-full"
-                             style="width: {(deliveryCountdown / (getDistances(currentDeliveryCity).distances[getDistances(currentDeliveryCity).destinations.indexOf(deliveringToCity)] || 2)) * 100}%"></div>
+                             style="width: {(deliveryCountdown / Math.max(currentDeliveryTotalTime, 0.1)) * 100}%"></div>
                     </div>
                 </div>
             {:else}
@@ -847,9 +691,7 @@
                     <p class="text-xs font-semibold text-slate-600 mb-2">Deliveries Remaining:</p>
                     <div class="grid gap-2">
                         {#each deliveryLocations as loc, idx}
-                            {@const distData = getDistances(currentDeliveryCity)}
-                            {@const destIndex = distData.destinations.indexOf(loc.destination)}
-                            {@const travelTime = currentDeliveryCity === loc.destination ? 2 : (destIndex !== -1 ? distData.distances[destIndex] : 2)}
+                            {@const travelTime = getDeliveryTravelTime(loc)}
                             <div class="flex items-center justify-between bg-white p-2 rounded-lg border text-sm
                                 {loc.delivered ? 'opacity-50' : ''}">
                                 <div class="flex items-center gap-2">
@@ -875,14 +717,9 @@
                     </div>
                 </div>
             {/if}
-            
-            <!-- Smaller Map -->
-            <div class="relative h-[280px] w-full">
-                <div id="delivery-map" class="w-full h-full"></div>
-            </div>
             <div class="p-3">
                 <div class="text-center text-xs text-slate-500">
-                    Click delivery buttons above or markers on map. Your location updates after each delivery.
+                    Deliveries are handled from the list above. Your location updates after each delivery.
                 </div>
             </div>
         </div>
