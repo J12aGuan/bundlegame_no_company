@@ -1,7 +1,7 @@
 <script>
     import { globalError } from "$lib/globalError.js"
     import Bundlegame from "./bundlegame.svelte";
-    import { game, elapsed, resetTimer, earned, currLocation, id, logAction, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios } from "$lib/bundle.js";
+    import { game, elapsed, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveProgressAndEndSession, resumeElapsedSeconds } from "$lib/bundle.js";
 	import Home from "./home.svelte";
 	import { onMount } from "svelte";
     import { queueNFixedOrders } from "$lib/config.js";
@@ -15,6 +15,7 @@
 
     let started = false;
     let authResolved = false;
+    let savingProgress = false;
     
     async function copyResultCode() {
         const resultCode = displayResultCode($participantResultUrl);
@@ -30,6 +31,18 @@
         if (!url) return '';
         const queryIndex = url.indexOf('?');
         return queryIndex >= 0 ? url.slice(queryIndex + 1) : url;
+    }
+
+    async function saveAndExit() {
+        try {
+            savingProgress = true;
+            await saveProgressAndEndSession();
+        } catch (err) {
+            console.error('Save progress failed:', err);
+            alert(`Unable to save progress: ${err?.message || 'Unknown error'}`);
+        } finally {
+            savingProgress = false;
+        }
     }
     
     $: formattedRemaining = formatTime($remainingTime ?? $FullTimeLimit);
@@ -49,7 +62,7 @@
                 const user = await createNewUser(userInput)
                 if (user != -1) {
                     startTimer();
-                    resetTimer();
+                    resetTimer($resumeElapsedSeconds);
                     game.update((g) => ({ ...g, inSelect: true, inStore: false }));
                     $id = userInput
                     started = true;
@@ -82,27 +95,6 @@
         }
     }
 
-    function handleClick(event) {
-        if ($needsAuth) {
-            if (event.target.id === 'start' || event.target.id === 'addtobag') {
-                return;
-            }
-            if (event.target.tagName == 'BUTTON') {
-                let action = {
-                    buttonID: event.target.id,
-                    buttonContent: event.target.textContent.trim()
-                }
-                logAction(action)
-            } else if (event.target.classList.contains("order-content")) {
-                let action = {
-                    buttonID: event.target.id,
-                    buttonContent: event.target.textContent.trim()
-                }
-                logAction(action)
-            }
-        }
-    }
-
     onMount(() => {
         // Preload main config so auth gate reflects Firebase before rendering login UI.
         loadGame()
@@ -110,12 +102,6 @@
             .finally(() => {
                 authResolved = true;
             });
-
-        window.addEventListener('click', handleClick)
-        return () => {
-            console.log("listener removed")
-            window.removeEventListener('click', handleClick);
-        };
     })
 </script>
 
@@ -220,6 +206,14 @@
                         <span><span class="font-semibold text-slate-900">Time left:</span> {formattedRemaining}</span>
                         <span><span class="font-semibold text-slate-900">Earned:</span> ${$earned}</span>
                         <span><span class="font-semibold text-slate-900">Location:</span> {$currLocation}</span>
+                        <button
+                            type="button"
+                            class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition disabled:opacity-50"
+                            on:click={saveAndExit}
+                            disabled={savingProgress}
+                        >
+                            {savingProgress ? 'Saving...' : 'Save Progress'}
+                        </button>
                     </div>
                 </div>
             </header>

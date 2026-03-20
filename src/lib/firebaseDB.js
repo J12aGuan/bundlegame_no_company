@@ -1,6 +1,6 @@
 import { timeStamp } from './bundle';
 import {firestore} from './firebaseConfig';
-import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, increment, deleteField } from "firebase/firestore";
+import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, deleteField } from "firebase/firestore";
 
 function removeUndefinedDeep(value) {
     if (Array.isArray(value)) {
@@ -19,44 +19,117 @@ function removeUndefinedDeep(value) {
 
 export const createUser = async (id, n) => {
     if (!id) return '';
-    const data = {
-        earnings: 0,
-        ordersComplete: 0,
-        uniqueSetsComplete: 0,
-        createdAt: Timestamp.fromDate(new Date()),
-        updatedAt: Timestamp.fromDate(new Date()),
-        configuration: n
-    }
     const userDocRef = doc(collection(firestore, 'Users'), id);
 
     try {
-        await setDoc(userDocRef, data);
+        const existingUser = await getDoc(userDocRef);
+        if (existingUser.exists()) {
+            await setDoc(userDocRef, {
+                configuration: deleteField(),
+                createdAt: deleteField(),
+                updatedAt: deleteField(),
+                earnings: deleteField(),
+                ordersComplete: deleteField(),
+                uniqueSetsComplete: deleteField(),
+                gametime: deleteField()
+            }, { merge: true });
+        } else {
+            await setDoc(userDocRef, {});
+        }
         console.log("Document written with ID: ", id);
     } catch (error) {
         console.error("Error adding document: ", error);
     }
-    const actionDocRef = doc(collection(firestore, 'Users/' + id + '/Actions'), 'start')
-    const actionData = {
-        createdAt: Timestamp.fromDate(new Date()),
-        updatedAt: Timestamp.fromDate(new Date()),
-        earnings: 0,
-        ordersComplete: 0,
-        uniqueSetsComplete: 0,
-        gametime: 0
-    }
 
-    try {
-        await setDoc(actionDocRef, actionData)
-        console.log("Start action written with id ", id);
-    } catch (error) {
-        console.error("Error creating actions collection: ", error);
-    }
-    
     return id
 }
 
 function getSummaryRef(id) {
     return doc(collection(firestore, 'Users/' + id + '/Summary'), 'summary');
+}
+
+function getScenarioSetProgressRef(id) {
+    return doc(collection(firestore, 'Users/' + id + '/ScenarioSet'), 'progress');
+}
+
+function getActionSummaryRef(id) {
+    return doc(collection(firestore, 'Users/' + id + '/Action'), 'actions');
+}
+
+function normalizeScenarioIdList(value) {
+    if (!Array.isArray(value)) return [];
+    return [...new Set(
+        value
+            .map((entry) => String(entry ?? '').trim())
+            .filter(Boolean)
+    )];
+}
+
+function createEmptyTimeSummary() {
+    return {
+        thinkingTime: 0,
+        startPickingConfirmationTime: 0,
+        aisleTravelTime: 0,
+        itemAddToCartTime: 0,
+        localDeliveryTime: 0,
+        cityTravelTime: 0,
+        penaltyTime: 0,
+        idleOrOtherTime: 0
+    };
+}
+
+function normalizeTimeSummary(summary = {}) {
+    const base = createEmptyTimeSummary();
+    for (const key of Object.keys(base)) {
+        base[key] = Math.max(0, Number(summary?.[key]) || 0);
+    }
+    return base;
+}
+
+function sumTimeSummary(summary = {}) {
+    return Object.values(normalizeTimeSummary(summary)).reduce((sum, value) => sum + value, 0);
+}
+
+function mergeActionEntry(existingEntry = {}, nextEntry = {}) {
+    const existingSummary = normalizeTimeSummary(existingEntry?.timeSummary);
+    const nextSummary = normalizeTimeSummary(nextEntry?.timeSummary);
+    const mergedSummary = createEmptyTimeSummary();
+    for (const key of Object.keys(mergedSummary)) {
+        mergedSummary[key] = Math.max(existingSummary[key], nextSummary[key]);
+    }
+
+    return {
+        totalTimeSeconds: Math.max(
+            Number(existingEntry?.totalTimeSeconds) || 0,
+            Number(nextEntry?.totalTimeSeconds) || 0,
+            sumTimeSummary(mergedSummary)
+        ),
+        timeSummary: mergedSummary
+    };
+}
+
+function normalizeActionsByScenarioId(actionsByScenarioId = {}) {
+    if (!actionsByScenarioId || typeof actionsByScenarioId !== 'object') return {};
+    const out = {};
+    for (const [scenarioId, entry] of Object.entries(actionsByScenarioId)) {
+        const normalizedScenarioId = String(scenarioId ?? '').trim();
+        if (!normalizedScenarioId) continue;
+        out[normalizedScenarioId] = mergeActionEntry({}, entry || {});
+    }
+    return out;
+}
+
+function mergeScenarioSummaryEntry(existingEntry = {}, nextEntry = {}) {
+    return removeUndefinedDeep({
+        scenarioSetName: String(nextEntry?.scenarioSetName ?? existingEntry?.scenarioSetName ?? '').trim(),
+        totalRounds: Number(nextEntry?.totalRounds) || 0,
+        roundsCompleted: Number(nextEntry?.roundsCompleted) || 0,
+        optimalChoices: Number(nextEntry?.optimalChoices) || 0,
+        totalGameTime: Number(nextEntry?.totalGameTime) || 0,
+        completedGame: Boolean(nextEntry?.completedGame),
+        earnings: Number(nextEntry?.earnings) || 0,
+        resultAccessKey: String(existingEntry?.resultAccessKey ?? nextEntry?.resultAccessKey ?? '').trim()
+    });
 }
 
 function generateResultAccessKey() {
@@ -81,70 +154,83 @@ function generateResultAccessKey() {
 
 export const initializeUserProgress = async (id, progress = {}) => {
     if (!id) return;
+    const scenarioSetVersionId = String(progress?.scenarioSetVersionId ?? '').trim();
+    if (!scenarioSetVersionId) return null;
     const resultAccessKey = String(progress?.resultAccessKey ?? generateResultAccessKey()).trim();
-    const payload = removeUndefinedDeep({
-        scenarioSet: String(progress?.scenarioSet ?? '').trim(),
-        totalRounds: Number(progress?.totalRounds) || 0,
-        roundsCompleted: 0,
-        optimalChoices: 0,
-        totalGameTime: 0,
-        completedGame: false,
-        earnings: 0,
-        resultAccessKey,
-        createdAt: Timestamp.fromDate(new Date()),
-        updatedAt: Timestamp.fromDate(new Date())
-    });
 
     try {
-        await setDoc(getSummaryRef(id), payload);
+        const summaryRef = getSummaryRef(id);
+        const snap = await getDoc(summaryRef);
+        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const existingMap = existing?.summaryByScenarioSetVersionId && typeof existing.summaryByScenarioSetVersionId === 'object'
+            ? existing.summaryByScenarioSetVersionId
+            : {};
+        const existingEntry = existingMap[scenarioSetVersionId] && typeof existingMap[scenarioSetVersionId] === 'object'
+            ? existingMap[scenarioSetVersionId]
+            : {};
+        const entry = mergeScenarioSummaryEntry(existingEntry, {
+            scenarioSetName: String(progress?.scenarioSetName ?? progress?.scenarioSet ?? existingEntry?.scenarioSetName ?? '').trim(),
+            totalRounds: Number(progress?.totalRounds) || 0,
+            roundsCompleted: Number(existingEntry?.roundsCompleted) || 0,
+            optimalChoices: Number(existingEntry?.optimalChoices) || 0,
+            totalGameTime: Number(existingEntry?.totalGameTime) || 0,
+            completedGame: Boolean(existingEntry?.completedGame),
+            earnings: Number(existingEntry?.earnings) || 0,
+            resultAccessKey: String(existingEntry?.resultAccessKey ?? resultAccessKey).trim()
+        });
+
+        await setDoc(summaryRef, {
+            summaryByScenarioSetVersionId: {
+                ...existingMap,
+                [scenarioSetVersionId]: entry
+            }
+        });
         console.log("Summary initialized for ", id);
-        return payload;
+        return entry;
     } catch (error) {
         console.error("Error initializing summary: ", error);
         return null;
     }
 };
 
-export const recordScenarioProgress = async (id, progress = {}) => {
+export const saveUserProgressSummary = async (id, progress = {}) => {
     if (!id) return;
-    const scenarioId = String(progress?.scenarioId ?? progress?.scenarioName ?? '').trim();
-    if (!scenarioId) return;
-
-    const summaryUpdate = removeUndefinedDeep({
-        scenarioSet: String(progress?.scenarioSet ?? '').trim(),
-        totalRounds: Number(progress?.totalRounds) || 0,
-        roundsCompleted: progress?.success ? increment(1) : increment(0),
-        optimalChoices: progress?.isOptimalChoice ? increment(1) : increment(0),
-        totalGameTime: Number(progress?.totalGameTime) || 0,
-        completedGame: Boolean(progress?.completedGame),
-        earnings: Number(progress?.earnings) || 0,
-        updatedAt: Timestamp.fromDate(new Date())
-    });
+    const scenarioSetVersionId = String(progress?.scenarioSetVersionId ?? '').trim();
+    if (!scenarioSetVersionId) return null;
 
     try {
-        await setDoc(getSummaryRef(id), summaryUpdate, { merge: true });
-        console.log("Summary updated for ", id, scenarioId);
-    } catch (error) {
-        console.error("Error updating summary from scenario progress: ", error);
-    }
-};
+        const summaryRef = getSummaryRef(id);
+        const snap = await getDoc(summaryRef);
+        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const existingMap = existing?.summaryByScenarioSetVersionId && typeof existing.summaryByScenarioSetVersionId === 'object'
+            ? existing.summaryByScenarioSetVersionId
+            : {};
+        const existingEntry = existingMap[scenarioSetVersionId] && typeof existingMap[scenarioSetVersionId] === 'object'
+            ? existingMap[scenarioSetVersionId]
+            : {};
+        const resultAccessKey = String(existingEntry?.resultAccessKey ?? progress?.resultAccessKey ?? generateResultAccessKey()).trim();
+        const entry = mergeScenarioSummaryEntry(existingEntry, {
+            scenarioSetName: String(progress?.scenarioSetName ?? progress?.scenarioSet ?? existingEntry?.scenarioSetName ?? '').trim(),
+            totalRounds: Number(progress?.totalRounds) || 0,
+            roundsCompleted: Number(progress?.roundsCompleted) || 0,
+            optimalChoices: Number(progress?.optimalChoices) || 0,
+            totalGameTime: Number(progress?.totalGameTime) || 0,
+            completedGame: Boolean(progress?.completedGame),
+            earnings: Number(progress?.earnings) || 0,
+            resultAccessKey
+        });
 
-export const updateUserProgressSummary = async (id, progress = {}) => {
-    if (!id) return;
-    const payload = removeUndefinedDeep({
-        scenarioSet: progress?.scenarioSet,
-        totalRounds: Number(progress?.totalRounds) || undefined,
-        totalGameTime: Number(progress?.totalGameTime),
-        completedGame: progress?.completedGame,
-        earnings: Number(progress?.earnings),
-        updatedAt: Timestamp.fromDate(new Date())
-    });
-
-    try {
-        await setDoc(getSummaryRef(id), payload, { merge: true });
+        await setDoc(summaryRef, {
+            summaryByScenarioSetVersionId: {
+                ...existingMap,
+                [scenarioSetVersionId]: entry
+            }
+        });
         console.log("Summary updated for ", id);
+        return entry;
     } catch (error) {
         console.error("Error updating summary: ", error);
+        return null;
     }
 };
 
@@ -163,10 +249,123 @@ export const getUserSummary = async (id) => {
 export const getParticipantResultSummary = async (userId, accessKey) => {
     const summary = await getUserSummary(userId);
     if (!summary) return null;
-    if (String(summary.resultAccessKey ?? '').trim() !== String(accessKey ?? '').trim()) {
+    const entries = summary?.summaryByScenarioSetVersionId && typeof summary.summaryByScenarioSetVersionId === 'object'
+        ? Object.entries(summary.summaryByScenarioSetVersionId)
+        : [];
+    const match = entries.find(([, value]) => String(value?.resultAccessKey ?? '').trim() === String(accessKey ?? '').trim());
+    if (!match) {
         return null;
     }
-    return summary;
+    const [scenarioSetVersionId, value] = match;
+    return {
+        scenarioSetVersionId,
+        ...(value || {})
+    };
+};
+
+export const getScenarioSetProgress = async (id) => {
+    if (!id) return null;
+    try {
+        const snap = await getDoc(getScenarioSetProgressRef(id));
+        if (!snap.exists()) return null;
+        return { id: snap.id, ...snap.data() };
+    } catch (error) {
+        console.error("Error fetching scenario set progress: ", error);
+        return null;
+    }
+};
+
+export const saveScenarioSetProgress = async (id, progress = {}) => {
+    if (!id) return null;
+    const scenarioSetVersionId = String(progress?.scenarioSetVersionId ?? '').trim();
+    if (!scenarioSetVersionId) return null;
+
+    try {
+        const progressRef = getScenarioSetProgressRef(id);
+        const snap = await getDoc(progressRef);
+        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const existingMap = existing?.progressByScenarioSetVersionId && typeof existing.progressByScenarioSetVersionId === 'object'
+            ? existing.progressByScenarioSetVersionId
+            : {};
+        const existingEntry = existingMap[scenarioSetVersionId] && typeof existingMap[scenarioSetVersionId] === 'object'
+            ? existingMap[scenarioSetVersionId]
+            : {};
+        const completedScenarios = normalizeScenarioIdList([
+            ...(existingEntry?.completedScenarios || []),
+            ...(progress?.completedScenarios || [])
+        ]);
+        const nextInProgressScenario = String(progress?.inProgressScenario ?? existingEntry?.inProgressScenario ?? '').trim();
+        const entry = removeUndefinedDeep({
+            scenarioSetName: String(progress?.scenarioSetName ?? existingEntry?.scenarioSetName ?? '').trim(),
+            completedScenarios,
+            inProgressScenario: completedScenarios.includes(nextInProgressScenario) ? '' : nextInProgressScenario,
+            currentRound: Math.max(1, Number(progress?.currentRound ?? existingEntry?.currentRound) || 1),
+            currentLocation: String(progress?.currentLocation ?? existingEntry?.currentLocation ?? '').trim()
+        });
+
+        await setDoc(progressRef, {
+            progressByScenarioSetVersionId: {
+                ...existingMap,
+                [scenarioSetVersionId]: entry
+            }
+        });
+        return entry;
+    } catch (error) {
+        console.error("Error saving scenario set progress: ", error);
+        return null;
+    }
+};
+
+export const getActionSummaries = async (id) => {
+    if (!id) return null;
+    try {
+        const snap = await getDoc(getActionSummaryRef(id));
+        if (!snap.exists()) return null;
+        return { id: snap.id, ...snap.data() };
+    } catch (error) {
+        console.error("Error fetching action summaries: ", error);
+        return null;
+    }
+};
+
+export const saveActionSummaries = async (id, payload = {}) => {
+    if (!id) return null;
+    const scenarioSetVersionId = String(payload?.scenarioSetVersionId ?? '').trim();
+    if (!scenarioSetVersionId) return null;
+
+    try {
+        const actionsRef = getActionSummaryRef(id);
+        const snap = await getDoc(actionsRef);
+        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const existingMap = existing?.actionsByScenarioSetVersionId && typeof existing.actionsByScenarioSetVersionId === 'object'
+            ? existing.actionsByScenarioSetVersionId
+            : {};
+        const existingEntry = existingMap[scenarioSetVersionId] && typeof existingMap[scenarioSetVersionId] === 'object'
+            ? existingMap[scenarioSetVersionId]
+            : {};
+        const existingActions = normalizeActionsByScenarioId(existingEntry?.actionsByScenarioId);
+        const incomingActions = normalizeActionsByScenarioId(payload?.actionsByScenarioId);
+        const mergedActions = { ...existingActions };
+
+        for (const [scenarioId, entry] of Object.entries(incomingActions)) {
+            mergedActions[scenarioId] = mergeActionEntry(existingActions[scenarioId], entry);
+        }
+
+        await setDoc(actionsRef, {
+            actionsByScenarioSetVersionId: {
+                ...existingMap,
+                [scenarioSetVersionId]: {
+                    actionsByScenarioId: mergedActions
+                }
+            }
+        });
+        return {
+            actionsByScenarioId: mergedActions
+        };
+    } catch (error) {
+        console.error("Error saving action summaries: ", error);
+        return null;
+    }
 };
 
 //function for a random number given a seed
@@ -274,70 +473,6 @@ export const authenticateUser = async (id, token) => {
     } else {
         return 0
     }
-}
-
-export const addAction = async (id, gamestate, name) => {
-    const actionDocRef = doc(collection(firestore, 'Users/' + id + '/Actions'), name)
-    const payload = removeUndefinedDeep({
-        ...(gamestate || {}),
-        createdAt: Timestamp.fromDate(new Date()),
-        updatedAt: Timestamp.fromDate(new Date()),
-        userID: id
-    });
-    try {
-        await setDoc(actionDocRef, payload)
-        console.log("Start action written with id ", id);
-    } catch (error) {
-        console.error("Error creating actions collection: ", error);
-    }
-    return id
-}
-
-export const addOrder = async (id, gamestate, orderID) => {
-    const orderDocRef = doc(collection(firestore, 'Users/' + id + '/Orders'), orderID)
-    const payload = removeUndefinedDeep({
-        ...(gamestate || {}),
-        createdAt: Timestamp.fromDate(new Date()),
-        updatedAt: Timestamp.fromDate(new Date()),
-        userID: id
-    });
-    try {
-        await setDoc(orderDocRef, payload)
-        console.log("Added an order with ", id);
-    } catch (error) {
-        console.error("Error adding order: ", error);
-    }
-    return id
-}
-
-export const updateOrder = async (id, gamestate, orderID) => {
-    const orderDocRef = doc(collection(firestore, 'Users/' + id + '/Orders'), orderID)
-    const payload = removeUndefinedDeep({
-        ...(gamestate || {}),
-        updatedAt: Timestamp.fromDate(new Date())
-    });
-    try {
-        await updateDoc(orderDocRef, payload)
-        console.log("Document updated with id: ", id)
-    } catch (error) {
-        console.error("Error updating document: ", error);
-    }
-    return id
-}
-
-export const updateFields = async (id, gamestate) => {
-    const userDocRef = doc(collection(firestore, 'Users'), id)
-    const payload = removeUndefinedDeep({
-        ...(gamestate || {}),
-        updatedAt: Timestamp.fromDate(new Date())
-    });
-    try {
-        await updateDoc(userDocRef, payload)
-        console.log("Document updated with id: , id")
-    } catch (error) {
-        console.error("Error updating document: ", error);
-    }
-    return id
 }
 
 async function getSubcollections(id, field) {
@@ -570,14 +705,7 @@ export const getOrdersData = async (ordersId = 'experiment') => {
 }
 
 export const saveOrdersData = async (ordersData, ordersId = 'experiment') => {
-    const sanitizedOrders = (ordersData || []).map((order = {}) => ({
-        id: order.id ?? '',
-        city: order.city ?? '',
-        store: order.store ?? '',
-        earnings: Number(order.earnings) || 0,
-        items: order.items || {},
-        estimatedTime: Number(order.estimatedTime) || 0
-    }));
+    const sanitizedOrders = sanitizeOrders(ordersData);
     try {
         const { root, entry } = await readDatasetEntry(ordersId);
         const next = {
@@ -603,7 +731,7 @@ export const saveScenarioDatasetBundle = async (
     const id = resolveDatasetRootFromId(datasetRoot);
     if (!id) throw new Error('Invalid datasetRoot');
     const scenarios = Array.isArray(payload?.scenarios) ? payload.scenarios : [];
-    const orders = Array.isArray(payload?.orders) ? payload.orders : [];
+    const orders = sanitizeOrders(Array.isArray(payload?.orders) ? payload.orders : []);
     const optimal = Array.isArray(payload?.optimal) ? payload.optimal : [];
     const metadata = payload?.metadata && typeof payload.metadata === 'object' ? payload.metadata : {};
 
@@ -640,6 +768,18 @@ export const getScenarioDatasetBundle = async (datasetRoot = 'experiment') => {
         console.error(`Error fetching grouped scenario dataset (${datasetRoot}):`, error);
         return null;
     }
+}
+
+function sanitizeOrders(ordersData = []) {
+    return (ordersData || []).map((order = {}) => ({
+        id: order.id ?? '',
+        city: order.city ?? '',
+        store: order.store ?? '',
+        earnings: Number(order.earnings) || 0,
+        items: order.items || {},
+        estimatedTime: Number(order.estimatedTime) || 0,
+        localTravelTime: Number(order.localTravelTime) || 0
+    }));
 }
 
 export const getScenarioDatasetNames = async () => {
