@@ -1,7 +1,7 @@
 <script>
     import { globalError } from "$lib/globalError.js"
     import Bundlegame from "../bundlegame.svelte";
-    import { game, elapsed, resetTimer, earned, currLocation, id, logAction, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, participantResultUrl, gameMode, uniqueSets, currentRound, scenarios } from "$lib/bundle.js";
+    import { game, elapsed, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, participantResultUrl, gameMode, uniqueSets, currentRound, scenarios } from "$lib/bundle.js";
 	import Home from "../home.svelte";
 	import { onMount } from "svelte";
     import { queueNFixedOrders } from "$lib/config.js";
@@ -78,27 +78,6 @@
         }
     }
 
-    function handleClick(event) {
-        if ($needsAuth) {
-            if (event.target.id === 'start' || event.target.id === 'addtobag') {
-                return;
-            }
-            if (event.target.tagName == 'BUTTON') {
-                let action = {
-                    buttonID: event.target.id,
-                    buttonContent: event.target.textContent.trim()
-                }
-                logAction(action)
-            } else if (event.target.classList.contains("order-content")) {
-                let action = {
-                    buttonID: event.target.id,
-                    buttonContent: event.target.textContent.trim()
-                }
-                logAction(action)
-            }
-        }
-    }
-
     onMount(() => {
         // Preload tutorial config so auth gate matches Firebase before rendering entry UI.
         loadGame('tutorial')
@@ -106,12 +85,6 @@
             .finally(() => {
                 authResolved = true;
             });
-
-        window.addEventListener('click', handleClick)
-        return () => {
-            console.log("listener removed")
-            window.removeEventListener('click', handleClick);
-        };
     })
 </script>
 

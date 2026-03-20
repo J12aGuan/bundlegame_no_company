@@ -1,9 +1,10 @@
 import { writable, readable, derived, get} from 'svelte/store';
 import { browser } from '$app/environment';
 import { 
-    addAction, addOrder, updateFields, updateOrder, authenticateUser, createUser,
+    authenticateUser, createUser,
     getCentralConfig, getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getCitiesData, getEmojisData,
-    getScenarioDatasetBundle, initializeUserProgress, recordScenarioProgress, updateUserProgressSummary
+    getScenarioDatasetBundle, initializeUserProgress, saveUserProgressSummary,
+    getScenarioSetProgress, saveScenarioSetProgress, getActionSummaries, saveActionSummaries, getUserSummary
 } from './firebaseDB';
 
 import { switchJob, setPenaltyTimeout } from './config';
@@ -31,6 +32,8 @@ let experimentScenarios = [];
 let optimalByScenarioId = new Map();
 let firebaseInitialized = false;
 let initializedMode = null;
+let activeScenarioSetVersionId = '';
+let activeScenarioSetName = '';
 
 // Initialize config and scenarios from Firebase
 export async function initializeFromFirebase(mode = 'main') {
@@ -113,13 +116,23 @@ let orderConfigs = []
 
 let start;
 let stopTimeInterval;
-let actionCounter = 0;
 let completionMessageSent = false;
 export const uniqueSets = writable(0);
 export const orderList = writable([])
 export const FullTimeLimit = writable(config["timeLimit"]);
 export const participantResultUrl = writable("");
 export const gameMode = writable('main');
+export const scenarioSetVersionId = writable('');
+export const optimalChoices = writable(0);
+export const resumeElapsedSeconds = writable(0);
+export const scenarioSetProgress = writable({
+	completedScenarios: [],
+	inProgressScenario: '',
+	scenarioSetName: '',
+	currentRound: 1,
+	currentLocation: ''
+});
+export const scenarioActions = writable({});
 
 export const needsAuth = writable(config["auth"])
 
@@ -150,7 +163,7 @@ function hydrateScenariosWithOrders(rawScenarios = [], orders = []) {
 		const normalizedIds = ids.map((id) => String(id ?? '').trim()).filter(Boolean);
 		const hydratedOrders = normalizedIds.map((id) => {
 			const found = byId.get(id);
-			return found ? { ...found } : { id, city: '', store: '', items: {}, earnings: 0, estimatedTime: 0 };
+			return found ? { ...found } : { id, city: '', store: '', items: {}, earnings: 0, estimatedTime: 0, localTravelTime: 0 };
 		});
 		return {
 			...scenario,
@@ -234,7 +247,10 @@ export function removeTipTimer(id) {
 }
 
 export function resetTimer() {
-	start = new Date();
+	let initialSeconds = arguments.length > 0 ? Number(arguments[0]) || 0 : 0;
+	start = new Date(Date.now() - Math.max(0, initialSeconds) * 1000);
+	pausedAt = null;
+	pauseDuration = 0;
 }
 
 let interval
@@ -256,6 +272,11 @@ export const startTimer = () => {
 let pausedAt = null;
 let pauseDuration = 0;
 let timeoutGameOverProcessed = false;
+let activeScenarioPhase = {
+	scenarioId: '',
+	key: '',
+	startedAt: 0
+};
 
 export const timeStamp = derived(time, ($time) => {
 	const now = $time.getTime();
@@ -283,29 +304,347 @@ export const penaltyEndTime = writable(0) // Time when penalty expires
 export const earned = writable(0);
 export const currLocation = writable("");
 
+function createEmptyTimeSummary() {
+	return {
+		thinkingTime: 0,
+		startPickingConfirmationTime: 0,
+		aisleTravelTime: 0,
+		itemAddToCartTime: 0,
+		localDeliveryTime: 0,
+		cityTravelTime: 0,
+		penaltyTime: 0,
+		idleOrOtherTime: 0
+	};
+}
+
+function normalizeTimeSummary(summary = {}) {
+	const base = createEmptyTimeSummary();
+	for (const key of Object.keys(base)) {
+		base[key] = Math.max(0, Number(summary?.[key]) || 0);
+	}
+	return base;
+}
+
+function getDefaultScenarioAction() {
+	return {
+		totalTimeSeconds: 0,
+		timeSummary: createEmptyTimeSummary()
+	};
+}
+
+function applyScenarioTimeToEntry(value, scenarioId, key, seconds = 0) {
+	const normalizedScenarioId = String(scenarioId ?? '').trim();
+	const normalizedKey = String(key ?? '').trim();
+	const amount = Math.max(0, Number(seconds) || 0);
+	if (!normalizedScenarioId || !normalizedKey || amount <= 0) {
+		return value;
+	}
+
+	const currentEntry = toScenarioActionEntry(value?.[normalizedScenarioId] || getDefaultScenarioAction());
+	if (!(normalizedKey in currentEntry.timeSummary)) {
+		return value;
+	}
+	const nextSummary = {
+		...currentEntry.timeSummary,
+		[normalizedKey]: currentEntry.timeSummary[normalizedKey] + amount
+	};
+	return {
+		...(value || {}),
+		[normalizedScenarioId]: {
+			totalTimeSeconds: Object.values(nextSummary).reduce((sum, entryValue) => sum + entryValue, 0),
+			timeSummary: nextSummary
+		}
+	};
+}
+
+function reconcileInProgressScenarioAction(actionSnapshot = {}, progressSnapshot = {}, totalGameTime = get(elapsed)) {
+	const inProgressScenario = String(progressSnapshot?.inProgressScenario ?? '').trim();
+	if (!inProgressScenario) return actionSnapshot;
+
+	const nextSnapshot = {
+		...(actionSnapshot || {})
+	};
+	const currentEntry = toScenarioActionEntry(nextSnapshot[inProgressScenario] || getDefaultScenarioAction());
+	const scenarioElapsed = Math.max(0, Number(totalGameTime) - (Number(get(roundStartTime)) || 0));
+
+	if (get(game).inSelect) {
+		currentEntry.timeSummary.thinkingTime = Math.max(currentEntry.timeSummary.thinkingTime, scenarioElapsed);
+		currentEntry.totalTimeSeconds = Object.values(currentEntry.timeSummary).reduce((sum, value) => sum + value, 0);
+		nextSnapshot[inProgressScenario] = currentEntry;
+		return nextSnapshot;
+	}
+
+	const currentTotal = Object.values(currentEntry.timeSummary).reduce((sum, value) => sum + value, 0);
+	const activePhaseScenarioId = String(activeScenarioPhase?.scenarioId ?? '').trim();
+	const activePhaseKey = String(activeScenarioPhase?.key ?? '').trim();
+	if (activePhaseScenarioId === inProgressScenario && activePhaseKey && scenarioElapsed > currentTotal) {
+		const missing = scenarioElapsed - currentTotal;
+		nextSnapshot[inProgressScenario] = toScenarioActionEntry(
+			applyScenarioTimeToEntry(
+				{ [inProgressScenario]: currentEntry },
+				inProgressScenario,
+				activePhaseKey,
+				missing
+			)[inProgressScenario]
+		);
+	}
+
+	return nextSnapshot;
+}
+
+function toScenarioActionEntry(entry = {}) {
+	const timeSummary = normalizeTimeSummary(entry?.timeSummary);
+	return {
+		totalTimeSeconds: Math.max(
+			0,
+			Number(entry?.totalTimeSeconds) || 0,
+			Object.values(timeSummary).reduce((sum, value) => sum + value, 0)
+		),
+		timeSummary
+	};
+}
+
+export const incrementOptimalChoices = () => {
+	optimalChoices.update((value) => (Number(value) || 0) + 1);
+};
+
+export const setScenarioInProgress = (scenarioId) => {
+	if (get(gameMode) === 'tutorial') return;
+	const normalized = String(scenarioId ?? '').trim();
+	if (normalized) {
+		scenarioActions.update((value) => ({
+			...(value || {}),
+			[normalized]: toScenarioActionEntry(value?.[normalized] || getDefaultScenarioAction())
+		}));
+	}
+	scenarioSetProgress.update((value) => {
+		const completedScenarios = Array.isArray(value?.completedScenarios) ? value.completedScenarios : [];
+		if (!normalized || completedScenarios.includes(normalized)) {
+			return {
+				...value,
+				inProgressScenario: ''
+			};
+		}
+		return {
+			...value,
+			scenarioSetName: activeScenarioSetName || value?.scenarioSetName || config.scenario_set,
+			inProgressScenario: normalized,
+			currentRound: Number(get(currentRound)) || 1,
+			currentLocation: String(get(currLocation) ?? '').trim()
+		};
+	});
+};
+
+export const markScenarioCompleted = (scenarioId) => {
+	if (get(gameMode) === 'tutorial') return;
+	const normalized = String(scenarioId ?? '').trim();
+	if (!normalized) return;
+	scenarioSetProgress.update((value) => {
+		const completedScenarios = Array.isArray(value?.completedScenarios) ? value.completedScenarios : [];
+		const nextCompleted = [...new Set([...completedScenarios, normalized])];
+		return {
+			...value,
+			scenarioSetName: activeScenarioSetName || value?.scenarioSetName || config.scenario_set,
+			completedScenarios: nextCompleted,
+			inProgressScenario: value?.inProgressScenario === normalized ? '' : value?.inProgressScenario || '',
+			currentRound: Math.max(1, Number(get(currentRound)) || 1),
+			currentLocation: String(get(currLocation) ?? '').trim()
+		};
+	});
+};
+
+export const addScenarioTime = (scenarioId, key, seconds = 0) => {
+	if (get(gameMode) === 'tutorial') return;
+	scenarioActions.update((value) => applyScenarioTimeToEntry(value, scenarioId, key, seconds));
+};
+
+function flushActiveScenarioPhase(nowSeconds = get(elapsed)) {
+	if (get(gameMode) === 'tutorial') {
+		activeScenarioPhase = { scenarioId: '', key: '', startedAt: 0 };
+		return;
+	}
+	const scenarioId = String(activeScenarioPhase?.scenarioId ?? '').trim();
+	const key = String(activeScenarioPhase?.key ?? '').trim();
+	if (!scenarioId || !key) return;
+	const endAt = Math.max(0, Number(nowSeconds) || 0);
+	const startedAt = Math.max(0, Number(activeScenarioPhase?.startedAt) || 0);
+	const delta = Math.max(0, endAt - startedAt);
+	if (delta > 0) {
+		scenarioActions.update((value) => applyScenarioTimeToEntry(value, scenarioId, key, delta));
+	}
+	activeScenarioPhase = { scenarioId: '', key: '', startedAt: endAt };
+}
+
+export const startScenarioPhase = (scenarioId, key) => {
+	if (get(gameMode) === 'tutorial') return;
+	const normalizedScenarioId = String(scenarioId ?? '').trim();
+	const normalizedKey = String(key ?? '').trim();
+	if (!normalizedScenarioId || !normalizedKey) return;
+	const nowSeconds = Math.max(0, Number(get(elapsed)) || 0);
+	if (activeScenarioPhase.scenarioId === normalizedScenarioId && activeScenarioPhase.key === normalizedKey) {
+		return;
+	}
+	flushActiveScenarioPhase(nowSeconds);
+	activeScenarioPhase = {
+		scenarioId: normalizedScenarioId,
+		key: normalizedKey,
+		startedAt: nowSeconds
+	};
+};
+
+export const stopScenarioPhase = (scenarioId = '', key = '') => {
+	if (get(gameMode) === 'tutorial') return;
+	const normalizedScenarioId = String(scenarioId ?? '').trim();
+	const normalizedKey = String(key ?? '').trim();
+	if (
+		(normalizedScenarioId && activeScenarioPhase.scenarioId !== normalizedScenarioId) ||
+		(normalizedKey && activeScenarioPhase.key !== normalizedKey)
+	) {
+		return;
+	}
+	flushActiveScenarioPhase();
+};
+
+async function loadSavedScenarioState(userId) {
+	if (!userId || !get(scenarioSetVersionId)) {
+		scenarioSetProgress.set({
+			completedScenarios: [],
+			inProgressScenario: '',
+			scenarioSetName: activeScenarioSetName || config.scenario_set,
+			currentRound: 1,
+			currentLocation: ''
+		});
+		scenarioActions.set({});
+		resumeElapsedSeconds.set(0);
+		return;
+	}
+
+	const [summaryDoc, progressDoc, actionsDoc] = await Promise.all([
+		getUserSummary(userId),
+		getScenarioSetProgress(userId),
+		getActionSummaries(userId)
+	]);
+	const versionId = get(scenarioSetVersionId);
+	const summaryEntry = summaryDoc?.summaryByScenarioSetVersionId?.[versionId] || {};
+	const progressEntry = progressDoc?.progressByScenarioSetVersionId?.[versionId] || {};
+	const actionEntry = actionsDoc?.actionsByScenarioSetVersionId?.[versionId] || {};
+	const completedScenarios = Array.isArray(progressEntry?.completedScenarios) ? progressEntry.completedScenarios : [];
+	const inProgressScenario = String(progressEntry?.inProgressScenario ?? '').trim();
+	const actionsByScenarioId = actionEntry?.actionsByScenarioId && typeof actionEntry.actionsByScenarioId === 'object'
+		? actionEntry.actionsByScenarioId
+		: {};
+
+	scenarioSetProgress.set({
+		scenarioSetName: String((progressEntry?.scenarioSetName ?? summaryEntry?.scenarioSetName ?? activeScenarioSetName) || config.scenario_set).trim(),
+		completedScenarios: [...new Set(completedScenarios.map((entry) => String(entry ?? '').trim()).filter(Boolean))],
+		inProgressScenario,
+		currentRound: Math.max(1, Number(progressEntry?.currentRound) || 1),
+		currentLocation: String(progressEntry?.currentLocation ?? '').trim()
+	});
+	scenarioActions.set(
+		Object.fromEntries(
+			Object.entries(actionsByScenarioId).map(([scenarioId, entry]) => [scenarioId, toScenarioActionEntry(entry)])
+		)
+	);
+	earned.set(Number(summaryEntry?.earnings) || 0);
+	uniqueSets.set(Number(summaryEntry?.roundsCompleted) || 0);
+	optimalChoices.set(Number(summaryEntry?.optimalChoices) || 0);
+	resumeElapsedSeconds.set(Math.max(0, Number(summaryEntry?.totalGameTime) || 0));
+	const totalRounds = get(scenarios).length;
+	const resumeScenarioId = inProgressScenario;
+	const savedRound = Math.max(1, Number(progressEntry?.currentRound) || 1);
+	if (resumeScenarioId) {
+		const scenarioIndex = get(scenarios).findIndex((scenario) => String(scenario?.scenario_id ?? '').trim() === resumeScenarioId);
+		currentRound.set(scenarioIndex >= 0 ? scenarioIndex + 1 : Math.min(savedRound, Math.max(totalRounds, 1)));
+	} else {
+		currentRound.set(Math.min(savedRound || ((completedScenarios.length || 0) + 1), Math.max(totalRounds, 1)));
+	}
+	const savedLocation = String(progressEntry?.currentLocation ?? '').trim();
+	if (savedLocation) {
+		currLocation.set(savedLocation);
+	}
+}
+
+export const saveCurrentProgress = async (overrides = {}) => {
+	if (get(gameMode) === 'tutorial' || !get(needsAuth) || !get(id) || !get(scenarioSetVersionId)) {
+		return null;
+	}
+	const totalGameTime = overrides?.totalGameTime ?? get(elapsed);
+	flushActiveScenarioPhase(totalGameTime);
+	const userId = get(id);
+	const versionId = get(scenarioSetVersionId);
+	const summary = await saveUserProgressSummary(userId, {
+		scenarioSetVersionId: get(scenarioSetVersionId),
+		scenarioSetName: activeScenarioSetName || config.scenario_set,
+		totalRounds: overrides?.totalRounds ?? get(scenarios).length,
+		roundsCompleted: overrides?.roundsCompleted ?? get(uniqueSets),
+		optimalChoices: overrides?.optimalChoices ?? get(optimalChoices),
+		totalGameTime,
+		completedGame: overrides?.completedGame ?? false,
+		earnings: overrides?.earnings ?? get(earned)
+	});
+	const progressSnapshot = overrides?.scenarioProgress || get(scenarioSetProgress);
+	const normalizedProgress = {
+		scenarioSetVersionId: versionId,
+		scenarioSetName: String((progressSnapshot?.scenarioSetName ?? activeScenarioSetName) || config.scenario_set).trim(),
+		completedScenarios: Array.isArray(progressSnapshot?.completedScenarios) ? progressSnapshot.completedScenarios : [],
+		inProgressScenario: String(progressSnapshot?.inProgressScenario ?? '').trim(),
+		currentRound: Math.max(1, Number(progressSnapshot?.currentRound ?? get(currentRound)) || 1),
+		currentLocation: String(progressSnapshot?.currentLocation ?? get(currLocation) ?? '').trim()
+	};
+	let actionSnapshot = {
+		...(overrides?.scenarioActions || get(scenarioActions) || {})
+	};
+	if (normalizedProgress.inProgressScenario && !actionSnapshot[normalizedProgress.inProgressScenario]) {
+		actionSnapshot[normalizedProgress.inProgressScenario] = getDefaultScenarioAction();
+	}
+	actionSnapshot = reconcileInProgressScenarioAction(actionSnapshot, normalizedProgress, totalGameTime);
+	await saveScenarioSetProgress(userId, normalizedProgress);
+	await saveActionSummaries(userId, {
+		scenarioSetVersionId: versionId,
+		actionsByScenarioId: actionSnapshot
+	});
+	if (browser && summary?.resultAccessKey) {
+		participantResultUrl.set(`${window.location.origin}/result?userId=${encodeURIComponent(get(id))}&key=${encodeURIComponent(summary.resultAccessKey)}`);
+	}
+	return summary;
+};
+
+export const saveProgressAndEndSession = async () => {
+	if (get(gameMode) !== 'tutorial') {
+		await saveCurrentProgress({
+			completedGame: false
+		});
+	}
+	endGameSession();
+};
+
+async function finalizeTimedOutGame(totalGameTime) {
+	if (get(needsAuth) && get(id)) {
+		if (get(gameMode) !== 'tutorial') {
+			await saveCurrentProgress({
+				totalRounds: get(scenarios).length,
+				roundsCompleted: get(uniqueSets),
+				optimalChoices: get(optimalChoices),
+				totalGameTime,
+				completedGame: true,
+				earnings: get(earned)
+			});
+		}
+	}
+	if (get(gameMode) !== 'tutorial') {
+		notifyMainGameComplete('time_expired', get(uniqueSets), get(scenarios).length);
+	}
+	GameOver.set(true);
+	stopTimeInterval?.();
+}
+
 export const elapsed = derived([timeStamp, FullTimeLimit], ([$timeStamp, $FullTimeLimit], set) => {
 	const elapsedSeconds = Math.round($timeStamp / 1000);
 	const hasOverallLimit = Number.isFinite(Number($FullTimeLimit)) && Number($FullTimeLimit) > 0;
 	if (hasOverallLimit && elapsedSeconds >= $FullTimeLimit && !timeoutGameOverProcessed) {
 		timeoutGameOverProcessed = true;
-		if (get(needsAuth) && get(id)) {
-			updateFields(get(id), {
-				earnings: get(earned),
-		        	ordersComplete: get(finishedOrders).length,
-				uniqueSetsComplete: get(uniqueSets),
-		        	gametime: $FullTimeLimit
-			})
-			updateUserProgressSummary(get(id), {
-				scenarioSet: config.scenario_set,
-				totalRounds: get(scenarios).length,
-				totalGameTime: $FullTimeLimit,
-				completedGame: true,
-				earnings: get(earned)
-			});
-		}
-		notifyMainGameComplete('time_expired', get(uniqueSets), get(scenarios).length);
-		GameOver.set(true);
-		stopTimeInterval?.();
+		void finalizeTimedOutGame($FullTimeLimit);
 		set($FullTimeLimit)
 		console.log("game over")
 		return;
@@ -371,11 +710,26 @@ export function notifyMainGameComplete(reason = 'completed', roundsCompleted = 0
 }
 
 function resetRuntimeState() {
+	activeScenarioPhase = {
+		scenarioId: '',
+		key: '',
+		startedAt: 0
+	};
 	orders.set([]);
 	finishedOrders.set([]);
 	failedOrders.set([]);
 	earned.set(0);
 	uniqueSets.set(0);
+	optimalChoices.set(0);
+	scenarioSetProgress.set({
+		completedScenarios: [],
+		inProgressScenario: '',
+		scenarioSetName: activeScenarioSetName || config.scenario_set,
+		currentRound: 1,
+		currentLocation: ''
+	});
+	scenarioActions.set({});
+	resumeElapsedSeconds.set(0);
 	currentRound.set(1);
 	roundStartTime.set(0);
 	penaltyEndTime.set(0);
@@ -392,7 +746,6 @@ function resetRuntimeState() {
 		refresh: config["refresh"],
 		penaltyTriggered: false
 	});
-	actionCounter = 0;
 	completionMessageSent = false;
 	timeoutGameOverProcessed = false;
 }
@@ -405,74 +758,19 @@ export const endGameSession = () => {
 
 
 export const logAction = (action) => {
-	if (!get(needsAuth)) {
-		return
-	}
-	action.earnings = get(earned)
-	action.ordersComplete = get(finishedOrders).length
-	action.gametime = get(elapsed)
-	action.uniqueSetsComplete = get(uniqueSets)
-	console.log(action)
-	const actionName = String(action?.buttonID ?? "unknown").trim() || "unknown";
-	addAction(get(id), action, actionCounter + "_" + actionName)
-	actionCounter += 1;
+	return action;
 }
 
 export const logOrder = (order, options) => {
-	if (!get(needsAuth)) {
-		return
-	}
-	order.startgametime = get(elapsed)
-	order.status = 0
-	order.bundled = false
-	let optionslst = []
-	for (let i=0; i<options.length; i++) {
-		optionslst.push(options[i].id)
-	}
-	order.options = optionslst
-	addOrder(get(id), order, order.id)
+	return { order, options };
 }
 export const logBundledOrder = (order1, order2, options) => {
-	if (!get(needsAuth)) {
-		return
-	}
-	order1.startgametime = get(elapsed)
-	order1.status = 0
-	order1.bundled = true
-	order1.bundledWith = order2.id
-	order2.startgametime = get(elapsed)
-	order2.status = 0
-	order2.bundled = true
-	order2.bundledWith = order1.id
-	let optionslst = []
-	for (let i=0; i<options.length; i++) {
-		optionslst.push(options[i].id)
-	}
-	order1.options = optionslst
-	order2.options = optionslst
-	addOrder(get(id), order1, order1.id)
-	addOrder(get(id), order2, order2.id)
+	return { order1, order2, options };
 }
 
 // New function to handle 1-3 orders flexibly
 export const logOrders = (selectedOrders, allOptions) => {
-	if (!get(needsAuth)) {
-		return
-	}
-	const startTime = get(elapsed)
-	const optionslst = allOptions.map(o => o.id)
-	
-	selectedOrders.forEach((order, idx) => {
-		order.startgametime = startTime
-		order.status = 0
-		order.bundled = selectedOrders.length > 1
-		order.bundleSize = selectedOrders.length
-		if (order.bundled) {
-			order.bundledWith = selectedOrders.filter((_, i) => i !== idx).map(o => o.id)
-		}
-		order.options = optionslst
-		addOrder(get(id), order, order.id)
-	})
+	return { selectedOrders, allOptions };
 }
 
 //state should contain info such as:
@@ -482,17 +780,7 @@ export const completeOrder = (orderID) => {
 	if (!get(needsAuth)) {
 		return
 	}
-	let state = {
-		status: 1,
-		endgametime: get(elapsed)
-	}
-	updateOrder(get(id), state, orderID)
-	updateFields(get(id), {
-		earnings: get(earned),
-		ordersComplete: get(finishedOrders).length,
-		uniqueSetsComplete: get(uniqueSets),
-		gametime: get(elapsed)
-	})
+	return orderID;
 }
 
 export const authUser = (id, pass) => {
@@ -500,16 +788,12 @@ export const authUser = (id, pass) => {
 }
 
 export const saveScenarioProgress = (progress) => {
-	if (!get(needsAuth)) {
-		return;
+	const scenarioId = String(progress?.scenarioId ?? '').trim();
+	if (scenarioId && Boolean(progress?.success)) {
+		markScenarioCompleted(scenarioId);
+	} else if (scenarioId) {
+		setScenarioInProgress(scenarioId);
 	}
-	recordScenarioProgress(get(id), {
-		...progress,
-		scenarioSet: config.scenario_set,
-		totalRounds: get(scenarios).length,
-		totalGameTime: get(elapsed),
-		earnings: get(earned)
-	});
 }
 
 export async function loadConfigByName(fileName) {
@@ -553,6 +837,9 @@ export async function loadGame(mode = 'main') {
 	try {
 		const datasetId = config.scenario_set || 'experiment';
 		const datasetBundle = await getScenarioDatasetBundle(datasetId);
+		activeScenarioSetName = String(datasetBundle?.metadata?.datasetName || datasetId || '').trim() || String(datasetId || '');
+		activeScenarioSetVersionId = String(datasetBundle?.metadata?.scenarioSetVersionId || '').trim();
+		scenarioSetVersionId.set(activeScenarioSetVersionId);
 		let orderFile = Array.isArray(datasetBundle?.orders) ? datasetBundle.orders : await getOrdersData(datasetId)
 		let storeFile = await loadConfigByName(MAIN_STORE_FILE)
 		let cityFile = await loadConfigByName(MAIN_CITIES_FILE)
@@ -593,12 +880,18 @@ export async function loadGame(mode = 'main') {
 export async function createNewUser(id, mode = 'main') {
 	let n = await loadGame(mode)
 	await createUser(id, n)
-	const summary = await initializeUserProgress(id, {
-		scenarioSet: config.scenario_set,
-		totalRounds: get(scenarios).length
-	});
-	if (browser && summary?.resultAccessKey) {
-		participantResultUrl.set(`${window.location.origin}/result?userId=${encodeURIComponent(id)}&key=${encodeURIComponent(summary.resultAccessKey)}`);
+	if (mode !== 'tutorial') {
+		const summary = await initializeUserProgress(id, {
+			scenarioSetVersionId: get(scenarioSetVersionId),
+			scenarioSetName: activeScenarioSetName || config.scenario_set,
+			totalRounds: get(scenarios).length
+		});
+		if (browser && summary?.resultAccessKey) {
+			participantResultUrl.set(`${window.location.origin}/result?userId=${encodeURIComponent(id)}&key=${encodeURIComponent(summary.resultAccessKey)}`);
+		} else {
+			participantResultUrl.set("");
+		}
+		await loadSavedScenarioState(id);
 	} else {
 		participantResultUrl.set("");
 	}

@@ -109,6 +109,7 @@
             store: order.store || '',
             earnings: order.earnings ?? 0,
             estimatedTime: order.estimatedTime ?? 0,
+            localTravelTime: order.localTravelTime ?? 0,
             itemRows: toItemRows(order.items || {})
         };
     }
@@ -138,6 +139,7 @@
             store: order.store?.trim(),
             earnings: Number(order.earnings) || 0,
             estimatedTime: Number(order.estimatedTime) || 0,
+            localTravelTime: Number(order.localTravelTime) || 0,
             items: fromItemRows(order.itemRows)
         };
     }
@@ -239,6 +241,7 @@
     let selectedScenariosId = '';
     let selectedScenarioRound = null;
     let selectedScenarioOrder = null;
+    let selectedScenarioOrderId = '';
     let selectedScenarioSolution = null;
     let scenarioOrdersById = {};
     let scenarioSolutionsByScenarioId = {};
@@ -252,6 +255,10 @@
     let editingOrders = false;
     let orderDrafts = [];
     let selectedOrdersId = 'experiment';
+
+    $: selectedScenarioOrder = selectedScenarioOrderId
+        ? (scenarioOrdersById?.[selectedScenarioOrderId] || { id: selectedScenarioOrderId, missing: true })
+        : null;
     
     // Stores Data
     let storesData = { stores: [] };
@@ -537,13 +544,14 @@
                 experimentScenarios = [];
                 selectedScenarioRound = null;
                 selectedScenarioOrder = null;
+                selectedScenarioOrderId = '';
                 selectedScenarioSolution = null;
                 await loadScenarioSetDetails();
                 return;
             }
             experimentScenarios = await getExperimentScenarios(selectedScenariosId) || [];
             selectedScenarioRound = null;
-            selectedScenarioOrder = null;
+            selectedScenarioOrderId = '';
             selectedScenarioSolution = null;
             await loadScenarioSetDetails();
         } catch (err) {
@@ -585,12 +593,11 @@
     }
 
     function openScenarioOrderModal(orderId) {
-        const key = String(orderId || '');
-        selectedScenarioOrder = scenarioOrdersById?.[key] || { id: key, missing: true };
+        selectedScenarioOrderId = String(orderId || '');
     }
 
     function closeScenarioOrderModal() {
-        selectedScenarioOrder = null;
+        selectedScenarioOrderId = '';
     }
 
     function openScenarioSolutionModal(scenario) {
@@ -1506,6 +1513,10 @@
                                                 <div>
                                                     <label class="block text-xs font-medium text-gray-700">Estimated Time</label>
                                                     <input type="number" bind:value={order.estimatedTime} placeholder="Estimated Time (s)" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                                                </div>
+                                                <div>
+                                                    <label class="block text-xs font-medium text-gray-700">Local Travel Time</label>
+                                                    <input type="number" bind:value={order.localTravelTime} placeholder="Local Travel Time (s)" class="mt-1 w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
                                                 </div>
                                             </div>
                                             <div class="space-y-2">
