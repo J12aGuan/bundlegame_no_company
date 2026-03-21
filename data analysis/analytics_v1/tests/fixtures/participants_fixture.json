@@ -2,6 +2,81 @@
   {
     "id": "p1",
     "cohort": "new",
+    "summaryDoc": {
+      "id": "summary",
+      "summaryByScenarioSetVersionId": {
+        "experiment_v1": {
+          "scenarioSetName": "experiment",
+          "totalRounds": 2,
+          "roundsCompleted": 2,
+          "optimalChoices": 1,
+          "totalGameTime": 102,
+          "completedGame": true,
+          "earnings": 18
+        }
+      }
+    },
+    "progressSummary": {
+      "id": "summary",
+      "summaryByScenarioSetVersionId": {
+        "experiment_v1": {
+          "scenarioSetName": "experiment",
+          "totalRounds": 2,
+          "roundsCompleted": 2,
+          "optimalChoices": 1,
+          "totalGameTime": 102,
+          "completedGame": true,
+          "earnings": 18
+        }
+      }
+    },
+    "scenarioSetProgressDoc": {
+      "id": "progress",
+      "progressByScenarioSetVersionId": {
+        "experiment_v1": {
+          "scenarioSetName": "experiment",
+          "completedScenarios": ["s1", "s2"],
+          "inProgressScenario": "",
+          "currentRound": 2,
+          "currentLocation": "Oakland"
+        }
+      }
+    },
+    "scenarioActionsDoc": {
+      "id": "actions",
+      "actionsByScenarioSetVersionId": {
+        "experiment_v1": {
+          "actionsByScenarioId": {
+            "s1": {
+              "totalTimeSeconds": 42,
+              "timeSummary": {
+                "thinkingTime": 4,
+                "startPickingConfirmationTime": 3,
+                "aisleTravelTime": 6,
+                "itemAddToCartTime": 9,
+                "localDeliveryTime": 10,
+                "cityTravelTime": 5,
+                "penaltyTime": 1,
+                "idleOrOtherTime": 4
+              }
+            },
+            "s2": {
+              "totalTimeSeconds": 60,
+              "timeSummary": {
+                "thinkingTime": 5,
+                "startPickingConfirmationTime": 4,
+                "aisleTravelTime": 10,
+                "itemAddToCartTime": 11,
+                "localDeliveryTime": 14,
+                "cityTravelTime": 10,
+                "penaltyTime": 2,
+                "idleOrOtherTime": 4
+              }
+            }
+          }
+        }
+      }
+    },
     "actions": [
       {
         "id": "a1",
@@ -31,6 +106,68 @@
   {
     "id": "p2",
     "cohort": "experienced",
+    "summaryDoc": {
+      "id": "summary",
+      "summaryByScenarioSetVersionId": {
+        "experiment_v1": {
+          "scenarioSetName": "experiment",
+          "totalRounds": 2,
+          "roundsCompleted": 1,
+          "optimalChoices": 0,
+          "totalGameTime": 48,
+          "completedGame": false,
+          "earnings": 17
+        }
+      }
+    },
+    "progressSummary": {
+      "id": "summary",
+      "summaryByScenarioSetVersionId": {
+        "experiment_v1": {
+          "scenarioSetName": "experiment",
+          "totalRounds": 2,
+          "roundsCompleted": 1,
+          "optimalChoices": 0,
+          "totalGameTime": 48,
+          "completedGame": false,
+          "earnings": 17
+        }
+      }
+    },
+    "scenarioSetProgressDoc": {
+      "id": "progress",
+      "progressByScenarioSetVersionId": {
+        "experiment_v1": {
+          "scenarioSetName": "experiment",
+          "completedScenarios": ["s1"],
+          "inProgressScenario": "s2",
+          "currentRound": 2,
+          "currentLocation": "Berkeley"
+        }
+      }
+    },
+    "scenarioActionsDoc": {
+      "id": "actions",
+      "actionsByScenarioSetVersionId": {
+        "experiment_v1": {
+          "actionsByScenarioId": {
+            "s1": {
+              "totalTimeSeconds": 48,
+              "timeSummary": {
+                "thinkingTime": 6,
+                "startPickingConfirmationTime": 4,
+                "aisleTravelTime": 8,
+                "itemAddToCartTime": 10,
+                "localDeliveryTime": 12,
+                "cityTravelTime": 4,
+                "penaltyTime": 2,
+                "idleOrOtherTime": 2
+              }
+            }
+          }
+        }
+      }
+    },
     "actions": [
       {
         "id": "a3",

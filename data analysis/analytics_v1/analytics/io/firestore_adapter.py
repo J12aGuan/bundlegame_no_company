@@ -41,8 +41,34 @@ def load_from_firestore(dataset_root: str) -> SourcePayload:
             {"id": doc.id, **(doc.to_dict() or {})}
             for doc in client.collection("Users").document(user_id).collection("Orders").stream()
         ]
+        summary_docs = [
+            {"id": doc.id, **(doc.to_dict() or {})}
+            for doc in client.collection("Users").document(user_id).collection("Summary").stream()
+        ]
+        scenario_set_docs = [
+            {"id": doc.id, **(doc.to_dict() or {})}
+            for doc in client.collection("Users").document(user_id).collection("ScenarioSet").stream()
+        ]
+        action_docs = [
+            {"id": doc.id, **(doc.to_dict() or {})}
+            for doc in client.collection("Users").document(user_id).collection("Action").stream()
+        ]
+        summary_doc = next((entry for entry in summary_docs if entry.get("id") == "summary"), None)
+        scenario_progress_doc = next((entry for entry in scenario_set_docs if entry.get("id") == "progress"), None)
+        action_summary_doc = next((entry for entry in action_docs if entry.get("id") == "actions"), None)
 
-        participants.append({"id": user_id, **user, "actions": actions, "orders": orders})
+        participants.append(
+            {
+                "id": user_id,
+                **user,
+                "actions": actions,
+                "orders": orders,
+                "progressSummary": summary_doc,
+                "summaryDoc": summary_doc,
+                "scenarioSetProgressDoc": scenario_progress_doc,
+                "scenarioActionsDoc": action_summary_doc,
+            }
+        )
 
     datasets_doc = client.collection("MasterData").document("datasets").get()
     datasets_data = datasets_doc.to_dict() if datasets_doc.exists else {}

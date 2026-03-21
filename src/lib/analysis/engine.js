@@ -4,6 +4,17 @@ export const NEAR_OPTIMAL_THRESHOLD = 0.95;
 export const DEFAULT_BOOTSTRAP_B = 500;
 export const DEFAULT_RANDOM_SEED = 42;
 
+const TIME_SUMMARY_KEYS = [
+	'thinkingTime',
+	'startPickingConfirmationTime',
+	'aisleTravelTime',
+	'itemAddToCartTime',
+	'localDeliveryTime',
+	'cityTravelTime',
+	'penaltyTime',
+	'idleOrOtherTime'
+];
+
 export const DECISION_FACT_EXPORT_COLUMNS = [
 	'dataset_root',
 	'participant_id',
@@ -14,6 +25,7 @@ export const DECISION_FACT_EXPORT_COLUMNS = [
 	'current_city',
 	'chosen_orders',
 	'best_bundle_ids',
+	'second_best_bundle_ids',
 	'bundle_size',
 	'success',
 	'is_failure',
@@ -25,8 +37,37 @@ export const DECISION_FACT_EXPORT_COLUMNS = [
 	'score_ratio_to_best',
 	'percent_regret',
 	'is_exact_optimal',
-	'is_near_optimal'
+	'is_near_optimal',
+	'scenario_set_version_id',
+	'summary_total_rounds',
+	'summary_rounds_completed',
+	'summary_optimal_choices',
+	'summary_total_game_time',
+	'summary_completed_game',
+	'progress_completed_scenarios_count',
+	'progress_current_round',
+	'progress_current_location',
+	'progress_in_progress_scenario',
+	'scenario_total_time_seconds',
+	'thinking_time',
+	'start_picking_confirmation_time',
+	'aisle_travel_time',
+	'item_add_to_cart_time',
+	'local_delivery_time',
+	'city_travel_time',
+	'penalty_time',
+	'idle_or_other_time',
+	'delivery_runtime_time',
+	'non_delivery_runtime_time',
+	'runtime_modeled_delta'
 ];
+
+export function getDecisionFactExportColumns(cohortField = '') {
+	const columns = [...DECISION_FACT_EXPORT_COLUMNS];
+	const normalized = String(cohortField || '').trim();
+	if (normalized && !columns.includes(normalized)) columns.push(normalized);
+	return columns;
+}
 
 function makeIssue({
 	severity = 'warning',
@@ -497,6 +538,63 @@ function buildKpiRows(rows = [], groupKey = null, options = {}) {
 	return output;
 }
 
+const TIMING_KPI_SPECS = [
+	{ key: 'scenario_total_time_seconds', out: 'scenario_total_time_seconds' },
+	{ key: 'participant_modeled_time', out: 'participant_modeled_time' },
+	{ key: 'runtime_modeled_delta', out: 'runtime_modeled_delta' },
+	{ key: 'delivery_runtime_time', out: 'delivery_runtime_time' },
+	{ key: 'non_delivery_runtime_time', out: 'non_delivery_runtime_time' },
+	{ key: 'thinking_time', out: 'thinking_time' },
+	{ key: 'start_picking_confirmation_time', out: 'start_picking_confirmation_time' },
+	{ key: 'aisle_travel_time', out: 'aisle_travel_time' },
+	{ key: 'item_add_to_cart_time', out: 'item_add_to_cart_time' },
+	{ key: 'local_delivery_time', out: 'local_delivery_time' },
+	{ key: 'city_travel_time', out: 'city_travel_time' },
+	{ key: 'penalty_time', out: 'penalty_time' },
+	{ key: 'idle_or_other_time', out: 'idle_or_other_time' }
+];
+
+function buildTimingKpiRows(rows = [], groupKey = null) {
+	const groups = new Map();
+	if (!groupKey) {
+		groups.set('overall', rows);
+	} else {
+		for (const row of rows) {
+			const value = String(row?.[groupKey] ?? '');
+			const bucket = groups.get(value) || [];
+			bucket.push(row);
+			groups.set(value, bucket);
+		}
+	}
+
+	const out = [];
+	for (const [groupValue, groupRows] of groups.entries()) {
+		const row = {
+			[groupKey || 'scope']: groupValue,
+			n_decisions: groupRows.length,
+			n_rows_with_runtime_timing: collectContinuous(groupRows, 'scenario_total_time_seconds', false).length
+		};
+		for (const spec of TIMING_KPI_SPECS) {
+			const values = collectContinuous(groupRows, spec.key, false);
+			const summary = summarizeContinuous(values);
+			row[`${spec.out}_mean`] = summary.mean;
+			row[`${spec.out}_median`] = summary.median;
+			row[`${spec.out}_q1`] = summary.q1;
+			row[`${spec.out}_q3`] = summary.q3;
+			row[`${spec.out}_iqr`] = summary.iqr;
+		}
+		out.push(row);
+	}
+
+	if (groupKey === 'round_index') {
+		out.sort((a, b) => Number(a.round_index) - Number(b.round_index));
+	} else if (groupKey) {
+		out.sort((a, b) => String(a[groupKey]).localeCompare(String(b[groupKey])));
+	}
+
+	return out;
+}
+
 function buildCohortComparisons(rows = [], cohortKey = 'configuration', options = {}) {
 	const bootstrapB = Number(options.bootstrapB) || DEFAULT_BOOTSTRAP_B;
 	const seed = Number(options.seed) || DEFAULT_RANDOM_SEED;
@@ -590,6 +688,105 @@ function rowsToMap(rows = [], key = '') {
 	return out;
 }
 
+function createEmptyTimeSummary() {
+	return {
+		thinkingTime: 0,
+		startPickingConfirmationTime: 0,
+		aisleTravelTime: 0,
+		itemAddToCartTime: 0,
+		localDeliveryTime: 0,
+		cityTravelTime: 0,
+		penaltyTime: 0,
+		idleOrOtherTime: 0
+	};
+}
+
+function normalizeStoredTimeSummary(summary = null) {
+	if (!summary || typeof summary !== 'object') return null;
+	const out = createEmptyTimeSummary();
+	for (const key of TIME_SUMMARY_KEYS) {
+		out[key] = Math.max(0, Number(summary?.[key]) || 0);
+	}
+	return out;
+}
+
+function sumTimeSummary(summary = null) {
+	if (!summary) return null;
+	return Object.values(summary).reduce((sum, value) => sum + (Number(value) || 0), 0);
+}
+
+function getScenarioSetVersionId(scenarioBundle = {}) {
+	return String(scenarioBundle?.metadata?.scenarioSetVersionId || '').trim();
+}
+
+function getVersionMap(doc = null, key = '') {
+	if (!doc || typeof doc !== 'object') return {};
+	const map = doc?.[key];
+	return map && typeof map === 'object' ? map : {};
+}
+
+function normalizeScenarioIdList(value) {
+	if (!Array.isArray(value)) return [];
+	return [...new Set(value.map((entry) => String(entry ?? '').trim()).filter(Boolean))];
+}
+
+function getParticipantVersionState(participant = {}, scenarioSetVersionId = '') {
+	if (!scenarioSetVersionId) {
+		return {
+			summaryEntry: null,
+			progressEntry: null,
+			actionsEntry: null
+		};
+	}
+
+	const summaryMap = getVersionMap(participant?.summaryDoc || participant?.progressSummary, 'summaryByScenarioSetVersionId');
+	const progressMap = getVersionMap(participant?.scenarioSetProgressDoc, 'progressByScenarioSetVersionId');
+	const actionsMap = getVersionMap(participant?.scenarioActionsDoc, 'actionsByScenarioSetVersionId');
+
+	const summaryEntry = summaryMap?.[scenarioSetVersionId] && typeof summaryMap[scenarioSetVersionId] === 'object'
+		? summaryMap[scenarioSetVersionId]
+		: null;
+	const progressEntry = progressMap?.[scenarioSetVersionId] && typeof progressMap[scenarioSetVersionId] === 'object'
+		? progressMap[scenarioSetVersionId]
+		: null;
+	const actionsEntry = actionsMap?.[scenarioSetVersionId] && typeof actionsMap[scenarioSetVersionId] === 'object'
+		? actionsMap[scenarioSetVersionId]
+		: null;
+
+	return { summaryEntry, progressEntry, actionsEntry };
+}
+
+function createDataHealth({
+	scenarioSetVersionId = '',
+	legacyMode = false,
+	participantStates = {},
+	decisionFacts = []
+} = {}) {
+	const states = Object.values(participantStates);
+	const participantsWithVersionSummary = states.filter((state) => state.summaryEntry).length;
+	const participantsWithVersionProgress = states.filter((state) => state.progressEntry).length;
+	const participantsWithVersionActions = states.filter((state) => state.actionsEntry).length;
+	const participantsWithAnyVersionState = states.filter(
+		(state) => state.summaryEntry || state.progressEntry || state.actionsEntry
+	).length;
+	const participantsWithCompleteVersionState = states.filter(
+		(state) => state.summaryEntry && state.progressEntry && state.actionsEntry
+	).length;
+
+	return {
+		datasetScenarioSetVersionId: scenarioSetVersionId,
+		legacyMode,
+		participantsLoaded: states.length,
+		participantsWithVersionSummary,
+		participantsWithVersionProgress,
+		participantsWithVersionActions,
+		participantsWithAnyVersionState,
+		participantsWithCompleteVersionState,
+		decisionRowsWithTiming: decisionFacts.filter((row) => valueToFloat(row.scenario_total_time_seconds) != null).length,
+		decisionRowsMissingTiming: decisionFacts.filter((row) => valueToFloat(row.scenario_total_time_seconds) == null).length
+	};
+}
+
 export function buildDecisionFacts({
 	participants = [],
 	scenarioBundle = {},
@@ -600,13 +797,40 @@ export function buildDecisionFacts({
 } = {}) {
 	const { decisions, qaIssues: dedupeIssues } = getLatestRoundSummaries(participants);
 	const qaIssues = [...dedupeIssues];
+	const issueKeys = new Set();
 	const { scenarioByRound, ordersById, optimalByScenario } = buildIndexes(scenarioBundle);
 	const participantMap = rowsToMap(participants, 'id');
 	const participantCity = {};
+	const participantStates = {};
 
 	const metadataStart = String(scenarioBundle?.metadata?.startinglocation || '');
 	const citiesStart = String(citiesDataset?.startinglocation || '');
 	const startingLocation = citiesStart || metadataStart;
+	const scenarioSetVersionId = getScenarioSetVersionId(scenarioBundle);
+	const legacyMode = !scenarioSetVersionId;
+
+	for (const participant of participants) {
+		const participantId = String(participant?.id || '');
+		if (!participantId) continue;
+		participantStates[participantId] = getParticipantVersionState(participant, scenarioSetVersionId);
+	}
+
+	function pushIssueOnce(key, issue) {
+		if (issueKeys.has(key)) return;
+		issueKeys.add(key);
+		qaIssues.push(issue);
+	}
+
+	if (legacyMode) {
+		pushIssueOnce(
+			'missing_dataset_scenario_set_version_id',
+			makeIssue({
+				severity: 'warning',
+				issue_type: 'missing_dataset_scenario_set_version_id',
+				message: 'Selected dataset metadata has no scenarioSetVersionId; timing/progress enrichment is disabled.'
+			})
+		);
+	}
 
 	const missingClassificationScenarios = new Set();
 	const factRows = [];
@@ -616,6 +840,48 @@ export function buildDecisionFacts({
 		const roundIndex = Number(decision.round_index);
 		const chosenOrders = Array.isArray(decision.chosen_orders) ? decision.chosen_orders : [];
 		const success = Boolean(decision.success);
+		const participant = participantMap[participantId] || {};
+		const versionState = participantStates[participantId] || {
+			summaryEntry: null,
+			progressEntry: null,
+			actionsEntry: null
+		};
+
+		if (!legacyMode) {
+			if (!versionState.summaryEntry) {
+				pushIssueOnce(
+					`missing_version_matched_summary_entry:${participantId}`,
+					makeIssue({
+						severity: 'warning',
+						issue_type: 'missing_version_matched_summary_entry',
+						participant_id: participantId,
+						message: `No summary entry matched scenarioSetVersionId "${scenarioSetVersionId}".`
+					})
+				);
+			}
+			if (!versionState.progressEntry) {
+				pushIssueOnce(
+					`missing_version_matched_progress_entry:${participantId}`,
+					makeIssue({
+						severity: 'warning',
+						issue_type: 'missing_version_matched_progress_entry',
+						participant_id: participantId,
+						message: `No progress entry matched scenarioSetVersionId "${scenarioSetVersionId}".`
+					})
+				);
+			}
+			if (!versionState.actionsEntry) {
+				pushIssueOnce(
+					`missing_version_matched_action_summary_entry:${participantId}`,
+					makeIssue({
+						severity: 'warning',
+						issue_type: 'missing_version_matched_action_summary_entry',
+						participant_id: participantId,
+						message: `No action summary entry matched scenarioSetVersionId "${scenarioSetVersionId}".`
+					})
+				);
+			}
+		}
 
 		let currentCity = participantCity[participantId] || startingLocation;
 		if (!currentCity && chosenOrders.length > 0) {
@@ -709,6 +975,9 @@ export function buildDecisionFacts({
 		});
 
 		const bestBundleIds = (Array.isArray(optimal?.best_bundle_ids) ? optimal.best_bundle_ids : []).map((x) => String(x));
+		const secondBestBundleIds = (Array.isArray(optimal?.second_best_bundle_ids) ? optimal.second_best_bundle_ids : []).map((x) =>
+			String(x)
+		);
 		const bestEval = scoreBundle({
 			bundleIds: bestBundleIds,
 			ordersById,
@@ -742,7 +1011,71 @@ export function buildDecisionFacts({
 			percentRegretFinal = null;
 		}
 
-		const participant = participantMap[participantId] || {};
+		const summaryEntry = versionState.summaryEntry;
+		const progressEntry = versionState.progressEntry;
+		const actionsByScenarioId = versionState.actionsEntry?.actionsByScenarioId && typeof versionState.actionsEntry.actionsByScenarioId === 'object'
+			? versionState.actionsEntry.actionsByScenarioId
+			: {};
+		const rawTimingEntry = actionsByScenarioId?.[scenarioId] && typeof actionsByScenarioId[scenarioId] === 'object'
+			? actionsByScenarioId[scenarioId]
+			: null;
+
+		if (!legacyMode && versionState.actionsEntry && !rawTimingEntry) {
+			qaIssues.push(
+				makeIssue({
+					severity: 'warning',
+					issue_type: 'missing_per_scenario_timing_entry',
+					participant_id: participantId,
+					round_index: roundIndex,
+					scenario_id: scenarioId,
+					message: `No action timing entry matched scenario "${scenarioId}" for scenarioSetVersionId "${scenarioSetVersionId}".`
+				})
+			);
+		}
+
+		const normalizedTimeSummary = normalizeStoredTimeSummary(rawTimingEntry?.timeSummary);
+		const explicitTotal = valueToFloat(rawTimingEntry?.totalTimeSeconds);
+		const computedTotal = sumTimeSummary(normalizedTimeSummary);
+		let scenarioTotalTimeSeconds = explicitTotal;
+		if (scenarioTotalTimeSeconds == null && computedTotal != null) {
+			scenarioTotalTimeSeconds = computedTotal;
+		}
+		if (explicitTotal != null && computedTotal != null && Math.abs(explicitTotal - computedTotal) > 0.25) {
+			qaIssues.push(
+				makeIssue({
+					severity: 'warning',
+					issue_type: 'timing_total_mismatch',
+					participant_id: participantId,
+					round_index: roundIndex,
+					scenario_id: scenarioId,
+					message: `Stored totalTimeSeconds (${explicitTotal}) differs from timeSummary sum (${computedTotal}).`
+				})
+			);
+		}
+
+		const thinkingTime = normalizedTimeSummary?.thinkingTime ?? null;
+		const startPickingConfirmationTime = normalizedTimeSummary?.startPickingConfirmationTime ?? null;
+		const aisleTravelTime = normalizedTimeSummary?.aisleTravelTime ?? null;
+		const itemAddToCartTime = normalizedTimeSummary?.itemAddToCartTime ?? null;
+		const localDeliveryTime = normalizedTimeSummary?.localDeliveryTime ?? null;
+		const cityTravelTime = normalizedTimeSummary?.cityTravelTime ?? null;
+		const penaltyTime = normalizedTimeSummary?.penaltyTime ?? null;
+		const idleOrOtherTime = normalizedTimeSummary?.idleOrOtherTime ?? null;
+		const deliveryRuntimeTime = normalizedTimeSummary
+			? (normalizedTimeSummary.localDeliveryTime || 0) + (normalizedTimeSummary.cityTravelTime || 0)
+			: null;
+		const nonDeliveryRuntimeTime = normalizedTimeSummary
+			? (normalizedTimeSummary.thinkingTime || 0) +
+				(normalizedTimeSummary.startPickingConfirmationTime || 0) +
+				(normalizedTimeSummary.aisleTravelTime || 0) +
+				(normalizedTimeSummary.itemAddToCartTime || 0) +
+				(normalizedTimeSummary.penaltyTime || 0) +
+				(normalizedTimeSummary.idleOrOtherTime || 0)
+			: null;
+		const runtimeModeledDelta =
+			scenarioTotalTimeSeconds != null && participantModeledTime != null
+				? scenarioTotalTimeSeconds - participantModeledTime
+				: null;
 
 		const row = {
 			dataset_root: datasetRoot,
@@ -754,6 +1087,7 @@ export function buildDecisionFacts({
 			current_city: currentCity,
 			chosen_orders: chosenOrders,
 			best_bundle_ids: bestBundleIds,
+			second_best_bundle_ids: secondBestBundleIds,
 			bundle_size: chosenOrders.length,
 			success: Number(success),
 			is_failure: Number(!success),
@@ -766,6 +1100,28 @@ export function buildDecisionFacts({
 			percent_regret: percentRegretFinal,
 			is_exact_optimal: isExactOptimal,
 			is_near_optimal: isNearOptimal,
+			scenario_set_version_id: scenarioSetVersionId || null,
+			summary_total_rounds: valueToFloat(summaryEntry?.totalRounds),
+			summary_rounds_completed: valueToFloat(summaryEntry?.roundsCompleted),
+			summary_optimal_choices: valueToFloat(summaryEntry?.optimalChoices),
+			summary_total_game_time: valueToFloat(summaryEntry?.totalGameTime),
+			summary_completed_game: summaryEntry == null ? null : Number(Boolean(summaryEntry?.completedGame)),
+			progress_completed_scenarios_count: progressEntry ? normalizeScenarioIdList(progressEntry?.completedScenarios).length : null,
+			progress_current_round: valueToFloat(progressEntry?.currentRound),
+			progress_current_location: progressEntry ? String(progressEntry?.currentLocation || '') : null,
+			progress_in_progress_scenario: progressEntry ? String(progressEntry?.inProgressScenario || '') : null,
+			scenario_total_time_seconds: scenarioTotalTimeSeconds,
+			thinking_time: thinkingTime,
+			start_picking_confirmation_time: startPickingConfirmationTime,
+			aisle_travel_time: aisleTravelTime,
+			item_add_to_cart_time: itemAddToCartTime,
+			local_delivery_time: localDeliveryTime,
+			city_travel_time: cityTravelTime,
+			penalty_time: penaltyTime,
+			idle_or_other_time: idleOrOtherTime,
+			delivery_runtime_time: deliveryRuntimeTime,
+			non_delivery_runtime_time: nonDeliveryRuntimeTime,
+			runtime_modeled_delta: runtimeModeledDelta,
 			[cohortField]: participant?.[cohortField]
 		};
 		factRows.push(row);
@@ -777,7 +1133,13 @@ export function buildDecisionFacts({
 
 	return {
 		decisionFacts: factRows,
-		qaIssues
+		qaIssues,
+		dataHealth: createDataHealth({
+			scenarioSetVersionId,
+			legacyMode,
+			participantStates,
+			decisionFacts: factRows
+		})
 	};
 }
 
@@ -791,7 +1153,7 @@ export function computeAnalytics({
 	bootstrapB = DEFAULT_BOOTSTRAP_B,
 	seed = DEFAULT_RANDOM_SEED
 } = {}) {
-	const { decisionFacts, qaIssues } = buildDecisionFacts({
+	const { decisionFacts, qaIssues, dataHealth } = buildDecisionFacts({
 		participants,
 		scenarioBundle,
 		datasetRoot,
@@ -805,6 +1167,9 @@ export function computeAnalytics({
 	const byRound = buildKpiRows(decisionFacts, 'round_index', { bootstrapB, seed });
 	const byParticipant = buildKpiRows(decisionFacts, 'participant_id', { bootstrapB, seed });
 	const byCohort = buildKpiRows(decisionFacts, cohortField, { bootstrapB, seed });
+	const timingOverall = buildTimingKpiRows(decisionFacts, null);
+	const timingByRound = buildTimingKpiRows(decisionFacts, 'round_index');
+	const timingByClassification = buildTimingKpiRows(decisionFacts, 'classification');
 	const cohortComparisons = buildCohortComparisons(decisionFacts, cohortField, { bootstrapB, seed });
 
 	const metadata = {
@@ -812,6 +1177,7 @@ export function computeAnalytics({
 		cohort_col: cohortField,
 		bootstrap_b: bootstrapB,
 		seed,
+		data_health: dataHealth,
 		input_counts: {
 			participants: participants.length,
 			scenarios: Array.isArray(scenarioBundle?.scenarios) ? scenarioBundle.scenarios.length : 0,
@@ -830,8 +1196,12 @@ export function computeAnalytics({
 		kpiByRound: byRound,
 		kpiByParticipant: byParticipant,
 		kpiByCohort: byCohort,
+		kpiTimingOverall: timingOverall,
+		kpiTimingByRound: timingByRound,
+		kpiTimingByClassification: timingByClassification,
 		cohortComparisons,
 		qaIssues,
+		dataHealth,
 		metadata
 	};
 }

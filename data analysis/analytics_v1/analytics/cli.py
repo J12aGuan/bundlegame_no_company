@@ -14,7 +14,10 @@ from typing import Any
 from analytics.config import DEFAULT_BOOTSTRAP_B, DEFAULT_RANDOM_SEED
 from analytics.io.firestore_adapter import load_from_firestore
 from analytics.io.json_adapter import load_from_json
-from analytics.pipeline.decision_fact import build_decision_fact
+from analytics.pipeline.decision_fact import (
+    build_decision_fact,
+    get_decision_fact_export_columns,
+)
 from analytics.stats.comparisons import bootstrap_diff_median_ci, two_proportion_z_test
 from analytics.stats.intervals import bootstrap_ci, wilson_interval
 from analytics.stats.point_estimates import summarize_continuous, summarize_rate
@@ -33,14 +36,14 @@ def _read_optional_json(path: str | None) -> dict[str, Any]:
     return data
 
 
-def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+def _write_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str] | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not rows:
         path.write_text("", encoding="utf-8")
         return
-    fieldnames = sorted({k for row in rows for k in row.keys()})
+    ordered = fieldnames or sorted({k for row in rows for k in row.keys()})
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=ordered, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -51,10 +54,10 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
         json.dump(payload, handle, indent=2)
 
 
-def _collect_continuous(rows: list[dict[str, Any]], key: str) -> list[float]:
+def _collect_continuous(rows: list[dict[str, Any]], key: str, *, exclude_failures: bool = True) -> list[float]:
     out = []
     for row in rows:
-        if int(row.get("is_failure", 0)) == 1:
+        if exclude_failures and int(row.get("is_failure", 0)) == 1:
             continue
         value = row.get(key)
         if isinstance(value, (int, float)):
@@ -147,6 +150,58 @@ def _build_kpi_rows(
     return out
 
 
+TIMING_KPI_FIELDS = [
+    "scenario_total_time_seconds",
+    "participant_modeled_time",
+    "runtime_modeled_delta",
+    "delivery_runtime_time",
+    "non_delivery_runtime_time",
+    "thinking_time",
+    "start_picking_confirmation_time",
+    "aisle_travel_time",
+    "item_add_to_cart_time",
+    "local_delivery_time",
+    "city_travel_time",
+    "penalty_time",
+    "idle_or_other_time",
+]
+
+
+def _build_timing_kpi_rows(rows: list[dict[str, Any]], group_key: str | None) -> list[dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    if group_key is None:
+        grouped["overall"] = rows
+    else:
+        for row in rows:
+            grouped[str(row.get(group_key, ""))].append(row)
+
+    out: list[dict[str, Any]] = []
+    for group_value, group_rows in grouped.items():
+        entry: dict[str, Any] = {
+            (group_key or "scope"): group_value,
+            "n_decisions": len(group_rows),
+            "n_rows_with_runtime_timing": len(
+                _collect_continuous(group_rows, "scenario_total_time_seconds", exclude_failures=False)
+            ),
+        }
+        for field in TIMING_KPI_FIELDS:
+            values = _collect_continuous(group_rows, field, exclude_failures=False)
+            summary = summarize_continuous(values)
+            entry[f"{field}_mean"] = summary["mean"]
+            entry[f"{field}_median"] = summary["median"]
+            entry[f"{field}_q1"] = summary["q1"]
+            entry[f"{field}_q3"] = summary["q3"]
+            entry[f"{field}_iqr"] = summary["iqr"]
+        out.append(entry)
+
+    if group_key == "round_index":
+        out.sort(key=lambda row: float(row.get("round_index", 0) or 0))
+    elif group_key is not None:
+        out.sort(key=lambda row: str(row.get(group_key, "")))
+
+    return out
+
+
 def _attach_cohort(rows: list[dict[str, Any]], participants: list[dict[str, Any]], cohort_col: str | None) -> None:
     if not cohort_col:
         return
@@ -222,6 +277,69 @@ def _build_cohort_comparisons(
     return comparisons
 
 
+def _build_data_health(
+    participants: list[dict[str, Any]],
+    rows: list[dict[str, Any]],
+    scenario_bundle: dict[str, Any],
+) -> dict[str, Any]:
+    version_id = str((scenario_bundle.get("metadata", {}) or {}).get("scenarioSetVersionId") or "").strip()
+
+    def _has_version_entry(participant: dict[str, Any], doc_key: str, map_key: str) -> bool:
+        doc = participant.get(doc_key)
+        if not isinstance(doc, dict) or not version_id:
+            return False
+        version_map = doc.get(map_key)
+        if not isinstance(version_map, dict):
+            return False
+        entry = version_map.get(version_id)
+        return isinstance(entry, dict)
+
+    participants_with_summary = 0
+    participants_with_progress = 0
+    participants_with_actions = 0
+    participants_with_any = 0
+    participants_with_complete = 0
+
+    for participant in participants:
+        summary_ok = _has_version_entry(
+            participant,
+            "summaryDoc" if isinstance(participant.get("summaryDoc"), dict) else "progressSummary",
+            "summaryByScenarioSetVersionId",
+        )
+        progress_ok = _has_version_entry(
+            participant,
+            "scenarioSetProgressDoc",
+            "progressByScenarioSetVersionId",
+        )
+        actions_ok = _has_version_entry(
+            participant,
+            "scenarioActionsDoc",
+            "actionsByScenarioSetVersionId",
+        )
+        participants_with_summary += int(summary_ok)
+        participants_with_progress += int(progress_ok)
+        participants_with_actions += int(actions_ok)
+        participants_with_any += int(summary_ok or progress_ok or actions_ok)
+        participants_with_complete += int(summary_ok and progress_ok and actions_ok)
+
+    return {
+        "datasetScenarioSetVersionId": version_id,
+        "legacyMode": not bool(version_id),
+        "participantsLoaded": len(participants),
+        "participantsWithVersionSummary": participants_with_summary,
+        "participantsWithVersionProgress": participants_with_progress,
+        "participantsWithVersionActions": participants_with_actions,
+        "participantsWithAnyVersionState": participants_with_any,
+        "participantsWithCompleteVersionState": participants_with_complete,
+        "decisionRowsWithTiming": len(
+            _collect_continuous(rows, "scenario_total_time_seconds", exclude_failures=False)
+        ),
+        "decisionRowsMissingTiming": sum(
+            1 for row in rows if row.get("scenario_total_time_seconds") is None
+        ),
+    }
+
+
 def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
     if args.source == "json":
         payload = load_from_json(args.data_json, args.scenario_bundle_json)
@@ -247,6 +365,10 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
     by_participant = _build_kpi_rows(fact_rows, "participant_id", args.bootstrap_b, args.seed)
     by_classification = _build_kpi_rows(fact_rows, "classification", args.bootstrap_b, args.seed)
     by_scenario = _build_kpi_rows(fact_rows, "scenario_id", args.bootstrap_b, args.seed)
+    timing_overall = _build_timing_kpi_rows(fact_rows, None)
+    timing_by_round = _build_timing_kpi_rows(fact_rows, "round_index")
+    timing_by_classification = _build_timing_kpi_rows(fact_rows, "classification")
+    data_health = _build_data_health(payload.participants, fact_rows, scenario_bundle)
 
     cohort_comparisons = []
     if args.cohort_col:
@@ -258,12 +380,19 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         )
 
     out_dir = Path(args.out_dir)
-    _write_csv(out_dir / "decision_fact.csv", fact_rows)
+    _write_csv(
+        out_dir / "decision_fact.csv",
+        fact_rows,
+        fieldnames=get_decision_fact_export_columns(args.cohort_col),
+    )
     _write_csv(out_dir / "kpi_overall.csv", overall)
     _write_csv(out_dir / "kpi_by_round.csv", by_round)
     _write_csv(out_dir / "kpi_by_participant.csv", by_participant)
     _write_csv(out_dir / "kpi_by_classification.csv", by_classification)
     _write_csv(out_dir / "kpi_by_scenario.csv", by_scenario)
+    _write_csv(out_dir / "kpi_timing_overall.csv", timing_overall)
+    _write_csv(out_dir / "kpi_timing_by_round.csv", timing_by_round)
+    _write_csv(out_dir / "kpi_timing_by_classification.csv", timing_by_classification)
     _write_csv(out_dir / "qa_issues.csv", qa_issues)
     if args.cohort_col:
         _write_csv(out_dir / "cohort_comparisons.csv", cohort_comparisons)
@@ -274,6 +403,7 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         "bootstrap_b": args.bootstrap_b,
         "seed": args.seed,
         "cohort_col": args.cohort_col,
+        "data_health": data_health,
         "input_counts": {
             "participants": len(payload.participants),
             "scenarios": len(scenario_bundle.get("scenarios", [])),

@@ -78,3 +78,50 @@ def test_classification_propagation_and_phase_fallback():
     assert p1_r1["classification"] in {"easy", "medium", "hard", "unclassified"}
     assert p1_r2["phase"] == "B"
     assert not any(issue["issue_type"] == "missing_classification" for issue in issues)
+
+
+def test_version_matched_timing_and_progress_fields():
+    participants = _load("participants_fixture.json")
+    scenario_bundle = _load("scenario_bundle_fixture.json")
+    stores = _load("stores_fixture.json")
+    cities = _load("cities_fixture.json")
+
+    rows, issues = build_decision_fact(
+        participants=participants,
+        scenario_bundle=scenario_bundle,
+        dataset_root="experiment",
+        cities_dataset=cities,
+        store_dataset=stores,
+    )
+
+    p1_r1 = next(r for r in rows if r["participant_id"] == "p1" and r["round_index"] == 1)
+    assert p1_r1["scenario_set_version_id"] == "experiment_v1"
+    assert p1_r1["summary_total_rounds"] == 2.0
+    assert p1_r1["progress_completed_scenarios_count"] == 2
+    assert p1_r1["local_delivery_time"] == 10.0
+    assert p1_r1["city_travel_time"] == 5.0
+    assert p1_r1["delivery_runtime_time"] == 15.0
+    assert p1_r1["scenario_total_time_seconds"] == 42.0
+    assert p1_r1["runtime_modeled_delta"] is not None
+    assert not any(issue["issue_type"] == "missing_dataset_scenario_set_version_id" for issue in issues)
+
+
+def test_missing_per_scenario_timing_entry_surfaces_warning():
+    participants = _load("participants_fixture.json")
+    participants[1]["scenarioActionsDoc"]["actionsByScenarioSetVersionId"]["experiment_v1"]["actionsByScenarioId"] = {}
+    scenario_bundle = _load("scenario_bundle_fixture.json")
+    stores = _load("stores_fixture.json")
+    cities = _load("cities_fixture.json")
+
+    rows, issues = build_decision_fact(
+        participants=participants,
+        scenario_bundle=scenario_bundle,
+        dataset_root="experiment",
+        cities_dataset=cities,
+        store_dataset=stores,
+    )
+
+    p2_r1 = next(r for r in rows if r["participant_id"] == "p2" and r["round_index"] == 1)
+    assert p2_r1["scenario_total_time_seconds"] is None
+    assert p2_r1["delivery_runtime_time"] is None
+    assert any(issue["issue_type"] == "missing_per_scenario_timing_entry" for issue in issues)
