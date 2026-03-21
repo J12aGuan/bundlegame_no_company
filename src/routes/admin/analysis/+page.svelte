@@ -901,7 +901,7 @@
 				{#each healthBadges as badge}
 					<div class={`health-badge ${badge.accent}`}>
 						<span>{badge.label}</span>
-						<strong>{badge.value}</strong>
+						<strong title={String(badge.value)}>{badge.value}</strong>
 					</div>
 				{/each}
 			</div>
@@ -1316,10 +1316,16 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		gap: 0.75rem;
+		min-width: 0;
 		padding: 0.8rem 0.9rem;
 		border-radius: 1rem;
 		background: rgba(255, 255, 255, 0.04);
 		border: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
+	.health-badge span {
+		flex: 0 0 auto;
 	}
 
 	.health-badge strong,
@@ -1327,6 +1333,15 @@
 	.health-metrics strong {
 		font-family: 'IBM Plex Mono', monospace;
 		font-size: 1.02rem;
+	}
+
+	.health-badge strong {
+		flex: 1 1 auto;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		text-align: right;
 	}
 
 	.health-badge.coral strong,
