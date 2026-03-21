@@ -1,5 +1,5 @@
 <script>
-    import { orders, currLocation, gameText, orderList, game, currentRound, getCurrentScenario, gameMode } from "$lib/bundle.js"
+    import { orders, currLocation, gameText, orderList, game, currentRound, getCurrentScenario, gameMode, recordOrderSelectionAction } from "$lib/bundle.js"
     import { onMount, onDestroy } from 'svelte';
     import { queueNFixedOrders, storeConfig, getCityTravelInfo } from "$lib/config.js";
     import { applySharedItemBundleSavings } from "$lib/bundleTime.js";
@@ -8,7 +8,6 @@
     export let index;
     export let updateEarnings;
     export let disabled = false;
-    let selected = false;
     let timer = 0;
     let intervalId;
     let taken = false;
@@ -68,6 +67,7 @@
     $: extraCrossCitySeconds = modeledBreakdown.cityTravel;
     $: displayEstimateSeconds = Math.max(0, Math.round(modeledBreakdown.total));
     $: hasMissingCityRoute = modeledBreakdown.missingRoute;
+    $: selected = $orders.some((order) => order?.id === orderData?.id);
 
     function updateTimer() {
         timer += 1;
@@ -85,7 +85,7 @@
                         break;
                     }
                 }
-                selected = false
+                $orders = $orders;
             }
             taken = true
             setTimeout(replaceOrder, config["refresh"]*1000);
@@ -116,14 +116,15 @@
     
     function select() {
         if (disabled) return;
+        const actionType = selected ? "deselect_order" : "select_order";
         if (!selected) {
             if (isTutorialRoundOne && $orders.length >= 1) {
                 alert("Round 1 of the tutorial only allows 1 order.");
                 return;
             }
             if ($orders.length >= maxBundle) return;
+            if ($orders.some((order) => order?.id === orderData?.id)) return;
             $orders.push(orderData)
-            selected = true
         } else {
             for (let i=0; i<$orders.length; i++) {
                 if ($orders[i].id == orderData.id) {
@@ -131,9 +132,15 @@
                     break;
                 }
             }
-            selected = false
         }
         $orders = $orders; 
+        recordOrderSelectionAction(
+            String(scenario?.scenario_id ?? ''),
+            actionType,
+            "order",
+            String(orderData?.id ?? ''),
+            { resumeThinking: true }
+        );
 
         if ($orders.length > 0) {
             const bundleSummary = getModeledBundleSummary($orders, $currLocation);
@@ -149,7 +156,7 @@
             const orderLabel = `${$orders.length} ${$orders.length === 1 ? "order" : "orders"}`;
             const savingsLabel = roundedSave > 0 ? `, save ${roundedSave}s` : "";
             const cityTravelLabel = roundedCityTravel > 0 ? `, city ${roundedCityTravel}s` : "";
-            $gameText.selector = `Start Picking (${orderLabel}, modeled ${roundedTime}s${cityTravelLabel}${savingsLabel})`;
+            $gameText.selector = `Confirm Order (${orderLabel}, modeled ${roundedTime}s${cityTravelLabel}${savingsLabel})`;
         } else {
             $gameText.selector = "None selected";
         }

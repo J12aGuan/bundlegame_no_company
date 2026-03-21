@@ -152,3 +152,274 @@
 [info] ✔  Deploy complete! 
 [info] 
 [info] Project Console: https://console.firebase.google.com/project/bundling-63c10/overview
+[debug] [2026-03-21T20:06:26.754Z] ----------------------------------------------------------------------
+[debug] [2026-03-21T20:06:26.756Z] Command:       /Users/jiamingg/.nvm/versions/node/v22.21.0/bin/node /Users/jiamingg/.nvm/versions/node/v22.21.0/bin/firebase deploy --only firestore:rules
+[debug] [2026-03-21T20:06:26.756Z] CLI Version:   15.7.0
+[debug] [2026-03-21T20:06:26.756Z] Platform:      darwin
+[debug] [2026-03-21T20:06:26.757Z] Node Version:  v22.21.0
+[debug] [2026-03-21T20:06:26.757Z] Time:          Sat Mar 21 2026 13:06:26 GMT-0700 (Pacific Daylight Time)
+[debug] [2026-03-21T20:06:26.758Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-21T20:06:27.519Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-21T20:06:27.519Z] > authorizing via signed-in user (jiamingg@berkeley.edu)
+[debug] [2026-03-21T20:06:27.519Z] [iam] checking project bundling-63c10 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-03-21T20:06:27.519Z] Checked if tokens are valid: false, expires at: 1774050102527
+[debug] [2026-03-21T20:06:27.519Z] Checked if tokens are valid: false, expires at: 1774050102527
+[debug] [2026-03-21T20:06:27.520Z] > refreshing access token with scopes: []
+[debug] [2026-03-21T20:06:27.521Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-03-21T20:06:27.521Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-21T20:06:27.540Z] *** [apiv2] error from fetch(https://www.googleapis.com/oauth2/v3/token, {"headers":{},"method":"POST","body":{"_overheadLength":545,"_valueLength":212,"_valuesToMeasure":[],"writable":false,"readable":true,"dataSize":0,"maxDataSize":2097152,"pauseStreams":true,"_released":true,"_streams":[],"_currentStream":null,"_insideLoop":false,"_pendingNext":false,"_boundary":"--------------------------53ab8acac06413b497fb9812","_events":{},"_eventsCount":1}}): FetchError: request to https://www.googleapis.com/oauth2/v3/token failed, reason: getaddrinfo ENOTFOUND www.googleapis.com
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-03-21T20:06:27.540Z] [iam] error while checking permissions, command may fail: Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[info] 
+[info] === Deploying to 'bundling-63c10'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-03-21T20:06:27.541Z] Checked if tokens are valid: false, expires at: 1774050102527
+[debug] [2026-03-21T20:06:27.541Z] Checked if tokens are valid: false, expires at: 1774050102527
+[debug] [2026-03-21T20:06:27.541Z] > refreshing access token with scopes: []
+[debug] [2026-03-21T20:06:27.541Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-03-21T20:06:27.541Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-21T20:06:27.543Z] *** [apiv2] error from fetch(https://www.googleapis.com/oauth2/v3/token, {"headers":{},"method":"POST","body":{"_overheadLength":545,"_valueLength":212,"_valuesToMeasure":[],"writable":false,"readable":true,"dataSize":0,"maxDataSize":2097152,"pauseStreams":true,"_released":true,"_streams":[],"_currentStream":null,"_insideLoop":false,"_pendingNext":false,"_boundary":"--------------------------89823ecb62ce40195ca0b503","_events":{},"_eventsCount":1}}): FetchError: request to https://www.googleapis.com/oauth2/v3/token failed, reason: getaddrinfo ENOTFOUND www.googleapis.com
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-03-21T20:06:27.544Z] Checked if tokens are valid: false, expires at: 1774050102527
+[debug] [2026-03-21T20:06:27.544Z] Checked if tokens are valid: false, expires at: 1774050102527
+[debug] [2026-03-21T20:06:27.544Z] > refreshing access token with scopes: []
+[debug] [2026-03-21T20:06:27.544Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-03-21T20:06:27.544Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-21T20:06:27.545Z] *** [apiv2] error from fetch(https://www.googleapis.com/oauth2/v3/token, {"headers":{},"method":"POST","body":{"_overheadLength":545,"_valueLength":212,"_valuesToMeasure":[],"writable":false,"readable":true,"dataSize":0,"maxDataSize":2097152,"pauseStreams":true,"_released":true,"_streams":[],"_currentStream":null,"_insideLoop":false,"_pendingNext":false,"_boundary":"--------------------------529700df8021d5c3bf121d6b","_events":{},"_eventsCount":1}}): FetchError: request to https://www.googleapis.com/oauth2/v3/token failed, reason: getaddrinfo ENOTFOUND www.googleapis.com
+[error] Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[error] 
+[error] Error: Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+
+For CI servers and headless environments, generate a new token with firebase login:ci
+[debug] [2026-03-21T20:06:27.802Z] Error: EPERM: operation not permitted, open '/Users/jiamingg/.config/configstore/firebase-tools.json.1665937481'
+    at Object.openSync (node:fs:561:18)
+    at Function.writeFileSync [as sync] (/Users/jiamingg/.nvm/versions/node/v22.21.0/lib/node_modules/firebase-tools/node_modules/write-file-atomic/index.js:205:13)
+    at set all (/Users/jiamingg/.nvm/versions/node/v22.21.0/lib/node_modules/firebase-tools/node_modules/configstore/index.js:61:20)
+    at Configstore.delete (/Users/jiamingg/.nvm/versions/node/v22.21.0/lib/node_modules/firebase-tools/node_modules/configstore/index.js:101:12)
+    at process.<anonymous> (/Users/jiamingg/.nvm/versions/node/v22.21.0/lib/node_modules/firebase-tools/lib/bin/cli.js:65:45)
+    at process.emit (node:events:531:35)
+    at process.exit (node:internal/process/per_thread:240:15)
+    at Timeout._onTimeout (/Users/jiamingg/.nvm/versions/node/v22.21.0/lib/node_modules/firebase-tools/lib/errorOut.js:20:17)
+    at listOnTimeout (node:internal/timers:588:17)
+    at process.processTimers (node:internal/timers:523:7)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2026-03-21T20:06:36.131Z] ----------------------------------------------------------------------
+[debug] [2026-03-21T20:06:36.132Z] Command:       /Users/jiamingg/.nvm/versions/node/v22.21.0/bin/node /Users/jiamingg/.nvm/versions/node/v22.21.0/bin/firebase deploy --only firestore:rules
+[debug] [2026-03-21T20:06:36.132Z] CLI Version:   15.7.0
+[debug] [2026-03-21T20:06:36.132Z] Platform:      darwin
+[debug] [2026-03-21T20:06:36.132Z] Node Version:  v22.21.0
+[debug] [2026-03-21T20:06:36.133Z] Time:          Sat Mar 21 2026 13:06:36 GMT-0700 (Pacific Daylight Time)
+[debug] [2026-03-21T20:06:36.133Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-21T20:06:36.769Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-21T20:06:36.770Z] > authorizing via signed-in user (jiamingg@berkeley.edu)
+[debug] [2026-03-21T20:06:36.770Z] [iam] checking project bundling-63c10 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-03-21T20:06:36.770Z] Checked if tokens are valid: false, expires at: 1774050102527
+[debug] [2026-03-21T20:06:36.770Z] Checked if tokens are valid: false, expires at: 1774050102527
+[debug] [2026-03-21T20:06:36.770Z] > refreshing access token with scopes: []
+[debug] [2026-03-21T20:06:36.771Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-03-21T20:06:36.771Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-21T20:06:36.904Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-03-21T20:06:36.904Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-21T20:06:36.914Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions [none]
+[debug] [2026-03-21T20:06:36.914Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions  x-goog-user-project=bundling-63c10
+[debug] [2026-03-21T20:06:36.914Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-03-21T20:06:37.148Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions 200
+[debug] [2026-03-21T20:06:37.148Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'bundling-63c10'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-03-21T20:06:37.149Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:06:37.149Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:06:37.149Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/bundling-63c10/databases/(default) [none]
+[debug] [2026-03-21T20:06:37.523Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/bundling-63c10/databases/(default) 200
+[debug] [2026-03-21T20:06:37.523Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/bundling-63c10/databases/(default) {"name":"projects/bundling-63c10/databases/(default)","uid":"4b670bc8-5f9b-43c0-bcee-af159bcd8268","createTime":"2024-08-18T16:21:20.412375Z","updateTime":"2024-08-18T16:21:20.412375Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-03-21T19:06:37.502918Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"ILiuxLblsZMDMLzyuf3NgJMD"}
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-03-21T20:06:37.525Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:06:37.525Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:06:37.525Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10:test [none]
+[debug] [2026-03-21T20:06:37.525Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10:test [omitted]
+[debug] [2026-03-21T20:06:37.934Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10:test 200
+[debug] [2026-03-21T20:06:37.934Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10:test {}
+[info] ✔  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-03-21T20:06:37.935Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:06:37.935Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:06:37.935Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases pageSize=10&pageToken=
+[debug] [2026-03-21T20:06:38.127Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases 200
+[debug] [2026-03-21T20:06:38.127Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases {"releases":[{"name":"projects/bundling-63c10/releases/cloud.firestore","rulesetName":"projects/bundling-63c10/rulesets/8fd0a150-a8ee-4e19-af3d-7d3e9649dcd1","createTime":"2024-08-18T16:21:22.779885Z","updateTime":"2026-03-20T22:41:45.698465Z"}]}
+[debug] [2026-03-21T20:06:38.127Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:06:38.128Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:06:38.128Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets/8fd0a150-a8ee-4e19-af3d-7d3e9649dcd1 [none]
+[debug] [2026-03-21T20:06:38.254Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets/8fd0a150-a8ee-4e19-af3d-7d3e9649dcd1 200
+[debug] [2026-03-21T20:06:38.254Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets/8fd0a150-a8ee-4e19-af3d-7d3e9649dcd1 [omitted]
+[info] i  firestore: uploading rules firestore.rules... 
+[debug] [2026-03-21T20:06:38.254Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:06:38.254Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:06:38.254Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets [none]
+[debug] [2026-03-21T20:06:38.254Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets [omitted]
+[debug] [2026-03-21T20:06:38.460Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets 200
+[debug] [2026-03-21T20:06:38.461Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets {"name":"projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab","source":{"files":[{"content":"rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    // Global counter - anyone can read, increment only\n    match /Global/totalusers {\n      allow read: if true;\n      allow update: if request.resource.data.count == resource.data.count + 1;\n      allow create: if true;\n    }\n\n    // Auth collection - allow authentication flow\n    match /Auth/{docId} {\n      // Allow creating auth records (for initial authentication)\n      allow create: if true;\n      // Allow reading auth records (for checking authentication status)\n      allow read: if true;\n      // Allow updates for status changes\n      allow update: if true;\n      // No deletions\n      allow delete: if false;\n    }\n\n    // Users collection - allow user creation and access\n    match /Users/{userId} {\n      // Allow user creation (during registration)\n      allow create: if true;\n      // Allow reading own user data\n      allow read: if true;\n      // Allow updates (for game progress)\n      allow update: if true;\n      // No deletions\n      allow delete: if false;\n\n      // Actions subcollection\n      match /Actions/{actionId} {\n        allow create: if true;  // Allow logging actions\n        allow read: if true;    // Allow reading actions\n        allow update: if true;  // Allow updating actions\n        allow delete: if false;\n      }\n\n      // Orders subcollection\n      match /Orders/{orderId} {\n        allow create: if true;  // Allow creating orders\n        allow read: if true;    // Allow reading orders\n        allow update: if true;  // Allow updating order status\n        allow delete: if false;\n      }\n\n      // Summary subcollection\n      match /Summary/{summaryId} {\n        allow create: if true;\n        allow read: if true;\n        allow update: if true;\n        allow delete: if false;\n      }\n\n      // ScenarioSet progress subcollection\n      match /ScenarioSet/{docId} {\n        allow create: if true;\n        allow read: if true;\n        allow update: if true;\n        allow delete: if false;\n      }\n\n      // Structured action summary subcollection\n      match /Action/{docId} {\n        allow create: if true;\n        allow read: if true;\n        allow update: if true;\n        allow delete: if false;\n      }\n\n      // Detailed structured action timeline subcollection\n      match /DetailedAction/{docId} {\n        allow create: if true;\n        allow read: if true;\n        allow update: if true;\n        allow delete: if false;\n      }\n    }\n\n    // Configs collection - for experiment configurations\n    match /Configs/{configId} {\n      allow read: if true;\n      allow create: if true;\n      allow update: if true;\n      allow delete: if true;\n    }\n\n    // MasterData collection - for game data (centralConfig, orders, stores, experiments, etc.)\n    match /MasterData/{docId} {\n      allow read: if true;\n      allow create: if true;\n      allow update: if true;\n      allow delete: if true;\n    }\n\n    // Block everything else\n    match /{document=**} {\n      allow read, write: if false;\n    }\n  }\n}\n","name":"firestore.rules"}]},"createTime":"2026-03-21T20:06:38.414511Z","metadata":{"services":["cloud.firestore"]}}
+[debug] [2026-03-21T20:06:38.461Z] [rules] created ruleset projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab
+[debug] [2026-03-21T20:06:38.461Z] [rules] releasing cloud.firestore/(default) with ruleset projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab
+[debug] [2026-03-21T20:06:38.461Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:06:38.461Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:06:38.461Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases/cloud.firestore/(default) [none]
+[debug] [2026-03-21T20:06:38.461Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases/cloud.firestore/(default) {"release":{"name":"projects/bundling-63c10/releases/cloud.firestore/(default)","rulesetName":"projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab"}}
+[debug] [2026-03-21T20:06:38.689Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases/cloud.firestore/(default) 200
+[debug] [2026-03-21T20:06:38.689Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases/cloud.firestore/(default) {"name":"projects/bundling-63c10/releases/cloud.firestore","rulesetName":"projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab","createTime":"2024-08-18T16:21:22.779885Z","updateTime":"2026-03-21T20:06:38.643313Z"}
+[debug] [2026-03-21T20:06:38.689Z] [rules] updated release projects/bundling-63c10/releases/cloud.firestore
+[info] ✔  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] ✔  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/bundling-63c10/overview
+[debug] [2026-03-21T20:09:14.817Z] ----------------------------------------------------------------------
+[debug] [2026-03-21T20:09:14.818Z] Command:       /Users/jiamingg/.nvm/versions/node/v22.21.0/bin/node /Users/jiamingg/.nvm/versions/node/v22.21.0/bin/firebase deploy --only firestore:rules
+[debug] [2026-03-21T20:09:14.819Z] CLI Version:   15.7.0
+[debug] [2026-03-21T20:09:14.819Z] Platform:      darwin
+[debug] [2026-03-21T20:09:14.819Z] Node Version:  v22.21.0
+[debug] [2026-03-21T20:09:14.819Z] Time:          Sat Mar 21 2026 13:09:14 GMT-0700 (Pacific Daylight Time)
+[debug] [2026-03-21T20:09:14.819Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-21T20:09:15.466Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-21T20:09:15.466Z] > authorizing via signed-in user (jiamingg@berkeley.edu)
+[debug] [2026-03-21T20:09:15.466Z] [iam] checking project bundling-63c10 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-03-21T20:09:15.467Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:09:15.467Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:09:15.467Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions [none]
+[debug] [2026-03-21T20:09:15.467Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions  x-goog-user-project=bundling-63c10
+[debug] [2026-03-21T20:09:15.467Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-03-21T20:09:15.593Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions 200
+[debug] [2026-03-21T20:09:15.593Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'bundling-63c10'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-03-21T20:09:15.594Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:09:15.594Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:09:15.594Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/bundling-63c10/databases/(default) [none]
+[debug] [2026-03-21T20:09:15.808Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/bundling-63c10/databases/(default) 200
+[debug] [2026-03-21T20:09:15.808Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/bundling-63c10/databases/(default) {"name":"projects/bundling-63c10/databases/(default)","uid":"4b670bc8-5f9b-43c0-bcee-af159bcd8268","createTime":"2024-08-18T16:21:20.412375Z","updateTime":"2024-08-18T16:21:20.412375Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-03-21T19:09:15.789582Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IIe1gYLmsZMDMLzyuf3NgJMD"}
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-03-21T20:09:15.809Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:09:15.809Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:09:15.809Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10:test [none]
+[debug] [2026-03-21T20:09:15.809Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10:test [omitted]
+[debug] [2026-03-21T20:09:15.974Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10:test 200
+[debug] [2026-03-21T20:09:15.974Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10:test {}
+[info] ✔  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-03-21T20:09:15.975Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:09:15.975Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:09:15.975Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases pageSize=10&pageToken=
+[debug] [2026-03-21T20:09:16.117Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases 200
+[debug] [2026-03-21T20:09:16.117Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases {"releases":[{"name":"projects/bundling-63c10/releases/cloud.firestore","rulesetName":"projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab","createTime":"2024-08-18T16:21:22.779885Z","updateTime":"2026-03-21T20:06:38.643313Z"}]}
+[debug] [2026-03-21T20:09:16.117Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:09:16.117Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:09:16.117Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab [none]
+[debug] [2026-03-21T20:09:16.249Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab 200
+[debug] [2026-03-21T20:09:16.250Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab [omitted]
+[info] i  firestore: latest version of firestore.rules already up to date, skipping upload... 
+[debug] [2026-03-21T20:09:16.250Z] [rules] releasing cloud.firestore/(default) with ruleset projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab
+[debug] [2026-03-21T20:09:16.250Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:09:16.250Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:09:16.250Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases/cloud.firestore/(default) [none]
+[debug] [2026-03-21T20:09:16.250Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases/cloud.firestore/(default) {"release":{"name":"projects/bundling-63c10/releases/cloud.firestore/(default)","rulesetName":"projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab"}}
+[debug] [2026-03-21T20:09:16.610Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases/cloud.firestore/(default) 200
+[debug] [2026-03-21T20:09:16.610Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases/cloud.firestore/(default) {"name":"projects/bundling-63c10/releases/cloud.firestore","rulesetName":"projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab","createTime":"2024-08-18T16:21:22.779885Z","updateTime":"2026-03-21T20:09:16.571323Z"}
+[debug] [2026-03-21T20:09:16.610Z] [rules] updated release projects/bundling-63c10/releases/cloud.firestore
+[info] ✔  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] ✔  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/bundling-63c10/overview
+[debug] [2026-03-21T20:10:25.366Z] ----------------------------------------------------------------------
+[debug] [2026-03-21T20:10:25.367Z] Command:       /Users/jiamingg/.nvm/versions/node/v22.21.0/bin/node /Users/jiamingg/.nvm/versions/node/v22.21.0/bin/firebase deploy --only firestore:rules
+[debug] [2026-03-21T20:10:25.367Z] CLI Version:   15.7.0
+[debug] [2026-03-21T20:10:25.367Z] Platform:      darwin
+[debug] [2026-03-21T20:10:25.367Z] Node Version:  v22.21.0
+[debug] [2026-03-21T20:10:25.368Z] Time:          Sat Mar 21 2026 13:10:25 GMT-0700 (Pacific Daylight Time)
+[debug] [2026-03-21T20:10:25.368Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-21T20:10:26.037Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-21T20:10:26.037Z] > authorizing via signed-in user (jiamingg@berkeley.edu)
+[debug] [2026-03-21T20:10:26.037Z] [iam] checking project bundling-63c10 for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-03-21T20:10:26.038Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:26.038Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:26.038Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions [none]
+[debug] [2026-03-21T20:10:26.038Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions  x-goog-user-project=bundling-63c10
+[debug] [2026-03-21T20:10:26.038Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-03-21T20:10:26.159Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions 200
+[debug] [2026-03-21T20:10:26.159Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/bundling-63c10:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'bundling-63c10'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-03-21T20:10:26.160Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:26.160Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:26.160Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/bundling-63c10/databases/(default) [none]
+[debug] [2026-03-21T20:10:26.561Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/bundling-63c10/databases/(default) 200
+[debug] [2026-03-21T20:10:26.561Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/bundling-63c10/databases/(default) {"name":"projects/bundling-63c10/databases/(default)","uid":"4b670bc8-5f9b-43c0-bcee-af159bcd8268","createTime":"2024-08-18T16:21:20.412375Z","updateTime":"2024-08-18T16:21:20.412375Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-03-21T19:10:26.541222Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IILh36PmsZMDMLzyuf3NgJMD"}
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-03-21T20:10:26.562Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:26.562Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:26.562Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10:test [none]
+[debug] [2026-03-21T20:10:26.562Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10:test [omitted]
+[debug] [2026-03-21T20:10:26.899Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10:test 200
+[debug] [2026-03-21T20:10:26.899Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10:test {}
+[info] ✔  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-03-21T20:10:26.900Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:26.900Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:26.900Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases pageSize=10&pageToken=
+[debug] [2026-03-21T20:10:27.047Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases 200
+[debug] [2026-03-21T20:10:27.047Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases {"releases":[{"name":"projects/bundling-63c10/releases/cloud.firestore","rulesetName":"projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab","createTime":"2024-08-18T16:21:22.779885Z","updateTime":"2026-03-21T20:09:16.571323Z"}]}
+[debug] [2026-03-21T20:10:27.047Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:27.047Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:27.048Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab [none]
+[debug] [2026-03-21T20:10:27.337Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab 200
+[debug] [2026-03-21T20:10:27.337Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets/2869ea7d-17b9-47a2-bb61-1a8f055a88ab [omitted]
+[info] i  firestore: uploading rules firestore.rules... 
+[debug] [2026-03-21T20:10:27.337Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:27.337Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:27.337Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets [none]
+[debug] [2026-03-21T20:10:27.337Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets [omitted]
+[debug] [2026-03-21T20:10:27.534Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets 200
+[debug] [2026-03-21T20:10:27.534Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/bundling-63c10/rulesets {"name":"projects/bundling-63c10/rulesets/61a549d7-7929-412f-a1b1-638ed9907580","source":{"files":[{"content":"rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    // Global counter - anyone can read, increment only\n    match /Global/totalusers {\n      allow read: if true;\n      allow update: if request.resource.data.count == resource.data.count + 1;\n      allow create: if true;\n    }\n\n    // Auth collection - allow authentication flow\n    match /Auth/{docId} {\n      // Allow creating auth records (for initial authentication)\n      allow create: if true;\n      // Allow reading auth records (for checking authentication status)\n      allow read: if true;\n      // Allow updates for status changes\n      allow update: if true;\n      // No deletions\n      allow delete: if false;\n    }\n\n    // Users collection - allow user creation and access\n    match /Users/{userId} {\n      // Allow user creation (during registration)\n      allow create: if true;\n      // Allow reading own user data\n      allow read: if true;\n      // Allow updates (for game progress)\n      allow update: if true;\n      // No deletions\n      allow delete: if false;\n\n      // Actions subcollection\n      match /Actions/{actionId} {\n        allow create: if true;  // Allow logging actions\n        allow read: if true;    // Allow reading actions\n        allow update: if true;  // Allow updating actions\n        allow delete: if false;\n      }\n\n      // Orders subcollection\n      match /Orders/{orderId} {\n        allow create: if true;  // Allow creating orders\n        allow read: if true;    // Allow reading orders\n        allow update: if true;  // Allow updating order status\n        allow delete: if false;\n      }\n\n      // Summary subcollection\n      match /Summary/{summaryId} {\n        allow create: if true;\n        allow read: if true;\n        allow update: if true;\n        allow delete: if false;\n      }\n\n      // Progress subcollection\n      match /Progress/{docId} {\n        allow create: if true;\n        allow read: if true;\n        allow update: if true;\n        allow delete: if false;\n      }\n\n      // Legacy ScenarioSet progress subcollection\n      match /ScenarioSet/{docId} {\n        allow create: if true;\n        allow read: if true;\n        allow update: if true;\n        allow delete: if false;\n      }\n\n      // Structured action summary subcollection\n      match /Action/{docId} {\n        allow create: if true;\n        allow read: if true;\n        allow update: if true;\n        allow delete: if false;\n      }\n\n      // Detailed structured action timeline subcollection\n      match /DetailedAction/{docId} {\n        allow create: if true;\n        allow read: if true;\n        allow update: if true;\n        allow delete: if false;\n      }\n    }\n\n    // Configs collection - for experiment configurations\n    match /Configs/{configId} {\n      allow read: if true;\n      allow create: if true;\n      allow update: if true;\n      allow delete: if true;\n    }\n\n    // MasterData collection - for game data (centralConfig, orders, stores, experiments, etc.)\n    match /MasterData/{docId} {\n      allow read: if true;\n      allow create: if true;\n      allow update: if true;\n      allow delete: if true;\n    }\n\n    // Block everything else\n    match /{document=**} {\n      allow read, write: if false;\n    }\n  }\n}\n","name":"firestore.rules"}]},"createTime":"2026-03-21T20:10:27.482783Z","metadata":{"services":["cloud.firestore"]}}
+[debug] [2026-03-21T20:10:27.534Z] [rules] created ruleset projects/bundling-63c10/rulesets/61a549d7-7929-412f-a1b1-638ed9907580
+[debug] [2026-03-21T20:10:27.534Z] [rules] releasing cloud.firestore/(default) with ruleset projects/bundling-63c10/rulesets/61a549d7-7929-412f-a1b1-638ed9907580
+[debug] [2026-03-21T20:10:27.534Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:27.534Z] Checked if tokens are valid: true, expires at: 1774127195904
+[debug] [2026-03-21T20:10:27.534Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases/cloud.firestore/(default) [none]
+[debug] [2026-03-21T20:10:27.534Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases/cloud.firestore/(default) {"release":{"name":"projects/bundling-63c10/releases/cloud.firestore/(default)","rulesetName":"projects/bundling-63c10/rulesets/61a549d7-7929-412f-a1b1-638ed9907580"}}
+[debug] [2026-03-21T20:10:27.882Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases/cloud.firestore/(default) 200
+[debug] [2026-03-21T20:10:27.882Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/bundling-63c10/releases/cloud.firestore/(default) {"name":"projects/bundling-63c10/releases/cloud.firestore","rulesetName":"projects/bundling-63c10/rulesets/61a549d7-7929-412f-a1b1-638ed9907580","createTime":"2024-08-18T16:21:22.779885Z","updateTime":"2026-03-21T20:10:27.840826Z"}
+[debug] [2026-03-21T20:10:27.882Z] [rules] updated release projects/bundling-63c10/releases/cloud.firestore
+[info] ✔  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] ✔  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/bundling-63c10/overview

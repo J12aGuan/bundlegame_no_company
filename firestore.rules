@@ -56,7 +56,15 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // ScenarioSet progress subcollection
+      // Progress subcollection
+      match /Progress/{docId} {
+        allow create: if true;
+        allow read: if true;
+        allow update: if true;
+        allow delete: if false;
+      }
+
+      // Legacy ScenarioSet progress subcollection
       match /ScenarioSet/{docId} {
         allow create: if true;
         allow read: if true;
