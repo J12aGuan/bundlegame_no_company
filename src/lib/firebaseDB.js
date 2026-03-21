@@ -499,7 +499,11 @@ export const retrieveData = async () => {
             const orders = await getSubcollections(docId, '/Orders');
             const actions = await getSubcollections(docId, '/Actions');
             const summaryDocs = await getSubcollections(docId, '/Summary');
-            const progressSummary = summaryDocs.find((entry) => entry.id === 'summary') || null;
+            const scenarioSetDocs = await getSubcollections(docId, '/ScenarioSet');
+            const actionSummaryDocs = await getSubcollections(docId, '/Action');
+            const summaryDoc = summaryDocs.find((entry) => entry.id === 'summary') || null;
+            const scenarioSetProgressDoc = scenarioSetDocs.find((entry) => entry.id === 'progress') || null;
+            const scenarioActionsDoc = actionSummaryDocs.find((entry) => entry.id === 'actions') || null;
             
             
             data.push({
@@ -507,7 +511,10 @@ export const retrieveData = async () => {
             ...docData,
             orders,
             actions,
-            progressSummary
+            progressSummary: summaryDoc,
+            summaryDoc,
+            scenarioSetProgressDoc,
+            scenarioActionsDoc
             });
         } else {
             console.log("not adding to data")

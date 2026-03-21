@@ -12,14 +12,9 @@
 	import {
 		buildDecisionFacts,
 		computeAnalytics,
-		DECISION_FACT_EXPORT_COLUMNS,
+		getDecisionFactExportColumns,
 		DEFAULT_BOOTSTRAP_B
 	} from '$lib/analysis/engine.js';
-
-	const CHART_TABS = [
-		{ id: 'overview', label: 'Overview Charts' },
-		{ id: 'behavior', label: 'Behavior Charts' }
-	];
 
 	let loading = true;
 	let computing = false;
@@ -31,7 +26,7 @@
 	let cohortField = 'configuration';
 	let participantSearch = '';
 	let bootstrapB = DEFAULT_BOOTSTRAP_B;
-	let activeChartTab = 'overview';
+	let activeView = 'compare';
 
 	let rawParticipants = [];
 	let scenarioBundle = { scenarios: [], orders: [], optimal: [], metadata: {} };
@@ -42,16 +37,26 @@
 	let diagnostics = null;
 	let hints = [];
 
-	let roundTrendCanvas;
-	let classRateCanvas;
-	let durationCanvas;
-	let regretCanvas;
-	let participantScatterCanvas;
-	let bundleSizeCanvas;
-	let cohortCanvas;
-	let learningCanvas;
+	let qualityTrendCanvas;
+	let runtimeVsModeledCanvas;
+	let classificationSummaryCanvas;
+	let phaseTimingCanvas;
+	let deliverySplitCanvas;
+	let participantRuntimeCanvas;
 
 	let charts = [];
+
+	const chartPalette = {
+		coral: '#ff6b4a',
+		steel: '#3f6db3',
+		cyan: '#2fa9c5',
+		gold: '#f0b65a',
+		slate: '#8ea0b8',
+		graphite: '#334155',
+		teal: '#1f8a78',
+		ink: '#111827',
+		grid: 'rgba(148, 163, 184, 0.18)'
+	};
 
 	function formatNum(value, digits = 3) {
 		if (value == null || Number.isNaN(Number(value))) return '-';
@@ -63,6 +68,11 @@
 		return `${(Number(value) * 100).toFixed(1)}%`;
 	}
 
+	function formatSeconds(value, digits = 1) {
+		if (value == null || Number.isNaN(Number(value))) return '-';
+		return `${Number(value).toFixed(digits)}s`;
+	}
+
 	function showMessage(message, type = 'success') {
 		success = type === 'success' ? message : null;
 		error = type === 'error' ? message : null;
@@ -71,87 +81,6 @@
 	function clearMessage() {
 		success = null;
 		error = null;
-	}
-
-	function getFilteredParticipants() {
-		const query = participantSearch.trim().toLowerCase();
-		return query
-			? rawParticipants.filter((participant) => String(participant?.id || '').toLowerCase().includes(query))
-			: rawParticipants;
-	}
-
-	function buildDiagnostics(analysisResult, participantCount) {
-		const facts = Array.isArray(analysisResult?.decisionFacts) ? analysisResult.decisionFacts : [];
-		const qaIssues = Array.isArray(analysisResult?.qaIssues) ? analysisResult.qaIssues : [];
-		const successCount = facts.filter((row) => Number(row?.success) === 1).length;
-		const failureCount = facts.filter((row) => Number(row?.is_failure) === 1).length;
-		const qaByType = {};
-		for (const issue of qaIssues) {
-			const key = String(issue?.issue_type || 'unknown');
-			qaByType[key] = (qaByType[key] || 0) + 1;
-		}
-		const topQa = Object.entries(qaByType)
-			.map(([issueType, count]) => ({ issueType, count }))
-			.sort((a, b) => b.count - a.count)
-			.slice(0, 4);
-
-		return {
-			participants: participantCount,
-			decisions: facts.length,
-			successCount,
-			failureCount,
-			roundRows: Array.isArray(analysisResult?.kpiByRound) ? analysisResult.kpiByRound.length : 0,
-			classificationRows: Array.isArray(analysisResult?.kpiByClassification)
-				? analysisResult.kpiByClassification.length
-				: 0,
-			topQa
-		};
-	}
-
-	function buildHints(analysisResult, participantCount) {
-		const out = [];
-		const facts = Array.isArray(analysisResult?.decisionFacts) ? analysisResult.decisionFacts : [];
-		const qaIssues = Array.isArray(analysisResult?.qaIssues) ? analysisResult.qaIssues : [];
-		const issueTypeCounts = {};
-		for (const issue of qaIssues) {
-			const key = String(issue?.issue_type || 'unknown');
-			issueTypeCounts[key] = (issueTypeCounts[key] || 0) + 1;
-		}
-
-		if (participantCount === 0) {
-			out.push('No participants were loaded from Firestore. Check that user data exists in `Users/*`.');
-			return out;
-		}
-
-		if (facts.length === 0) {
-			out.push(
-				'No decision rows were produced. Most common cause is dataset mismatch between participant rounds and selected scenario set.'
-			);
-		}
-
-		if ((issueTypeCounts.missing_scenario_for_round || 0) > 0) {
-			out.push(
-				`Found ${issueTypeCounts.missing_scenario_for_round} missing-scenario issues. Try switching scenario dataset to the one used during participant collection.`
-			);
-		}
-
-		if ((issueTypeCounts.missing_optimal_for_scenario || 0) > 0) {
-			out.push(
-				`Found ${issueTypeCounts.missing_optimal_for_scenario} missing-optimal issues. Check grouped dataset optimal entries.`
-			);
-		}
-
-		if ((issueTypeCounts.missing_classification || 0) > 0) {
-			out.push(
-				`${issueTypeCounts.missing_classification} scenarios were missing classification and were grouped as "unclassified".`
-			);
-		}
-
-		if (!participantSearch.trim() && facts.length > 0) {
-			out.push('If charts still look sparse, confirm participants are completing rounds with `round_summary` actions.');
-		}
-
-		return out;
 	}
 
 	function escapeCsvCell(value) {
@@ -188,19 +117,31 @@
 		window.URL.revokeObjectURL(url);
 	}
 
+	function getFilteredParticipants() {
+		const query = participantSearch.trim().toLowerCase();
+		return query
+			? rawParticipants.filter((participant) => String(participant?.id || '').toLowerCase().includes(query))
+			: rawParticipants;
+	}
+
+	function getDecisionColumns() {
+		return getDecisionFactExportColumns(normalizedCohortField);
+	}
+
 	function exportDecisionFactCsv() {
 		if (!analysis) return;
 		downloadFile(
 			`decision_fact-${selectedDataset}.csv`,
-			toCsv(analysis.decisionFacts, DECISION_FACT_EXPORT_COLUMNS),
+			toCsv(analysis.decisionFacts, getDecisionColumns()),
 			'text/csv;charset=utf-8'
 		);
 	}
 
 	function exportDecisionFactJson() {
 		if (!analysis) return;
+		const columns = getDecisionColumns();
 		const rows = analysis.decisionFacts.map((row) =>
-			Object.fromEntries(DECISION_FACT_EXPORT_COLUMNS.map((column) => [column, row?.[column] ?? null]))
+			Object.fromEntries(columns.map((column) => [column, row?.[column] ?? null]))
 		);
 		downloadFile(
 			`decision_fact-${selectedDataset}.json`,
@@ -212,15 +153,30 @@
 	function exportKpis() {
 		if (!analysis) return;
 		downloadFile(`kpi_overall-${selectedDataset}.csv`, toCsv(analysis.kpiOverall), 'text/csv;charset=utf-8');
+		downloadFile(`kpi_by_round-${selectedDataset}.csv`, toCsv(analysis.kpiByRound), 'text/csv;charset=utf-8');
+		downloadFile(
+			`kpi_by_participant-${selectedDataset}.csv`,
+			toCsv(analysis.kpiByParticipant),
+			'text/csv;charset=utf-8'
+		);
 		downloadFile(
 			`kpi_by_classification-${selectedDataset}.csv`,
 			toCsv(analysis.kpiByClassification),
 			'text/csv;charset=utf-8'
 		);
-		downloadFile(`kpi_by_round-${selectedDataset}.csv`, toCsv(analysis.kpiByRound), 'text/csv;charset=utf-8');
 		downloadFile(
-			`kpi_by_participant-${selectedDataset}.csv`,
-			toCsv(analysis.kpiByParticipant),
+			`kpi_timing_overall-${selectedDataset}.csv`,
+			toCsv(analysis.kpiTimingOverall),
+			'text/csv;charset=utf-8'
+		);
+		downloadFile(
+			`kpi_timing_by_round-${selectedDataset}.csv`,
+			toCsv(analysis.kpiTimingByRound),
+			'text/csv;charset=utf-8'
+		);
+		downloadFile(
+			`kpi_timing_by_classification-${selectedDataset}.csv`,
+			toCsv(analysis.kpiTimingByClassification),
 			'text/csv;charset=utf-8'
 		);
 	}
@@ -232,6 +188,136 @@
 			JSON.stringify(analysis.metadata, null, 2),
 			'application/json;charset=utf-8'
 		);
+	}
+
+	async function setView(view) {
+		activeView = view;
+		await tick();
+		renderCharts();
+	}
+
+	function buildDiagnostics(analysisResult, participantCount) {
+		const facts = Array.isArray(analysisResult?.decisionFacts) ? analysisResult.decisionFacts : [];
+		const qaIssues = Array.isArray(analysisResult?.qaIssues) ? analysisResult.qaIssues : [];
+		const dataHealth = analysisResult?.dataHealth || {};
+		const successCount = facts.filter((row) => Number(row?.success) === 1).length;
+		const failureCount = facts.filter((row) => Number(row?.is_failure) === 1).length;
+		const matchedVersionRows = facts.filter((row) => row?.scenario_set_version_id).length;
+		const qaByType = {};
+
+		for (const issue of qaIssues) {
+			const key = String(issue?.issue_type || 'unknown');
+			qaByType[key] = (qaByType[key] || 0) + 1;
+		}
+
+		const topQa = Object.entries(qaByType)
+			.map(([issueType, count]) => ({ issueType, count }))
+			.sort((a, b) => b.count - a.count)
+			.slice(0, 6);
+
+		return {
+			participants: participantCount,
+			decisions: facts.length,
+			matchedVersionRows,
+			successCount,
+			failureCount,
+			runtimeCoverage: Number(dataHealth?.decisionRowsWithTiming || 0),
+			runtimeMissing: Number(dataHealth?.decisionRowsMissingTiming || 0),
+			participantsWithCompleteState: Number(dataHealth?.participantsWithCompleteVersionState || 0),
+			topQa
+		};
+	}
+
+	function buildHints(analysisResult, participantCount) {
+		const out = [];
+		const facts = Array.isArray(analysisResult?.decisionFacts) ? analysisResult.decisionFacts : [];
+		const qaIssues = Array.isArray(analysisResult?.qaIssues) ? analysisResult.qaIssues : [];
+		const dataHealth = analysisResult?.dataHealth || {};
+		const issueTypeCounts = {};
+
+		for (const issue of qaIssues) {
+			const key = String(issue?.issue_type || 'unknown');
+			issueTypeCounts[key] = (issueTypeCounts[key] || 0) + 1;
+		}
+
+		if (participantCount === 0) {
+			out.push('No participants loaded.');
+			return out;
+		}
+
+		if (facts.length === 0) {
+			out.push('No matched decision rows.');
+		}
+
+		if (dataHealth?.legacyMode) {
+			out.push('Legacy mode: dataset has no scenarioSetVersionId.');
+		}
+
+		if ((issueTypeCounts.missing_version_matched_summary_entry || 0) > 0) {
+			out.push('Missing version-matched Summary rows.');
+		}
+
+		if ((issueTypeCounts.missing_version_matched_progress_entry || 0) > 0) {
+			out.push('Missing version-matched ScenarioSet progress rows.');
+		}
+
+		if ((issueTypeCounts.missing_version_matched_action_summary_entry || 0) > 0) {
+			out.push('Missing version-matched Action summary rows.');
+		}
+
+		if ((issueTypeCounts.missing_per_scenario_timing_entry || 0) > 0) {
+			out.push('Missing per-scenario timing rows.');
+		}
+
+		if ((issueTypeCounts.timing_total_mismatch || 0) > 0) {
+			out.push('Stored total and timing buckets do not match.');
+		}
+
+		if (Number(dataHealth?.decisionRowsMissingTiming || 0) > 0 && facts.length > 0) {
+			out.push('Runtime timing coverage is incomplete.');
+		}
+
+		return out;
+	}
+
+	function buildChartOptions(overrides = {}) {
+		return {
+			responsive: true,
+			maintainAspectRatio: false,
+			interaction: {
+				mode: 'nearest',
+				intersect: false
+			},
+			plugins: {
+				legend: {
+					labels: {
+						color: chartPalette.graphite,
+						font: { family: 'IBM Plex Mono, monospace', size: 11 }
+					}
+				},
+				tooltip: {
+					backgroundColor: '#111827',
+					titleColor: '#f8fafc',
+					bodyColor: '#e2e8f0',
+					borderColor: 'rgba(255, 107, 74, 0.35)',
+					borderWidth: 1,
+					padding: 10,
+					titleFont: { family: 'Space Grotesk, sans-serif', weight: '700' },
+					bodyFont: { family: 'IBM Plex Mono, monospace' }
+				}
+			},
+			scales: {
+				x: {
+					grid: { color: chartPalette.grid },
+					ticks: { color: chartPalette.graphite, font: { family: 'IBM Plex Mono, monospace', size: 11 } }
+				},
+				y: {
+					grid: { color: chartPalette.grid },
+					ticks: { color: chartPalette.graphite, font: { family: 'IBM Plex Mono, monospace', size: 11 } }
+				}
+			},
+			...overrides
+		};
 	}
 
 	function destroyCharts() {
@@ -250,264 +336,289 @@
 		if (!analysis) return;
 
 		const byRound = Array.isArray(analysis.kpiByRound) ? analysis.kpiByRound : [];
-		const byClass = Array.isArray(analysis.kpiByClassification) ? analysis.kpiByClassification : [];
-		const byParticipant = Array.isArray(analysis.kpiByParticipant) ? analysis.kpiByParticipant : [];
-		const byCohort = Array.isArray(analysis.kpiByCohort) ? analysis.kpiByCohort : [];
+		const timingByRound = Array.isArray(analysis.kpiTimingByRound) ? analysis.kpiTimingByRound : [];
+		const byClass = Array.isArray(classificationRows) ? classificationRows : [];
+		const timingByClass = byClass.filter((row) => row.delivery_runtime_time_mean != null || row.scenario_total_time_seconds_mean != null);
 		const facts = Array.isArray(analysis.decisionFacts) ? analysis.decisionFacts : [];
+		const scatterPoints = facts
+			.filter((row) => row.scenario_total_time_seconds != null && row.score_ratio_to_best != null)
+			.map((row) => ({
+				x: row.scenario_total_time_seconds,
+				y: row.score_ratio_to_best,
+				participant: row.participant_id,
+				round: row.round_index,
+				scenario: row.scenario_id,
+				delivery: row.delivery_runtime_time
+			}));
 
-		if (roundTrendCanvas) {
+		if (qualityTrendCanvas && byRound.length > 0) {
 			charts.push(
-				new Chart(roundTrendCanvas, {
+				new Chart(qualityTrendCanvas, {
 					type: 'line',
 					data: {
-						labels: byRound.map((row) => String(row.round_index)),
+						labels: byRound.map((row) => `R${row.round_index}`),
 						datasets: [
 							{
 								label: 'Mean Score Ratio',
 								data: byRound.map((row) => row.score_ratio_to_best_mean),
-								borderColor: '#2563eb',
-								backgroundColor: '#2563eb',
+								borderColor: chartPalette.steel,
+								backgroundColor: chartPalette.steel,
 								yAxisID: 'y',
 								tension: 0.25
 							},
 							{
 								label: 'Failure Rate',
 								data: byRound.map((row) => row.failure_rate),
-								borderColor: '#dc2626',
-								backgroundColor: '#dc2626',
+								borderColor: chartPalette.coral,
+								backgroundColor: chartPalette.coral,
 								yAxisID: 'y1',
 								tension: 0.25
 							}
 						]
 					},
-					options: {
-						responsive: true,
-						maintainAspectRatio: false,
+					options: buildChartOptions({
 						scales: {
-							y: { min: 0, max: 1, title: { display: true, text: 'Score Ratio' } },
+							x: { grid: { color: chartPalette.grid }, ticks: { color: chartPalette.graphite } },
+							y: {
+								min: 0,
+								max: 1,
+								position: 'left',
+								title: { display: true, text: 'Score Ratio', color: chartPalette.graphite },
+								grid: { color: chartPalette.grid },
+								ticks: { color: chartPalette.graphite }
+							},
 							y1: {
 								min: 0,
 								max: 1,
 								position: 'right',
-								title: { display: true, text: 'Failure Rate' },
-								grid: { drawOnChartArea: false }
+								title: { display: true, text: 'Failure Rate', color: chartPalette.graphite },
+								grid: { drawOnChartArea: false },
+								ticks: { color: chartPalette.graphite }
 							}
 						}
-					}
+					})
 				})
 			);
 		}
 
-		if (classRateCanvas) {
+		if (runtimeVsModeledCanvas && timingByRound.length > 0) {
 			charts.push(
-				new Chart(classRateCanvas, {
+				new Chart(runtimeVsModeledCanvas, {
 					type: 'bar',
 					data: {
-						labels: byClass.map((row) => String(row.classification)),
+						labels: timingByRound.map((row) => `R${row.round_index}`),
+						datasets: [
+							{
+								type: 'line',
+								label: 'Runtime Mean',
+								data: timingByRound.map((row) => row.scenario_total_time_seconds_mean),
+								borderColor: chartPalette.coral,
+								backgroundColor: chartPalette.coral,
+								yAxisID: 'y',
+								tension: 0.2
+							},
+							{
+								type: 'line',
+								label: 'Modeled Mean',
+								data: timingByRound.map((row) => row.participant_modeled_time_mean),
+								borderColor: chartPalette.cyan,
+								backgroundColor: chartPalette.cyan,
+								yAxisID: 'y',
+								tension: 0.2
+							},
+							{
+								type: 'bar',
+								label: 'Runtime - Modeled',
+								data: timingByRound.map((row) => row.runtime_modeled_delta_mean),
+								backgroundColor: 'rgba(63, 109, 179, 0.28)',
+								borderColor: chartPalette.steel,
+								borderWidth: 1,
+								yAxisID: 'y'
+							}
+						]
+					},
+					options: buildChartOptions({
+						scales: {
+							x: { stacked: false, grid: { color: chartPalette.grid }, ticks: { color: chartPalette.graphite } },
+							y: {
+								title: { display: true, text: 'Seconds', color: chartPalette.graphite },
+								grid: { color: chartPalette.grid },
+								ticks: { color: chartPalette.graphite }
+							}
+						}
+					})
+				})
+			);
+		}
+
+		if (classificationSummaryCanvas && byClass.length > 0) {
+			charts.push(
+				new Chart(classificationSummaryCanvas, {
+					type: 'bar',
+					data: {
+						labels: byClass.map((row) => String(row.classification).toUpperCase()),
 						datasets: [
 							{
 								label: 'Exact Optimal',
 								data: byClass.map((row) => row.exact_optimal_rate),
-								backgroundColor: '#16a34a'
-							},
-							{
-								label: 'Near Optimal',
-								data: byClass.map((row) => row.near_optimal_rate),
-								backgroundColor: '#2563eb'
+								backgroundColor: chartPalette.teal
 							},
 							{
 								label: 'Failure',
 								data: byClass.map((row) => row.failure_rate),
-								backgroundColor: '#dc2626'
-							}
-						]
-					},
-					options: {
-						responsive: true,
-						maintainAspectRatio: false,
-						scales: { y: { min: 0, max: 1 } }
-					}
-				})
-			);
-		}
-
-		if (durationCanvas) {
-			charts.push(
-				new Chart(durationCanvas, {
-					type: 'bar',
-					data: {
-						labels: byClass.map((row) => String(row.classification)),
-						datasets: [
-							{
-								label: 'Duration Mean (s)',
-								data: byClass.map((row) => row.duration_mean),
-								backgroundColor: '#0891b2'
+								backgroundColor: chartPalette.coral
 							},
 							{
-								label: 'Duration Median (s)',
-								data: byClass.map((row) => row.duration_median),
-								backgroundColor: '#0d9488'
+								label: 'Runtime Delta Mean (s)',
+								data: timingByClass.map((row) => row.runtime_modeled_delta_mean),
+								backgroundColor: chartPalette.gold
 							}
 						]
 					},
-					options: { responsive: true, maintainAspectRatio: false }
+					options: buildChartOptions({
+						scales: {
+							x: { grid: { display: false }, ticks: { color: chartPalette.graphite } },
+							y: {
+								grid: { color: chartPalette.grid },
+								ticks: { color: chartPalette.graphite }
+							}
+						}
+					})
 				})
 			);
 		}
 
-		if (regretCanvas) {
+		if (phaseTimingCanvas && timingByClass.length > 0) {
 			charts.push(
-				new Chart(regretCanvas, {
+				new Chart(phaseTimingCanvas, {
 					type: 'bar',
 					data: {
-						labels: byClass.map((row) => String(row.classification)),
+						labels: timingByClass.map((row) => String(row.classification).toUpperCase()),
 						datasets: [
 							{
-								label: 'Regret Mean',
-								data: byClass.map((row) => row.percent_regret_mean),
-								backgroundColor: '#f59e0b'
+								label: 'Think',
+								data: timingByClass.map((row) => row.thinking_time_mean),
+								backgroundColor: chartPalette.slate
 							},
 							{
-								label: 'Regret Median',
-								data: byClass.map((row) => row.percent_regret_median),
-								backgroundColor: '#d97706'
+								label: 'Confirm',
+								data: timingByClass.map((row) => row.start_picking_confirmation_time_mean),
+								backgroundColor: chartPalette.gold
+							},
+							{
+								label: 'Aisle',
+								data: timingByClass.map((row) => row.aisle_travel_time_mean),
+								backgroundColor: chartPalette.steel
+							},
+							{
+								label: 'Pick',
+								data: timingByClass.map((row) => row.item_add_to_cart_time_mean),
+								backgroundColor: chartPalette.cyan
+							},
+							{
+								label: 'Deliver',
+								data: timingByClass.map((row) => row.delivery_runtime_time_mean),
+								backgroundColor: chartPalette.coral
 							}
 						]
 					},
-					options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 1 } } }
+					options: buildChartOptions({
+						scales: {
+							x: { stacked: true, grid: { display: false }, ticks: { color: chartPalette.graphite } },
+							y: {
+								stacked: true,
+								title: { display: true, text: 'Mean Seconds', color: chartPalette.graphite },
+								grid: { color: chartPalette.grid },
+								ticks: { color: chartPalette.graphite }
+							}
+						}
+					})
 				})
 			);
 		}
 
-		if (participantScatterCanvas) {
-			const points = byParticipant
-				.filter((row) => row.duration_mean != null && row.score_ratio_to_best_mean != null)
-				.map((row) => ({
-					x: row.duration_mean,
-					y: row.score_ratio_to_best_mean,
-					participant: row.participant_id
-				}));
+		if (deliverySplitCanvas && timingByClass.length > 0) {
 			charts.push(
-				new Chart(participantScatterCanvas, {
+				new Chart(deliverySplitCanvas, {
+					type: 'bar',
+					data: {
+						labels: timingByClass.map((row) => String(row.classification).toUpperCase()),
+						datasets: [
+							{
+								label: 'Local Delivery',
+								data: timingByClass.map((row) => row.local_delivery_time_mean),
+								backgroundColor: chartPalette.coral
+							},
+							{
+								label: 'City Travel',
+								data: timingByClass.map((row) => row.city_travel_time_mean),
+								backgroundColor: chartPalette.steel
+							}
+						]
+					},
+					options: buildChartOptions({
+						scales: {
+							x: { grid: { display: false }, ticks: { color: chartPalette.graphite } },
+							y: {
+								title: { display: true, text: 'Mean Seconds', color: chartPalette.graphite },
+								grid: { color: chartPalette.grid },
+								ticks: { color: chartPalette.graphite }
+							}
+						}
+					})
+				})
+			);
+		}
+
+		if (participantRuntimeCanvas && scatterPoints.length > 0) {
+			charts.push(
+				new Chart(participantRuntimeCanvas, {
 					type: 'scatter',
 					data: {
-						datasets: [{ label: 'Participants', data: points, backgroundColor: '#7c3aed' }]
+						datasets: [
+							{
+								label: 'Decision Runtime vs Quality',
+								data: scatterPoints,
+								backgroundColor: 'rgba(255, 107, 74, 0.55)',
+								borderColor: chartPalette.coral
+							}
+						]
 					},
-					options: {
-						responsive: true,
-						maintainAspectRatio: false,
+					options: buildChartOptions({
 						scales: {
-							x: { title: { display: true, text: 'Avg Duration (s)' } },
-							y: { min: 0, max: 1, title: { display: true, text: 'Avg Score Ratio' } }
+							x: {
+								title: { display: true, text: 'Runtime (s)', color: chartPalette.graphite },
+								grid: { color: chartPalette.grid },
+								ticks: { color: chartPalette.graphite }
+							},
+							y: {
+								min: 0,
+								max: 1,
+								title: { display: true, text: 'Score Ratio', color: chartPalette.graphite },
+								grid: { color: chartPalette.grid },
+								ticks: { color: chartPalette.graphite }
+							}
 						},
 						plugins: {
 							tooltip: {
 								callbacks: {
 									label(ctx) {
 										const item = ctx.raw || {};
-										return `${item.participant}: (${formatNum(item.x, 2)}, ${formatNum(item.y, 3)})`;
+										return `${item.participant} R${item.round} ${item.scenario} | runtime ${formatSeconds(item.x)} | score ${formatNum(item.y, 3)} | delivery ${formatSeconds(item.delivery)}`;
 									}
+								}
+							},
+							legend: {
+								labels: {
+									color: chartPalette.graphite,
+									font: { family: 'IBM Plex Mono, monospace', size: 11 }
 								}
 							}
 						}
-					}
+					})
 				})
 			);
 		}
-
-		if (bundleSizeCanvas) {
-			const sizeMap = new Map();
-			for (const row of facts) {
-				const key = String(row.bundle_size ?? 0);
-				sizeMap.set(key, (sizeMap.get(key) || 0) + 1);
-			}
-			const entries = [...sizeMap.entries()].sort((a, b) => Number(a[0]) - Number(b[0]));
-			charts.push(
-				new Chart(bundleSizeCanvas, {
-					type: 'bar',
-					data: {
-						labels: entries.map((entry) => entry[0]),
-						datasets: [
-							{
-								label: 'Decision Count',
-								data: entries.map((entry) => entry[1]),
-								backgroundColor: '#6366f1'
-							}
-						]
-					},
-					options: { responsive: true, maintainAspectRatio: false }
-				})
-			);
-		}
-
-		if (cohortCanvas) {
-			charts.push(
-				new Chart(cohortCanvas, {
-					type: 'bar',
-					data: {
-						labels: byCohort.map((row) => String(row[cohortField] ?? '')),
-						datasets: [
-							{
-								label: `Exact Optimal Rate by ${cohortField}`,
-								data: byCohort.map((row) => row.exact_optimal_rate),
-								backgroundColor: '#0f766e'
-							}
-						]
-					},
-					options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 1 } } }
-				})
-			);
-		}
-
-		if (learningCanvas) {
-			const ordered = facts
-				.filter((row) => row.score_ratio_to_best != null)
-				.sort((a, b) => {
-					if (a.participant_id !== b.participant_id) return a.participant_id.localeCompare(b.participant_id);
-					return Number(a.round_index) - Number(b.round_index);
-				});
-			const labels = ordered.map((_, index) => String(index + 1));
-			const raw = ordered.map((row) => row.score_ratio_to_best);
-			let running = 0;
-			const cumulative = raw.map((value, index) => {
-				running += Number(value) || 0;
-				return running / (index + 1);
-			});
-
-			charts.push(
-				new Chart(learningCanvas, {
-					type: 'line',
-					data: {
-						labels,
-						datasets: [
-							{
-								label: 'Decision Score Ratio',
-								data: raw,
-								borderColor: '#94a3b8',
-								backgroundColor: '#94a3b8',
-								pointRadius: 1,
-								tension: 0.15
-							},
-							{
-								label: 'Cumulative Mean',
-								data: cumulative,
-								borderColor: '#2563eb',
-								backgroundColor: '#2563eb',
-								pointRadius: 0,
-								tension: 0.2
-							}
-						]
-					},
-					options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 1 } } }
-				})
-			);
-		}
-	}
-
-	async function setChartTab(tabId) {
-		activeChartTab = tabId;
-		await tick();
-		renderCharts();
 	}
 
 	async function loadDatasetOptions() {
@@ -528,10 +639,27 @@
 			datasetRoot: selectedDataset,
 			citiesDataset,
 			storeDataset,
-			cohortField: cohortField.trim() || 'configuration',
+			cohortField: normalizedCohortField,
 			bootstrapB: Number(bootstrapB) || DEFAULT_BOOTSTRAP_B,
 			seed: 42
 		});
+	}
+
+	function getAutoMatchStats(filteredParticipants, bundle, datasetName) {
+		const result = buildDecisionFacts({
+			participants: filteredParticipants,
+			scenarioBundle: bundle,
+			datasetRoot: datasetName,
+			citiesDataset,
+			storeDataset,
+			cohortField: normalizedCohortField
+		});
+		return {
+			result,
+			versionCoverage: Number(result?.dataHealth?.participantsWithAnyVersionState || 0),
+			decisionCount: Array.isArray(result?.decisionFacts) ? result.decisionFacts.length : 0,
+			legacyMode: Boolean(result?.dataHealth?.legacyMode)
+		};
 	}
 
 	async function tryAutoMatchDataset(filteredParticipants) {
@@ -539,35 +667,44 @@
 
 		let bestDataset = selectedDataset;
 		let bestBundle = scenarioBundle;
-		let bestCount = 0;
+		let bestStats = getAutoMatchStats(filteredParticipants, scenarioBundle, selectedDataset);
 
 		for (const datasetName of datasetNames) {
 			const bundle = datasetName === selectedDataset
 				? scenarioBundle
 				: await getScenarioDatasetBundle(datasetName);
 			if (!bundle) continue;
-			const result = buildDecisionFacts({
-				participants: filteredParticipants,
-				scenarioBundle: bundle,
-				datasetRoot: datasetName,
-				citiesDataset,
-				storeDataset,
-				cohortField: cohortField.trim() || 'configuration'
-			});
-			const count = Array.isArray(result?.decisionFacts) ? result.decisionFacts.length : 0;
-			if (count > bestCount) {
-				bestCount = count;
+			const stats = datasetName === selectedDataset ? bestStats : getAutoMatchStats(filteredParticipants, bundle, datasetName);
+
+			const currentHasCoverage = bestStats.versionCoverage > 0;
+			const nextHasCoverage = stats.versionCoverage > 0;
+			let shouldReplace = false;
+
+			if (nextHasCoverage && !currentHasCoverage) {
+				shouldReplace = true;
+			} else if (nextHasCoverage && currentHasCoverage) {
+				if (stats.versionCoverage > bestStats.versionCoverage) {
+					shouldReplace = true;
+				} else if (stats.versionCoverage === bestStats.versionCoverage && stats.decisionCount > bestStats.decisionCount) {
+					shouldReplace = true;
+				}
+			} else if (!currentHasCoverage && stats.decisionCount > bestStats.decisionCount) {
+				shouldReplace = true;
+			}
+
+			if (shouldReplace) {
 				bestDataset = datasetName;
 				bestBundle = bundle;
+				bestStats = stats;
 			}
 		}
 
-		if (bestCount > 0 && bestDataset !== selectedDataset) {
+		if (bestDataset !== selectedDataset) {
 			const previous = selectedDataset;
 			selectedDataset = bestDataset;
 			scenarioBundle = bestBundle;
 			showMessage(
-				`Auto-matched dataset from "${previous}" to "${bestDataset}" (${bestCount} matched decisions).`,
+				`Auto-matched dataset from "${previous}" to "${bestDataset}" using version coverage ${bestStats.versionCoverage} and ${bestStats.decisionCount} decision rows.`,
 				'success'
 			);
 			return true;
@@ -599,7 +736,6 @@
 			analysis = nextAnalysis;
 			diagnostics = buildDiagnostics(nextAnalysis, filteredParticipants.length);
 			hints = buildHints(nextAnalysis, filteredParticipants.length);
-
 			computing = false;
 			await tick();
 			renderCharts();
@@ -654,374 +790,833 @@
 		destroyCharts();
 	});
 
+	$: normalizedCohortField = cohortField.trim() || 'configuration';
 	$: overall = analysis?.kpiOverall?.[0] || null;
+	$: timingOverall = analysis?.kpiTimingOverall?.[0] || null;
 	$: qaIssues = analysis?.qaIssues || [];
-	$: topParticipants = (analysis?.kpiByParticipant || []).slice(0, 20);
-	$: hasRoundTrendData = Array.isArray(analysis?.kpiByRound) && analysis.kpiByRound.length > 0;
+	$: dataHealth = analysis?.dataHealth || {};
+	$: classificationRows = Array.isArray(analysis?.kpiByClassification)
+		? analysis.kpiByClassification.map((row) => {
+			const timingRow = (analysis?.kpiTimingByClassification || []).find((entry) => entry.classification === row.classification) || {};
+			return { ...row, ...timingRow };
+		})
+		: [];
+	$: topTimingRows = Array.isArray(analysis?.decisionFacts)
+		? [...analysis.decisionFacts]
+			.filter((row) => row.scenario_total_time_seconds != null)
+			.sort((a, b) => (Number(b.scenario_total_time_seconds) || 0) - (Number(a.scenario_total_time_seconds) || 0))
+			.slice(0, 12)
+		: [];
+	$: healthBadges = [
+		{ label: 'Version ID', value: dataHealth?.datasetScenarioSetVersionId || 'legacy', accent: 'coral' },
+		{ label: 'Runtime Coverage', value: `${dataHealth?.decisionRowsWithTiming || 0}/${diagnostics?.decisions || 0}`, accent: 'steel' },
+		{ label: 'Complete State', value: `${dataHealth?.participantsWithCompleteVersionState || 0}/${dataHealth?.participantsLoaded || 0}`, accent: 'teal' }
+	];
+	$: overviewCards = [
+		{ label: 'Decisions', value: overall?.n_decisions || 0, accent: 'coral' },
+		{ label: 'Exact Optimal', value: formatPct(overall?.exact_optimal_rate), accent: 'steel' },
+		{ label: 'Failure Rate', value: formatPct(overall?.failure_rate), accent: 'coral' },
+		{ label: 'Mean Ratio', value: formatNum(overall?.score_ratio_to_best_mean), accent: 'teal' },
+		{ label: 'Runtime Mean', value: formatSeconds(timingOverall?.scenario_total_time_seconds_mean), accent: 'gold' },
+		{ label: 'Runtime Delta', value: formatSeconds(timingOverall?.runtime_modeled_delta_mean), accent: 'steel' }
+	];
+	$: hasRoundCharts = Array.isArray(analysis?.kpiByRound) && analysis.kpiByRound.length > 0;
+	$: hasTimingRoundCharts = Array.isArray(analysis?.kpiTimingByRound) && analysis.kpiTimingByRound.length > 0;
+	$: hasClassificationCharts = classificationRows.length > 0;
+	$: hasTimingClassCharts = classificationRows.some((row) => row.delivery_runtime_time_mean != null || row.scenario_total_time_seconds_mean != null);
+	$: hasScatterChart = Array.isArray(analysis?.decisionFacts)
+		&& analysis.decisionFacts.some((row) => row.scenario_total_time_seconds != null && row.score_ratio_to_best != null);
 </script>
 
-<div class="space-y-4">
-	<div class="bg-white shadow rounded-lg p-4">
-		<div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-			<div>
-				<h2 class="text-2xl font-bold text-gray-900">Analysis Dashboard</h2>
-				<p class="mt-1 text-sm text-gray-600">
-					Live participant-vs-optimal metrics with diagnostics and RL-ready exports
-				</p>
-			</div>
-			<div class="flex flex-wrap gap-2">
-				<button
-					class="px-4 py-2 rounded-md bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-50"
-					on:click={() => fetchAndAnalyze({ allowDatasetAutoMatch: false })}
-					disabled={loading || computing}
-				>
-					Reload from Firestore
-				</button>
-				<button
-					class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-					on:click={() => runAnalysisComputation({ allowDatasetAutoMatch: false })}
-					disabled={loading || computing}
-				>
-					Recompute
-				</button>
-			</div>
-		</div>
-		<div class="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-			<div>
-				<label for="analysis-dataset" class="block text-xs font-semibold uppercase text-gray-500">Scenario Dataset</label>
-				<select
-					id="analysis-dataset"
-					class="mt-1 w-full border rounded-md px-3 py-2"
-					bind:value={selectedDataset}
-					on:change={onDatasetChange}
-				>
-					{#if datasetNames.length === 0}
-						<option value={selectedDataset}>{selectedDataset || 'No datasets'}</option>
-					{:else}
-						{#each datasetNames as name}
-							<option value={name}>{name}</option>
-						{/each}
-					{/if}
-				</select>
-			</div>
-			<div>
-				<label for="analysis-cohort" class="block text-xs font-semibold uppercase text-gray-500">Cohort Field</label>
-				<input id="analysis-cohort" class="mt-1 w-full border rounded-md px-3 py-2" bind:value={cohortField} />
-			</div>
-			<div>
-				<label for="analysis-participant-filter" class="block text-xs font-semibold uppercase text-gray-500">Participant Filter</label>
-				<input id="analysis-participant-filter" class="mt-1 w-full border rounded-md px-3 py-2" bind:value={participantSearch} placeholder="ID contains..." />
-			</div>
-			<div>
-				<label for="analysis-bootstrap" class="block text-xs font-semibold uppercase text-gray-500">Bootstrap Iterations</label>
-				<input
-					id="analysis-bootstrap"
-					class="mt-1 w-full border rounded-md px-3 py-2"
-					type="number"
-					min="50"
-					step="50"
-					bind:value={bootstrapB}
-				/>
-			</div>
-		</div>
-		<div class="mt-4 flex flex-wrap gap-2">
-			<button class="px-3 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50" on:click={exportDecisionFactCsv} disabled={!analysis}>Export decision_fact.csv</button>
-			<button class="px-3 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50" on:click={exportDecisionFactJson} disabled={!analysis}>Export decision_fact.json</button>
-			<button class="px-3 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" on:click={exportKpis} disabled={!analysis}>Export KPI CSVs</button>
-			<button class="px-3 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" on:click={exportMetadata} disabled={!analysis}>Export metadata</button>
-		</div>
-	</div>
+<svelte:head>
+	<title>Analysis Dashboard</title>
+</svelte:head>
 
-	{#if loading}
-		<div class="bg-white shadow rounded-lg p-10 text-center text-gray-600">Loading analysis data...</div>
-	{:else if error}
-		<div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{error}</div>
-	{:else if !analysis}
-		<div class="bg-white shadow rounded-lg p-10 text-center text-gray-600">No analysis available.</div>
-	{:else}
-		{#if computing}
-			<div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800 text-sm">
-				Refreshing analytics...
-			</div>
-		{:else if success}
-			<div class="bg-green-50 border border-green-200 rounded-lg p-3 text-green-700 text-sm">{success}</div>
-		{/if}
+<div class="analysis-shell">
+	<aside class="control-rail">
+		<div class="rail-header">
+			<h1>Analysis</h1>
+		</div>
 
-		<div class="grid grid-cols-2 lg:grid-cols-6 gap-3">
-			<div class="bg-white shadow rounded-lg p-3">
-				<dt class="text-xs text-gray-500 uppercase">Decisions</dt>
-				<dd class="text-xl font-semibold text-gray-900">{overall?.n_decisions || 0}</dd>
+		<div class="rail-block">
+			<label for="analysis-dataset">Scenario Dataset</label>
+			<select id="analysis-dataset" bind:value={selectedDataset} on:change={onDatasetChange}>
+				{#if datasetNames.length === 0}
+					<option value={selectedDataset}>{selectedDataset || 'No datasets'}</option>
+				{:else}
+					{#each datasetNames as name}
+						<option value={name}>{name}</option>
+					{/each}
+				{/if}
+			</select>
+		</div>
+
+		<div class="rail-grid">
+			<div class="rail-block">
+				<label for="analysis-cohort">Cohort Field</label>
+				<input id="analysis-cohort" bind:value={cohortField} />
 			</div>
-			<div class="bg-white shadow rounded-lg p-3">
-				<dt class="text-xs text-gray-500 uppercase">Exact</dt>
-				<dd class="text-xl font-semibold text-gray-900">{formatPct(overall?.exact_optimal_rate)}</dd>
-			</div>
-			<div class="bg-white shadow rounded-lg p-3">
-				<dt class="text-xs text-gray-500 uppercase">Near</dt>
-				<dd class="text-xl font-semibold text-gray-900">{formatPct(overall?.near_optimal_rate)}</dd>
-			</div>
-			<div class="bg-white shadow rounded-lg p-3">
-				<dt class="text-xs text-gray-500 uppercase">Failure</dt>
-				<dd class="text-xl font-semibold text-gray-900">{formatPct(overall?.failure_rate)}</dd>
-			</div>
-			<div class="bg-white shadow rounded-lg p-3">
-				<dt class="text-xs text-gray-500 uppercase">Mean Ratio</dt>
-				<dd class="text-xl font-semibold text-gray-900">{formatNum(overall?.score_ratio_to_best_mean)}</dd>
-			</div>
-			<div class="bg-white shadow rounded-lg p-3">
-				<dt class="text-xs text-gray-500 uppercase">Mean Regret</dt>
-				<dd class="text-xl font-semibold text-gray-900">{formatNum(overall?.percent_regret_mean)}</dd>
+			<div class="rail-block">
+				<label for="analysis-bootstrap">Bootstrap</label>
+				<input id="analysis-bootstrap" type="number" min="50" step="50" bind:value={bootstrapB} />
 			</div>
 		</div>
 
-		<div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-			<div class="bg-white shadow rounded-lg p-4 xl:col-span-2">
-				<h3 class="text-lg font-medium text-gray-900">Diagnostics</h3>
-				<div class="mt-3 grid grid-cols-2 lg:grid-cols-5 gap-3 text-sm">
-					<div>
-						<p class="text-gray-500">Participants</p>
-						<p class="font-semibold text-gray-900">{diagnostics?.participants || 0}</p>
+		<div class="rail-block">
+			<label for="analysis-filter">Participant Filter</label>
+			<input id="analysis-filter" bind:value={participantSearch} placeholder="ID contains..." />
+		</div>
+
+		<div class="rail-actions">
+			<button class="primary" on:click={() => fetchAndAnalyze({ allowDatasetAutoMatch: false })} disabled={loading || computing}>
+				Reload Firestore
+			</button>
+			<button class="secondary" on:click={() => runAnalysisComputation({ allowDatasetAutoMatch: false })} disabled={loading || computing}>
+				Recompute
+			</button>
+		</div>
+
+		<div class="rail-block">
+			<p class="rail-label">Exports</p>
+			<div class="rail-action-stack">
+				<button class="ghost" on:click={exportDecisionFactCsv} disabled={!analysis}>decision_fact.csv</button>
+				<button class="ghost" on:click={exportDecisionFactJson} disabled={!analysis}>decision_fact.json</button>
+				<button class="ghost" on:click={exportKpis} disabled={!analysis}>KPI CSVs</button>
+				<button class="ghost" on:click={exportMetadata} disabled={!analysis}>metadata.json</button>
+			</div>
+		</div>
+
+		<div class="rail-block">
+			<p class="rail-label">View</p>
+			<div class="nav-links">
+				<button class:active-view={activeView === 'compare'} on:click={() => setView('compare')}>Compare</button>
+				<button class:active-view={activeView === 'timing'} on:click={() => setView('timing')}>Timing</button>
+				<button class:active-view={activeView === 'diagnostics'} on:click={() => setView('diagnostics')}>QA</button>
+			</div>
+		</div>
+
+		<div class="rail-block">
+			<p class="rail-label">Health</p>
+			<div class="health-badges">
+				{#each healthBadges as badge}
+					<div class={`health-badge ${badge.accent}`}>
+						<span>{badge.label}</span>
+						<strong>{badge.value}</strong>
 					</div>
-					<div>
-						<p class="text-gray-500">Matched Decisions</p>
-						<p class="font-semibold text-gray-900">{diagnostics?.decisions || 0}</p>
+				{/each}
+			</div>
+		</div>
+	</aside>
+
+	<section class="analysis-workspace">
+		<div class="workspace-header">
+			<div>
+				<h2>{selectedDataset || 'Analysis'}</h2>
+			</div>
+			<div class="status-strip">
+				<span class:active={loading || computing}>RUN</span>
+				<span class:active={!dataHealth?.legacyMode}>VER</span>
+				<span class:active={(dataHealth?.decisionRowsWithTiming || 0) > 0}>TIM</span>
+			</div>
+		</div>
+
+		{#if loading}
+			<div class="panel empty-state">Loading analysis data...</div>
+		{:else if error}
+			<div class="panel error-state">{error}</div>
+		{:else if !analysis}
+			<div class="panel empty-state">No analysis available.</div>
+		{:else}
+			{#if computing}
+				<div class="flash-banner warning">Refreshing analytics...</div>
+			{:else if success}
+				<div class="flash-banner success">{success}</div>
+			{/if}
+
+			<div class="overview-grid compact-overview">
+				{#each overviewCards as card}
+					<article class={`metric-card ${card.accent}`}>
+						<span>{card.label}</span>
+						<strong>{card.value}</strong>
+					</article>
+				{/each}
+			</div>
+
+			{#if activeView === 'compare'}
+				<section class="section-block">
+					<div class="chart-grid chart-grid-overview stock-grid">
+						<article class="panel chart-panel">
+							<div class="panel-header"><h4>Quality vs Failure</h4></div>
+							{#if hasRoundCharts}
+								<div class="chart-frame compact"><canvas bind:this={qualityTrendCanvas}></canvas></div>
+							{:else}
+								<div class="chart-empty">No round data</div>
+							{/if}
+						</article>
+
+						<article class="panel chart-panel">
+							<div class="panel-header"><h4>Runtime vs Modeled</h4></div>
+							{#if hasTimingRoundCharts}
+								<div class="chart-frame compact"><canvas bind:this={runtimeVsModeledCanvas}></canvas></div>
+							{:else}
+								<div class="chart-empty">No timing data</div>
+							{/if}
+						</article>
+
+						<article class="panel chart-panel">
+							<div class="panel-header"><h4>Classification</h4></div>
+							{#if hasClassificationCharts}
+								<div class="chart-frame compact"><canvas bind:this={classificationSummaryCanvas}></canvas></div>
+							{:else}
+								<div class="chart-empty">No class data</div>
+							{/if}
+						</article>
+
+						<article class="panel chart-panel">
+							<div class="panel-header"><h4>Runtime vs Score</h4></div>
+							{#if hasScatterChart}
+								<div class="chart-frame compact"><canvas bind:this={participantRuntimeCanvas}></canvas></div>
+							{:else}
+								<div class="chart-empty">No scatter data</div>
+							{/if}
+						</article>
 					</div>
-					<div>
-						<p class="text-gray-500">Success / Failure</p>
-						<p class="font-semibold text-gray-900">{diagnostics?.successCount || 0} / {diagnostics?.failureCount || 0}</p>
+				</section>
+			{:else if activeView === 'timing'}
+				<section class="section-block">
+					<div class="chart-grid chart-grid-timing">
+						<article class="panel chart-panel">
+							<div class="panel-header"><h4>Phase Stack</h4></div>
+							{#if hasTimingClassCharts}
+								<div class="chart-frame compact"><canvas bind:this={phaseTimingCanvas}></canvas></div>
+							{:else}
+								<div class="chart-empty">No timing data</div>
+							{/if}
+						</article>
+
+						<article class="panel chart-panel">
+							<div class="panel-header"><h4>Local vs City</h4></div>
+							{#if hasTimingClassCharts}
+								<div class="chart-frame compact"><canvas bind:this={deliverySplitCanvas}></canvas></div>
+							{:else}
+								<div class="chart-empty">No delivery data</div>
+							{/if}
+						</article>
 					</div>
-					<div>
-						<p class="text-gray-500">Round KPI Rows</p>
-						<p class="font-semibold text-gray-900">{diagnostics?.roundRows || 0}</p>
-					</div>
-					<div>
-						<p class="text-gray-500">Classification Rows</p>
-						<p class="font-semibold text-gray-900">{diagnostics?.classificationRows || 0}</p>
-					</div>
-				</div>
-				{#if diagnostics?.topQa?.length > 0}
-					<div class="mt-3 text-sm">
-						<p class="text-gray-500 mb-1">Top QA issue types</p>
-						<div class="flex flex-wrap gap-2">
-							{#each diagnostics.topQa as item}
-								<span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-700">
-									{item.issueType}: {item.count}
-								</span>
-							{/each}
+
+					<div class="panel table-panel">
+						<div class="panel-header"><h4>Top Runtime Rows</h4></div>
+						<div class="table-shell compact-table">
+							<table>
+								<thead>
+									<tr>
+										<th>Participant</th>
+										<th>Round</th>
+										<th>Scenario</th>
+										<th>Runtime</th>
+										<th>Delivery</th>
+										<th>Think</th>
+										<th>Delta</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#if topTimingRows.length === 0}
+										<tr><td colspan="7">No runtime timing rows</td></tr>
+									{:else}
+										{#each topTimingRows as row}
+											<tr>
+												<td>{row.participant_id}</td>
+												<td>{row.round_index}</td>
+												<td>{row.scenario_id}</td>
+												<td>{formatSeconds(row.scenario_total_time_seconds)}</td>
+												<td>{formatSeconds(row.delivery_runtime_time)}</td>
+												<td>{formatSeconds(row.thinking_time)}</td>
+												<td>{formatSeconds(row.runtime_modeled_delta)}</td>
+											</tr>
+										{/each}
+									{/if}
+								</tbody>
+							</table>
 						</div>
 					</div>
-				{/if}
-			</div>
-			<div class="bg-white shadow rounded-lg p-4">
-				<h3 class="text-lg font-medium text-gray-900">Hints</h3>
-				{#if hints.length === 0}
-					<p class="mt-2 text-sm text-gray-600">No obvious data issues detected.</p>
-				{:else}
-					<ul class="mt-2 text-sm text-gray-700 list-disc pl-5 space-y-1">
-						{#each hints as hint}
-							<li>{hint}</li>
-						{/each}
-					</ul>
-				{/if}
-			</div>
-		</div>
-
-		<section class="bg-white shadow rounded-lg p-4" aria-labelledby="analysis-charts-title" id="analysis-charts">
-			<div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-				<h3 id="analysis-charts-title" class="text-lg font-medium text-gray-900">Charts</h3>
-				<div class="inline-flex rounded-md border border-gray-200 overflow-hidden" role="tablist" aria-label="Analysis chart groups">
-					{#each CHART_TABS as tab}
-						<button
-							class="px-3 py-2 text-sm font-medium {activeChartTab === tab.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}"
-							role="tab"
-							aria-selected={activeChartTab === tab.id}
-							on:click={() => setChartTab(tab.id)}
-						>
-							{tab.label}
-						</button>
-					{/each}
-				</div>
-			</div>
-
-			{#if !hasRoundTrendData}
-				<div class="mt-3 rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-					Round trend charts have no rows yet. This usually means no matched `round_summary` decisions for the selected dataset.
-				</div>
-			{/if}
-
-			{#if activeChartTab === 'overview'}
-				<div class="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
-					<div class="border rounded-lg p-3">
-						<h4 class="text-sm font-semibold text-gray-800 mb-2">Round Trend: Score Ratio + Failure</h4>
-						<div class="h-56"><canvas bind:this={roundTrendCanvas}></canvas></div>
-					</div>
-					<div class="border rounded-lg p-3">
-						<h4 class="text-sm font-semibold text-gray-800 mb-2">Optimality Rates by Classification</h4>
-						<div class="h-56"><canvas bind:this={classRateCanvas}></canvas></div>
-					</div>
-					<div class="border rounded-lg p-3">
-						<h4 class="text-sm font-semibold text-gray-800 mb-2">Duration by Classification</h4>
-						<div class="h-56"><canvas bind:this={durationCanvas}></canvas></div>
-					</div>
-					<div class="border rounded-lg p-3">
-						<h4 class="text-sm font-semibold text-gray-800 mb-2">Regret by Classification</h4>
-						<div class="h-56"><canvas bind:this={regretCanvas}></canvas></div>
-					</div>
-				</div>
+				</section>
 			{:else}
-				<div class="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
-					<div class="border rounded-lg p-3">
-						<h4 class="text-sm font-semibold text-gray-800 mb-2">Participant Scatter (Duration vs Score Ratio)</h4>
-						<div class="h-56"><canvas bind:this={participantScatterCanvas}></canvas></div>
-					</div>
-					<div class="border rounded-lg p-3">
-						<h4 class="text-sm font-semibold text-gray-800 mb-2">Bundle Size Distribution</h4>
-						<div class="h-56"><canvas bind:this={bundleSizeCanvas}></canvas></div>
-					</div>
-					<div class="border rounded-lg p-3">
-						<h4 class="text-sm font-semibold text-gray-800 mb-2">Cohort Exact Rate</h4>
-						<div class="h-56"><canvas bind:this={cohortCanvas}></canvas></div>
-					</div>
-					<div class="border rounded-lg p-3">
-						<h4 class="text-sm font-semibold text-gray-800 mb-2">Learning Trend Across Decisions</h4>
-						<div class="h-56"><canvas bind:this={learningCanvas}></canvas></div>
-					</div>
-				</div>
-			{/if}
-		</section>
+				<section class="section-block">
+					<div class="diagnostic-grid">
+						<article class="panel">
+							<div class="panel-header"><h4>Coverage</h4></div>
+							<div class="health-metrics">
+								<div><span>Participants</span><strong>{diagnostics?.participants || 0}</strong></div>
+								<div><span>Decisions</span><strong>{diagnostics?.decisions || 0}</strong></div>
+								<div><span>Timing</span><strong>{diagnostics?.runtimeCoverage || 0}</strong></div>
+								<div><span>Missing</span><strong>{diagnostics?.runtimeMissing || 0}</strong></div>
+								<div><span>Complete</span><strong>{diagnostics?.participantsWithCompleteState || 0}</strong></div>
+								<div><span>Success / Fail</span><strong>{diagnostics?.successCount || 0} / {diagnostics?.failureCount || 0}</strong></div>
+							</div>
+						</article>
 
-		<details class="bg-white shadow rounded-lg overflow-hidden" open>
-			<summary class="px-4 py-3 border-b cursor-pointer font-medium text-gray-900">
-				KPI by Classification
-			</summary>
-			<div class="overflow-x-auto">
-				<table class="min-w-full divide-y divide-gray-200 text-sm">
-					<thead class="bg-gray-50 text-xs uppercase text-gray-600">
-						<tr>
-							<th class="px-4 py-2 text-left">Classification</th>
-							<th class="px-4 py-2 text-left">Decisions</th>
-							<th class="px-4 py-2 text-left">Exact</th>
-							<th class="px-4 py-2 text-left">Near</th>
-							<th class="px-4 py-2 text-left">Failure</th>
-							<th class="px-4 py-2 text-left">Mean Ratio</th>
-							<th class="px-4 py-2 text-left">Mean Regret</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-gray-200 text-gray-700">
-						{#each analysis.kpiByClassification as row}
-							<tr>
-								<td class="px-4 py-2 font-medium">{row.classification}</td>
-								<td class="px-4 py-2">{row.n_decisions}</td>
-								<td class="px-4 py-2">{formatPct(row.exact_optimal_rate)}</td>
-								<td class="px-4 py-2">{formatPct(row.near_optimal_rate)}</td>
-								<td class="px-4 py-2">{formatPct(row.failure_rate)}</td>
-								<td class="px-4 py-2">{formatNum(row.score_ratio_to_best_mean)}</td>
-								<td class="px-4 py-2">{formatNum(row.percent_regret_mean)}</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		</details>
-
-		<div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-			<details class="bg-white shadow rounded-lg overflow-hidden">
-				<summary class="px-4 py-3 border-b cursor-pointer font-medium text-gray-900">
-					Participant KPIs (Top 20)
-				</summary>
-				<div class="overflow-x-auto">
-					<table class="min-w-full divide-y divide-gray-200 text-sm">
-						<thead class="bg-gray-50 text-xs uppercase text-gray-600">
-							<tr>
-								<th class="px-4 py-2 text-left">Participant</th>
-								<th class="px-4 py-2 text-left">Decisions</th>
-								<th class="px-4 py-2 text-left">Exact</th>
-								<th class="px-4 py-2 text-left">Failure</th>
-								<th class="px-4 py-2 text-left">Mean Ratio</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-gray-200">
-							{#each topParticipants as row}
-								<tr>
-									<td class="px-4 py-2 font-medium">{row.participant_id}</td>
-									<td class="px-4 py-2">{row.n_decisions}</td>
-									<td class="px-4 py-2">{formatPct(row.exact_optimal_rate)}</td>
-									<td class="px-4 py-2">{formatPct(row.failure_rate)}</td>
-									<td class="px-4 py-2">{formatNum(row.score_ratio_to_best_mean)}</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			</details>
-
-			<details class="bg-white shadow rounded-lg overflow-hidden">
-				<summary class="px-4 py-3 border-b cursor-pointer font-medium text-gray-900">
-					Cohort Comparisons
-				</summary>
-				<div class="overflow-x-auto">
-					<table class="min-w-full divide-y divide-gray-200 text-sm">
-						<thead class="bg-gray-50 text-xs uppercase text-gray-600">
-							<tr>
-								<th class="px-4 py-2 text-left">Cohort A</th>
-								<th class="px-4 py-2 text-left">Cohort B</th>
-								<th class="px-4 py-2 text-left">Exact Diff</th>
-								<th class="px-4 py-2 text-left">Exact p-value</th>
-								<th class="px-4 py-2 text-left">Regret Median Diff</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-gray-200">
-							{#if analysis.cohortComparisons.length === 0}
-								<tr><td class="px-4 py-4 text-gray-500" colspan="5">Not enough cohort groups for comparison.</td></tr>
+						<article class="panel">
+							<div class="panel-header"><h4>Hints</h4></div>
+							{#if hints.length === 0}
+								<p class="hint-copy">No major issues.</p>
 							{:else}
-								{#each analysis.cohortComparisons as row}
-									<tr>
-										<td class="px-4 py-2 font-medium">{row.cohort_a}</td>
-										<td class="px-4 py-2 font-medium">{row.cohort_b}</td>
-										<td class="px-4 py-2">{formatNum(row.exact_rate_diff, 4)}</td>
-										<td class="px-4 py-2">{formatNum(row.exact_rate_p_value, 4)}</td>
-										<td class="px-4 py-2">{formatNum(row.regret_median_diff, 4)}</td>
-									</tr>
-								{/each}
+								<ul class="hint-list">
+									{#each hints as hint}
+										<li>{hint}</li>
+									{/each}
+								</ul>
 							{/if}
-						</tbody>
-					</table>
-				</div>
-			</details>
-		</div>
+						</article>
+					</div>
 
-		<details class="bg-white shadow rounded-lg overflow-hidden">
-			<summary class="px-4 py-3 border-b cursor-pointer font-medium text-gray-900">QA Issues</summary>
-			<div class="overflow-x-auto">
-				<table class="min-w-full divide-y divide-gray-200 text-sm">
-					<thead class="bg-gray-50 text-xs uppercase text-gray-600">
-						<tr>
-							<th class="px-4 py-2 text-left">Severity</th>
-							<th class="px-4 py-2 text-left">Type</th>
-							<th class="px-4 py-2 text-left">Participant</th>
-							<th class="px-4 py-2 text-left">Round</th>
-							<th class="px-4 py-2 text-left">Scenario</th>
-							<th class="px-4 py-2 text-left">Message</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-gray-200">
-						{#if qaIssues.length === 0}
-							<tr><td class="px-4 py-4 text-gray-500" colspan="6">No QA issues detected.</td></tr>
-						{:else}
-							{#each qaIssues as issue}
-								<tr>
-									<td class="px-4 py-2">{issue.severity}</td>
-									<td class="px-4 py-2">{issue.issue_type}</td>
-									<td class="px-4 py-2">{issue.participant_id || '-'}</td>
-									<td class="px-4 py-2">{issue.round_index ?? '-'}</td>
-									<td class="px-4 py-2">{issue.scenario_id || '-'}</td>
-									<td class="px-4 py-2">{issue.message}</td>
-								</tr>
-							{/each}
-						{/if}
-					</tbody>
-				</table>
-			</div>
-		</details>
-	{/if}
+					<div class="chart-grid chart-grid-timing">
+						<article class="panel table-panel">
+							<div class="panel-header"><h4>Cohorts</h4></div>
+							<div class="table-shell compact-table">
+								<table>
+									<thead>
+										<tr>
+											<th>A</th>
+											<th>B</th>
+											<th>Exact Diff</th>
+											<th>Exact p</th>
+											<th>Regret Diff</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#if analysis.cohortComparisons.length === 0}
+											<tr><td colspan="5">Not enough cohort groups</td></tr>
+										{:else}
+											{#each analysis.cohortComparisons as row}
+												<tr>
+													<td>{row.cohort_a}</td>
+													<td>{row.cohort_b}</td>
+													<td>{formatNum(row.exact_rate_diff, 4)}</td>
+													<td>{formatNum(row.exact_rate_p_value, 4)}</td>
+													<td>{formatNum(row.regret_median_diff, 4)}</td>
+												</tr>
+											{/each}
+										{/if}
+									</tbody>
+								</table>
+							</div>
+						</article>
+
+						<article class="panel table-panel">
+							<div class="panel-header"><h4>QA</h4></div>
+							<div class="table-shell compact-table">
+								<table>
+									<thead>
+										<tr>
+											<th>Severity</th>
+											<th>Type</th>
+											<th>Participant</th>
+											<th>Round</th>
+											<th>Scenario</th>
+											<th>Message</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#if qaIssues.length === 0}
+											<tr><td colspan="6">No QA issues</td></tr>
+										{:else}
+											{#each qaIssues as issue}
+												<tr>
+													<td>{issue.severity}</td>
+													<td>{issue.issue_type}</td>
+													<td>{issue.participant_id || '-'}</td>
+													<td>{issue.round_index ?? '-'}</td>
+													<td>{issue.scenario_id || '-'}</td>
+													<td>{issue.message}</td>
+												</tr>
+											{/each}
+										{/if}
+									</tbody>
+								</table>
+							</div>
+						</article>
+					</div>
+				</section>
+			{/if}
+		{/if}
+	</section>
 </div>
+
+<style>
+	@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap');
+
+	:global(body) {
+		background: #eff3f7;
+	}
+
+	.analysis-shell {
+		--bg-shell: #eff3f7;
+		--bg-rail: #181c22;
+		--bg-panel: rgba(255, 255, 255, 0.92);
+		--text-main: #18222f;
+		--text-muted: #5f7082;
+		--border: rgba(87, 104, 126, 0.18);
+		--coral: #ff6b4a;
+		--steel: #3f6db3;
+		--cyan: #2fa9c5;
+		--gold: #f0b65a;
+		--teal: #1f8a78;
+		display: grid;
+		grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+		gap: 1.25rem;
+		min-height: calc(100vh - 7rem);
+		color: var(--text-main);
+	}
+
+	.control-rail {
+		position: sticky;
+		top: 1rem;
+		align-self: start;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		padding: 1.4rem;
+		border: 1px solid rgba(255, 255, 255, 0.06);
+		border-radius: 1.4rem;
+		background:
+			linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 32%),
+			radial-gradient(circle at top, rgba(255, 107, 74, 0.18), transparent 28%),
+			var(--bg-rail);
+		color: #eef2f7;
+	}
+
+	.rail-header h1,
+	.workspace-header h2,
+	.panel-header h4 {
+		font-family: 'Space Grotesk', sans-serif;
+	}
+
+	.rail-header h1,
+	.workspace-header h2 {
+		font-size: clamp(1.75rem, 2.2vw, 2.5rem);
+		line-height: 1;
+		font-weight: 700;
+		margin: 0;
+	}
+
+	.rail-copy,
+	.hint-copy {
+		color: rgba(226, 232, 240, 0.74);
+		font-size: 0.92rem;
+		line-height: 1.5;
+	}
+
+	.hint-copy {
+		color: var(--text-muted);
+	}
+
+	.eyebrow,
+	.rail-label,
+	.panel-tag,
+	label,
+	th,
+	.metric-card span,
+	.health-badge span,
+	.status-strip span {
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.72rem;
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+	}
+
+	.rail-block,
+	.rail-grid {
+		display: grid;
+		gap: 0.75rem;
+	}
+
+	.rail-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	label,
+	.rail-label,
+	.panel-tag {
+		color: rgba(226, 232, 240, 0.62);
+	}
+
+	.control-rail input,
+	.control-rail select {
+		width: 100%;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 0.85rem;
+		background: rgba(11, 14, 18, 0.85);
+		color: #f8fafc;
+		padding: 0.8rem 0.95rem;
+		font-size: 0.92rem;
+		font-family: 'IBM Plex Mono', monospace;
+	}
+
+	.rail-actions,
+	.rail-action-stack,
+	.nav-links,
+	.health-badges {
+		display: grid;
+		gap: 0.65rem;
+	}
+
+	button {
+		cursor: pointer;
+		transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease;
+	}
+
+	button:disabled {
+		cursor: not-allowed;
+		opacity: 0.55;
+	}
+
+	button:hover:not(:disabled) {
+		transform: translateY(-1px);
+	}
+
+	.primary,
+	.secondary,
+	.ghost,
+	.nav-links button {
+		border-radius: 0.9rem;
+		padding: 0.85rem 1rem;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.83rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		border: 1px solid transparent;
+	}
+
+	.primary {
+		background: var(--coral);
+		color: #fff;
+	}
+
+	.secondary {
+		background: rgba(255, 255, 255, 0.08);
+		color: #eef2f7;
+		border-color: rgba(255, 255, 255, 0.1);
+	}
+
+	.ghost,
+	.nav-links button {
+		background: rgba(255, 255, 255, 0.04);
+		color: #dbe4ee;
+		border-color: rgba(255, 255, 255, 0.08);
+		text-align: left;
+	}
+
+	.nav-links button.active-view {
+		background: rgba(255, 107, 74, 0.18);
+		border-color: rgba(255, 107, 74, 0.35);
+		color: #fff;
+	}
+
+	.health-badge {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.8rem 0.9rem;
+		border-radius: 1rem;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
+	.health-badge strong,
+	.metric-card strong,
+	.health-metrics strong {
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 1.02rem;
+	}
+
+	.health-badge.coral strong,
+	.metric-card.coral strong {
+		color: var(--coral);
+	}
+
+	.health-badge.steel strong,
+	.metric-card.steel strong {
+		color: var(--steel);
+	}
+
+	.health-badge.teal strong,
+	.metric-card.teal strong {
+		color: var(--teal);
+	}
+
+	.metric-card.gold strong {
+		color: #b9791f;
+	}
+
+	.analysis-workspace {
+		display: grid;
+		gap: 1.2rem;
+		padding: 1rem;
+		border: 1px solid var(--border);
+		border-radius: 1.55rem;
+		background:
+			linear-gradient(rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.88)),
+			linear-gradient(to right, rgba(96, 114, 136, 0.08) 1px, transparent 1px),
+			linear-gradient(to bottom, rgba(96, 114, 136, 0.08) 1px, transparent 1px);
+		background-size: auto, 32px 32px, 32px 32px;
+	}
+
+	.workspace-header,
+	.section-header,
+	.panel-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 1rem;
+	}
+
+	.status-strip {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.status-strip span {
+		padding: 0.45rem 0.65rem;
+		border-radius: 999px;
+		border: 1px solid var(--border);
+		color: var(--text-muted);
+		background: rgba(255, 255, 255, 0.72);
+	}
+
+	.status-strip span.active {
+		color: var(--coral);
+		border-color: rgba(255, 107, 74, 0.3);
+	}
+
+	.flash-banner,
+	.empty-state,
+	.error-state,
+	.panel {
+		border: 1px solid var(--border);
+		border-radius: 1.25rem;
+		background: var(--bg-panel);
+		backdrop-filter: blur(10px);
+	}
+
+	.flash-banner {
+		padding: 0.95rem 1rem;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.84rem;
+	}
+
+	.flash-banner.warning {
+		color: #854d0e;
+		background: rgba(255, 243, 205, 0.92);
+	}
+
+	.flash-banner.success {
+		color: #166534;
+		background: rgba(220, 252, 231, 0.92);
+	}
+
+	.panel,
+	.empty-state,
+	.error-state {
+		padding: 1rem 1.05rem;
+	}
+
+	.empty-state,
+	.error-state {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 14rem;
+		font-family: 'IBM Plex Mono', monospace;
+	}
+
+	.error-state {
+		color: #991b1b;
+		background: rgba(254, 226, 226, 0.92);
+	}
+
+	.section-block {
+		display: grid;
+		gap: 1rem;
+		scroll-margin-top: 1.5rem;
+	}
+
+	.overview-grid {
+		display: grid;
+		grid-template-columns: repeat(6, minmax(0, 1fr));
+		gap: 0.85rem;
+	}
+
+	.compact-overview {
+		margin-bottom: 0.1rem;
+	}
+
+	.metric-card {
+		padding: 1rem;
+		border-radius: 1.15rem;
+		border: 1px solid var(--border);
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 251, 0.9));
+		display: grid;
+		gap: 0.45rem;
+	}
+
+	.chart-grid {
+		display: grid;
+		gap: 1rem;
+	}
+
+	.chart-grid-overview {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.chart-grid-timing {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.chart-panel,
+	.table-panel {
+		display: grid;
+		gap: 0.9rem;
+	}
+
+	.chart-frame {
+		position: relative;
+		min-height: 18rem;
+	}
+
+	.chart-frame.compact {
+		min-height: 14rem;
+	}
+
+	.chart-frame.tall {
+		min-height: 22rem;
+	}
+
+	.chart-empty {
+		min-height: 14rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.82rem;
+		color: var(--text-muted);
+	}
+
+	.span-two {
+		grid-column: span 2;
+	}
+
+	.stock-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.table-shell {
+		overflow: auto;
+	}
+
+	.compact-table {
+		max-height: 24rem;
+	}
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.9rem;
+	}
+
+	th,
+	td {
+		padding: 0.78rem 0.72rem;
+		border-bottom: 1px solid rgba(87, 104, 126, 0.14);
+		text-align: left;
+		vertical-align: top;
+	}
+
+	td {
+		color: var(--text-main);
+	}
+
+	.diagnostic-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 1rem;
+	}
+
+	.health-metrics {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.85rem;
+	}
+
+	.health-metrics div {
+		padding: 0.9rem;
+		border-radius: 1rem;
+		background: rgba(239, 243, 247, 0.88);
+		border: 1px solid rgba(87, 104, 126, 0.14);
+		display: grid;
+		gap: 0.4rem;
+	}
+
+	.health-metrics span {
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.74rem;
+		text-transform: uppercase;
+		letter-spacing: 0.12em;
+		color: var(--text-muted);
+	}
+
+	.hint-list {
+		display: grid;
+		gap: 0.85rem;
+		margin: 0;
+		padding-left: 1.1rem;
+		color: var(--text-main);
+	}
+
+	@media (max-width: 1200px) {
+		.analysis-shell {
+			grid-template-columns: 1fr;
+		}
+
+		.control-rail {
+			position: static;
+		}
+	}
+
+	@media (max-width: 900px) {
+		.overview-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.chart-grid-overview,
+		.chart-grid-timing,
+		.diagnostic-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.span-two {
+			grid-column: span 1;
+		}
+
+		.health-metrics {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.analysis-workspace,
+		.control-rail {
+			padding: 0.95rem;
+		}
+
+		.rail-grid,
+		.overview-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.workspace-header,
+		.section-header,
+		.panel-header {
+			flex-direction: column;
+		}
+	}
+</style>

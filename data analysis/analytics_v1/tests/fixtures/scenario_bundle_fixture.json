@@ -13,5 +13,5 @@
     {"scenario_id": "s1", "best_bundle_ids": ["o1", "o2"], "second_best_bundle_ids": ["o2", "o1"], "ending_city_best": "Berkeley"},
     {"scenario_id": "s2", "best_bundle_ids": ["o3", "o4"], "second_best_bundle_ids": ["o4", "o3"], "ending_city_best": "Oakland"}
   ],
-  "metadata": {"startinglocation": "Berkeley"}
+  "metadata": {"startinglocation": "Berkeley", "scenarioSetVersionId": "experiment_v1"}
 }
