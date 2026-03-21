@@ -566,13 +566,6 @@ function reconcileInProgressScenarioAction(actionSnapshot = {}, progressSnapshot
 	const currentEntry = toScenarioActionEntry(nextSnapshot[inProgressScenario] || getDefaultScenarioAction());
 	const scenarioElapsed = Math.max(0, Number(totalGameTime) - (Number(get(roundStartTime)) || 0));
 
-	if (get(game).inSelect) {
-		currentEntry.timeSummary.thinkingTime = Math.max(currentEntry.timeSummary.thinkingTime, scenarioElapsed);
-		currentEntry.totalTimeSeconds = Object.values(currentEntry.timeSummary).reduce((sum, value) => sum + value, 0);
-		nextSnapshot[inProgressScenario] = currentEntry;
-		return nextSnapshot;
-	}
-
 	const currentTotal = Object.values(currentEntry.timeSummary).reduce((sum, value) => sum + value, 0);
 	const activePhaseScenarioId = String(activeScenarioPhase?.scenarioId ?? '').trim();
 	const activePhaseKey = String(activeScenarioPhase?.key ?? '').trim();
