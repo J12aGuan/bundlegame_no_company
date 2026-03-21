@@ -30,6 +30,7 @@
     let deliveryCountdownInterval = null;
     let deliveringToCity = "";
     let currentDeliveryTotalTime = 0;
+    let roundCompletionInProgress = false;
     let currentDeliveryBreakdown = {
         originCity: "",
         destination: "",
@@ -505,6 +506,8 @@
     }
 
     async function finishSuccess() {
+        if (roundCompletionInProgress) return;
+        roundCompletionInProgress = true;
         console.log("finishSuccess() called - completing round");
         
         // 1. Never let logging crash the game
@@ -544,35 +547,47 @@
         // 3. Immediately advance to next round (no Round Complete screen)
         if (completedGame) {
             console.log("Final round complete - ending session");
-            if ($gameMode !== 'tutorial') {
-                await persistRoundSnapshot({
-                    totalRounds,
-                    roundsCompleted: completedRounds,
-                    totalGameTime: get(elapsed),
-                    earnings: get(earned),
-                    completedGame: true,
-                    currentRound: get(currentRound),
-                    currentLocation: String(get(currLocation) ?? '').trim()
-                });
-            }
-            if ($gameMode !== 'tutorial') {
-                notifyMainGameComplete('all_rounds_complete', completedRounds, totalRounds);
-            }
             endGameSession();
+            try {
+                if ($gameMode !== 'tutorial') {
+                    await persistRoundSnapshot({
+                        totalRounds,
+                        roundsCompleted: completedRounds,
+                        totalGameTime: get(elapsed),
+                        earnings: get(earned),
+                        completedGame: true,
+                        currentRound: get(currentRound),
+                        currentLocation: String(get(currLocation) ?? '').trim()
+                    });
+                }
+                if ($gameMode !== 'tutorial') {
+                    notifyMainGameComplete('all_rounds_complete', completedRounds, totalRounds);
+                }
+            } finally {
+                roundCompletionInProgress = false;
+            }
             return;
         }
 
-        await persistRoundSnapshot({
+        const nextRound = get(currentRound);
+        const nextLocation = String(get(currLocation) ?? '').trim();
+
+        console.log("Round complete - immediately advancing to next round");
+        exit();
+
+        try {
+            await persistRoundSnapshot({
             totalRounds,
             roundsCompleted: completedRounds,
             totalGameTime: get(elapsed),
             earnings: get(earned),
             completedGame: false,
-            currentRound: get(currentRound),
-            currentLocation: String(get(currLocation) ?? '').trim()
-        });
-        console.log("Round complete - immediately advancing to next round");
-        exit();
+                currentRound: nextRound,
+                currentLocation: nextLocation
+            });
+        } finally {
+            roundCompletionInProgress = false;
+        }
     }
 
     function logRoundCompletion(success) {
