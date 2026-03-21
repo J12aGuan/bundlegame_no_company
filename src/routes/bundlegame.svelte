@@ -1,7 +1,7 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, endGameSession, notifyTutorialRoundProgress, notifyMainGameComplete, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase } from "$lib/bundle.js"
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, endGameSession, notifyTutorialRoundProgress, notifyMainGameComplete, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction } from "$lib/bundle.js"
     import { storeConfig, getCityTravelInfo } from "$lib/config.js";
     
     let config = {}; // Will be set properly in onMount()
@@ -23,13 +23,16 @@
     // Aisle movement countdown
     let aisleCountdown = 0;
     let aisleCountdownInterval = null;
+    let pendingAisleAction = null;
     
     // Delivery countdown state
     let deliveryInProgress = false;
     let deliveryCountdown = 0;
     let deliveryCountdownInterval = null;
+    let pendingDeliveryAction = null;
     let deliveringToCity = "";
     let currentDeliveryTotalTime = 0;
+    let roundCompletionInProgress = false;
     let currentDeliveryBreakdown = {
         originCity: "",
         destination: "",
@@ -55,6 +58,7 @@
     $: countdownTimer = hasRoundTimeLimit ? Math.max(0, ROUND_TIME_LIMIT - elapsedTime) : null;
     $: locationLabel = config["locations"]?.[curLocation[0]]?.[curLocation[1]]?.toLowerCase() || "entrance";
     $: locationRows = Array.isArray(config["locations"]) ? config["locations"] : [];
+    $: selectedStoreName = $orders[0]?.store ?? "Current Order";
     $: activeScenario = getCurrentScenario($currentRound);
     $: activeScenarioId = String(activeScenario?.scenario_id ?? '').trim();
 
@@ -70,6 +74,14 @@
         (1 + (config["tip"][tipIndex]/100)) : (config["tip"][config["tip"].length - 1]/100)
         curTip = Math.round(percentIncrease * 100 - 100);
         totalEarnings = Math.round(startEarnings*percentIncrease*100)/100
+    }
+
+    function formatCountdown(seconds) {
+        const safe = Math.max(0, Number(seconds) || 0);
+        const wholeSeconds = Math.floor(safe);
+        const mins = Math.floor(wholeSeconds / 60);
+        const secs = wholeSeconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
     const colClassMap = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-5', 6: 'grid-cols-6', 7: 'grid-cols-7', 8: 'grid-cols-8', 9: 'grid-cols-9' };
@@ -164,6 +176,11 @@
         
         const travelTime = dist * config["cellDistance"];
         addScenarioTime(activeScenarioId, 'aisleTravelTime', travelTime / 1000);
+        pendingAisleAction = {
+            scenarioId: activeScenarioId,
+            targetId: String(value || "entrance").toLowerCase(),
+            travelDuration: travelTime / 1000
+        };
         
         // Start aisle countdown
         aisleCountdown = travelTime / 1000; // Convert to seconds
@@ -176,7 +193,23 @@
             }
         }, 100);
         
-        setTimeout(() => { GameState = 1; }, travelTime)
+        setTimeout(() => {
+            GameState = 1;
+            if (pendingAisleAction) {
+                recordDetailedAction(
+                    pendingAisleAction.scenarioId,
+                    'move_aisle',
+                    'item',
+                    pendingAisleAction.targetId,
+                    {
+                        metadata: {
+                            travelDuration: pendingAisleAction.travelDuration
+                        }
+                    }
+                );
+                pendingAisleAction = null;
+            }
+        }, travelTime)
     }
 
     function addBag() {
@@ -198,10 +231,15 @@
         }
 
         let hasQuantity = false;
+        const bagsAffected = [];
         for (let i = 0; i < numOrders; i++) {
             let qty = parseInt(bagInputs[i]);
             if (!isNaN(qty) && qty > 0) {
                 hasQuantity = true;
+                bagsAffected.push({
+                    bagId: `bag_${i + 1}`,
+                    quantity: qty
+                });
                 if (Object.keys(bags[i]).includes(item)) bags[i][item] += qty;
                 else bags[i][item] = qty;
                 if (bags[i][item] <= 0) delete bags[i][item];
@@ -215,13 +253,24 @@
 
         bags = [...bags]; // Reactivity trigger
         wordInput = ""; bagInputs = ["", "", ""];
+        recordDetailedAction(activeScenarioId, 'add_item_to_bag', 'item', item, {
+            metadata: {
+                bagsAffected
+            }
+        });
     }
 
     // Function to remove items from a bag
     function removeFromBag(bagIdx, itemName) {
         if (bags[bagIdx][itemName]) {
+            const bagId = `bag_${bagIdx + 1}`;
             delete bags[bagIdx][itemName];
             bags = [...bags]; // Trigger reactivity
+            recordDetailedAction(activeScenarioId, 'remove_item_from_bag', 'item', String(itemName || '').toLowerCase(), {
+                metadata: {
+                    bagId
+                }
+            });
         }
     }
 
@@ -233,6 +282,12 @@
                 delete bags[bagIdx][itemName];
             }
             bags = [...bags]; // Trigger reactivity
+            recordDetailedAction(activeScenarioId, 'decrease_item_quantity', 'item', String(itemName || '').toLowerCase(), {
+                metadata: {
+                    bagId: `bag_${bagIdx + 1}`,
+                    quantityDelta: -1
+                }
+            });
         }
     }
 
@@ -242,6 +297,12 @@
         if (bags[bagIdx][itemName]) {
             bags[bagIdx][itemName] += 1;
             bags = [...bags]; // Trigger reactivity
+            recordDetailedAction(activeScenarioId, 'increase_item_quantity', 'item', String(itemName || '').toLowerCase(), {
+                metadata: {
+                    bagId: `bag_${bagIdx + 1}`,
+                    quantityDelta: 1
+                }
+            });
         }
     }
 
@@ -249,6 +310,7 @@
         const selOrders = get(orders);
         startTimer = $elapsed;
         config = storeConfig(selOrders[0].store);
+        recordDetailedAction(activeScenarioId, 'start_picking', 'button', 'startorder');
         
         // Safety check and reset location
         if (!config || !config["Entrance"]) {
@@ -260,19 +322,29 @@
         GameState = 1;
     }
     
-    function retry() { GameState = 1; }
+    function retry() {
+        recordDetailedAction(activeScenarioId, 'try_again', 'button', 'tryagain');
+        GameState = 1;
+    }
 
     async function giveUp() {
         if(confirm("Are you sure? Penalty will apply.")) {
-            $game.penaltyTriggered = true;
+            game.update((current) => ({
+                ...current,
+                penaltyTriggered: true
+            }));
             totalEarnings = 0;
             stopStorePhases();
             logRoundCompletion(false);
-            await persistRoundSnapshot({
+            exit();
+            orders.set([]);
+            gameText.set({
+                selector: "None selected"
+            });
+            void persistRoundSnapshot({
                 currentRound: get(currentRound),
                 currentLocation: String(get(currLocation) ?? '').trim()
             });
-            exit();
         }
     }
     
@@ -334,11 +406,11 @@
         // and you already set it in `deliverTo`.
 
         // Switch back to the selection screen
-        game.update(g => {
-            g.inSelect = true;
-            g.inStore = false;
-            return g;
-        });
+        game.update((current) => ({
+            ...current,
+            inSelect: true,
+            inStore: false
+        }));
         
         console.log("After: $game.inSelect =", $game.inSelect, "$game.inStore =", $game.inStore);
     }
@@ -394,6 +466,7 @@
         }
 
         if (correct) {
+            recordDetailedAction(activeScenarioId, 'delivery_validation_passed', 'button', 'checkout_and_deliver');
             bags = [{}, {}, {}];
             // Prepare Delivery Data
             // Assuming 'city' is the destination
@@ -417,6 +490,7 @@
             // Start Delivery Phase
             GameState = 5;
         } else {
+            recordDetailedAction(activeScenarioId, 'delivery_validation_failed', 'button', 'checkout_and_deliver');
             stopStorePhases();
             logRoundCompletion(false);
             GameState = 4;
@@ -456,6 +530,11 @@
         deliveryCountdown = travelTime;
         currentDeliveryTotalTime = travelTime;
         currentDeliveryBreakdown = breakdown;
+        pendingDeliveryAction = {
+            scenarioId: activeScenarioId,
+            targetId: String(targetLoc?.id ?? targetLoc?.name ?? '').trim(),
+            deliveryDuration: travelTime
+        };
         
         if (deliveryCountdownInterval) clearInterval(deliveryCountdownInterval);
         if (travelTime <= 0) {
@@ -488,6 +567,20 @@
             total: 0,
             missingRoute: false
         };
+        if (pendingDeliveryAction) {
+            recordDetailedAction(
+                pendingDeliveryAction.scenarioId,
+                'deliver_order',
+                'order',
+                pendingDeliveryAction.targetId,
+                {
+                    metadata: {
+                        deliveryDuration: pendingDeliveryAction.deliveryDuration
+                    }
+                }
+            );
+            pendingDeliveryAction = null;
+        }
         
         // Force array update to trigger reactivity
         deliveryLocations = [...deliveryLocations];
@@ -505,6 +598,8 @@
     }
 
     async function finishSuccess() {
+        if (roundCompletionInProgress) return;
+        roundCompletionInProgress = true;
         console.log("finishSuccess() called - completing round");
         
         // 1. Never let logging crash the game
@@ -544,35 +639,47 @@
         // 3. Immediately advance to next round (no Round Complete screen)
         if (completedGame) {
             console.log("Final round complete - ending session");
-            if ($gameMode !== 'tutorial') {
-                await persistRoundSnapshot({
-                    totalRounds,
-                    roundsCompleted: completedRounds,
-                    totalGameTime: get(elapsed),
-                    earnings: get(earned),
-                    completedGame: true,
-                    currentRound: get(currentRound),
-                    currentLocation: String(get(currLocation) ?? '').trim()
-                });
-            }
-            if ($gameMode !== 'tutorial') {
-                notifyMainGameComplete('all_rounds_complete', completedRounds, totalRounds);
-            }
             endGameSession();
+            try {
+                if ($gameMode !== 'tutorial') {
+                    await persistRoundSnapshot({
+                        totalRounds,
+                        roundsCompleted: completedRounds,
+                        totalGameTime: get(elapsed),
+                        earnings: get(earned),
+                        completedGame: true,
+                        currentRound: get(currentRound),
+                        currentLocation: String(get(currLocation) ?? '').trim()
+                    });
+                }
+                if ($gameMode !== 'tutorial') {
+                    notifyMainGameComplete('all_rounds_complete', completedRounds, totalRounds);
+                }
+            } finally {
+                roundCompletionInProgress = false;
+            }
             return;
         }
 
-        await persistRoundSnapshot({
+        const nextRound = get(currentRound);
+        const nextLocation = String(get(currLocation) ?? '').trim();
+
+        console.log("Round complete - immediately advancing to next round");
+        exit();
+
+        try {
+            await persistRoundSnapshot({
             totalRounds,
             roundsCompleted: completedRounds,
             totalGameTime: get(elapsed),
             earnings: get(earned),
             completedGame: false,
-            currentRound: get(currentRound),
-            currentLocation: String(get(currLocation) ?? '').trim()
-        });
-        console.log("Round complete - immediately advancing to next round");
-        exit();
+                currentRound: nextRound,
+                currentLocation: nextLocation
+            });
+        } finally {
+            roundCompletionInProgress = false;
+        }
     }
 
     function logRoundCompletion(success) {
@@ -632,14 +739,14 @@
 <main class="mx-auto max-w-6xl px-4 py-2 space-y-3">
     <div class="flex items-center justify-between bg-white p-2 rounded-xl border shadow-sm">
         <div>
-            <h1 class="text-base font-bold text-slate-800">{$orders[0].store}</h1>
+            <h1 class="text-base font-bold text-slate-800">{selectedStoreName}</h1>
             <p class="text-xs text-slate-500">Aisle: {locationLabel}</p>
         </div>
         <div class="text-right">
              <div class="text-lg font-bold text-green-600">${totalEarnings}</div>
              <div class="text-xs text-slate-400 font-mono {hasRoundTimeLimit && countdownTimer < 60 ? 'text-red-500 font-bold' : ''}">
                  {#if hasRoundTimeLimit}
-                    ⏱️ {Math.floor(countdownTimer / 60)}:{(countdownTimer % 60).toString().padStart(2, '0')}
+                    ⏱️ {formatCountdown(countdownTimer)}
                  {:else}
                     ⏱️ No time limit
                  {/if}
@@ -649,7 +756,7 @@
 
     {#if GameState == 0}
         <div class="text-center py-8">
-            <button class="bg-green-600 text-white px-6 py-3 rounded-full text-base font-bold shadow-lg hover:bg-green-700 transition" 
+            <button id="startorder" class="bg-green-600 text-white px-6 py-3 rounded-full text-base font-bold shadow-lg hover:bg-green-700 transition" 
                 on:click={start}>
                 Start Picking ({numOrders} Orders)
             </button>
@@ -665,7 +772,7 @@
                         <label class="block text-xs font-bold text-slate-700 uppercase">Item to Be Picked</label>
                         <input class="w-full text-base border-2 border-slate-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none" 
                             bind:value={wordInput} placeholder="Type item name..."/>
-                        <button class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg shadow hover:bg-blue-700 transition text-sm"
+                        <button id="addtobag" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg shadow hover:bg-blue-700 transition text-sm"
                             on:click={addBag}>Add to Selected Bags</button>
                     </div>
 
@@ -745,7 +852,7 @@
                     {#if $gameMode !== 'tutorial'}
                     <button class="text-red-500 font-bold text-sm" on:click={giveUp}>Give Up</button>
                     {/if}
-                    <button class="bg-green-600 text-white px-5 py-2 rounded-full font-bold shadow text-sm" on:click={checkoutOrders}>Checkout & Deliver</button>
+                    <button id="checkout_and_deliver" class="bg-green-600 text-white px-5 py-2 rounded-full font-bold shadow text-sm" on:click={checkoutOrders}>Checkout & Deliver</button>
                 </div>
             </div>
         </div>
@@ -830,7 +937,7 @@
         <div class="rounded-xl bg-red-50 border border-red-200 p-6 text-center space-y-4 max-w-lg mx-auto">
             <div class="text-5xl">⚠️</div>
             <h2 class="text-xl font-bold text-red-900">Incorrect Items</h2>
-            <button class="w-full bg-red-600 text-white font-bold py-2.5 rounded-xl shadow text-sm" on:click={retry}>Try Again</button>
+            <button id="tryagain" class="w-full bg-red-600 text-white font-bold py-2.5 rounded-xl shadow text-sm" on:click={retry}>Try Again</button>
         </div>
     {:else if GameState == 2}
         <div class="flex flex-col items-center justify-center h-48 space-y-3">
@@ -856,7 +963,7 @@
             <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto p-4"
                  on:click|stopPropagation>
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-xl font-bold text-slate-800">📍 Store Layout: {$orders[0].store}</h2>
+                    <h2 class="text-xl font-bold text-slate-800">📍 Store Layout: {selectedStoreName}</h2>
                     <button class="text-slate-400 hover:text-slate-600 text-2xl" on:click={() => showStoreMap = false}>&times;</button>
                 </div>
                 <div class="space-y-1.5">

@@ -9,8 +9,10 @@
 
     function formatTime(seconds) {
         if (seconds == null) return "None";
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
+        const safe = Math.max(0, Number(seconds) || 0);
+        const wholeSeconds = Math.floor(safe);
+        const mins = Math.floor(wholeSeconds / 60);
+        const secs = wholeSeconds % 60;
         return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
 

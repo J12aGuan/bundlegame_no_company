@@ -4,7 +4,7 @@ import {
     authenticateUser, createUser,
     getCentralConfig, getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getCitiesData, getEmojisData,
     getScenarioDatasetBundle, initializeUserProgress, saveUserProgressSummary,
-    getScenarioSetProgress, saveScenarioSetProgress, getActionSummaries, saveActionSummaries, getUserSummary
+    getScenarioSetProgress, saveScenarioSetProgress, getActionSummaries, saveActionSummaries, getDetailedActionSummaries, saveDetailedActionSummaries, getUserSummary
 } from './firebaseDB';
 
 import { switchJob, setPenaltyTimeout } from './config';
@@ -34,6 +34,9 @@ let firebaseInitialized = false;
 let initializedMode = null;
 let activeScenarioSetVersionId = '';
 let activeScenarioSetName = '';
+const PENDING_PROGRESS_STORAGE_KEY = 'bundlegame:pendingProgressSave';
+let pendingProgressFlushInFlight = false;
+let pendingProgressListenerRegistered = false;
 
 // Initialize config and scenarios from Firebase
 export async function initializeFromFirebase(mode = 'main') {
@@ -133,6 +136,7 @@ export const scenarioSetProgress = writable({
 	currentLocation: ''
 });
 export const scenarioActions = writable({});
+export const detailedScenarioActions = writable({});
 
 export const needsAuth = writable(config["auth"])
 
@@ -277,6 +281,10 @@ let activeScenarioPhase = {
 	key: '',
 	startedAt: 0
 };
+let activeOrderSelectionThinking = {
+	scenarioId: '',
+	startedAt: null
+};
 
 export const timeStamp = derived(time, ($time) => {
 	const now = $time.getTime();
@@ -325,12 +333,202 @@ function normalizeTimeSummary(summary = {}) {
 	return base;
 }
 
+function normalizeOrderSummary(orderSummary = []) {
+	if (!Array.isArray(orderSummary)) return [];
+	return [...new Set(
+		orderSummary
+			.map((entry) => String(entry ?? '').trim())
+			.filter(Boolean)
+	)];
+}
+
 function getDefaultScenarioAction() {
 	return {
 		totalTimeSeconds: 0,
-		timeSummary: createEmptyTimeSummary()
+		timeSummary: createEmptyTimeSummary(),
+		orderSummary: []
 	};
 }
+
+function stripUndefinedDeep(value) {
+	if (Array.isArray(value)) {
+		return value.map((entry) => stripUndefinedDeep(entry));
+	}
+	if (value && typeof value === 'object') {
+		const out = {};
+		for (const [key, nested] of Object.entries(value)) {
+			if (nested === undefined) continue;
+			out[key] = stripUndefinedDeep(nested);
+		}
+		return out;
+	}
+	return value;
+}
+
+function getDefaultDetailedScenarioAction() {
+	return {
+		timeline: []
+	};
+}
+
+function formatDetailedActionTime(seconds = 0) {
+	const safe = Math.max(0, Number(seconds) || 0);
+	const hours = Math.floor(safe / 3600);
+	const minutes = Math.floor((safe % 3600) / 60);
+	const secs = safe % 60;
+	return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${secs.toFixed(1).padStart(4, '0')}`;
+}
+
+function parseDetailedActionTime(value = '') {
+	const match = String(value ?? '').trim().match(/^(\d+):([0-5]\d):([0-5]\d(?:\.\d)?)$/);
+	if (!match) return 0;
+	return (Number(match[1]) * 3600) + (Number(match[2]) * 60) + Number(match[3]);
+}
+
+function normalizeDetailedTimelineEvent(event = {}) {
+	return stripUndefinedDeep({
+		actionType: String(event?.actionType ?? '').trim(),
+		targetType: String(event?.targetType ?? '').trim(),
+		targetId: String(event?.targetId ?? '').trim(),
+		startTime: String(event?.startTime ?? '').trim(),
+		endTime: String(event?.endTime ?? '').trim(),
+		metadata: event?.metadata && typeof event.metadata === 'object'
+			? stripUndefinedDeep(event.metadata)
+			: undefined
+	});
+}
+
+function toDetailedScenarioActionEntry(entry = {}) {
+	return {
+		timeline: Array.isArray(entry?.timeline)
+			? entry.timeline
+				.map((event) => normalizeDetailedTimelineEvent(event))
+				.filter((event) => event.actionType && event.targetType && event.targetId && event.startTime && event.endTime)
+			: []
+	};
+}
+
+function getDetailedActionCursorSeconds(snapshot = get(detailedScenarioActions)) {
+	let latest = 0;
+	for (const entry of Object.values(snapshot || {})) {
+		const timeline = Array.isArray(entry?.timeline) ? entry.timeline : [];
+		const lastEvent = timeline[timeline.length - 1];
+		if (!lastEvent?.endTime) continue;
+		latest = Math.max(latest, parseDetailedActionTime(lastEvent.endTime));
+	}
+	return latest;
+}
+
+function clearOrderSelectionThinkingState() {
+	activeOrderSelectionThinking = {
+		scenarioId: '',
+		startedAt: null
+	};
+}
+
+function getOrderSelectionThinkingStartSeconds(snapshot = get(detailedScenarioActions)) {
+	const fallback = getDetailedActionCursorSeconds(snapshot);
+	const activeScenarioId = String(activeOrderSelectionThinking?.scenarioId ?? '').trim();
+	if (!activeScenarioId) return fallback;
+	const startedAt = Number(activeOrderSelectionThinking?.startedAt);
+	if (!Number.isFinite(startedAt)) return fallback;
+	return Math.max(fallback, startedAt);
+}
+
+export const recordDetailedAction = (scenarioId, actionType, targetType, targetId, options = {}) => {
+	if (get(gameMode) === 'tutorial') return null;
+	const normalizedScenarioId = String(scenarioId ?? '').trim();
+	const normalizedActionType = String(actionType ?? '').trim();
+	const normalizedTargetType = String(targetType ?? '').trim();
+	const normalizedTargetId = String(targetId ?? '').trim();
+	if (!normalizedScenarioId || !normalizedActionType || !normalizedTargetType || !normalizedTargetId) {
+		return null;
+	}
+
+	let recordedEvent = null;
+	detailedScenarioActions.update((value) => {
+		const snapshot = value || {};
+		const startSeconds = getDetailedActionCursorSeconds(snapshot);
+		const requestedEndSeconds = Number(options?.endTimeSeconds);
+		const endSeconds = Math.max(
+			startSeconds,
+			Number.isFinite(requestedEndSeconds) ? requestedEndSeconds : getPreciseElapsedSeconds()
+		);
+		recordedEvent = normalizeDetailedTimelineEvent({
+			actionType: normalizedActionType,
+			targetType: normalizedTargetType,
+			targetId: normalizedTargetId,
+			startTime: formatDetailedActionTime(startSeconds),
+			endTime: formatDetailedActionTime(endSeconds),
+			metadata: options?.metadata
+		});
+
+		const currentEntry = toDetailedScenarioActionEntry(snapshot[normalizedScenarioId] || getDefaultDetailedScenarioAction());
+		return {
+			...snapshot,
+			[normalizedScenarioId]: {
+				timeline: [...currentEntry.timeline, recordedEvent]
+			}
+		};
+	});
+	return recordedEvent;
+};
+
+export const beginOrderSelectionThinking = (scenarioId) => {
+	if (get(gameMode) === 'tutorial') return;
+	const normalizedScenarioId = String(scenarioId ?? '').trim();
+	if (!normalizedScenarioId) return;
+	if (String(activeOrderSelectionThinking?.scenarioId ?? '').trim() === normalizedScenarioId && Number.isFinite(Number(activeOrderSelectionThinking?.startedAt))) {
+		return;
+	}
+	activeOrderSelectionThinking = {
+		scenarioId: normalizedScenarioId,
+		startedAt: getDetailedActionCursorSeconds()
+	};
+};
+
+export const stopOrderSelectionThinking = (scenarioId, options = {}) => {
+	if (get(gameMode) === 'tutorial') return null;
+	const normalizedScenarioId = String(scenarioId ?? '').trim();
+	const activeScenarioId = String(activeOrderSelectionThinking?.scenarioId ?? '').trim();
+	if (!normalizedScenarioId || !activeScenarioId || normalizedScenarioId !== activeScenarioId) {
+		return null;
+	}
+
+	const snapshot = get(detailedScenarioActions) || {};
+	const startSeconds = getOrderSelectionThinkingStartSeconds(snapshot);
+	const requestedEndSeconds = Number(options?.endTimeSeconds);
+	const endSeconds = Math.max(
+		startSeconds,
+		Number.isFinite(requestedEndSeconds) ? requestedEndSeconds : getPreciseElapsedSeconds()
+	);
+	clearOrderSelectionThinkingState();
+	return recordDetailedAction(
+		normalizedScenarioId,
+		'thinking',
+		'screen',
+		'order_selection',
+		{ endTimeSeconds: endSeconds }
+	);
+};
+
+export const recordOrderSelectionAction = (scenarioId, actionType, targetType, targetId, options = {}) => {
+	if (get(gameMode) === 'tutorial') return null;
+	const normalizedScenarioId = String(scenarioId ?? '').trim();
+	if (!normalizedScenarioId) return null;
+	const eventSeconds = Number.isFinite(Number(options?.endTimeSeconds))
+		? Number(options.endTimeSeconds)
+		: getPreciseElapsedSeconds();
+	stopOrderSelectionThinking(normalizedScenarioId, { endTimeSeconds: eventSeconds });
+	const event = recordDetailedAction(normalizedScenarioId, actionType, targetType, targetId, {
+		...options,
+		endTimeSeconds: eventSeconds
+	});
+	if (options?.resumeThinking) {
+		beginOrderSelectionThinking(normalizedScenarioId);
+	}
+	return event;
+};
 
 function applyScenarioTimeToEntry(value, scenarioId, key, seconds = 0) {
 	const normalizedScenarioId = String(scenarioId ?? '').trim();
@@ -352,7 +550,8 @@ function applyScenarioTimeToEntry(value, scenarioId, key, seconds = 0) {
 		...(value || {}),
 		[normalizedScenarioId]: {
 			totalTimeSeconds: Object.values(nextSummary).reduce((sum, entryValue) => sum + entryValue, 0),
-			timeSummary: nextSummary
+			timeSummary: nextSummary,
+			orderSummary: currentEntry.orderSummary
 		}
 	};
 }
@@ -400,8 +599,157 @@ function toScenarioActionEntry(entry = {}) {
 			Number(entry?.totalTimeSeconds) || 0,
 			Object.values(timeSummary).reduce((sum, value) => sum + value, 0)
 		),
-		timeSummary
+		timeSummary,
+		orderSummary: normalizeOrderSummary(entry?.orderSummary)
 	};
+}
+
+function isBrowserOnline() {
+	if (!browser || typeof navigator === 'undefined') return true;
+	return navigator.onLine !== false;
+}
+
+function readPendingProgressPayload() {
+	if (!browser || typeof localStorage === 'undefined') return null;
+	try {
+		const raw = localStorage.getItem(PENDING_PROGRESS_STORAGE_KEY);
+		if (!raw) return null;
+		return JSON.parse(raw);
+	} catch (error) {
+		console.error('Failed to read pending progress payload:', error);
+		return null;
+	}
+}
+
+function writePendingProgressPayload(payload) {
+	if (!browser || typeof localStorage === 'undefined') return;
+	try {
+		localStorage.setItem(PENDING_PROGRESS_STORAGE_KEY, JSON.stringify(payload));
+	} catch (error) {
+		console.error('Failed to write pending progress payload:', error);
+	}
+}
+
+function clearPendingProgressPayload() {
+	if (!browser || typeof localStorage === 'undefined') return;
+	try {
+		localStorage.removeItem(PENDING_PROGRESS_STORAGE_KEY);
+	} catch (error) {
+		console.error('Failed to clear pending progress payload:', error);
+	}
+}
+
+function getPreciseElapsedSeconds() {
+	return Math.max(0, (Number(get(timeStamp)) || 0) / 1000);
+}
+
+function buildProgressPayload(overrides = {}) {
+	const totalGameTime = overrides?.totalGameTime ?? get(elapsed);
+	const flushAtSeconds = overrides?.totalGameTime ?? getPreciseElapsedSeconds();
+	flushActiveScenarioPhase(flushAtSeconds);
+	if (overrides?.recordSaveProgressAction) {
+		const progressSnapshot = overrides?.scenarioProgress || get(scenarioSetProgress);
+		const inProgressScenario = String(progressSnapshot?.inProgressScenario ?? '').trim();
+		if (inProgressScenario) {
+			recordOrderSelectionAction(inProgressScenario, 'save_progress', 'button', 'saveprogress', {
+				endTimeSeconds: flushAtSeconds,
+				resumeThinking: false
+			});
+		}
+	}
+	const userId = get(id);
+	const versionId = get(scenarioSetVersionId);
+	const summaryPayload = {
+		scenarioSetVersionId: versionId,
+		scenarioSetName: activeScenarioSetName || config.scenario_set,
+		totalRounds: overrides?.totalRounds ?? get(scenarios).length,
+		roundsCompleted: overrides?.roundsCompleted ?? get(uniqueSets),
+		optimalChoices: overrides?.optimalChoices ?? get(optimalChoices),
+		totalGameTime,
+		completedGame: overrides?.completedGame ?? false,
+		earnings: overrides?.earnings ?? get(earned)
+	};
+	const progressSnapshot = overrides?.scenarioProgress || get(scenarioSetProgress);
+	const normalizedProgress = {
+		scenarioSetVersionId: versionId,
+		scenarioSetName: String((progressSnapshot?.scenarioSetName ?? activeScenarioSetName) || config.scenario_set).trim(),
+		completedScenarios: Array.isArray(progressSnapshot?.completedScenarios) ? progressSnapshot.completedScenarios : [],
+		inProgressScenario: String(progressSnapshot?.inProgressScenario ?? '').trim(),
+		currentRound: Math.max(1, Number(progressSnapshot?.currentRound ?? get(currentRound)) || 1),
+		currentLocation: String(progressSnapshot?.currentLocation ?? get(currLocation) ?? '').trim()
+	};
+	let actionSnapshot = {
+		...(overrides?.scenarioActions || get(scenarioActions) || {})
+	};
+	if (normalizedProgress.inProgressScenario && !actionSnapshot[normalizedProgress.inProgressScenario]) {
+		actionSnapshot[normalizedProgress.inProgressScenario] = getDefaultScenarioAction();
+	}
+	actionSnapshot = reconcileInProgressScenarioAction(actionSnapshot, normalizedProgress, totalGameTime);
+	const detailedActionSnapshot = Object.fromEntries(
+		Object.entries(overrides?.detailedScenarioActions || get(detailedScenarioActions) || {}).map(([scenarioId, entry]) => [
+			scenarioId,
+			toDetailedScenarioActionEntry(entry)
+		])
+	);
+
+	return {
+		userId,
+		versionId,
+		totalGameTime,
+		summaryPayload,
+		normalizedProgress,
+		actionPayload: {
+			scenarioSetVersionId: versionId,
+			actionsByScenarioId: actionSnapshot
+		},
+		detailedActionPayload: {
+			scenarioSetVersionId: versionId,
+			actionsByScenarioId: detailedActionSnapshot
+		}
+	};
+}
+
+async function persistProgressPayload(payload) {
+	if (!payload?.userId || !payload?.versionId) return null;
+	const summary = await saveUserProgressSummary(payload.userId, payload.summaryPayload);
+	const progressResult = await saveScenarioSetProgress(payload.userId, payload.normalizedProgress);
+	const actionResult = await saveActionSummaries(payload.userId, payload.actionPayload);
+	const detailedActionResult = await saveDetailedActionSummaries(payload.userId, payload.detailedActionPayload);
+	const saveFailed = !summary || !progressResult || !actionResult || !detailedActionResult;
+	if (saveFailed) {
+		throw new Error('Progress persistence incomplete');
+	}
+	if (browser && summary?.resultAccessKey) {
+		participantResultUrl.set(`${window.location.origin}/result?userId=${encodeURIComponent(payload.userId)}&key=${encodeURIComponent(summary.resultAccessKey)}`);
+	}
+	return summary;
+}
+
+export async function flushPendingProgressSave() {
+	if (!browser || pendingProgressFlushInFlight || !isBrowserOnline()) return null;
+	const pending = readPendingProgressPayload();
+	if (!pending?.userId || !pending?.versionId) return null;
+
+	pendingProgressFlushInFlight = true;
+	try {
+		const summary = await persistProgressPayload(pending);
+		clearPendingProgressPayload();
+		return summary;
+	} catch (error) {
+		writePendingProgressPayload(pending);
+		console.error('Deferred progress sync failed:', error);
+		return null;
+	} finally {
+		pendingProgressFlushInFlight = false;
+	}
+}
+
+function ensurePendingProgressListener() {
+	if (!browser || pendingProgressListenerRegistered || typeof window === 'undefined') return;
+	window.addEventListener('online', () => {
+		void flushPendingProgressSave();
+	});
+	pendingProgressListenerRegistered = true;
 }
 
 export const incrementOptimalChoices = () => {
@@ -458,7 +806,7 @@ export const addScenarioTime = (scenarioId, key, seconds = 0) => {
 	scenarioActions.update((value) => applyScenarioTimeToEntry(value, scenarioId, key, seconds));
 };
 
-function flushActiveScenarioPhase(nowSeconds = get(elapsed)) {
+function flushActiveScenarioPhase(nowSeconds = getPreciseElapsedSeconds()) {
 	if (get(gameMode) === 'tutorial') {
 		activeScenarioPhase = { scenarioId: '', key: '', startedAt: 0 };
 		return;
@@ -480,7 +828,7 @@ export const startScenarioPhase = (scenarioId, key) => {
 	const normalizedScenarioId = String(scenarioId ?? '').trim();
 	const normalizedKey = String(key ?? '').trim();
 	if (!normalizedScenarioId || !normalizedKey) return;
-	const nowSeconds = Math.max(0, Number(get(elapsed)) || 0);
+	const nowSeconds = getPreciseElapsedSeconds();
 	if (activeScenarioPhase.scenarioId === normalizedScenarioId && activeScenarioPhase.key === normalizedKey) {
 		return;
 	}
@@ -515,23 +863,29 @@ async function loadSavedScenarioState(userId) {
 			currentLocation: ''
 		});
 		scenarioActions.set({});
+		detailedScenarioActions.set({});
 		resumeElapsedSeconds.set(0);
 		return;
 	}
 
-	const [summaryDoc, progressDoc, actionsDoc] = await Promise.all([
+	const [summaryDoc, progressDoc, actionsDoc, detailedActionsDoc] = await Promise.all([
 		getUserSummary(userId),
 		getScenarioSetProgress(userId),
-		getActionSummaries(userId)
+		getActionSummaries(userId),
+		getDetailedActionSummaries(userId)
 	]);
 	const versionId = get(scenarioSetVersionId);
 	const summaryEntry = summaryDoc?.summaryByScenarioSetVersionId?.[versionId] || {};
 	const progressEntry = progressDoc?.progressByScenarioSetVersionId?.[versionId] || {};
 	const actionEntry = actionsDoc?.actionsByScenarioSetVersionId?.[versionId] || {};
+	const detailedActionEntry = detailedActionsDoc?.detailedActionsByScenarioSetVersionId?.[versionId] || {};
 	const completedScenarios = Array.isArray(progressEntry?.completedScenarios) ? progressEntry.completedScenarios : [];
 	const inProgressScenario = String(progressEntry?.inProgressScenario ?? '').trim();
 	const actionsByScenarioId = actionEntry?.actionsByScenarioId && typeof actionEntry.actionsByScenarioId === 'object'
 		? actionEntry.actionsByScenarioId
+		: {};
+	const detailedActionsByScenarioId = detailedActionEntry?.actionsByScenarioId && typeof detailedActionEntry.actionsByScenarioId === 'object'
+		? detailedActionEntry.actionsByScenarioId
 		: {};
 
 	scenarioSetProgress.set({
@@ -544,6 +898,11 @@ async function loadSavedScenarioState(userId) {
 	scenarioActions.set(
 		Object.fromEntries(
 			Object.entries(actionsByScenarioId).map(([scenarioId, entry]) => [scenarioId, toScenarioActionEntry(entry)])
+		)
+	);
+	detailedScenarioActions.set(
+		Object.fromEntries(
+			Object.entries(detailedActionsByScenarioId).map(([scenarioId, entry]) => [scenarioId, toDetailedScenarioActionEntry(entry)])
 		)
 	);
 	earned.set(Number(summaryEntry?.earnings) || 0);
@@ -569,51 +928,33 @@ export const saveCurrentProgress = async (overrides = {}) => {
 	if (get(gameMode) === 'tutorial' || !get(needsAuth) || !get(id) || !get(scenarioSetVersionId)) {
 		return null;
 	}
-	const totalGameTime = overrides?.totalGameTime ?? get(elapsed);
-	flushActiveScenarioPhase(totalGameTime);
-	const userId = get(id);
-	const versionId = get(scenarioSetVersionId);
-	const summary = await saveUserProgressSummary(userId, {
-		scenarioSetVersionId: get(scenarioSetVersionId),
-		scenarioSetName: activeScenarioSetName || config.scenario_set,
-		totalRounds: overrides?.totalRounds ?? get(scenarios).length,
-		roundsCompleted: overrides?.roundsCompleted ?? get(uniqueSets),
-		optimalChoices: overrides?.optimalChoices ?? get(optimalChoices),
-		totalGameTime,
-		completedGame: overrides?.completedGame ?? false,
-		earnings: overrides?.earnings ?? get(earned)
-	});
-	const progressSnapshot = overrides?.scenarioProgress || get(scenarioSetProgress);
-	const normalizedProgress = {
-		scenarioSetVersionId: versionId,
-		scenarioSetName: String((progressSnapshot?.scenarioSetName ?? activeScenarioSetName) || config.scenario_set).trim(),
-		completedScenarios: Array.isArray(progressSnapshot?.completedScenarios) ? progressSnapshot.completedScenarios : [],
-		inProgressScenario: String(progressSnapshot?.inProgressScenario ?? '').trim(),
-		currentRound: Math.max(1, Number(progressSnapshot?.currentRound ?? get(currentRound)) || 1),
-		currentLocation: String(progressSnapshot?.currentLocation ?? get(currLocation) ?? '').trim()
-	};
-	let actionSnapshot = {
-		...(overrides?.scenarioActions || get(scenarioActions) || {})
-	};
-	if (normalizedProgress.inProgressScenario && !actionSnapshot[normalizedProgress.inProgressScenario]) {
-		actionSnapshot[normalizedProgress.inProgressScenario] = getDefaultScenarioAction();
+	ensurePendingProgressListener();
+	void flushPendingProgressSave();
+
+	const payload = buildProgressPayload(overrides);
+	if (!isBrowserOnline()) {
+		writePendingProgressPayload(payload);
+		return { pendingOffline: true };
 	}
-	actionSnapshot = reconcileInProgressScenarioAction(actionSnapshot, normalizedProgress, totalGameTime);
-	await saveScenarioSetProgress(userId, normalizedProgress);
-	await saveActionSummaries(userId, {
-		scenarioSetVersionId: versionId,
-		actionsByScenarioId: actionSnapshot
-	});
-	if (browser && summary?.resultAccessKey) {
-		participantResultUrl.set(`${window.location.origin}/result?userId=${encodeURIComponent(get(id))}&key=${encodeURIComponent(summary.resultAccessKey)}`);
+
+	try {
+		const summary = await persistProgressPayload(payload);
+		clearPendingProgressPayload();
+		return summary;
+	} catch (error) {
+		writePendingProgressPayload(payload);
+		if (isBrowserOnline()) {
+			console.error('Progress save deferred after unexpected failure:', error);
+		}
+		return { pendingOffline: true };
 	}
-	return summary;
 };
 
 export const saveProgressAndEndSession = async () => {
 	if (get(gameMode) !== 'tutorial') {
 		await saveCurrentProgress({
-			completedGame: false
+			completedGame: false,
+			recordSaveProgressAction: true
 		});
 	}
 	endGameSession();
@@ -640,7 +981,7 @@ async function finalizeTimedOutGame(totalGameTime) {
 }
 
 export const elapsed = derived([timeStamp, FullTimeLimit], ([$timeStamp, $FullTimeLimit], set) => {
-	const elapsedSeconds = Math.round($timeStamp / 1000);
+	const elapsedSeconds = Math.max(0, $timeStamp / 1000);
 	const hasOverallLimit = Number.isFinite(Number($FullTimeLimit)) && Number($FullTimeLimit) > 0;
 	if (hasOverallLimit && elapsedSeconds >= $FullTimeLimit && !timeoutGameOverProcessed) {
 		timeoutGameOverProcessed = true;
@@ -729,6 +1070,8 @@ function resetRuntimeState() {
 		currentLocation: ''
 	});
 	scenarioActions.set({});
+	detailedScenarioActions.set({});
+	clearOrderSelectionThinkingState();
 	resumeElapsedSeconds.set(0);
 	currentRound.set(1);
 	roundStartTime.set(0);
@@ -789,6 +1132,16 @@ export const authUser = (id, pass) => {
 
 export const saveScenarioProgress = (progress) => {
 	const scenarioId = String(progress?.scenarioId ?? '').trim();
+	const chosenOrders = normalizeOrderSummary(progress?.chosenOrders);
+	if (scenarioId) {
+		scenarioActions.update((value) => ({
+			...(value || {}),
+			[scenarioId]: {
+				...toScenarioActionEntry(value?.[scenarioId] || getDefaultScenarioAction()),
+				orderSummary: chosenOrders
+			}
+		}));
+	}
 	if (scenarioId && Boolean(progress?.success)) {
 		markScenarioCompleted(scenarioId);
 	} else if (scenarioId) {
@@ -834,6 +1187,8 @@ export async function loadGame(mode = 'main') {
 	if (!firebaseInitialized || initializedMode !== mode) {
 		await initializeFromFirebase(mode);
 	}
+	ensurePendingProgressListener();
+	void flushPendingProgressSave();
 	try {
 		const datasetId = config.scenario_set || 'experiment';
 		const datasetBundle = await getScenarioDatasetBundle(datasetId);
