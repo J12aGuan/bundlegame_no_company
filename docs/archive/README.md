@@ -1,9 +1,16 @@
 # Archived Docs
 
-Archived documentation that no longer reflects the current runtime architecture is stored here.
+This directory contains documentation that no longer reflects the current runtime architecture.
 
-- `legacy-2026-03/` contains pre-MasterData static-config era docs.
-  - Legacy architecture and configuration docs
-  - Legacy experiment reference table HTML that depended on removed static JSON files
+Use [../README.md](../README.md) for the project overview and [../current/](../current/) for the authoritative current docs.
 
-Use `docs/current/` for authoritative architecture and config references.
+## What Is Archived Here
+
+- `legacy-2026-03/`: pre-`MasterData` architecture and configuration notes
+- older reference material that depends on removed static-config assumptions
+
+## How To Use The Archive
+
+- Treat archived files as historical reference only.
+- Do not update archived design details to match the live app unless a broken link or clearly misleading label must be fixed.
+- Put new behavior documentation in `docs/current/` instead.

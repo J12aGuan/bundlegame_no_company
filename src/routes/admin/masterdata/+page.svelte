@@ -231,6 +231,82 @@
         }
         return out;
     }
+
+    function travelTimesToEntries(travelTimes = {}) {
+        return Object.entries(travelTimes || {})
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([city, routes]) => ({
+                city,
+                routes: Object.entries(routes || {})
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([destination, seconds]) => ({
+                        destination,
+                        seconds: Number(seconds) || 0
+                    }))
+            }));
+    }
+
+    function entriesToTravelTimes(entries = []) {
+        const out = {};
+        for (const entry of entries || []) {
+            const city = entry?.city?.trim();
+            if (!city) continue;
+            const routes = {};
+            for (const route of entry?.routes || []) {
+                const destination = route?.destination?.trim();
+                const seconds = Number(route?.seconds);
+                if (!destination || destination === city) continue;
+                if (!Number.isFinite(seconds) || seconds <= 0) continue;
+                routes[destination] = seconds;
+            }
+            out[city] = routes;
+        }
+        return out;
+    }
+
+    function getMatrixSeconds(travelTimes = {}, fromCity = '', toCity = '') {
+        const origin = String(fromCity || '').trim();
+        const destination = String(toCity || '').trim();
+        if (!origin || !destination || origin === destination) return 0;
+        const value = Number(travelTimes?.[origin]?.[destination]);
+        return Number.isFinite(value) && value > 0 ? value : null;
+    }
+
+    function buildScenarioTravelValidation(ordersById = {}, citiesDoc = {}) {
+        const startingCity = String(citiesDoc?.startinglocation || '').trim();
+        const usedCities = [...new Set([
+            startingCity,
+            ...Object.values(ordersById || {})
+                .map((order) => String(order?.city || '').trim())
+                .filter(Boolean)
+        ].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+        const travelTimes = citiesDoc?.travelTimes || {};
+        const missingCities = usedCities.filter((city) => !travelTimes?.[city]);
+        const missingRoutes = [];
+
+        for (const fromCity of usedCities) {
+            if (!travelTimes?.[fromCity]) continue;
+            for (const destination of usedCities) {
+                if (fromCity === destination) continue;
+                const seconds = getMatrixSeconds(travelTimes, fromCity, destination);
+                if (seconds == null) {
+                    missingRoutes.push(`${fromCity} -> ${destination}`);
+                }
+            }
+        }
+
+        return {
+            startingCity,
+            usedCities,
+            missingCities,
+            missingRoutes
+        };
+    }
+
+    function formatSeconds(value) {
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? `${numeric}s` : '-';
+    }
     
     // Central Config
     let centralConfig = { ...DEFAULT_CENTRAL_CONFIG, game: { ...DEFAULT_CENTRAL_CONFIG.game } };
@@ -245,10 +321,24 @@
     let selectedScenarioSolution = null;
     let scenarioOrdersById = {};
     let scenarioSolutionsByScenarioId = {};
+    let scenarioTravelValidation = {
+        startingCity: '',
+        usedCities: [],
+        missingCities: [],
+        missingRoutes: []
+    };
     
     // Tutorial Config
     let tutorialConfig = { ...DEFAULT_TUTORIAL_CONFIG };
     let editingTutorialConfig = false;
+
+    // Cities Data
+    let citiesData = { startinglocation: '', travelTimes: {} };
+    let editingCities = false;
+    let cityTravelDraft = {
+        startinglocation: '',
+        routeEntries: []
+    };
     
     // Orders Data
     let ordersData = [];
@@ -259,6 +349,7 @@
     $: selectedScenarioOrder = selectedScenarioOrderId
         ? (scenarioOrdersById?.[selectedScenarioOrderId] || { id: selectedScenarioOrderId, missing: true })
         : null;
+    $: scenarioTravelValidation = buildScenarioTravelValidation(scenarioOrdersById, citiesData);
     
     // Stores Data
     let storesData = { stores: [] };
@@ -332,6 +423,8 @@
             error = null;
             
             const centralLoaded = await getCentralConfig();
+            const tutorialLoaded = await getTutorialConfig() || {};
+            citiesData = await getCitiesData('cities') || { startinglocation: '', travelTimes: {} };
             centralConfig = {
                 ...DEFAULT_CENTRAL_CONFIG,
                 ...(centralLoaded || {}),
@@ -342,7 +435,7 @@
             };
             allScenarioSetIds = await getScenarioDatasetNames() || [];
             const centralSet = normalizeDataId(centralLoaded?.scenario_set, '');
-            const tutorialSet = normalizeDataId((await getTutorialConfig() || {})?.scenario_set, '');
+            const tutorialSet = normalizeDataId(tutorialLoaded?.scenario_set, '');
             const preferredSet = [selectedScenariosId, centralSet, tutorialSet].find((id) => id && allScenarioSetIds.includes(id));
             selectedScenariosId = preferredSet || allScenarioSetIds[0] || '';
             experimentScenarios = selectedScenariosId
@@ -351,7 +444,7 @@
             await loadScenarioSetDetails();
             tutorialConfig = {
                 ...DEFAULT_TUTORIAL_CONFIG,
-                ...(await getTutorialConfig() || {})
+                ...tutorialLoaded
             };
             emojisData = await getEmojisData() || {};
             await refreshSyncStatus();
@@ -774,6 +867,56 @@
             loading = false;
         }
     }
+
+    // Cities Data handlers
+    async function saveCitiesDataHandler() {
+        try {
+            saving = true;
+            await saveCitiesData({
+                startinglocation: cityTravelDraft.startinglocation?.trim() || '',
+                travelTimes: entriesToTravelTimes(cityTravelDraft.routeEntries)
+            });
+            editingCities = false;
+            showMessage('Cities data saved successfully!');
+            await loadAllData();
+        } catch (err) {
+            showMessage('Invalid cities data or save failed: ' + err.message, 'error');
+        } finally {
+            saving = false;
+        }
+    }
+
+    function editCitiesData() {
+        cityTravelDraft = {
+            startinglocation: citiesData?.startinglocation || '',
+            routeEntries: travelTimesToEntries(citiesData?.travelTimes || {})
+        };
+        editingCities = true;
+    }
+
+    function addCityTravelEntry() {
+        cityTravelDraft.routeEntries = [...cityTravelDraft.routeEntries, { city: '', routes: [] }];
+        cityTravelDraft = { ...cityTravelDraft };
+    }
+
+    function removeCityTravelEntry(index) {
+        cityTravelDraft.routeEntries = cityTravelDraft.routeEntries.filter((_, i) => i !== index);
+        cityTravelDraft = { ...cityTravelDraft };
+    }
+
+    function addCityTravelRoute(index) {
+        cityTravelDraft.routeEntries[index].routes = [
+            ...(cityTravelDraft.routeEntries[index].routes || []),
+            { destination: '', seconds: 0 }
+        ];
+        cityTravelDraft = { ...cityTravelDraft };
+    }
+
+    function removeCityTravelRoute(cityIndex, routeIndex) {
+        cityTravelDraft.routeEntries[cityIndex].routes =
+            (cityTravelDraft.routeEntries[cityIndex].routes || []).filter((_, i) => i !== routeIndex);
+        cityTravelDraft = { ...cityTravelDraft };
+    }
     
     // Emojis Data handlers
     async function saveEmojisDataHandler() {
@@ -870,8 +1013,9 @@
                 <nav class="flex space-x-8 px-6" aria-label="Tabs">
                     {#each [
                         { id: 'centralConfig', label: 'Central Config' },
-                        { id: 'tutorialConfig', label: 'Tutorial Config' },
                         { id: 'scenarios', label: 'Scenarios' },
+                        { id: 'cities', label: 'Cities' },
+                        { id: 'tutorialConfig', label: 'Tutorial Config' },
                         { id: 'emojis', label: 'Emojis' }
                     ] as tab}
                         <button
@@ -1126,6 +1270,33 @@
                             {/if}
                         </div>
                         <p class="text-sm text-gray-600">Total scenarios: {experimentScenarios.length}</p>
+                        {#if selectedScenariosId}
+                            <div class={`rounded-lg border p-4 space-y-2 ${
+                                scenarioTravelValidation.missingCities.length > 0 || scenarioTravelValidation.missingRoutes.length > 0
+                                    ? 'border-amber-200 bg-amber-50'
+                                    : 'border-green-200 bg-green-50'
+                            }`}>
+                                <h4 class="text-sm font-semibold text-gray-900">Timing Validation</h4>
+                                <p class="text-xs text-gray-700">
+                                    Modeled order time uses <code>estimatedTime + cityTravelTime</code>. Runtime delivery uses <code>localTravelTime + cityTravelTime</code>, where city travel comes from the Cities matrix.
+                                </p>
+                                <p class="text-xs text-gray-600">
+                                    Starting city: {scenarioTravelValidation.startingCity || 'not set'} · Used cities: {scenarioTravelValidation.usedCities.join(', ') || 'none'}
+                                </p>
+                                {#if scenarioTravelValidation.missingCities.length > 0}
+                                    <p class="text-xs text-amber-800">
+                                        Missing city rows: {scenarioTravelValidation.missingCities.join(', ')}
+                                    </p>
+                                {/if}
+                                {#if scenarioTravelValidation.missingRoutes.length > 0}
+                                    <p class="text-xs text-amber-800">
+                                        Missing routes: {scenarioTravelValidation.missingRoutes.join(', ')}
+                                    </p>
+                                {:else}
+                                    <p class="text-xs text-green-800">All required city routes are present for this scenario set.</p>
+                                {/if}
+                            </div>
+                        {/if}
                         
                         <div class="bg-gray-50 rounded p-4 max-h-[calc(100vh-18rem)] overflow-y-auto">
                             {#if experimentScenarios.length === 0}
@@ -1255,6 +1426,51 @@
                                     <div class="p-4 space-y-2 text-sm text-gray-800 max-h-[70vh] overflow-y-auto">
                                         {#if selectedScenarioOrder.missing}
                                             <p class="text-amber-700">Order not found in dataset orders list.</p>
+                                        {:else}
+                                            {@const referenceTravelTime = getMatrixSeconds(
+                                                citiesData?.travelTimes || {},
+                                                citiesData?.startinglocation || '',
+                                                selectedScenarioOrder.city || ''
+                                            )}
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div class="rounded border border-gray-200 bg-gray-50 p-3">
+                                                    <p class="text-xs font-semibold uppercase text-gray-500">City</p>
+                                                    <p class="mt-1 text-base font-semibold text-gray-900">{selectedScenarioOrder.city || '-'}</p>
+                                                </div>
+                                                <div class="rounded border border-gray-200 bg-gray-50 p-3">
+                                                    <p class="text-xs font-semibold uppercase text-gray-500">Store</p>
+                                                    <p class="mt-1 text-base font-semibold text-gray-900">{selectedScenarioOrder.store || '-'}</p>
+                                                </div>
+                                                <div class="rounded border border-gray-200 bg-blue-50 p-3">
+                                                    <p class="text-xs font-semibold uppercase text-blue-700">Modeled Base Time</p>
+                                                    <p class="mt-1 text-base font-semibold text-blue-900">{formatSeconds(selectedScenarioOrder.estimatedTime)}</p>
+                                                    <p class="mt-1 text-xs text-blue-800">
+                                                        <code>estimatedTime = localTravelTime + pick-item estimate</code>
+                                                    </p>
+                                                </div>
+                                                <div class="rounded border border-gray-200 bg-emerald-50 p-3">
+                                                    <p class="text-xs font-semibold uppercase text-emerald-700">Local Delivery Time</p>
+                                                    <p class="mt-1 text-base font-semibold text-emerald-900">{formatSeconds(selectedScenarioOrder.localTravelTime)}</p>
+                                                    <p class="mt-1 text-xs text-emerald-800">
+                                                        Runtime delivery leg uses <code>localTravelTime + cityTravelTime</code>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div class="rounded border border-gray-200 bg-white p-3">
+                                                <p class="text-sm font-semibold text-gray-900">City travel reference</p>
+                                                <p class="mt-1 text-xs text-gray-700">
+                                                    Cross-city time is added dynamically from the Cities matrix based on the player's current city at delivery/modeling time.
+                                                </p>
+                                                <p class="mt-2 text-xs text-gray-600">
+                                                    From starting city {citiesData?.startinglocation || '-'} to {selectedScenarioOrder.city || '-'}:
+                                                    {#if referenceTravelTime == null}
+                                                        <span class="font-medium text-amber-700"> missing route in Cities data</span>
+                                                    {:else}
+                                                        <span class="font-medium text-gray-900"> {referenceTravelTime}s</span>
+                                                        <span> (reference only)</span>
+                                                    {/if}
+                                                </p>
+                                            </div>
                                         {/if}
                                         <pre class="rounded bg-gray-50 border border-gray-200 p-3 text-xs overflow-x-auto">{formatJsonStable(selectedScenarioOrder)}</pre>
                                     </div>
@@ -1306,6 +1522,232 @@
                     </div>
                 {/if}
                 
+                <!-- Cities Tab -->
+                {#if activeTab === 'cities'}
+                    <div class="space-y-6">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900">Cities Travel Matrix</h3>
+                                <p class="mt-1 text-sm text-gray-600">
+                                    Canonical source for cross-city travel time. Runtime delivery uses <code>localTravelTime + cityTravelTime</code>, and modeled order time uses <code>estimatedTime + cityTravelTime</code>.
+                                </p>
+                            </div>
+                            {#if !editingCities}
+                                <button
+                                    type="button"
+                                    on:click={editCitiesData}
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                >
+                                    Edit Cities
+                                </button>
+                            {/if}
+                        </div>
+
+                        {#if !editingCities}
+                            {@const cityEntries = travelTimesToEntries(citiesData?.travelTimes || {})}
+                            {@const totalRoutes = cityEntries.reduce((sum, entry) => sum + (entry.routes?.length || 0), 0)}
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                                    <p class="text-xs font-semibold uppercase text-gray-500">Starting Location</p>
+                                    <p class="mt-1 text-lg font-semibold text-gray-900">{citiesData?.startinglocation || 'Not set'}</p>
+                                </div>
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                                    <p class="text-xs font-semibold uppercase text-gray-500">Cities</p>
+                                    <p class="mt-1 text-lg font-semibold text-gray-900">{cityEntries.length}</p>
+                                </div>
+                                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                                    <p class="text-xs font-semibold uppercase text-gray-500">Routes</p>
+                                    <p class="mt-1 text-lg font-semibold text-gray-900">{totalRoutes}</p>
+                                </div>
+                            </div>
+
+                            {#if scenarioTravelValidation.missingCities.length > 0 || scenarioTravelValidation.missingRoutes.length > 0}
+                                <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-2">
+                                    <h4 class="text-sm font-semibold text-amber-900">Scenario Validation Warnings</h4>
+                                    <p class="text-xs text-amber-800">
+                                        The active scenario set references cities that are incomplete in this matrix.
+                                    </p>
+                                    {#if scenarioTravelValidation.missingCities.length > 0}
+                                        <p class="text-xs text-amber-800">
+                                            Missing city rows: {scenarioTravelValidation.missingCities.join(', ')}
+                                        </p>
+                                    {/if}
+                                    {#if scenarioTravelValidation.missingRoutes.length > 0}
+                                        <p class="text-xs text-amber-800">
+                                            Missing routes: {scenarioTravelValidation.missingRoutes.join(', ')}
+                                        </p>
+                                    {/if}
+                                </div>
+                            {/if}
+
+                            {#if cityEntries.length === 0}
+                                <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-sm text-gray-600">
+                                    No Cities matrix found in Firebase yet.
+                                </div>
+                            {:else}
+                                <div class="space-y-3">
+                                    {#each cityEntries as entry}
+                                        <div class="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+                                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                                <div>
+                                                    <p class="text-base font-semibold text-gray-900">{entry.city || 'Unnamed city'}</p>
+                                                    <p class="text-xs text-gray-500">{entry.routes?.length || 0} outbound routes</p>
+                                                </div>
+                                            </div>
+                                            {#if entry.routes?.length > 0}
+                                                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                                                    {#each entry.routes as route}
+                                                        <div class="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                                            <span class="font-medium text-gray-900">{entry.city}</span>
+                                                            <span class="text-gray-500"> to </span>
+                                                            <span class="font-medium text-gray-900">{route.destination}</span>
+                                                            <span class="text-gray-500"> = </span>
+                                                            <span class="font-semibold text-gray-900">{formatSeconds(route.seconds)}</span>
+                                                        </div>
+                                                    {/each}
+                                                </div>
+                                            {:else}
+                                                <p class="text-sm text-amber-700">No outbound routes configured for this city.</p>
+                                            {/if}
+                                        </div>
+                                    {/each}
+                                </div>
+                            {/if}
+                        {:else}
+                            <form on:submit|preventDefault={saveCitiesDataHandler} class="space-y-6">
+                                <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-2">
+                                    <h4 class="text-sm font-semibold text-blue-900">Timing Notes</h4>
+                                    <p class="text-xs text-blue-800">
+                                        Use this matrix for cross-city travel only. Each runtime delivery leg is calculated as <code>localTravelTime + cityTravelTime</code>.
+                                    </p>
+                                    <p class="text-xs text-blue-800">
+                                        <code>estimatedTime</code> remains the modeled base estimate stored on each order.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label for="cities-starting-location" class="block text-sm font-medium text-gray-700">Starting Location</label>
+                                    <input
+                                        id="cities-starting-location"
+                                        type="text"
+                                        bind:value={cityTravelDraft.startinglocation}
+                                        class="mt-1 w-full max-w-md px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-gray-900">City Routes</h4>
+                                        <p class="text-xs text-gray-600">Add each city row and its outbound travel times in seconds.</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        on:click={addCityTravelEntry}
+                                        class="px-3 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900"
+                                    >
+                                        Add City
+                                    </button>
+                                </div>
+
+                                <div class="space-y-4">
+                                    {#if cityTravelDraft.routeEntries.length === 0}
+                                        <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-sm text-gray-600">
+                                            No city rows added yet.
+                                        </div>
+                                    {:else}
+                                        {#each cityTravelDraft.routeEntries as entry, cityIndex}
+                                            <div class="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
+                                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                                    <div class="flex-1 min-w-[220px]">
+                                                        <label for={`city-name-${cityIndex}`} class="block text-xs font-medium text-gray-700">City</label>
+                                                        <input
+                                                            id={`city-name-${cityIndex}`}
+                                                            type="text"
+                                                            bind:value={entry.city}
+                                                            class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                                        />
+                                                    </div>
+                                                    <div class="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            on:click={() => addCityTravelRoute(cityIndex)}
+                                                            class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                                                        >
+                                                            Add Route
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            on:click={() => removeCityTravelEntry(cityIndex)}
+                                                            class="px-3 py-2 bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-100"
+                                                        >
+                                                            Remove City
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {#if entry.routes?.length > 0}
+                                                    <div class="space-y-3">
+                                                        {#each entry.routes as route, routeIndex}
+                                                            <div class="grid grid-cols-1 md:grid-cols-[1fr,140px,auto] gap-3 items-end">
+                                                                <div>
+                                                                    <label for={`city-route-destination-${cityIndex}-${routeIndex}`} class="block text-xs font-medium text-gray-700">Destination</label>
+                                                                    <input
+                                                                        id={`city-route-destination-${cityIndex}-${routeIndex}`}
+                                                                        type="text"
+                                                                        bind:value={route.destination}
+                                                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label for={`city-route-seconds-${cityIndex}-${routeIndex}`} class="block text-xs font-medium text-gray-700">Seconds</label>
+                                                                    <input
+                                                                        id={`city-route-seconds-${cityIndex}-${routeIndex}`}
+                                                                        type="number"
+                                                                        min="0"
+                                                                        bind:value={route.seconds}
+                                                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                                                    />
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    on:click={() => removeCityTravelRoute(cityIndex, routeIndex)}
+                                                                    class="px-3 py-2 bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-100"
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            </div>
+                                                        {/each}
+                                                    </div>
+                                                {:else}
+                                                    <p class="text-sm text-gray-500">No outbound routes for this city yet.</p>
+                                                {/if}
+                                            </div>
+                                        {/each}
+                                    {/if}
+                                </div>
+
+                                <div class="flex gap-3">
+                                    <button
+                                        type="submit"
+                                        disabled={saving}
+                                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                        {saving ? 'Saving...' : 'Save Cities'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        on:click={() => editingCities = false}
+                                        disabled={saving}
+                                        class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        {/if}
+                    </div>
+                {/if}
+
                 <!-- Tutorial Config Tab -->
                 {#if activeTab === 'tutorialConfig'}
                     <div class="space-y-6">

@@ -1,7 +1,7 @@
 <script>
     import { get } from 'svelte/store';
     import { game, orders, gameText, currLocation, orderList, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed, gameMode, scenarios, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase } from "$lib/bundle.js";
-    import { getDistances, storeConfig, PENALTY_TIMEOUT } from "$lib/config.js";
+    import { getDistances, getCityTravelInfo, storeConfig, PENALTY_TIMEOUT } from "$lib/config.js";
     import Order from "./order.svelte";
     import { onMount, onDestroy } from "svelte";
 
@@ -112,6 +112,29 @@
         stopSelectionPhases();
     }
 
+    function findMissingSelectionRoute(selectedOrders = [], startCity = "") {
+        const selectedCities = [...new Set(
+            (selectedOrders || [])
+                .map((order) => String(order?.city || "").trim())
+                .filter(Boolean)
+        )];
+
+        for (const destination of selectedCities) {
+            const routeInfo = getCityTravelInfo(startCity, destination);
+            if (routeInfo.missingRoute) return routeInfo;
+        }
+
+        for (const fromCity of selectedCities) {
+            for (const destination of selectedCities) {
+                if (fromCity === destination) continue;
+                const routeInfo = getCityTravelInfo(fromCity, destination);
+                if (routeInfo.missingRoute) return routeInfo;
+            }
+        }
+
+        return null;
+    }
+
     function start() {
         const selOrders = get(orders);
         
@@ -136,6 +159,12 @@
         const firstStore = selOrders[0].store;
         if (!selOrders.every(o => o.store === firstStore)) {
             alert("All bundled orders must be from the same store!");
+            return;
+        }
+
+        const missingRoute = findMissingSelectionRoute(selOrders, String($currLocation || ""));
+        if (missingRoute) {
+            alert(`Missing city travel route from ${missingRoute.fromCity} to ${missingRoute.toCity}. Update Admin > Cities before starting this order.`);
             return;
         }
 

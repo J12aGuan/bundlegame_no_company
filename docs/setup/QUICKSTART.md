@@ -1,123 +1,58 @@
-# Developer Setup Guide
+# Developer Quickstart
 
-Quick guide to get the project running locally.
-
----
+Use this guide to get the project running locally with the current Firestore-backed configuration flow.
 
 ## Prerequisites
 
-- Node.js >= 18.x installed
-- Git access to this repository
-- Firebase credentials from Nicholas
+- Node.js 18 or newer
+- Access to this repository
+- Firebase credentials
+- MapTiler API key
 
----
-
-## Step-by-Step Setup
-
-### 1. Clone and Install
+## Local Setup
 
 ```bash
-# Clone the repo (if you haven't already)
-git clone [repo-url]
+git clone https://github.com/nnicholas-c/bundlegame_no_company.git
 cd bundlegame_no_company
-
-# Install dependencies
 npm install
-```
-
-### 2. Set Up Environment Variables
-
-```bash
-# Copy the example file
 cp .env.example .env
 ```
 
-**Contact Nicholas for credentials** and fill in your `.env` file:
-- All Firebase variables (7 total)
-- MapTiler API key
-- Downloader password
+Fill in the values for:
 
-Your `.env` should look like:
-```
-VITE_FIREBASE_API_KEY=AIza...
-VITE_FIREBASE_AUTH_DOMAIN=bundling-63c10.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=bundling-63c10
-# ... etc
-```
+- Firebase client configuration
+- MapTiler key
+- downloader password
 
-### 3. Run Locally
+Detailed environment reference: [ENVIRONMENT.md](ENVIRONMENT.md)
+
+## Run and Verify
 
 ```bash
 npm run dev
 ```
 
-Visit http://localhost:5173 - you should see the login page.
+Then open `http://localhost:5173`.
 
-### 4. Test It Works
+Recommended verification:
 
-1. Enter any participant ID
-2. Click "Start"
-3. Game should load with map and orders
+```bash
+npm run build
+```
 
-If you see Firebase errors, double-check your `.env` file.
+## Useful Follow-Up Docs
 
----
+- Project overview: [../../README.md](../../README.md)
+- Runtime architecture: [../current/ARCHITECTURE.md](../current/ARCHITECTURE.md)
+- Firestore config and timing rules: [../current/CONFIG_AND_DATASETS.md](../current/CONFIG_AND_DATASETS.md)
+- Analytics and exports: [../current/ANALYTICS_AND_RL_EXPORTS.md](../current/ANALYTICS_AND_RL_EXPORTS.md)
 
 ## Common Issues
 
-**"Firebase: Error (auth/...)"**
-→ Check Firebase credentials in `.env`
+- Firebase errors: check the Firebase values in `.env`
+- Map not loading: check `VITE_MAPTILER_API_KEY`
+- Missing updates: restart the dev server after changing env vars
 
-**"Map not loading"**
-→ Check `VITE_MAPTILER_API_KEY` in `.env`
+## Working Rule
 
-**"Cannot find module"**
-→ Run `npm install` again
-
-**Changes not showing up**
-→ Restart dev server (`Ctrl+C` then `npm run dev`)
-
----
-
-## Making Changes
-
-```bash
-# Make your changes in src/
-
-# Test locally
-npm run dev
-
-# Commit and push
-git add .
-git commit -m "Your change description"
-git push origin main
-
-# Auto-deploys to Vercel
-```
-
----
-
-## Key Files to Know
-
-| File | What It Does |
-|------|--------------|
-| `src/routes/+page.svelte` | Login page |
-| `src/routes/bundlegame.svelte` | Main game (5000+ lines) |
-| `src/lib/bundle.js` | Game logic & calculations |
-| `src/lib/firebaseDB.js` | Database operations |
-| `src/routes/admin/masterdata/+page.svelte` | Config/dataset admin management |
-| `src/routes/admin/analysis/+page.svelte` | Participant-vs-optimal analytics dashboard |
-| `src/lib/analysis/engine.js` | Client-side analytics/stat model engine |
-| `src/lib/scripts/generateScenarios.js` | Scenario generation + optimal solver |
-
-**Full guide**: See [../current/ARCHITECTURE.md](../current/ARCHITECTURE.md)
-
-**Environment details**: See [ENVIRONMENT.md](ENVIRONMENT.md)
-
----
-
-## Need Help?
-
-1. Check [../../README.md](../../README.md) for quick reference
-2. Check [../current/ARCHITECTURE.md](../current/ARCHITECTURE.md) for code details
-3. Contact Nicholas: nchen06@berkeley.edu
+When a behavior change ships, update the relevant file in `docs/current/` and refresh the README `Recent Feature History` table if the change is meaningful enough to track there.
