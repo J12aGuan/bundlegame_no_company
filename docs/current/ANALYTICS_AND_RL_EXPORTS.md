@@ -1,27 +1,46 @@
-# Analytics & RL Exports (March 2026)
+# Analytics and RL Exports (March 2026)
 
 ## Purpose
+
 `/admin/analysis` provides live participant-vs-optimal analytics for experiment monitoring and RL dataset export.
 
 ## Data Sources
+
 - Participants and action logs: `Users/*` and `Users/{id}/Actions`
 - Round decisions: `Actions` where `type == "round_summary"`
-- Scenario context + optimal bundles: `MasterData/datasets.{datasetRoot}`
-- Optional modeled-time context: `MasterData/store`, `MasterData/cities`
+- Scenario context and optimal bundles: `MasterData/datasets.{datasetRoot}`
+- Modeled-time context: `MasterData/store` and `MasterData/cities`
 
 Default dataset is `centralConfig.scenario_set`, with dataset switching support in the UI.
 
+## Modeled-Time Semantics
+
+Analytics should interpret modeled time using the same rules documented in the runtime docs:
+
+- `estimatedTime` is the modeled base time stored on each order
+- modeled order time = `estimatedTime + cityTravelTime`
+- `cityTravelTime` comes from `MasterData/cities`
+
+This is distinct from runtime delivery logging:
+
+- runtime delivery leg = `localTravelTime + cityTravelTime`
+- per-phase timing buckets such as `cityTravelTime`, `localDeliveryTime`, and `startPickingConfirmationTime` reflect measured runtime behavior, not the modeled score estimate
+
 ## Classification-First Analytics
+
 Primary grouping is scenario `classification`:
+
 - `easy`
 - `medium`
 - `hard`
-- `unclassified` (fallback when classification is missing)
+- `unclassified`
 
 Phase is secondary and displayed when present.
 
 ## Scenario Metadata for Generated Datasets
-Generated scenarios now include:
+
+Generated scenarios may include:
+
 - `classification`
 - `score_gap`
 - `relative_gap`
@@ -29,30 +48,44 @@ Generated scenarios now include:
 These are written into `scenarios[]` entries in grouped datasets.
 
 ## Dashboard Outputs
-The analysis page computes and visualizes:
-- Exact optimal / near optimal / failure rates
-- Score ratio and regret metrics
-- Duration and modeled-time summaries
-- Confidence intervals (Wilson + bootstrap)
-- Cohort comparisons (two-proportion z-test + bootstrap median-diff CI)
-- QA issue table (missing scenario/optimal, unknown order IDs, cross-store bundles, missing classification)
 
-The page is optimized for quick admin review:
-- compact KPI and diagnostics cards at top
-- tabbed chart groups (`Overview Charts`, `Behavior Charts`) to reduce scrolling
-- collapsible detail tables for participant/cohort/QA sections
+The analysis page computes and visualizes:
+
+- exact optimal, near-optimal, and failure rates
+- score ratio and regret metrics
+- duration and modeled-time summaries
+- confidence intervals
+- cohort comparisons
+- QA issue tables for missing scenario data, unknown order IDs, cross-store bundles, and missing classification
 
 ## RL-Ready Export Contract
-`decision_fact.csv` and `decision_fact.json` use stable columns:
-- `dataset_root`, `participant_id`, `round_index`, `scenario_id`
-- `classification`, `phase`, `current_city`
-- `chosen_orders`, `best_bundle_ids`, `bundle_size`
-- `success`, `is_failure`, `duration`
-- `participant_earnings`, `participant_modeled_time`, `participant_score`, `best_score`
-- `score_ratio_to_best`, `percent_regret`
-- `is_exact_optimal`, `is_near_optimal`
+
+`decision_fact.csv` and `decision_fact.json` use stable columns including:
+
+- `dataset_root`
+- `participant_id`
+- `round_index`
+- `scenario_id`
+- `classification`
+- `phase`
+- `current_city`
+- `chosen_orders`
+- `best_bundle_ids`
+- `bundle_size`
+- `success`
+- `is_failure`
+- `duration`
+- `participant_earnings`
+- `participant_modeled_time`
+- `participant_score`
+- `best_score`
+- `score_ratio_to_best`
+- `percent_regret`
+- `is_exact_optimal`
+- `is_near_optimal`
 
 Additional dashboard exports:
+
 - `kpi_overall.csv`
 - `kpi_by_classification.csv`
 - `kpi_by_round.csv`
@@ -60,14 +93,12 @@ Additional dashboard exports:
 - `analysis_run_metadata.json`
 
 ## Offline Pipeline Alignment
-`data analysis/analytics_v1` mirrors the same classification-aware decision-fact logic and now emits:
-- `kpi_by_classification.csv`
 
-Use this for offline reproducible runs and cross-checks against dashboard metrics.
+`data analysis/analytics_v1` mirrors the same classification-aware decision-fact logic for offline reproducible runs.
 
 ## Troubleshooting Empty Charts
-If charts show no data:
+
 1. Verify participants have `round_summary` actions in `Users/{id}/Actions`.
-2. Confirm selected dataset matches the one used during data collection.
-3. Check QA issues for `missing_scenario_for_round` or `missing_optimal_for_scenario`.
-4. Use the dashboard reload/recompute controls; initial load auto-attempts dataset matching when no decisions are found.
+2. Confirm the selected dataset matches the one used during data collection.
+3. Check QA issues for missing scenario or optimal data.
+4. Confirm the relevant scenario orders and Cities data exist for modeled-time calculations.

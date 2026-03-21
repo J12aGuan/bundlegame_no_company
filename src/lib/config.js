@@ -71,3 +71,51 @@ export function getDistances(location) {
 
     return { destinations: [], distances: [] };
 }
+
+export function getCityTravelInfo(fromCity, toCity) {
+    const origin = String(fromCity ?? "").trim();
+    const destination = String(toCity ?? "").trim();
+
+    if (!origin || !destination) {
+        return {
+            fromCity: origin,
+            toCity: destination,
+            seconds: 0,
+            sameCity: false,
+            missingRoute: false
+        };
+    }
+
+    if (origin === destination) {
+        return {
+            fromCity: origin,
+            toCity: destination,
+            seconds: 0,
+            sameCity: true,
+            missingRoute: false
+        };
+    }
+
+    const distData = getDistances(origin);
+    const destinations = Array.isArray(distData?.destinations) ? distData.destinations : [];
+    const idx = destinations.indexOf(destination);
+    const rawSeconds = idx >= 0 ? Number(distData?.distances?.[idx]) : NaN;
+
+    if (!Number.isFinite(rawSeconds) || rawSeconds <= 0) {
+        return {
+            fromCity: origin,
+            toCity: destination,
+            seconds: 0,
+            sameCity: false,
+            missingRoute: true
+        };
+    }
+
+    return {
+        fromCity: origin,
+        toCity: destination,
+        seconds: rawSeconds,
+        sameCity: false,
+        missingRoute: false
+    };
+}

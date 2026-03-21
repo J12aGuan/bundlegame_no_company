@@ -1,175 +1,110 @@
 # Bundle Game
 
-> Order bundling behavioral experiment using SvelteKit, Firebase, and interactive maps.
+Order bundling behavioral experiment built with SvelteKit, Firebase, and map-based delivery flows.
 
-**Quick Links**: [Setup](#-quick-setup) • [Documentation](docs/README.md) • [Security](#-security-critical) • [Contributing](#-contributing)
+Quick links: [Quick Setup](#quick-setup) | [Docs Hub](docs/README.md) | [Current Architecture](docs/current/ARCHITECTURE.md) | [Config and Datasets](docs/current/CONFIG_AND_DATASETS.md) | [Security](SECURITY.md)
 
----
+## What This Project Does
 
-## 🎯 What Is This?
+- Runs the main bundling experiment and the tutorial flow.
+- Stores runtime configuration and datasets in Firestore `MasterData`.
+- Includes admin tooling for datasets, timing validation, city-travel configuration, analytics, and export.
 
-An interactive web experiment where participants make delivery order bundling decisions across 50 rounds:
-- **Phase A (Rounds 1-15)**: Baseline behavior
-- **Phase B (Rounds 16-35)**: With AI recommendations
-- **Phase C (Rounds 36-50)**: Post-recommendation behavior
-
-**Live Demo**: Deployed on Vercel
-**Tech Stack**: SvelteKit • Firebase • MapTiler • Tailwind CSS
-
----
-
-## 🚀 Quick Setup
+## Quick Setup
 
 ```bash
-# 1. Clone and install
 git clone https://github.com/nnicholas-c/bundlegame_no_company.git
 cd bundlegame_no_company
 npm install
-
-# 2. Configure environment
 cp .env.example .env
-# Fill in Firebase credentials (contact Nicholas)
-
-# 3. Run locally
 npm run dev
-# Visit http://localhost:5173
 ```
 
-**Need detailed setup?** See [docs/setup/QUICKSTART.md](docs/setup/QUICKSTART.md)
+Fill in Firebase, MapTiler, and downloader credentials in `.env` before running locally.
 
----
+Detailed setup: [docs/setup/QUICKSTART.md](docs/setup/QUICKSTART.md)
 
-## 🔐 SECURITY CRITICAL
+## Security
 
-⚠️ **Before collecting real data, deploy Firebase security rules!**
+Before collecting real participant data, publish the Firestore rules from [`firestore.rules`](firestore.rules).
 
-**Quick Fix (5 minutes)**:
-1. Go to: [Firebase Console → Firestore Rules](https://console.firebase.google.com/project/bundling-63c10/firestore/rules)
-2. Copy contents of [`firestore.rules`](firestore.rules)
-3. Paste and click **"Publish"**
+Full guidance: [SECURITY.md](SECURITY.md)
 
-**Full security guide**: [SECURITY.md](SECURITY.md)
+## Documentation
 
----
-
-## 📚 Documentation
-
-**New here?** Start with [docs/README.md](docs/README.md) - the documentation hub.
+Start with [docs/README.md](docs/README.md) for the documentation index.
 
 | Topic | Link |
-|-------|------|
-| **Getting Started** | [Setup Guide](docs/setup/QUICKSTART.md) |
-| **Code Structure** | [Current Architecture](docs/current/ARCHITECTURE.md) |
-| **Configuration** | [Current Config & Datasets](docs/current/CONFIG_AND_DATASETS.md) |
-| **Analysis & RL Exports** | [Analytics Guide](docs/current/ANALYTICS_AND_RL_EXPORTS.md) |
-| **Experiment Design** | [Experiment Guide](docs/experiment/EXPERIMENT_DESIGN.md) |
+| --- | --- |
+| Project overview and recent changes | [README.md](README.md) |
+| Local setup | [docs/setup/QUICKSTART.md](docs/setup/QUICKSTART.md) |
+| Runtime architecture | [docs/current/ARCHITECTURE.md](docs/current/ARCHITECTURE.md) |
+| Firestore config, datasets, and timing model | [docs/current/CONFIG_AND_DATASETS.md](docs/current/CONFIG_AND_DATASETS.md) |
+| Analytics and RL exports | [docs/current/ANALYTICS_AND_RL_EXPORTS.md](docs/current/ANALYTICS_AND_RL_EXPORTS.md) |
+| Experiment design | [docs/experiment/EXPERIMENT_DESIGN.md](docs/experiment/EXPERIMENT_DESIGN.md) |
+| Legacy material | [docs/archive/README.md](docs/archive/README.md) |
 
----
+## Current Runtime Notes
 
-## 🗂️ Repository Structure
+Runtime configuration and experiment data are loaded from Firestore, not local static JSON.
 
-```
-bundlegame_no_company/
-├── src/
-│   ├── lib/                    # Shared libraries (Firebase, game logic)
-│   │   ├── firebaseDB.js       # Database operations
-│   │   ├── bundle.js           # Main game runtime state
-│   │   └── tutorial.js         # Tutorial runtime state
-│   ├── routes/                 # SvelteKit pages
-│   │   ├── +page.svelte        # Login page
-│   │   ├── bundlegame.svelte   # Main game
-│   │   ├── admin/masterdata    # Config + dataset admin UI
-│   │   ├── admin/analysis      # Participant-vs-optimal analytics dashboard
-│   │   └── downloader/         # Data export (password-protected)
-│
-├── docs/current/               # ✅ Authoritative architecture/config docs
-├── docs/archive/               # Archived legacy docs
-├── data analysis/analytics_v1/ # Analytics pipeline (v1)
-├── firestore.rules             # 🔐 Database security rules
-└── package.json
-```
+Primary documents and grouped data:
 
-**Current architecture doc**: [docs/current/ARCHITECTURE.md](docs/current/ARCHITECTURE.md)
-
----
-
-## ⚙️ Configuration
-
-Runtime configuration is stored in Firestore MasterData (not local static JSON):
 - `MasterData/centralConfig`
 - `MasterData/tutorialConfig`
-- grouped scenario datasets in `MasterData/datasets`
+- `MasterData/cities`
+- `MasterData/datasets`
 
-**Config & dataset operations**: [docs/current/CONFIG_AND_DATASETS.md](docs/current/CONFIG_AND_DATASETS.md)
+Timing semantics:
 
-| Setting | Source |
-|---------|--------|
-| Round timer / penalties | `centralConfig.game` |
-| Active main scenario set | `centralConfig.scenario_set` |
-| Active tutorial scenario set | `tutorialConfig.scenario_set` |
-| Scenario rounds / orders / optimal bundles | grouped dataset entry (`scenarios`, `orders`, `optimal`) |
+- Modeled order time = `estimatedTime + cityTravelTime`
+- Runtime delivery leg = `localTravelTime + cityTravelTime`
+- Cross-city travel comes from `MasterData/cities.travelTimes`
+- Missing city routes are surfaced in the selection flow, delivery flow, and admin validation
 
----
+## Recent Feature History
 
-## 🚀 Deployment
+This rolling log tracks the 10 most recent meaningful feature changes. Keep it newest-first, keep each row to one line, and trim the oldest row when adding a new one.
 
-Auto-deploys to Vercel on push to `main`:
+| Commit(s) | Feature added |
+| --- | --- |
+| `7d315d2` | Updated data collection behavior and related gameplay logging. |
+| `a87eb98`, `d18f18e` | Brought in the refreshed delivery UI and supporting delivery-flow changes. |
+| `ab08d42` | Updated the city selection map UI. |
+| `f445a07` | Refreshed the main game UI styling and layout. |
+| `8297e5e`, `ecb931e` | Reworked the pick-item interface. |
+| `0c78b3f` | Applied requested gameplay and interface adjustments. |
+| `949edc9` | Moved item identification and order details into the same row. |
+| `8b8a684` | Added the tutorial round 2 guidance message. |
+| `6c297a1` | Removed the scenario difficulty restriction. |
+| `1decfb1` | Added the Qualtrics handoff message. |
 
-```bash
-git add .
-git commit -m "Your changes"
-git push origin main
-# Vercel auto-builds and deploys
-```
+## Contributing
 
-**Environment variables must be set in Vercel dashboard** (same as `.env`).
+Use a feature, fix, or docs branch instead of pushing ad hoc changes directly.
 
----
+Before opening a PR:
 
-## 🤝 Contributing
+- Run `npm run build`
+- Check that Firebase-backed pages still load
+- Update the relevant file in `docs/current/` when behavior changes
+- Add or refresh the README `Recent Feature History` row when a meaningful feature ships
 
-### Branch Naming
-```bash
-git checkout -b feature/your-feature-name   # new features
-git checkout -b fix/bug-description         # bug fixes
-git checkout -b docs/what-you-changed       # documentation
-```
+Commit prefixes used in this repo:
 
-### Commit Messages
-- `feat:` new feature
+- `feat:` new behavior or feature
 - `fix:` bug fix
-- `docs:` documentation
-- `refactor:` code refactoring
-- `chore:` maintenance
+- `docs:` documentation update
+- `refactor:` structural change without intended behavior change
+- `chore:` maintenance work
 
-### Before Submitting a PR
-- [ ] `npm run dev` runs without errors
-- [ ] `npm run build` succeeds
-- [ ] No new console errors or warnings
-- [ ] Firebase operations still work
+## Deployment and Export
 
-### Adding Environment Variables
-1. Add to `.env.example` with a comment
-2. Update [docs/setup/ENVIRONMENT.md](docs/setup/ENVIRONMENT.md)
-3. Note in PR that Vercel env vars need updating
+Pushes to `main` deploy through Vercel.
 
----
+For participant export:
 
-## 📊 Data Export
+- `/downloader` exports participant data
+- `/admin/analysis` provides live analytics and RL-ready exports
 
-1. Visit `/downloader` on deployed site
-2. Enter password (from `.env`)
-3. Download JSON with all participant data
-
-**Analysis**: notebooks and pipeline in [`data analysis/`](data%20analysis/)
-
-For live analysis in the app, use `/admin/analysis` (admin dashboard).  
-Exported analytics include RL-ready `decision_fact.csv/.json` plus grouped KPI CSVs.
-
----
-
-## 📞 Contacts
-
-- **Maintainer**: Nicholas Chen ([nchen06@berkeley.edu](mailto:nchen06@berkeley.edu))
-- **Firebase Project**: `bundling-63c10`
-- **GitHub**: [nnicholas-c/bundlegame_no_company](https://github.com/nnicholas-c/bundlegame_no_company)
+See [docs/current/ANALYTICS_AND_RL_EXPORTS.md](docs/current/ANALYTICS_AND_RL_EXPORTS.md) for export details.

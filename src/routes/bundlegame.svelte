@@ -1,8 +1,8 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarios, emojisMap, roundTimeLimit, gameMode, endGameSession, notifyTutorialRoundProgress, notifyMainGameComplete, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase } from "$lib/bundle.js"
-    import { storeConfig, getDistances } from "$lib/config.js"; // Import getDistances
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, endGameSession, notifyTutorialRoundProgress, notifyMainGameComplete, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase } from "$lib/bundle.js"
+    import { storeConfig, getCityTravelInfo } from "$lib/config.js";
     
     let config = {}; // Will be set properly in onMount()
     let GameState = 0; // 0:Start, 1:Picking, 2:Moving, 3:Success, 4:Error, 5:Delivery
@@ -30,6 +30,14 @@
     let deliveryCountdownInterval = null;
     let deliveringToCity = "";
     let currentDeliveryTotalTime = 0;
+    let currentDeliveryBreakdown = {
+        originCity: "",
+        destination: "",
+        localTravel: 0,
+        crossCity: 0,
+        total: 0,
+        missingRoute: false
+    };
     
     let totalEarnings;
     let curTip = 0;
@@ -86,6 +94,30 @@
         stopScenarioPhase(activeScenarioId, 'idleOrOtherTime');
     }
 
+    async function persistRoundSnapshot(overrides = {}) {
+        if ($gameMode === 'tutorial') return;
+
+        try {
+            const progressSnapshot = get(scenarioSetProgress);
+            await saveCurrentProgress({
+                totalRounds: overrides?.totalRounds ?? get(scenarios).length,
+                roundsCompleted: overrides?.roundsCompleted ?? get(uniqueSets),
+                optimalChoices: overrides?.optimalChoices ?? get(optimalChoices),
+                totalGameTime: overrides?.totalGameTime ?? get(elapsed),
+                completedGame: overrides?.completedGame ?? false,
+                earnings: overrides?.earnings ?? get(earned),
+                scenarioProgress: {
+                    ...progressSnapshot,
+                    currentRound: overrides?.currentRound ?? get(currentRound),
+                    currentLocation: String(overrides?.currentLocation ?? get(currLocation) ?? '').trim(),
+                    inProgressScenario: overrides?.inProgressScenario ?? progressSnapshot?.inProgressScenario ?? ''
+                }
+            });
+        } catch (error) {
+            console.error("Failed to persist scenario timing summary:", error);
+        }
+    }
+
     onMount(() => {
         setScenarioInProgress(activeScenarioId);
         const selOrders = get(orders)
@@ -100,7 +132,7 @@
         }
         
         curLocation = getEntrancePosition(config)
-        currentDeliveryCity = selOrders[0].city; // Start delivery from Store City
+        currentDeliveryCity = String(get(currLocation) ?? selOrders[0]?.city ?? "");
         
         if ($game.tip) intervalId = setInterval(updateTip, 1000);
     });
@@ -230,44 +262,48 @@
     
     function retry() { GameState = 1; }
 
-    function giveUp() {
+    async function giveUp() {
         if(confirm("Are you sure? Penalty will apply.")) {
             $game.penaltyTriggered = true;
             totalEarnings = 0;
+            stopStorePhases();
             logRoundCompletion(false);
+            await persistRoundSnapshot({
+                currentRound: get(currentRound),
+                currentLocation: String(get(currLocation) ?? '').trim()
+            });
             exit();
         }
     }
-
+    
     function getDeliveryTravelTime(orderLike) {
-        const destination = String(orderLike?.destination || orderLike?.city || "");
-        const localTravel = Number(orderLike?.localTravelTime) || 0;
-        if (!destination) return localTravel;
-
-        const distData = getDistances(currentDeliveryCity);
-        const destIndex = (distData?.destinations || []).indexOf(destination);
-        const crossCity = currentDeliveryCity !== destination && destIndex !== -1
-            ? (Number(distData?.distances?.[destIndex]) || 0)
-            : 0;
-
-        return Math.max(0, localTravel + crossCity);
+        return getDeliveryTimeBreakdown(orderLike).total;
     }
 
     function getDeliveryTimeBreakdown(orderLike) {
         const destination = String(orderLike?.destination || orderLike?.city || "");
         const localTravel = Math.max(0, Number(orderLike?.localTravelTime) || 0);
         if (!destination) {
-            return { localTravel, crossCity: 0, total: localTravel };
+            return {
+                originCity: String(currentDeliveryCity || ""),
+                destination,
+                localTravel,
+                crossCity: 0,
+                total: localTravel,
+                missingRoute: false
+            };
         }
-        const distData = getDistances(currentDeliveryCity);
-        const destIndex = (distData?.destinations || []).indexOf(destination);
-        const crossCity = currentDeliveryCity !== destination && destIndex !== -1
-            ? Math.max(0, Number(distData?.distances?.[destIndex]) || 0)
-            : 0;
+        // Runtime delivery time is local delivery plus cross-city travel from the player's actual city.
+        const originCity = String(currentDeliveryCity || get(currLocation) || "");
+        const routeInfo = getCityTravelInfo(originCity, destination);
+        const crossCity = routeInfo.seconds;
         return {
+            originCity,
+            destination,
             localTravel,
             crossCity,
-            total: Math.max(0, localTravel + crossCity)
+            total: Math.max(0, localTravel + crossCity),
+            missingRoute: routeInfo.missingRoute
         };
     }
 
@@ -284,6 +320,14 @@
         totalEarnings = 0;
         curTip = 0;
         deliveryLocations = [];
+        currentDeliveryBreakdown = {
+            originCity: "",
+            destination: "",
+            localTravel: 0,
+            crossCity: 0,
+            total: 0,
+            missingRoute: false
+        };
 
         // Keep `currLocation` as whatever you last delivered to;
         // Home uses `$currLocation` to decide which city's orders to show,
@@ -299,7 +343,7 @@
         console.log("After: $game.inSelect =", $game.inSelect, "$game.inStore =", $game.inStore);
     }
 
-    function checkoutOrders() {
+    async function checkoutOrders() {
         const selOrders = get(orders);
         const numOrders = selOrders.length;
         
@@ -353,6 +397,7 @@
             bags = [{}, {}, {}];
             // Prepare Delivery Data
             // Assuming 'city' is the destination
+            currentDeliveryCity = String(get(currLocation) ?? "");
             deliveryLocations = selOrders.map(o => ({
                 id: o.id,
                 destination: o.city, // Use city field as destination
@@ -360,12 +405,25 @@
                 delivered: false,
                 localTravelTime: Number(o?.localTravelTime) || 0
             }));
+            currentDeliveryBreakdown = {
+                originCity: "",
+                destination: "",
+                localTravel: 0,
+                crossCity: 0,
+                total: 0,
+                missingRoute: false
+            };
             
             // Start Delivery Phase
             GameState = 5;
         } else {
+            stopStorePhases();
             logRoundCompletion(false);
             GameState = 4;
+            await persistRoundSnapshot({
+                currentRound: get(currentRound),
+                currentLocation: String(get(currLocation) ?? '').trim()
+            });
         }
     }
 
@@ -384,6 +442,10 @@
         }
 
         const breakdown = getDeliveryTimeBreakdown(targetLoc);
+        if (breakdown.missingRoute) {
+            alert(`Missing city travel route from ${breakdown.originCity} to ${breakdown.destination}. Update Admin > Cities before delivering this order.`);
+            return;
+        }
         const travelTime = breakdown.total;
         addScenarioTime(activeScenarioId, 'cityTravelTime', breakdown.crossCity);
         addScenarioTime(activeScenarioId, 'localDeliveryTime', breakdown.localTravel);
@@ -393,6 +455,7 @@
         deliveringToCity = targetLoc.destination;
         deliveryCountdown = travelTime;
         currentDeliveryTotalTime = travelTime;
+        currentDeliveryBreakdown = breakdown;
         
         if (deliveryCountdownInterval) clearInterval(deliveryCountdownInterval);
         if (travelTime <= 0) {
@@ -417,6 +480,14 @@
         deliveryInProgress = false;
         deliveringToCity = "";
         currentDeliveryTotalTime = 0;
+        currentDeliveryBreakdown = {
+            originCity: "",
+            destination: "",
+            localTravel: 0,
+            crossCity: 0,
+            total: 0,
+            missingRoute: false
+        };
         
         // Force array update to trigger reactivity
         deliveryLocations = [...deliveryLocations];
@@ -474,12 +545,14 @@
         if (completedGame) {
             console.log("Final round complete - ending session");
             if ($gameMode !== 'tutorial') {
-                await saveCurrentProgress({
+                await persistRoundSnapshot({
                     totalRounds,
                     roundsCompleted: completedRounds,
                     totalGameTime: get(elapsed),
                     earnings: get(earned),
-                    completedGame: true
+                    completedGame: true,
+                    currentRound: get(currentRound),
+                    currentLocation: String(get(currLocation) ?? '').trim()
                 });
             }
             if ($gameMode !== 'tutorial') {
@@ -489,6 +562,15 @@
             return;
         }
 
+        await persistRoundSnapshot({
+            totalRounds,
+            roundsCompleted: completedRounds,
+            totalGameTime: get(elapsed),
+            earnings: get(earned),
+            completedGame: false,
+            currentRound: get(currentRound),
+            currentLocation: String(get(currLocation) ?? '').trim()
+        });
         console.log("Round complete - immediately advancing to next round");
         exit();
     }
@@ -593,6 +675,9 @@
                                 <div class="min-w-0">
                                     <h3 class="font-bold text-slate-800 text-sm">Order {idx+1}: {order.id || `#${idx + 1}`}</h3>
                                     <p class="text-[10px] text-slate-500 truncate">📍 Deliver to: {order.city}</p>
+                                    <p class="text-[10px] text-slate-400 truncate">
+                                        modeled base {Math.round(Number(order.estimatedTime) || 0)}s · local delivery {Math.round(Number(order.localTravelTime) || 0)}s
+                                    </p>
                                 </div>
                                 <div class="flex flex-col items-end">
                                     <label class="text-[10px] font-bold text-slate-500 uppercase">Qty</label>
@@ -680,6 +765,12 @@
                     <div class="text-4xl font-mono font-bold text-blue-600 tabular-nums mt-2">
                         {deliveryCountdown.toFixed(1)}s
                     </div>
+                    <p class="mt-2 text-xs text-slate-600">
+                        local {Math.round(currentDeliveryBreakdown.localTravel)}s
+                        {#if currentDeliveryBreakdown.crossCity > 0}
+                            {" "}+ city {Math.round(currentDeliveryBreakdown.crossCity)}s from {currentDeliveryBreakdown.originCity}
+                        {/if}
+                    </p>
                     <div class="w-48 h-2 bg-slate-200 rounded-full mt-3 mx-auto overflow-hidden">
                         <div class="h-full bg-blue-500 transition-all duration-100 rounded-full"
                              style="width: {(deliveryCountdown / Math.max(currentDeliveryTotalTime, 0.1)) * 100}%"></div>
@@ -691,7 +782,8 @@
                     <p class="text-xs font-semibold text-slate-600 mb-2">Deliveries Remaining:</p>
                     <div class="grid gap-2">
                         {#each deliveryLocations as loc, idx}
-                            {@const travelTime = getDeliveryTravelTime(loc)}
+                            {@const breakdown = getDeliveryTimeBreakdown(loc)}
+                            {@const travelTime = breakdown.total}
                             <div class="flex items-center justify-between bg-white p-2 rounded-lg border text-sm
                                 {loc.delivered ? 'opacity-50' : ''}">
                                 <div class="flex items-center gap-2">
@@ -699,12 +791,21 @@
                                     <div>
                                         <p class="font-medium text-slate-800">{loc.name}</p>
                                         <p class="text-xs text-slate-500">📍 {loc.destination}</p>
+                                        <p class="text-[11px] text-slate-400">
+                                            local {Math.round(breakdown.localTravel)}s{breakdown.crossCity > 0 ? ` + city ${Math.round(breakdown.crossCity)}s` : ''}
+                                        </p>
+                                        {#if breakdown.missingRoute}
+                                            <p class="text-[11px] text-amber-700">
+                                                Missing route: {breakdown.originCity} to {breakdown.destination}
+                                            </p>
+                                        {/if}
                                     </div>
                                 </div>
                                 <div class="text-right">
                                     {#if !loc.delivered}
-                                        <p class="text-xs text-slate-600">🚗 {travelTime}s away</p>
-                                        <button class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 mt-1"
+                                        <p class="text-xs text-slate-600">🚗 {travelTime}s delivery time</p>
+                                        <button class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={breakdown.missingRoute}
                                             on:click={() => deliverTo(idx)}>
                                             Deliver
                                         </button>
@@ -719,7 +820,7 @@
             {/if}
             <div class="p-3">
                 <div class="text-center text-xs text-slate-500">
-                    Deliveries are handled from the list above. Your location updates after each delivery.
+                    Delivery time uses local delivery time plus city travel from your current city. Your location updates after each delivery.
                 </div>
             </div>
         </div>

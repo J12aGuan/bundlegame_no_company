@@ -1,7 +1,7 @@
 <script>
     import { orders, currLocation, gameText, orderList, game, currentRound, getCurrentScenario, gameMode } from "$lib/bundle.js"
     import { onMount, onDestroy } from 'svelte';
-    import { queueNFixedOrders, storeConfig, getDistances } from "$lib/config.js";
+    import { queueNFixedOrders, storeConfig, getCityTravelInfo } from "$lib/config.js";
     import { applySharedItemBundleSavings } from "$lib/bundleTime.js";
    
     export let orderData;
@@ -17,16 +17,57 @@
     $: scenario = getCurrentScenario($currentRound);
     $: maxBundle = scenario.max_bundle ?? 3;
     $: isTutorialRoundOne = $gameMode === 'tutorial' && $currentRound === 1;
-    $: baseEstimateSeconds = Number(orderData?.estimatedTime) || 0;
-    $: extraCrossCitySeconds = (() => {
-        const destinationCity = String(orderData?.city || "");
-        const fromCity = String($currLocation || "");
-        if (!destinationCity || !fromCity || destinationCity === fromCity) return 0;
-        const distData = getDistances(fromCity);
-        const idx = (distData?.destinations || []).indexOf(destinationCity);
-        return idx >= 0 ? (Number(distData?.distances?.[idx]) || 0) : 0;
-    })();
-    $: displayEstimateSeconds = Math.max(0, Math.round(baseEstimateSeconds + extraCrossCitySeconds));
+    function getModeledOrderTimeBreakdown(orderLike, originCity = "") {
+        const baseEstimate = Math.max(0, Number(orderLike?.estimatedTime) || 0);
+        const destinationCity = String(orderLike?.city || "");
+        const routeInfo = getCityTravelInfo(originCity, destinationCity);
+        return {
+            originCity: routeInfo.fromCity,
+            destinationCity,
+            baseEstimate,
+            cityTravel: routeInfo.seconds,
+            total: Math.max(0, baseEstimate + routeInfo.seconds),
+            missingRoute: routeInfo.missingRoute
+        };
+    }
+
+    function getModeledBundleSummary(selectedOrders = [], startCity = "") {
+        let simulatedCity = String(startCity || "");
+        let missingRoute = null;
+        let totalCityTravel = 0;
+
+        const orderTimes = (selectedOrders || []).map((order) => {
+            const breakdown = getModeledOrderTimeBreakdown(order, simulatedCity);
+            if (!missingRoute && breakdown.missingRoute) {
+                missingRoute = breakdown;
+            }
+            totalCityTravel += breakdown.cityTravel;
+            if (order?.city) {
+                simulatedCity = String(order.city);
+            }
+            return breakdown.total;
+        });
+
+        const discounted = applySharedItemBundleSavings(
+            selectedOrders,
+            orderTimes,
+            { getStoreConfig: (name) => storeConfig(name) }
+        );
+
+        return {
+            discountedTotalTime: discounted.discountedTotalTime,
+            savingsSeconds: discounted.savingsSeconds,
+            totalCityTravel,
+            missingRoute
+        };
+    }
+
+    // `estimatedTime` is modeled base time. Cross-city travel is layered on top from the Cities matrix.
+    $: modeledBreakdown = getModeledOrderTimeBreakdown(orderData, $currLocation);
+    $: baseEstimateSeconds = modeledBreakdown.baseEstimate;
+    $: extraCrossCitySeconds = modeledBreakdown.cityTravel;
+    $: displayEstimateSeconds = Math.max(0, Math.round(modeledBreakdown.total));
+    $: hasMissingCityRoute = modeledBreakdown.missingRoute;
 
     function updateTimer() {
         timer += 1;
@@ -95,31 +136,20 @@
         $orders = $orders; 
 
         if ($orders.length > 0) {
-            const orderTimes = $orders.map((order) => {
-                const base = Number(order?.estimatedTime) || 0;
-                const destinationCity = String(order?.city || "");
-                const fromCity = String($currLocation || "");
-                let extra = 0;
-                if (destinationCity && fromCity && destinationCity !== fromCity) {
-                    const distData = getDistances(fromCity);
-                    const idx = (distData?.destinations || []).indexOf(destinationCity);
-                    extra = idx >= 0 ? (Number(distData?.distances?.[idx]) || 0) : 0;
-                }
-                return base + extra;
-            });
+            const bundleSummary = getModeledBundleSummary($orders, $currLocation);
+            if (bundleSummary.missingRoute) {
+                const missing = bundleSummary.missingRoute;
+                $gameText.selector = `Missing city route (${missing.originCity} to ${missing.destinationCity})`;
+                return;
+            }
 
-            const { discountedTotalTime, savingsSeconds } = applySharedItemBundleSavings(
-                $orders,
-                orderTimes,
-                { getStoreConfig: (name) => storeConfig(name) }
-            );
-            const roundedTime = Math.max(0, Math.round(discountedTotalTime));
-            const roundedSave = Math.max(0, Math.round(savingsSeconds));
-            const destination = String($orders[0]?.city || "");
-            const action = destination === String($currLocation || "") ? "Go to store" : `Travel to ${destination}`;
+            const roundedTime = Math.max(0, Math.round(bundleSummary.discountedTotalTime));
+            const roundedSave = Math.max(0, Math.round(bundleSummary.savingsSeconds));
+            const roundedCityTravel = Math.max(0, Math.round(bundleSummary.totalCityTravel));
             const orderLabel = `${$orders.length} ${$orders.length === 1 ? "order" : "orders"}`;
             const savingsLabel = roundedSave > 0 ? `, save ${roundedSave}s` : "";
-            $gameText.selector = `${action} (${orderLabel}, est ${roundedTime}s${savingsLabel})`;
+            const cityTravelLabel = roundedCityTravel > 0 ? `, city ${roundedCityTravel}s` : "";
+            $gameText.selector = `Start Picking (${orderLabel}, modeled ${roundedTime}s${cityTravelLabel}${savingsLabel})`;
         } else {
             $gameText.selector = "None selected";
         }
@@ -141,7 +171,14 @@
                 </div>
                 <div class="text-right ml-2">
                     <span class="block font-bold text-green-600 text-base">${orderData.earnings}</span>
-                    <span class="block text-xs text-slate-500">⏱ {displayEstimateSeconds}s</span>
+                    <span class="block text-xs text-slate-500">⏱ modeled {displayEstimateSeconds}s</span>
+                    {#if hasMissingCityRoute}
+                        <span class="block text-[10px] text-amber-700">missing city route</span>
+                    {:else}
+                        <span class="block text-[10px] text-slate-400">
+                            base {Math.round(baseEstimateSeconds)}s{extraCrossCitySeconds > 0 ? ` + city ${Math.round(extraCrossCitySeconds)}s` : ''}
+                        </span>
+                    {/if}
                 </div>
             </div>
 
