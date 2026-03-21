@@ -10,6 +10,7 @@
     $: inSelect = $game.inSelect;
 	$: inStore = $game.inStore;
     $: bundled = $game.bundled;
+    $: canSaveProgress = started && inSelect && !$GameOver && !savingProgress;
     let userInput = '';
     let userPass = '';
 
@@ -34,6 +35,10 @@
     }
 
     async function saveAndExit() {
+        if (!inSelect) {
+            alert("Progress can only be saved from the order selection screen.");
+            return;
+        }
         try {
             savingProgress = true;
             await saveProgressAndEndSession();
@@ -49,9 +54,10 @@
 
     function formatTime(seconds) {
         const numeric = Number(seconds);
-        const s = Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
-        const mins = Math.floor(s / 60);
-        const secs = s % 60;
+        const safe = Number.isFinite(numeric) ? Math.max(0, numeric) : 0;
+        const wholeSeconds = Math.floor(safe);
+        const mins = Math.floor(wholeSeconds / 60);
+        const secs = wholeSeconds % 60;
         return `${mins}:${secs.toString().padStart(2, "0")}`;
     }
     
@@ -207,10 +213,12 @@
                         <span><span class="font-semibold text-slate-900">Earned:</span> ${$earned}</span>
                         <span><span class="font-semibold text-slate-900">Location:</span> {$currLocation}</span>
                         <button
+                            id="saveprogress"
                             type="button"
                             class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition disabled:opacity-50"
                             on:click={saveAndExit}
-                            disabled={savingProgress}
+                            disabled={!canSaveProgress}
+                            title={!inSelect ? 'Return to the order selection screen to save progress' : ''}
                         >
                             {savingProgress ? 'Saving...' : 'Save Progress'}
                         </button>

@@ -16,10 +16,16 @@ console.error = function (...args) {
     errorMsg.includes('Fetch is aborted') ||
     errorMsg.includes('permission-denied') ||
     errorMsg.includes('Missing or insufficient permissions') ||
-    lowered.includes('style is not done loading')
+    lowered.includes('style is not done loading') ||
+    lowered.includes('code=unavailable') ||
+    lowered.includes('client is offline')
   ) {
-    // Ensure transient map-style issues do not leave the UI stuck in global error state.
-    if (lowered.includes('style is not done loading')) {
+    // Ensure transient map/network issues do not leave the UI stuck in global error state.
+    if (
+      lowered.includes('style is not done loading') ||
+      lowered.includes('code=unavailable') ||
+      lowered.includes('client is offline')
+    ) {
       globalError.set(null);
     }
     originalConsoleError.apply(console, args);

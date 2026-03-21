@@ -49,11 +49,19 @@ function getSummaryRef(id) {
 }
 
 function getScenarioSetProgressRef(id) {
+    return doc(collection(firestore, 'Users/' + id + '/Progress'), 'progress');
+}
+
+function getLegacyScenarioSetProgressRef(id) {
     return doc(collection(firestore, 'Users/' + id + '/ScenarioSet'), 'progress');
 }
 
 function getActionSummaryRef(id) {
     return doc(collection(firestore, 'Users/' + id + '/Action'), 'actions');
+}
+
+function getDetailedActionSummaryRef(id) {
+    return doc(collection(firestore, 'Users/' + id + '/DetailedAction'), 'actions');
 }
 
 function normalizeScenarioIdList(value) {
@@ -86,6 +94,15 @@ function normalizeTimeSummary(summary = {}) {
     return base;
 }
 
+function normalizeOrderSummary(orderSummary = []) {
+    if (!Array.isArray(orderSummary)) return [];
+    return [...new Set(
+        orderSummary
+            .map((entry) => String(entry ?? '').trim())
+            .filter(Boolean)
+    )];
+}
+
 function sumTimeSummary(summary = {}) {
     return Object.values(normalizeTimeSummary(summary)).reduce((sum, value) => sum + value, 0);
 }
@@ -104,7 +121,10 @@ function mergeActionEntry(existingEntry = {}, nextEntry = {}) {
             Number(nextEntry?.totalTimeSeconds) || 0,
             sumTimeSummary(mergedSummary)
         ),
-        timeSummary: mergedSummary
+        timeSummary: mergedSummary,
+        orderSummary: normalizeOrderSummary(
+            nextEntry?.orderSummary?.length ? nextEntry.orderSummary : existingEntry?.orderSummary
+        )
     };
 }
 
@@ -115,6 +135,40 @@ function normalizeActionsByScenarioId(actionsByScenarioId = {}) {
         const normalizedScenarioId = String(scenarioId ?? '').trim();
         if (!normalizedScenarioId) continue;
         out[normalizedScenarioId] = mergeActionEntry({}, entry || {});
+    }
+    return out;
+}
+
+function normalizeDetailedTimelineEvent(event = {}) {
+    const metadata = event?.metadata && typeof event.metadata === 'object'
+        ? removeUndefinedDeep(event.metadata)
+        : undefined;
+    return removeUndefinedDeep({
+        actionType: String(event?.actionType ?? '').trim(),
+        targetType: String(event?.targetType ?? '').trim(),
+        targetId: String(event?.targetId ?? '').trim(),
+        startTime: String(event?.startTime ?? '').trim(),
+        endTime: String(event?.endTime ?? '').trim(),
+        metadata
+    });
+}
+
+function normalizeDetailedScenarioEntry(entry = {}) {
+    const timeline = Array.isArray(entry?.timeline)
+        ? entry.timeline
+            .map((event) => normalizeDetailedTimelineEvent(event))
+            .filter((event) => event.actionType && event.targetType && event.targetId && event.startTime && event.endTime)
+        : [];
+    return { timeline };
+}
+
+function normalizeDetailedActionsByScenarioId(actionsByScenarioId = {}) {
+    if (!actionsByScenarioId || typeof actionsByScenarioId !== 'object') return {};
+    const out = {};
+    for (const [scenarioId, entry] of Object.entries(actionsByScenarioId)) {
+        const normalizedScenarioId = String(scenarioId ?? '').trim();
+        if (!normalizedScenarioId) continue;
+        out[normalizedScenarioId] = normalizeDetailedScenarioEntry(entry);
     }
     return out;
 }
@@ -267,8 +321,13 @@ export const getScenarioSetProgress = async (id) => {
     if (!id) return null;
     try {
         const snap = await getDoc(getScenarioSetProgressRef(id));
-        if (!snap.exists()) return null;
-        return { id: snap.id, ...snap.data() };
+        if (snap.exists()) {
+            return { id: snap.id, ...snap.data() };
+        }
+
+        const legacySnap = await getDoc(getLegacyScenarioSetProgressRef(id));
+        if (!legacySnap.exists()) return null;
+        return { id: legacySnap.id, ...legacySnap.data() };
     } catch (error) {
         console.error("Error fetching scenario set progress: ", error);
         return null;
@@ -328,6 +387,18 @@ export const getActionSummaries = async (id) => {
     }
 };
 
+export const getDetailedActionSummaries = async (id) => {
+    if (!id) return null;
+    try {
+        const snap = await getDoc(getDetailedActionSummaryRef(id));
+        if (!snap.exists()) return null;
+        return { id: snap.id, ...snap.data() };
+    } catch (error) {
+        console.error("Error fetching detailed action summaries: ", error);
+        return null;
+    }
+};
+
 export const saveActionSummaries = async (id, payload = {}) => {
     if (!id) return null;
     const scenarioSetVersionId = String(payload?.scenarioSetVersionId ?? '').trim();
@@ -364,6 +435,45 @@ export const saveActionSummaries = async (id, payload = {}) => {
         };
     } catch (error) {
         console.error("Error saving action summaries: ", error);
+        return null;
+    }
+};
+
+export const saveDetailedActionSummaries = async (id, payload = {}) => {
+    if (!id) return null;
+    const scenarioSetVersionId = String(payload?.scenarioSetVersionId ?? '').trim();
+    if (!scenarioSetVersionId) return null;
+
+    try {
+        const actionsRef = getDetailedActionSummaryRef(id);
+        const snap = await getDoc(actionsRef);
+        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const existingMap = existing?.detailedActionsByScenarioSetVersionId && typeof existing.detailedActionsByScenarioSetVersionId === 'object'
+            ? existing.detailedActionsByScenarioSetVersionId
+            : {};
+        const existingEntry = existingMap[scenarioSetVersionId] && typeof existingMap[scenarioSetVersionId] === 'object'
+            ? existingMap[scenarioSetVersionId]
+            : {};
+        const existingActions = normalizeDetailedActionsByScenarioId(existingEntry?.actionsByScenarioId);
+        const incomingActions = normalizeDetailedActionsByScenarioId(payload?.actionsByScenarioId);
+        const mergedActions = {
+            ...existingActions,
+            ...incomingActions
+        };
+
+        await setDoc(actionsRef, {
+            detailedActionsByScenarioSetVersionId: {
+                ...existingMap,
+                [scenarioSetVersionId]: {
+                    actionsByScenarioId: mergedActions
+                }
+            }
+        });
+        return {
+            actionsByScenarioId: mergedActions
+        };
+    } catch (error) {
+        console.error("Error saving detailed action summaries: ", error);
         return null;
     }
 };
@@ -499,11 +609,16 @@ export const retrieveData = async () => {
             const orders = await getSubcollections(docId, '/Orders');
             const actions = await getSubcollections(docId, '/Actions');
             const summaryDocs = await getSubcollections(docId, '/Summary');
-            const scenarioSetDocs = await getSubcollections(docId, '/ScenarioSet');
+            const progressDocs = await getSubcollections(docId, '/Progress');
+            const legacyScenarioSetDocs = await getSubcollections(docId, '/ScenarioSet');
             const actionSummaryDocs = await getSubcollections(docId, '/Action');
+            const detailedActionSummaryDocs = await getSubcollections(docId, '/DetailedAction');
             const summaryDoc = summaryDocs.find((entry) => entry.id === 'summary') || null;
-            const scenarioSetProgressDoc = scenarioSetDocs.find((entry) => entry.id === 'progress') || null;
+            const scenarioSetProgressDoc = progressDocs.find((entry) => entry.id === 'progress')
+                || legacyScenarioSetDocs.find((entry) => entry.id === 'progress')
+                || null;
             const scenarioActionsDoc = actionSummaryDocs.find((entry) => entry.id === 'actions') || null;
+            const scenarioDetailedActionsDoc = detailedActionSummaryDocs.find((entry) => entry.id === 'actions') || null;
             
             
             data.push({
@@ -514,7 +629,8 @@ export const retrieveData = async () => {
             progressSummary: summaryDoc,
             summaryDoc,
             scenarioSetProgressDoc,
-            scenarioActionsDoc
+            scenarioActionsDoc,
+            scenarioDetailedActionsDoc
             });
         } else {
             console.log("not adding to data")

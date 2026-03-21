@@ -1,6 +1,6 @@
 <script>
     import { get } from 'svelte/store';
-    import { game, orders, gameText, currLocation, orderList, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed, gameMode, scenarios, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase } from "$lib/bundle.js";
+    import { game, orders, gameText, currLocation, orderList, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed, gameMode, scenarios, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction, beginOrderSelectionThinking, stopOrderSelectionThinking, recordOrderSelectionAction } from "$lib/bundle.js";
     import { getDistances, getCityTravelInfo, storeConfig, PENALTY_TIMEOUT } from "$lib/config.js";
     import Order from "./order.svelte";
     import { onMount, onDestroy } from "svelte";
@@ -169,6 +169,9 @@
         }
 
         clearTimers();
+        recordOrderSelectionAction(activeScenarioId, 'confirm_order', 'button', 'confirmorder', {
+            resumeThinking: false
+        });
         $game.inStore = true;
         $game.inSelect = false;
     }
@@ -185,6 +188,7 @@
             duration = Number(distances["distances"][index]) || 0;
         }
         
+        stopOrderSelectionThinking(activeScenarioId);
         clearTimers();
         waiting = true;
         travelingTo = city;
@@ -215,6 +219,7 @@
 
     function startThinkingTimer() {
         clearTimers();
+        beginOrderSelectionThinking(activeScenarioId);
         thinkRemaining = Number($thinkTime) || 0;
         if (thinkRemaining <= 0) {
             thinking = false;
@@ -244,14 +249,25 @@
     function startPenalty() {
         isPenalty = true;
         penaltyRemaining = PENALTY_TIMEOUT;
+        stopOrderSelectionThinking(activeScenarioId);
         clearTimers();
         penaltyInterval = setInterval(() => {
             penaltyRemaining -= 1;
             if (penaltyRemaining <= 0) {
+                stopScenarioPhase(activeScenarioId, 'penaltyTime');
+                recordDetailedAction(activeScenarioId, 'give_up', 'button', 'giveup', {
+                    metadata: {
+                        penaltyDuration: PENALTY_TIMEOUT
+                    }
+                });
                 isPenalty = false;
                 clearInterval(penaltyInterval);
                 penaltyInterval = null;
-                $game.penaltyTriggered = false; 
+                game.update((current) => ({
+                    ...current,
+                    penaltyTriggered: false
+                }));
+                startThinkingTimer();
             }
         }, 1000);
     }
@@ -357,10 +373,20 @@
     // --- LIFECYCLE ---
     onMount(() => {
         setScenarioInProgress(activeScenarioId);
+        roundStartTime.set($elapsed);
+
         if ($game.penaltyTriggered) startPenalty();
         else startThinkingTimer();
-        
-        roundStartTime.set($elapsed);
+
+        // Start selection timing immediately on the first mount so round 1
+        // does not depend on a later reactive pass to begin tracking.
+        if ($gameMode !== 'tutorial' && $game.inSelect && activeScenarioId) {
+            if ($game.penaltyTriggered) {
+                startScenarioPhase(activeScenarioId, 'penaltyTime');
+            } else {
+                startScenarioPhase(activeScenarioId, 'thinkingTime');
+            }
+        }
 
         setTimeout(initMap, 200);
     });
@@ -374,11 +400,14 @@
         if (isPenalty) {
             startScenarioPhase(activeScenarioId, 'penaltyTime');
         } else if (!waiting) {
+            beginOrderSelectionThinking(activeScenarioId);
             startScenarioPhase(activeScenarioId, 'thinkingTime');
         } else {
+            stopOrderSelectionThinking(activeScenarioId);
             stopSelectionPhases();
         }
     } else {
+        stopOrderSelectionThinking(activeScenarioId);
         stopSelectionPhases();
     }
 
@@ -435,7 +464,7 @@
                 </div>
 
                 <div class="bg-slate-50 p-3 rounded-xl border flex flex-col items-center gap-2 sticky bottom-2">
-                    <button id="startorder"
+                    <button id="confirmorder"
                         class="w-full bg-green-600 text-white font-bold py-2.5 rounded-xl shadow-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
                         on:click={start}
                         disabled={$orders.length === 0 || thinking}
