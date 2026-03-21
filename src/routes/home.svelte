@@ -381,7 +381,7 @@
         // Start selection timing immediately on the first mount so round 1
         // does not depend on a later reactive pass to begin tracking.
         if ($gameMode !== 'tutorial' && $game.inSelect && activeScenarioId) {
-            if ($game.penaltyTriggered) {
+            if ($game.penaltyTriggered || isPenalty) {
                 startScenarioPhase(activeScenarioId, 'penaltyTime');
             } else {
                 startScenarioPhase(activeScenarioId, 'thinkingTime');
@@ -392,12 +392,13 @@
     });
 
     // Re-render map when state changes to selection mode
-    $: if (!waiting && !isPenalty && $game.inSelect) {
+    $: if (!waiting && !isPenalty && !$game.penaltyTriggered && $game.inSelect) {
         setTimeout(initMap, 200);
     }
 
     $: if ($gameMode !== 'tutorial' && $game.inSelect && activeScenarioId) {
-        if (isPenalty) {
+        if ($game.penaltyTriggered || isPenalty) {
+            stopOrderSelectionThinking(activeScenarioId);
             startScenarioPhase(activeScenarioId, 'penaltyTime');
         } else if (!waiting) {
             beginOrderSelectionThinking(activeScenarioId);
