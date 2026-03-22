@@ -10,7 +10,7 @@
     $: inSelect = $game.inSelect;
 	$: inStore = $game.inStore;
     $: bundled = $game.bundled;
-    $: canSaveProgress = started && inSelect && !$GameOver && !savingProgress;
+    $: canSaveProgress = started && inSelect && !$game.penaltyTriggered && !$GameOver && !savingProgress;
     let userInput = '';
     let userPass = '';
 
@@ -35,8 +35,8 @@
     }
 
     async function saveAndExit() {
-        if (!inSelect) {
-            alert("Progress can only be saved from the order selection screen.");
+        if (!inSelect || $game.penaltyTriggered) {
+            alert("Progress can only be saved from the main order selection screen when no penalty is active.");
             return;
         }
         try {
@@ -218,7 +218,7 @@
                             class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition disabled:opacity-50"
                             on:click={saveAndExit}
                             disabled={!canSaveProgress}
-                            title={!inSelect ? 'Return to the order selection screen to save progress' : ''}
+                            title={!inSelect || $game.penaltyTriggered ? 'Return to the main order selection screen after penalty to save progress' : ''}
                         >
                             {savingProgress ? 'Saving...' : 'Save Progress'}
                         </button>
