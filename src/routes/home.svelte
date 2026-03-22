@@ -165,6 +165,15 @@
             return;
         }
 
+        const firstCity = selOrders[0].city;
+        if (!selOrders.every(o => o.city === firstCity)) {
+            recordOrderSelectionAction(activeScenarioId, 'city_mismatch_failed', 'button', 'confirmorder', {
+                resumeThinking: true
+            });
+            alert("All bundled orders must be from the same city!");
+            return;
+        }
+
         const missingRoute = findMissingSelectionRoute(selOrders, String($currLocation || ""));
         if (missingRoute) {
             alert(`Missing city travel route from ${missingRoute.fromCity} to ${missingRoute.toCity}. Update Admin > Cities before starting this order.`);
