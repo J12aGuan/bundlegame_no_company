@@ -224,6 +224,11 @@
         let action = { buttonID: "addtobag", itemInput: wordInput, bags: bags.map(b => ({...b})) };
         
         if (wordInput.toLowerCase() != item) {
+            recordDetailedAction(activeScenarioId, 'item_entry_failed', 'item', item, {
+                metadata: {
+                    enteredValue: String(wordInput || '').trim().toLowerCase()
+                }
+            });
             alert("Incorrect! You must type the name of the item: " + item)
             action.mistake = "itemtypo"
             wordInput = ""; bagInputs = ["", "", ""];
