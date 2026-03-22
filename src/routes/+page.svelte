@@ -1,7 +1,7 @@
 <script>
     import { globalError } from "$lib/globalError.js"
     import Bundlegame from "./bundlegame.svelte";
-    import { game, elapsed, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, finishedOrders, createNewUser, needsAuth, loadGame, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveProgressAndEndSession, resumeElapsedSeconds } from "$lib/bundle.js";
+    import { game, elapsed, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, completedOrdersCount, createNewUser, needsAuth, loadGame, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveProgressAndEndSession, resumeElapsedSeconds } from "$lib/bundle.js";
 	import Home from "./home.svelte";
 	import { onMount } from "svelte";
     import { queueNFixedOrders } from "$lib/config.js";
@@ -180,7 +180,7 @@
                     <h4 class="text-xl font-semibold text-gray-800">Your Stats:</h4>
                     <ul class="list-disc list-inside text-left text-gray-700 mt-2 space-y-1">
                     <li><span class="font-medium">Earnings:</span> ${$earned}</li>
-                    <li><span class="font-medium">Finished Orders:</span> {$finishedOrders.length}</li>
+                    <li><span class="font-medium">Finished Orders:</span> {$completedOrdersCount}</li>
                     </ul>
                 </div>
                 {#if $participantResultUrl}

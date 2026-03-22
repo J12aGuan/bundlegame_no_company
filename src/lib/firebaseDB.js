@@ -108,20 +108,14 @@ function sumTimeSummary(summary = {}) {
 }
 
 function mergeActionEntry(existingEntry = {}, nextEntry = {}) {
-    const existingSummary = normalizeTimeSummary(existingEntry?.timeSummary);
     const nextSummary = normalizeTimeSummary(nextEntry?.timeSummary);
-    const mergedSummary = createEmptyTimeSummary();
-    for (const key of Object.keys(mergedSummary)) {
-        mergedSummary[key] = Math.max(existingSummary[key], nextSummary[key]);
-    }
-
     return {
         totalTimeSeconds: Math.max(
-            Number(existingEntry?.totalTimeSeconds) || 0,
+            0,
             Number(nextEntry?.totalTimeSeconds) || 0,
-            sumTimeSummary(mergedSummary)
+            sumTimeSummary(nextSummary)
         ),
-        timeSummary: mergedSummary,
+        timeSummary: nextSummary,
         orderSummary: normalizeOrderSummary(
             nextEntry?.orderSummary?.length ? nextEntry.orderSummary : existingEntry?.orderSummary
         )
