@@ -158,6 +158,9 @@
         // Validate bundling (must be same store)
         const firstStore = selOrders[0].store;
         if (!selOrders.every(o => o.store === firstStore)) {
+            recordOrderSelectionAction(activeScenarioId, 'store_mismatch_failed', 'button', 'confirmorder', {
+                resumeThinking: true
+            });
             alert("All bundled orders must be from the same store!");
             return;
         }
