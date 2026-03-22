@@ -639,9 +639,9 @@
         // 3. Immediately advance to next round (no Round Complete screen)
         if (completedGame) {
             console.log("Final round complete - ending session");
-            endGameSession();
             try {
                 if ($gameMode !== 'tutorial') {
+                    recordDetailedAction(activeScenarioId, 'game_completed', 'system', 'all_rounds_complete');
                     await persistRoundSnapshot({
                         totalRounds,
                         roundsCompleted: completedRounds,
@@ -656,6 +656,7 @@
                     notifyMainGameComplete('all_rounds_complete', completedRounds, totalRounds);
                 }
             } finally {
+                endGameSession();
                 roundCompletionInProgress = false;
             }
             return;

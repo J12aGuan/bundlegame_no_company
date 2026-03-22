@@ -953,7 +953,22 @@ export const saveProgressAndEndSession = async () => {
 	endGameSession();
 };
 
+function getActiveScenarioIdForSystemEvent() {
+	const progressSnapshot = get(scenarioSetProgress) || {};
+	const inProgressScenario = String(progressSnapshot?.inProgressScenario ?? '').trim();
+	if (inProgressScenario) return inProgressScenario;
+	const scenario = getCurrentScenario(get(currentRound));
+	return String(scenario?.scenario_id ?? '').trim();
+}
+
 async function finalizeTimedOutGame(totalGameTime) {
+	const systemScenarioId = getActiveScenarioIdForSystemEvent();
+	if (systemScenarioId) {
+		stopOrderSelectionThinking(systemScenarioId, { endTimeSeconds: totalGameTime });
+		recordDetailedAction(systemScenarioId, 'game_timeout', 'system', 'time_expired', {
+			endTimeSeconds: totalGameTime
+		});
+	}
 	if (get(needsAuth) && get(id)) {
 		if (get(gameMode) !== 'tutorial') {
 			await saveCurrentProgress({
