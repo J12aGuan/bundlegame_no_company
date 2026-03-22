@@ -155,22 +155,23 @@
             return;
         }
 
-        // Validate bundling (must be same store)
-        const firstStore = selOrders[0].store;
-        if (!selOrders.every(o => o.store === firstStore)) {
-            recordOrderSelectionAction(activeScenarioId, 'store_mismatch_failed', 'button', 'confirmorder', {
-                resumeThinking: true
-            });
-            alert("All bundled orders must be from the same store!");
-            return;
-        }
-
         const firstCity = selOrders[0].city;
         if (!selOrders.every(o => o.city === firstCity)) {
             recordOrderSelectionAction(activeScenarioId, 'city_mismatch_failed', 'button', 'confirmorder', {
                 resumeThinking: true
             });
             alert("All bundled orders must be from the same city!");
+            return;
+        }
+
+        // Validate bundling (must be same store). City mismatch takes priority above so
+        // mixed-city selections do not also get logged as store mismatches.
+        const firstStore = selOrders[0].store;
+        if (!selOrders.every(o => o.store === firstStore)) {
+            recordOrderSelectionAction(activeScenarioId, 'store_mismatch_failed', 'button', 'confirmorder', {
+                resumeThinking: true
+            });
+            alert("All bundled orders must be from the same store!");
             return;
         }
 
