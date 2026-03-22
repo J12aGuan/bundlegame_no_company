@@ -309,6 +309,14 @@ export const failedOrders = writable([])
 export const id = writable("")
 export const penaltyEndTime = writable(0) // Time when penalty expires
 
+export const completedOrdersCount = derived(scenarioActions, ($scenarioActions) => {
+	if (!$scenarioActions || typeof $scenarioActions !== 'object') return 0;
+	return Object.values($scenarioActions).reduce((sum, entry) => {
+		const normalized = toScenarioActionEntry(entry);
+		return sum + normalized.orderSummary.length;
+	}, 0);
+})
+
 export const earned = writable(0);
 export const currLocation = writable("");
 
