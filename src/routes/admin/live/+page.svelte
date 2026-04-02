@@ -419,8 +419,8 @@
 					</div>
 
 					<div class="rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-200">
-						<p><span class="font-semibold text-white">Dataset:</span> {sessionDefaults.scenarioSetName || 'Unknown'}</p>
-						<p class="mt-1"><span class="font-semibold text-white">Version:</span> {sessionDefaults.scenarioSetVersionId || 'Unavailable'}</p>
+						<p><span class="font-semibold text-white">Dataset:</span> {activeSession?.scenarioSetName || sessionDefaults.scenarioSetName || 'Unknown'}</p>
+						<p class="mt-1"><span class="font-semibold text-white">Version:</span> {activeSession?.scenarioSetVersionId || sessionDefaults.scenarioSetVersionId || 'Unavailable'}</p>
 						<p class="mt-1"><span class="font-semibold text-white">Planned duration:</span> 20 minutes</p>
 						{#if activeSession?.startedAt}
 							<p class="mt-1"><span class="font-semibold text-white">Started:</span> {formatDateTime(activeSession.startedAt)}</p>

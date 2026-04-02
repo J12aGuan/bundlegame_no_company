@@ -119,10 +119,35 @@
 		return latestValue;
 	}
 
-	function resolveCompletionInfo({ summary = {}, user = {}, orders = [], actions = [], lastActivityAt = '', sessionStartedAt = '' } = {}) {
-		const candidates = [
+	function resolveDateInfo(candidates = []) {
+		for (const candidate of candidates) {
+			const normalized = normalizeDateLike(candidate?.value);
+			if (normalized) {
+				return {
+					value: normalized,
+					source: String(candidate?.source ?? '').trim() || 'Unknown'
+				};
+			}
+		}
+		return {
+			value: '',
+			source: 'Undated'
+		};
+	}
+
+	function resolveCompletionInfo(summary = {}) {
+		return resolveDateInfo([
 			{ value: summary?.completionMeta?.finalSaveConfirmedAt, source: 'Final save confirmed' },
-			{ value: summary?.completionMeta?.handoffPostedAt, source: 'Completion handoff' },
+			{ value: summary?.completionMeta?.handoffPostedAt, source: 'Completion handoff' }
+		]);
+	}
+
+	function resolveBestAvailableDateInfo({ summary = {}, user = {}, orders = [], actions = [], lastActivityAt = '', sessionStartedAt = '' } = {}) {
+		const completionInfo = resolveCompletionInfo(summary);
+		if (completionInfo.value) {
+			return completionInfo;
+		}
+		return resolveDateInfo([
 			{ value: summary?.completionMeta?.copyVerificationAt, source: 'Result code verified' },
 			{ value: lastActivityAt, source: 'Last activity' },
 			{ value: getLatestCollectionDate(actions), source: 'Legacy action timestamp' },
@@ -130,24 +155,7 @@
 			{ value: sessionStartedAt, source: 'Session started' },
 			{ value: user?.updatedAt, source: 'User updated' },
 			{ value: user?.createdAt, source: 'User created' }
-		];
-
-		for (const candidate of candidates) {
-			const normalized = normalizeDateLike(candidate.value);
-			if (normalized) {
-				return {
-					value: normalized,
-					source: candidate.source,
-					isFallback: candidate.source !== 'Final save confirmed' && candidate.source !== 'Completion handoff'
-				};
-			}
-		}
-
-		return {
-			value: '',
-			source: 'Undated',
-			isFallback: true
-		};
+		]);
 	}
 
 	function buildVersionSnapshot(versionId, summaryMap = {}, progressMap = {}, actionsMap = {}, detailedActionsMap = {}) {
@@ -233,7 +241,8 @@
 		const completedGame = Boolean(primarySummary.completedGame || progress.completedGame || (totalRounds > 0 && roundsCompleted >= totalRounds));
 		const optimalRate = roundsCompleted > 0 ? (optimalChoices / roundsCompleted) * 100 : 0;
 		const lastActivityAt = resolveText(primarySnapshot.lastActivityAt, progress.lastActivityAt);
-		const completionInfo = resolveCompletionInfo({
+		const completionInfo = resolveCompletionInfo(primarySummary);
+		const bestAvailableDateInfo = resolveBestAvailableDateInfo({
 			summary: primarySummary,
 			user,
 			orders: user.orders,
@@ -275,8 +284,10 @@
 			completionMeta,
 			completionDate,
 			completionDateSource: completionInfo.source,
-			completionDateIsFallback: completionInfo.isFallback,
 			completionDateMs: toMillis(completionDate),
+			bestAvailableDate: bestAvailableDateInfo.value || '',
+			bestAvailableDateSource: bestAvailableDateInfo.source,
+			bestAvailableDateMs: toMillis(bestAvailableDateInfo.value),
 			liveSessionId,
 			sessionLabel,
 			lastActivityAt,
@@ -552,6 +563,9 @@
 			{#if dateFilter === 'current_session' && !activeSessionId}
 				<p class="mt-4 text-sm text-amber-700">No active live class session is running right now, so the current-session filter has no rows to show.</p>
 			{/if}
+			<p class="mt-4 text-xs text-gray-500">
+				Completion filters and sorting use confirmed completion timestamps only. Rows without a confirmed finish may still show a best-available activity date in the table.
+			</p>
 		</div>
 
 		<div class="overflow-hidden rounded-lg bg-white shadow">
@@ -602,9 +616,16 @@
 							<tr class="hover:bg-gray-50">
 								<td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{user.displayName}</td>
 								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
-									<div>{formatDateTime(user.completionDate)}</div>
-									{#if user.completionDate && user.completionDateSource && user.completionDateSource !== 'Final save confirmed'}
-										<div class="text-xs text-gray-400">{user.completionDateSource}</div>
+									{#if user.completionDate}
+										<div>{formatDateTime(user.completionDate)}</div>
+										{#if user.completionDateSource && user.completionDateSource !== 'Final save confirmed'}
+											<div class="text-xs text-gray-400">{user.completionDateSource}</div>
+										{/if}
+									{:else if user.bestAvailableDate}
+										<div class="text-amber-700">No confirmed completion</div>
+										<div class="text-xs text-gray-400">{user.bestAvailableDateSource} · {formatDateTime(user.bestAvailableDate)}</div>
+									{:else}
+										<div>Undated</div>
 									{/if}
 								</td>
 								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{formatMoney(user.earnings)}</td>
@@ -645,6 +666,14 @@
 					<div>
 						<p class="block text-sm font-medium text-gray-700">Date Source</p>
 						<p class="text-lg text-gray-900">{selectedUser.completionDateSource || 'Undated'}</p>
+					</div>
+					<div>
+						<p class="block text-sm font-medium text-gray-700">Best Available Date</p>
+						<p class="text-lg text-gray-900">{formatDateTime(selectedUser.bestAvailableDate)}</p>
+					</div>
+					<div>
+						<p class="block text-sm font-medium text-gray-700">Best Date Source</p>
+						<p class="text-lg text-gray-900">{selectedUser.bestAvailableDateSource || 'Undated'}</p>
 					</div>
 					<div>
 						<p class="block text-sm font-medium text-gray-700">Rounds Completed</p>

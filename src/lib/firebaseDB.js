@@ -20,21 +20,26 @@ function removeUndefinedDeep(value) {
 export const createUser = async (id, n) => {
     if (!id) return '';
     const userDocRef = doc(collection(firestore, 'Users'), id);
+    const now = Timestamp.fromDate(new Date());
 
     try {
         const existingUser = await getDoc(userDocRef);
         if (existingUser.exists()) {
+            const existingData = existingUser.data() || {};
             await setDoc(userDocRef, {
                 configuration: deleteField(),
-                createdAt: deleteField(),
-                updatedAt: deleteField(),
+                createdAt: existingData.createdAt || now,
+                updatedAt: now,
                 earnings: deleteField(),
                 ordersComplete: deleteField(),
                 uniqueSetsComplete: deleteField(),
                 gametime: deleteField()
             }, { merge: true });
         } else {
-            await setDoc(userDocRef, {});
+            await setDoc(userDocRef, {
+                createdAt: now,
+                updatedAt: now
+            }, { merge: true });
         }
         console.log("Document written with ID: ", id);
     } catch (error) {
@@ -42,6 +47,18 @@ export const createUser = async (id, n) => {
     }
 
     return id
+}
+
+async function touchUserUpdatedAt(id) {
+    const normalizedId = String(id ?? '').trim();
+    if (!normalizedId) return;
+    try {
+        await setDoc(doc(collection(firestore, 'Users'), normalizedId), {
+            updatedAt: Timestamp.fromDate(new Date())
+        }, { merge: true });
+    } catch (error) {
+        console.warn("Unable to touch user updatedAt:", error);
+    }
 }
 
 function getSummaryRef(id) {
@@ -386,6 +403,7 @@ export const saveUserProgressSummary = async (id, progress = {}) => {
                 [scenarioSetVersionId]: entry
             }
         });
+        await touchUserUpdatedAt(id);
         console.log("Summary updated for ", id);
         return entry;
     } catch (error) {
