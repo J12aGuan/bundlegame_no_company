@@ -1,6 +1,7 @@
 import { timeStamp } from './bundle';
 import {firestore} from './firebaseConfig';
 import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, deleteField, query, where, limit, onSnapshot } from "firebase/firestore";
+import { generateAuthToken } from './authToken';
 
 function removeUndefinedDeep(value) {
     if (Array.isArray(value)) {
@@ -610,84 +611,6 @@ export const saveDetailedActionSummaries = async (id, payload = {}) => {
     }
 };
 
-//function for a random number given a seed
-//written by CHATGPT
-function hashSeed(seed) {
-    let hash = 0;
-    for (let i = 0; i < seed.length; i++) {
-        hash = (hash * 31 + seed.charCodeAt(i)) % 2147483647;
-    }
-    return hash;
-}
-//written by CHAT GPT
-function seededRandom(seed) {
-    let x = seed % 2147483647;
-    if (x <= 0) x += 2147483646;
-    return function() {
-        x = x * 16807 % 2147483647;
-        return (x - 1) / 2147483646;
-    };
-}
-
-function digitToHex(digit) {
-    switch (digit) {
-        case 10:
-            return "A"
-        case 11:
-            return "B"
-        case 12:
-            return "C"
-        case 13:
-            return "D"
-        case 14:
-            return "E"
-        case 15:
-            return "F"
-        default:
-            return digit
-    }
-}
-
-function generateNumber(random, modulo) {
-    // Generate the first 3 digits randomly
-    const first3Digits = [];
-    for (let i = 0; i < 3; i++) {
-        first3Digits.push(Math.floor(random() * 16)); // Random digit between 0-15
-    }
-
-    // Compute the checksum (4th digit)
-    let total = 0;
-    for (let i = 0; i < first3Digits.length; i++) {
-        let digit = first3Digits[i];
-        if (i == 1) {
-            digit *= 2;
-            if (digit > 15) {
-                digit -= 15;
-            }
-        }
-        total += digit;
-        first3Digits[i] = digitToHex(digit)
-    }
-
-    // Calculate the checksum digit to make total % 16 === modulo
-    const checksumDigit = digitToHex(((16 - (total % 16)) + modulo) % 16);
-    
-    first3Digits.push(checksumDigit);
-
-    // Return the 4-digit number as a string
-    return first3Digits.join('');
-}
-
-function generateToken(id) {
-    const seed = hashSeed(id)
-    const random = seededRandom(seed);
-    let first = generateNumber(random, 11) //B
-    let second = generateNumber(random, 0) //0
-    let third = generateNumber(random, 11) //B
-    let fourth = generateNumber(random, 10) //A
-    return first + "-" + second + "-" + third + "-" + fourth
-}
-
 //returns 0 on error and 1 on success
 export const authenticateUser = async (id, token) => {
     const userDocRef = doc(collection(firestore, 'Auth'), id);
@@ -699,7 +622,7 @@ export const authenticateUser = async (id, token) => {
         return 0
     }
     //token does not exist, generate a token for the user and see if matches
-    let generatedToken = generateToken(id)
+    let generatedToken = generateAuthToken(id)
     if (generatedToken == token) {
         const data = {
             userid: id,
