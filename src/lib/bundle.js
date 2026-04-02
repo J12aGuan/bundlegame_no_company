@@ -4,7 +4,8 @@ import {
     authenticateUser, createUser,
     getCentralConfig, getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getCitiesData, getEmojisData,
     getScenarioDatasetBundle, initializeUserProgress, saveUserProgressSummary,
-    getScenarioSetProgress, saveScenarioSetProgress, getActionSummaries, saveActionSummaries, getDetailedActionSummaries, saveDetailedActionSummaries, getUserSummary
+    getScenarioSetProgress, saveScenarioSetProgress, getActionSummaries, saveActionSummaries, getDetailedActionSummaries, saveDetailedActionSummaries, getUserSummary,
+    getActiveLiveSession, upsertLiveSessionParticipant
 } from './firebaseDB';
 
 import { switchJob, setPenaltyTimeout } from './config';
@@ -34,6 +35,7 @@ let firebaseInitialized = false;
 let initializedMode = null;
 let activeScenarioSetVersionId = '';
 let activeScenarioSetName = '';
+let currentLiveSessionParticipation = null;
 const PENDING_PROGRESS_STORAGE_KEY = 'bundlegame:pendingProgressSave';
 const FINAL_SAVE_MAX_ATTEMPTS = 3;
 const FINAL_SAVE_RETRY_DELAY_MS = 1500;
@@ -697,6 +699,81 @@ function sleep(ms = 0) {
 	return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
 }
 
+function normalizeIsoDateString(value = '') {
+	const normalized = String(value ?? '').trim();
+	if (!normalized) return '';
+	const millis = Date.parse(normalized);
+	return Number.isFinite(millis) ? new Date(millis).toISOString() : '';
+}
+
+function setCurrentLiveSessionParticipation(session = null) {
+	if (!session || typeof session !== 'object') {
+		currentLiveSessionParticipation = null;
+		return null;
+	}
+	const sessionId = String(session?.sessionId ?? '').trim();
+	if (!sessionId) {
+		currentLiveSessionParticipation = null;
+		return null;
+	}
+	currentLiveSessionParticipation = {
+		sessionId,
+		sessionLabel: String(session?.label ?? session?.sessionLabel ?? '').trim(),
+		sessionStartedAt: normalizeIsoDateString(session?.startedAt ?? session?.sessionStartedAt ?? ''),
+		joinedAt: normalizeIsoDateString(session?.joinedAt ?? '') || new Date().toISOString()
+	};
+	return currentLiveSessionParticipation;
+}
+
+function getLiveSessionMetadata(lastActivityAt = '') {
+	if (get(gameMode) === 'tutorial' || !currentLiveSessionParticipation?.sessionId) {
+		return {};
+	}
+	return {
+		liveSessionId: String(currentLiveSessionParticipation.sessionId ?? '').trim(),
+		sessionStartedAt: normalizeIsoDateString(currentLiveSessionParticipation.sessionStartedAt),
+		sessionLabel: String(currentLiveSessionParticipation.sessionLabel ?? '').trim(),
+		lastActivityAt: normalizeIsoDateString(lastActivityAt) || new Date().toISOString()
+	};
+}
+
+async function syncLiveSessionParticipantState(
+	participantId,
+	{
+		summaryPayload = null,
+		status = 'joined',
+		finalizedAt = '',
+		lastActivityAt = '',
+		displayName = ''
+	} = {}
+) {
+	const normalizedParticipantId = String(participantId ?? '').trim();
+	const normalizedSessionId = String(currentLiveSessionParticipation?.sessionId ?? '').trim();
+	if (!normalizedParticipantId || !normalizedSessionId || get(gameMode) === 'tutorial') {
+		return null;
+	}
+
+	const effectivePayload = summaryPayload && typeof summaryPayload === 'object' ? summaryPayload : {};
+	const resolvedLastActivityAt = normalizeIsoDateString(lastActivityAt)
+		|| normalizeIsoDateString(effectivePayload?.lastActivityAt)
+		|| new Date().toISOString();
+	const resolvedFinalizedAt = normalizeIsoDateString(finalizedAt)
+		|| (Boolean(effectivePayload?.completedGame) ? new Date().toISOString() : '');
+
+	return upsertLiveSessionParticipant(normalizedSessionId, normalizedParticipantId, {
+		displayName: String(displayName || normalizedParticipantId).trim(),
+		earnings: Number(effectivePayload?.earnings) || 0,
+		roundsCompleted: Number(effectivePayload?.roundsCompleted) || 0,
+		optimalChoices: Number(effectivePayload?.optimalChoices) || 0,
+		totalGameTime: Number(effectivePayload?.totalGameTime) || 0,
+		completedGame: Boolean(effectivePayload?.completedGame),
+		status: String(status || 'joined').trim() || 'joined',
+		joinedAt: normalizeIsoDateString(currentLiveSessionParticipation?.joinedAt),
+		lastActivityAt: resolvedLastActivityAt,
+		finalizedAt: resolvedFinalizedAt
+	});
+}
+
 function buildResultCode(userId = '', resultAccessKey = '') {
 	const normalizedUserId = String(userId ?? '').trim();
 	const normalizedKey = String(resultAccessKey ?? '').trim();
@@ -787,6 +864,8 @@ function updateCompletionStatePayload(mutator) {
 function buildProgressPayload(overrides = {}) {
 	const totalGameTime = overrides?.totalGameTime ?? get(elapsed);
 	const flushAtSeconds = overrides?.totalGameTime ?? getPreciseElapsedSeconds();
+	const lastActivityAt = new Date().toISOString();
+	const liveSessionMetadata = getLiveSessionMetadata(lastActivityAt);
 	flushActiveScenarioPhase(flushAtSeconds);
 	if (overrides?.recordSaveProgressAction) {
 		const progressSnapshot = overrides?.scenarioProgress || get(scenarioSetProgress);
@@ -808,7 +887,8 @@ function buildProgressPayload(overrides = {}) {
 		optimalChoices: overrides?.optimalChoices ?? get(optimalChoices),
 		totalGameTime,
 		completedGame: overrides?.completedGame ?? false,
-		earnings: overrides?.earnings ?? get(earned)
+		earnings: overrides?.earnings ?? get(earned),
+		...liveSessionMetadata
 	};
 	const progressSnapshot = overrides?.scenarioProgress || get(scenarioSetProgress);
 	const normalizedProgress = {
@@ -821,7 +901,8 @@ function buildProgressPayload(overrides = {}) {
 		roundsCompleted: summaryPayload.roundsCompleted,
 		optimalChoices: summaryPayload.optimalChoices,
 		totalGameTime: summaryPayload.totalGameTime,
-		earnings: summaryPayload.earnings
+		earnings: summaryPayload.earnings,
+		...liveSessionMetadata
 	};
 	let actionSnapshot = {
 		...(overrides?.scenarioActions || get(scenarioActions) || {})
@@ -866,6 +947,18 @@ async function persistProgressPayload(payload) {
 	}
 	if (browser && summary?.resultAccessKey) {
 		participantResultUrl.set(getParticipantResultUrl(payload.userId, summary.resultAccessKey));
+	}
+	if (payload?.summaryPayload?.liveSessionId) {
+		try {
+			await syncLiveSessionParticipantState(payload.userId, {
+				summaryPayload: payload.summaryPayload,
+				status: payload.summaryPayload.completedGame ? 'completed' : 'in_progress',
+				finalizedAt: payload.summaryPayload.completedGame ? new Date().toISOString() : '',
+				lastActivityAt: payload.summaryPayload.lastActivityAt
+			});
+		} catch (error) {
+			console.warn('Unable to sync live leaderboard participant state:', error);
+		}
 	}
 	return summary;
 }
@@ -1000,6 +1093,7 @@ export const stopScenarioPhase = (scenarioId = '', key = '') => {
 
 async function loadSavedScenarioState(userId) {
 	if (!userId || !get(scenarioSetVersionId)) {
+		setCurrentLiveSessionParticipation(null);
 		scenarioSetProgress.set({
 			completedScenarios: [],
 			inProgressScenario: '',
@@ -1058,6 +1152,17 @@ async function loadSavedScenarioState(userId) {
 	const resolvedOptimalChoices = resolveResumeNumber(summaryEntry?.optimalChoices, progressEntry?.optimalChoices);
 	const resolvedTotalGameTime = resolveResumeNumber(summaryEntry?.totalGameTime, progressEntry?.totalGameTime);
 	const resolvedEarnings = resolveResumeNumber(summaryEntry?.earnings, progressEntry?.earnings);
+	const liveSessionId = String(summaryEntry?.liveSessionId ?? progressEntry?.liveSessionId ?? '').trim();
+	if (liveSessionId) {
+		setCurrentLiveSessionParticipation({
+			sessionId: liveSessionId,
+			label: String(summaryEntry?.sessionLabel ?? progressEntry?.sessionLabel ?? '').trim(),
+			startedAt: summaryEntry?.sessionStartedAt || progressEntry?.sessionStartedAt || '',
+			joinedAt: summaryEntry?.sessionStartedAt || progressEntry?.sessionStartedAt || ''
+		});
+	} else {
+		setCurrentLiveSessionParticipation(null);
+	}
 	const completedScenarios = Array.isArray(progressEntry?.completedScenarios) ? progressEntry.completedScenarios : [];
 	const inProgressScenario = String(progressEntry?.inProgressScenario ?? '').trim();
 	const actionsByScenarioId = actionEntry?.actionsByScenarioId && typeof actionEntry.actionsByScenarioId === 'object'
@@ -1636,6 +1741,7 @@ function resetRuntimeState() {
 	completionState.set(createDefaultCompletionState());
 	completionMessageSent = false;
 	recoveryMessageSent = false;
+	currentLiveSessionParticipation = null;
 	timeoutGameOverProcessed = false;
 }
 
@@ -1782,10 +1888,20 @@ export async function createNewUser(id, mode = 'main') {
 	let n = await loadGame(mode)
 	await createUser(id, n)
 	if (mode !== 'tutorial') {
+		const activeLiveSession = await getActiveLiveSession();
+		setCurrentLiveSessionParticipation(
+			activeLiveSession?.sessionId
+				? {
+					...activeLiveSession,
+					joinedAt: new Date().toISOString()
+				}
+				: null
+		);
 		const summary = await initializeUserProgress(id, {
 			scenarioSetVersionId: get(scenarioSetVersionId),
 			scenarioSetName: activeScenarioSetName || config.scenario_set,
-			totalRounds: get(scenarios).length
+			totalRounds: get(scenarios).length,
+			...getLiveSessionMetadata(new Date().toISOString())
 		});
 		if (browser && summary?.resultAccessKey) {
 			participantResultUrl.set(getParticipantResultUrl(id, summary.resultAccessKey));
@@ -1794,6 +1910,21 @@ export async function createNewUser(id, mode = 'main') {
 		}
 		await flushPendingProgressSave();
 		await loadSavedScenarioState(id);
+		if (currentLiveSessionParticipation?.sessionId) {
+			await syncLiveSessionParticipantState(id, {
+				summaryPayload: {
+					earnings: get(earned),
+					roundsCompleted: get(uniqueSets),
+					optimalChoices: get(optimalChoices),
+					totalGameTime: get(resumeElapsedSeconds),
+					completedGame: false,
+					lastActivityAt: new Date().toISOString()
+				},
+				status: 'joined',
+				lastActivityAt: new Date().toISOString(),
+				displayName: id
+			});
+		}
 	} else {
 		participantResultUrl.set("");
 	}

@@ -62,12 +62,107 @@ Timing semantics:
 - Cross-city travel comes from `MasterData/cities.travelTimes`
 - Missing city routes are surfaced in the selection flow, delivery flow, and admin validation
 
+## Classroom Live Leaderboard
+
+The admin experience now supports a live class session workflow for running the game in class and projecting standings in real time.
+
+### What It Does
+
+- Adds a dedicated `/admin/live` page for a classroom leaderboard.
+- Uses Firestore realtime listeners so rankings update without manual refresh.
+- Shows a roster of everyone who joined the current class session, plus a podium, earnings chart, and ranked table.
+- Uses participant ID as the displayed name.
+- Ranks students by:
+  - highest `earnings`
+  - then highest `roundsCompleted`
+  - then lowest `totalGameTime`
+  - then participant ID
+
+### Live Session Rules
+
+- The instructor starts the class session from the admin dashboard before class.
+- Only students who start the game while that session is active are added to the live leaderboard.
+- Historical users are not pulled into the current class session automatically.
+- The session is configured as a 20-minute classroom run for display/context only.
+- Students are not removed when 20 minutes elapse, go idle, or stop updating temporarily.
+- Students remain on the board until the admin explicitly ends the session.
+
+### Firestore Shape
+
+- `LiveSessions/{sessionId}`
+- `LiveSessions/{sessionId}/participants/{participantId}`
+
+Each live session stores:
+
+- `sessionId`
+- `label`
+- `status`
+- `startedAt`
+- `endedAt`
+- `plannedDurationMinutes`
+- `scenarioSetVersionId`
+- `scenarioSetName`
+
+Each participant row stores:
+
+- `participantId`
+- `displayName`
+- `earnings`
+- `roundsCompleted`
+- `optimalChoices`
+- `totalGameTime`
+- `completedGame`
+- `status`
+- `joinedAt`
+- `lastActivityAt`
+- `finalizedAt`
+
+### Gameplay Integration
+
+- New runs pick up the currently active live session when one exists.
+- Mid-game progress saves update the live participant row alongside the usual summary/progress writes.
+- Final completion marks the participant as completed on the live board but keeps them visible until the session is ended manually.
+
+## Results And Reliability Updates
+
+Two recent operational fixes matter for data collection and classroom use:
+
+### End-Screen / Qualtrics Reliability
+
+- Clipboard permission failures no longer trigger the fatal global error screen.
+- The participant result code stays visible even when the browser blocks `navigator.clipboard.writeText(...)`.
+- The end screen provides manual result-code confirmation as a fallback.
+- Final completion now waits for confirmed Firebase persistence before the run is treated as complete.
+- Recovery metadata is stored when the final save cannot be confirmed.
+
+### Results Page Improvements
+
+- Result hydration now falls back across summary and progress data so `earnings`, `optimalChoices`, `roundsCompleted`, and `totalGameTime` do not disappear on newer records.
+- The results page now exposes:
+  - completion-date filtering
+  - current-session filtering
+  - custom date ranges
+  - optional inclusion of undated legacy rows
+  - explicit time/date quick sorts such as newest, oldest, fastest, and slowest
+
+### New Summary Metadata
+
+Participant summary/progress rows can now carry:
+
+- `completionMeta`
+- `liveSessionId`
+- `sessionStartedAt`
+- `lastActivityAt`
+- `sessionLabel`
+
 ## Recent Feature History
 
 This rolling log tracks the 10 most recent meaningful feature changes. Keep it newest-first, keep each row to one line, and trim the oldest row when adding a new one.
 
 | Commit(s) | Feature added |
 | --- | --- |
+| `pending` | Added the live class leaderboard, realtime classroom session tracking, and results-page date/session filtering improvements. |
+| `0a3b19f` | Fixed blocked result-code copy behavior and tightened final Firebase save confirmation before completion. |
 | `7d315d2` | Updated data collection behavior and related gameplay logging. |
 | `a87eb98`, `d18f18e` | Brought in the refreshed delivery UI and supporting delivery-flow changes. |
 | `ab08d42` | Updated the city selection map UI. |
@@ -105,6 +200,7 @@ Pushes to `main` deploy through Vercel.
 For participant export:
 
 - `/downloader` exports participant data
+- `/admin/live` provides the classroom leaderboard and live class-session controls
 - `/admin/analysis` provides live analytics and RL-ready exports
 
 See [docs/current/ANALYTICS_AND_RL_EXPORTS.md](docs/current/ANALYTICS_AND_RL_EXPORTS.md) for export details.
