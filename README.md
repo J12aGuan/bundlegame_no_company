@@ -161,7 +161,7 @@ This rolling log tracks the 10 most recent meaningful feature changes. Keep it n
 
 | Commit(s) | Feature added |
 | --- | --- |
-| `pending` | Added the live class leaderboard, realtime classroom session tracking, and results-page date/session filtering improvements. |
+| `4a1430a` | Added the live class leaderboard, realtime classroom session tracking, and results-page date/session filtering improvements. |
 | `0a3b19f` | Fixed blocked result-code copy behavior and tightened final Firebase save confirmation before completion. |
 | `7d315d2` | Updated data collection behavior and related gameplay logging. |
 | `a87eb98`, `d18f18e` | Brought in the refreshed delivery UI and supporting delivery-flow changes. |
