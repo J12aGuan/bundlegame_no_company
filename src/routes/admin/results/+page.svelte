@@ -22,23 +22,76 @@
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
+    function getVersionMap(source, field) {
+        const value = source?.[field];
+        return value && typeof value === 'object' ? value : {};
+    }
+
+    function rankVersionEntry(entry = {}) {
+        const confirmedAt = Date.parse(
+            entry?.completionMeta?.finalSaveConfirmedAt
+            || entry?.completionMeta?.handoffPostedAt
+            || entry?.completionMeta?.copyVerificationAt
+            || ''
+        );
+        const roundsCompleted = toNumber(entry?.roundsCompleted, 0);
+        const totalGameTime = toNumber(entry?.totalGameTime, 0);
+        const actionCount = entry?.actionsByScenarioId && typeof entry.actionsByScenarioId === 'object'
+            ? Object.keys(entry.actionsByScenarioId).length
+            : 0;
+        return (Number.isFinite(confirmedAt) ? confirmedAt : 0) + (totalGameTime * 1000) + (roundsCompleted * 100) + actionCount;
+    }
+
+    function pickPrimaryVersionEntry(versionMap = {}) {
+        const entries = Object.entries(versionMap || {}).filter(([versionId]) => String(versionId || '').trim().length > 0);
+        if (entries.length === 0) return ['', {}];
+        return entries
+            .sort(([, left], [, right]) => rankVersionEntry(right) - rankVersionEntry(left))[0];
+    }
+
     function hydrateUser(user) {
-        const progress = user.progressSummary || {};
-        const roundsCompleted = toNumber(progress.roundsCompleted, user.uniqueSetsComplete || 0);
-        const optimalChoices = toNumber(progress.optimalChoices, 0);
-        const totalGameTime = toNumber(progress.totalGameTime, user.gametime || 0);
-        const completedGame = Boolean(progress.completedGame);
-        const totalRounds = toNumber(progress.totalRounds, 0);
+        const summaryMap = getVersionMap(user.summaryDoc || user.progressSummary, 'summaryByScenarioSetVersionId');
+        const progressMap = getVersionMap(user.scenarioSetProgressDoc, 'progressByScenarioSetVersionId');
+        const actionsMap = getVersionMap(user.scenarioActionsDoc, 'actionsByScenarioSetVersionId');
+        const detailedActionsMap = getVersionMap(user.scenarioDetailedActionsDoc, 'detailedActionsByScenarioSetVersionId');
+        const [primaryVersionId, primarySummary = {}] = pickPrimaryVersionEntry(summaryMap);
+        const progress = progressMap?.[primaryVersionId] || {};
+        const actionSummary = actionsMap?.[primaryVersionId] || {};
+        const detailedActionSummary = detailedActionsMap?.[primaryVersionId] || {};
+        const completionMeta = primarySummary?.completionMeta || {};
+        const roundsCompleted = toNumber(primarySummary.roundsCompleted, user.uniqueSetsComplete || 0);
+        const optimalChoices = toNumber(primarySummary.optimalChoices, 0);
+        const totalGameTime = toNumber(primarySummary.totalGameTime, user.gametime || 0);
+        const completedGame = Boolean(primarySummary.completedGame);
+        const totalRounds = toNumber(primarySummary.totalRounds, 0);
         const optimalRate = roundsCompleted > 0 ? (optimalChoices / roundsCompleted) * 100 : 0;
+        const hasProgress = Object.keys(progress || {}).length > 0;
+        const hasActionSummary = Object.keys(actionSummary?.actionsByScenarioId || {}).length > 0;
+        const hasDetailedActionSummary = Object.keys(detailedActionSummary?.actionsByScenarioId || {}).length > 0;
+        let auditStatus = 'partial_firebase_data';
+
+        if (completionMeta?.finalSaveStatus === 'recovery_required') {
+            auditStatus = 'recovery_required';
+        } else if (completionMeta?.finalSaveStatus === 'confirmed' && hasProgress && hasActionSummary && hasDetailedActionSummary) {
+            auditStatus = completionMeta?.copyVerificationMethod && completionMeta.copyVerificationMethod !== 'none'
+                ? 'fully_confirmed'
+                : 'missing_copy_verification';
+        } else if (completionMeta?.copyVerificationMethod && completionMeta.copyVerificationMethod !== 'none' && (!hasActionSummary || !hasDetailedActionSummary || !hasProgress)) {
+            auditStatus = 'partial_firebase_data';
+        }
 
         return {
             ...user,
+            primaryVersionId,
+            progressSummary: primarySummary,
             roundsCompleted,
             optimalChoices,
             totalGameTime,
             completedGame,
             totalRounds,
-            optimalRate
+            optimalRate,
+            completionMeta,
+            auditStatus
         };
     }
     
@@ -209,6 +262,14 @@
                                     Time {sortField === 'totalGameTime' ? (sortAsc ? '↑' : '↓') : ''}
                                 </button>
                             </th>
+                            <th class="px-6 py-3 text-left">
+                                <button
+                                    on:click={() => toggleSort('auditStatus')}
+                                    class="text-xs font-medium text-gray-700 uppercase tracking-wider hover:text-gray-900"
+                                >
+                                    Audit {sortField === 'auditStatus' ? (sortAsc ? '↑' : '↓') : ''}
+                                </button>
+                            </th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                                 Action
                             </th>
@@ -234,6 +295,9 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                     {formatTime(user.totalGameTime || 0)}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    {user.auditStatus}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                                     <button 
@@ -292,31 +356,51 @@
                 
                 <div class="space-y-3 mb-6">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Earnings</label>
+                        <p class="block text-sm font-medium text-gray-700">Earnings</p>
                         <p class="text-lg text-gray-900">${selectedUser.earnings || 0}</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Orders Completed</label>
+                        <p class="block text-sm font-medium text-gray-700">Orders Completed</p>
                         <p class="text-lg text-gray-900">{selectedUser.ordersComplete || 0}</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Rounds Completed</label>
+                        <p class="block text-sm font-medium text-gray-700">Rounds Completed</p>
                         <p class="text-lg text-gray-900">{selectedUser.roundsCompleted || 0}</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Optimal Choices</label>
+                        <p class="block text-sm font-medium text-gray-700">Optimal Choices</p>
                         <p class="text-lg text-gray-900">{selectedUser.optimalChoices || 0} ({(selectedUser.optimalRate || 0).toFixed(1)}%)</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Total Game Time</label>
+                        <p class="block text-sm font-medium text-gray-700">Total Game Time</p>
                         <p class="text-lg text-gray-900">{formatTime(selectedUser.totalGameTime || 0)}</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Completed Game</label>
+                        <p class="block text-sm font-medium text-gray-700">Completed Game</p>
                         <p class="text-lg text-gray-900">{selectedUser.completedGame ? 'Yes' : 'No'}</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Total Orders</label>
+                        <p class="block text-sm font-medium text-gray-700">Audit Status</p>
+                        <p class="text-lg text-gray-900">{selectedUser.auditStatus}</p>
+                    </div>
+                    <div>
+                        <p class="block text-sm font-medium text-gray-700">Scenario Version</p>
+                        <p class="text-lg text-gray-900">{selectedUser.primaryVersionId || 'Unknown'}</p>
+                    </div>
+                    <div>
+                        <p class="block text-sm font-medium text-gray-700">Final Save Status</p>
+                        <p class="text-lg text-gray-900">{selectedUser.completionMeta?.finalSaveStatus || 'Unknown'}</p>
+                    </div>
+                    <div>
+                        <p class="block text-sm font-medium text-gray-700">Copy Verification</p>
+                        <p class="text-lg text-gray-900">{selectedUser.completionMeta?.copyVerificationMethod || 'none'}</p>
+                    </div>
+                    <div>
+                        <p class="block text-sm font-medium text-gray-700">Last Save Error</p>
+                        <p class="text-sm text-gray-900 break-words">{selectedUser.completionMeta?.lastSaveError || 'None'}</p>
+                    </div>
+                    <div>
+                        <p class="block text-sm font-medium text-gray-700">Total Orders</p>
                         <p class="text-lg text-gray-900">{selectedUser.orders?.length || 0}</p>
                     </div>
                 </div>

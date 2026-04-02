@@ -167,16 +167,54 @@ function normalizeDetailedActionsByScenarioId(actionsByScenarioId = {}) {
     return out;
 }
 
+function normalizeCompletionMeta(meta = {}) {
+    const existing = meta && typeof meta === 'object' ? meta : {};
+    return removeUndefinedDeep({
+        finalSaveStatus: String(existing?.finalSaveStatus ?? '').trim(),
+        finalSaveConfirmedAt: String(existing?.finalSaveConfirmedAt ?? '').trim(),
+        finalSaveAttemptCount: Math.max(0, Number(existing?.finalSaveAttemptCount) || 0),
+        handoffPostedAt: String(existing?.handoffPostedAt ?? '').trim(),
+        copyVerificationMethod: String(existing?.copyVerificationMethod ?? '').trim(),
+        copyVerificationAt: String(existing?.copyVerificationAt ?? '').trim(),
+        lastSaveError: String(existing?.lastSaveError ?? '').trim()
+    });
+}
+
+function mergeCompletionMeta(existingMeta = {}, nextMeta = {}) {
+    const existing = normalizeCompletionMeta(existingMeta);
+    const next = normalizeCompletionMeta(nextMeta);
+    return removeUndefinedDeep({
+        finalSaveStatus: String(next.finalSaveStatus || existing.finalSaveStatus || '').trim(),
+        finalSaveConfirmedAt: String(next.finalSaveConfirmedAt || existing.finalSaveConfirmedAt || '').trim(),
+        finalSaveAttemptCount: Math.max(
+            0,
+            Number(next.finalSaveAttemptCount) || Number(existing.finalSaveAttemptCount) || 0
+        ),
+        handoffPostedAt: String(next.handoffPostedAt || existing.handoffPostedAt || '').trim(),
+        copyVerificationMethod: String(next.copyVerificationMethod || existing.copyVerificationMethod || '').trim(),
+        copyVerificationAt: String(next.copyVerificationAt || existing.copyVerificationAt || '').trim(),
+        lastSaveError: String(next.lastSaveError || existing.lastSaveError || '').trim()
+    });
+}
+
+function resolveSummaryNumber(nextValue, existingValue) {
+    if (nextValue !== undefined && nextValue !== null) {
+        return Math.max(0, Number(nextValue) || 0);
+    }
+    return Math.max(0, Number(existingValue) || 0);
+}
+
 function mergeScenarioSummaryEntry(existingEntry = {}, nextEntry = {}) {
     return removeUndefinedDeep({
         scenarioSetName: String(nextEntry?.scenarioSetName ?? existingEntry?.scenarioSetName ?? '').trim(),
-        totalRounds: Number(nextEntry?.totalRounds) || 0,
-        roundsCompleted: Number(nextEntry?.roundsCompleted) || 0,
-        optimalChoices: Number(nextEntry?.optimalChoices) || 0,
-        totalGameTime: Number(nextEntry?.totalGameTime) || 0,
-        completedGame: Boolean(nextEntry?.completedGame),
-        earnings: Number(nextEntry?.earnings) || 0,
-        resultAccessKey: String(existingEntry?.resultAccessKey ?? nextEntry?.resultAccessKey ?? '').trim()
+        totalRounds: resolveSummaryNumber(nextEntry?.totalRounds, existingEntry?.totalRounds),
+        roundsCompleted: resolveSummaryNumber(nextEntry?.roundsCompleted, existingEntry?.roundsCompleted),
+        optimalChoices: resolveSummaryNumber(nextEntry?.optimalChoices, existingEntry?.optimalChoices),
+        totalGameTime: resolveSummaryNumber(nextEntry?.totalGameTime, existingEntry?.totalGameTime),
+        completedGame: nextEntry?.completedGame !== undefined ? Boolean(nextEntry?.completedGame) : Boolean(existingEntry?.completedGame),
+        earnings: resolveSummaryNumber(nextEntry?.earnings, existingEntry?.earnings),
+        resultAccessKey: String(existingEntry?.resultAccessKey ?? nextEntry?.resultAccessKey ?? '').trim(),
+        completionMeta: mergeCompletionMeta(existingEntry?.completionMeta, nextEntry?.completionMeta)
     });
 }
 
