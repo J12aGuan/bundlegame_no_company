@@ -1,4 +1,3 @@
-import { timeStamp } from './bundle';
 import {firestore} from './firebaseConfig';
 import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, deleteField, query, where, limit, onSnapshot } from "firebase/firestore";
 import { generateAuthToken } from './authToken';

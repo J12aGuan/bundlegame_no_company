@@ -15,9 +15,14 @@
     let tokenUserId = '';
     let copyMessage = '';
     let copyMessageTone = 'text-slate-600';
+    let lastCopiedToken = '';
 
     $: normalizedTokenUserId = tokenUserId.trim();
     $: generatedToken = normalizedTokenUserId ? generateAuthToken(normalizedTokenUserId) : '';
+    $: if (generatedToken !== lastCopiedToken) {
+        copyMessage = '';
+        copyMessageTone = 'text-slate-600';
+    }
     
     onMount(async () => {
         try {
@@ -54,10 +59,12 @@
         if (!generatedToken) return;
         try {
             await navigator.clipboard.writeText(generatedToken);
+            lastCopiedToken = generatedToken;
             copyMessage = 'Token copied to clipboard.';
             copyMessageTone = 'text-emerald-600';
         } catch (err) {
             console.error('Unable to copy generated token:', err);
+            lastCopiedToken = generatedToken;
             copyMessage = 'Copy failed. You can still highlight and copy the token manually.';
             copyMessageTone = 'text-amber-600';
         }
