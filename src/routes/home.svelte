@@ -312,8 +312,10 @@
         mapInitRetryTimer = setTimeout(initMap, 250 * mapInitRetryCount);
     }
 
-    function destroyMap() {
-        mapInitVersion += 1;
+    function destroyMap(options = {}) {
+        if (options?.invalidateVersion) {
+            mapInitVersion += 1;
+        }
         try {
             if (mapLayer && map && typeof map.removeLayer === 'function') {
                 map.removeLayer(mapLayer);
@@ -415,7 +417,7 @@
 
             mapInitRetryCount = 0;
         } catch (error) {
-            destroyMap();
+            destroyMap({ invalidateVersion: true });
             if (isTransientStyleError(error)) {
                 scheduleMapRetry();
                 return;
@@ -468,7 +470,7 @@
 
     onDestroy(() => {
         clearTimers();
-        destroyMap();
+        destroyMap({ invalidateVersion: true });
         if (mapInitRetryTimer) clearTimeout(mapInitRetryTimer);
     });
 </script>
