@@ -1,5 +1,5 @@
 import {firestore} from './firebaseConfig';
-import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, deleteField, query, where, onSnapshot, runTransaction } from "firebase/firestore";
+import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, deleteField, query, where, onSnapshot } from "firebase/firestore";
 import { generateAuthToken } from './authToken';
 
 function removeUndefinedDeep(value) {
@@ -93,12 +93,6 @@ function getLiveSessionParticipantRef(sessionId, participantId) {
     return doc(getLiveSessionParticipantsCollectionRef(sessionId), String(participantId ?? '').trim());
 }
 
-const ACTIVE_LIVE_SESSION_DOC_ID = '__active__';
-
-function getActiveLiveSessionControlRef() {
-    return doc(getLiveSessionsCollectionRef(), ACTIVE_LIVE_SESSION_DOC_ID);
-}
-
 function normalizeIsoString(value = '') {
     const normalized = String(value ?? '').trim();
     if (!normalized) return '';
@@ -116,18 +110,6 @@ function toIsoMillis(value = '') {
 function createSessionLabel(date = new Date()) {
     const safeDate = date instanceof Date ? date : new Date();
     return `Class Session ${safeDate.toLocaleString()}`;
-}
-
-function normalizeActiveLiveSessionControl(data = {}) {
-    const source = data && typeof data === 'object' ? data : {};
-    return removeUndefinedDeep({
-        activeSessionId: String(source?.activeSessionId ?? '').trim(),
-        label: String(source?.label ?? '').trim(),
-        scenarioSetVersionId: String(source?.scenarioSetVersionId ?? '').trim(),
-        scenarioSetName: String(source?.scenarioSetName ?? '').trim(),
-        startedAt: normalizeIsoString(source?.startedAt),
-        updatedAt: normalizeIsoString(source?.updatedAt)
-    });
 }
 
 function normalizeLiveSession(docId = '', data = {}) {
@@ -734,67 +716,46 @@ async function listActiveLiveSessions() {
     const activeQuery = query(getLiveSessionsCollectionRef(), where('status', '==', 'active'));
     const snap = await getDocs(activeQuery);
     return snap.docs
-        .filter((sessionDoc) => sessionDoc.id !== ACTIVE_LIVE_SESSION_DOC_ID)
         .map((sessionDoc) => normalizeLiveSession(sessionDoc.id, sessionDoc.data()))
         .filter((session) => session.sessionId);
 }
 
-async function resolveActiveLiveSessionFromControl() {
-    const controlSnap = await getDoc(getActiveLiveSessionControlRef());
-    if (!controlSnap.exists()) return null;
-
-    const control = normalizeActiveLiveSessionControl(controlSnap.data());
-    if (!control.activeSessionId) return null;
-
-    const activeSnap = await getDoc(getLiveSessionRef(control.activeSessionId));
-    if (!activeSnap.exists()) return null;
-
-    const session = normalizeLiveSession(activeSnap.id, activeSnap.data());
-    return session.status === 'active' ? session : null;
+function pickLatestLiveSession(sessions = []) {
+    const normalizedSessions = Array.isArray(sessions) ? sessions.filter((session) => session?.sessionId) : [];
+    if (normalizedSessions.length === 0) return null;
+    return [...normalizedSessions].sort((left, right) => {
+        const startedDiff = toIsoMillis(right?.startedAt) - toIsoMillis(left?.startedAt);
+        if (startedDiff !== 0) return startedDiff;
+        return String(left?.sessionId ?? '').localeCompare(String(right?.sessionId ?? ''));
+    })[0];
 }
 
-async function setActiveLiveSessionControl(session = null, nowIso = new Date().toISOString()) {
-    const payload = session?.sessionId
-        ? normalizeActiveLiveSessionControl({
-            activeSessionId: session.sessionId,
-            label: session.label,
-            scenarioSetVersionId: session.scenarioSetVersionId,
-            scenarioSetName: session.scenarioSetName,
-            startedAt: session.startedAt,
-            updatedAt: nowIso
-        })
-        : normalizeActiveLiveSessionControl({
-            activeSessionId: '',
-            label: '',
-            scenarioSetVersionId: '',
-            scenarioSetName: '',
-            startedAt: '',
-            updatedAt: nowIso
-        });
+async function settleActiveLiveSessions() {
+    const activeSessions = await listActiveLiveSessions();
+    const latestSession = pickLatestLiveSession(activeSessions);
+    if (!latestSession?.sessionId) return null;
 
-    await setDoc(getActiveLiveSessionControlRef(), payload, { merge: true });
+    await Promise.all(
+        activeSessions
+            .filter((session) => session.sessionId && session.sessionId !== latestSession.sessionId)
+            .map((session) =>
+                setDoc(
+                    getLiveSessionRef(session.sessionId),
+                    {
+                        status: 'ended',
+                        endedAt: latestSession.startedAt || new Date().toISOString()
+                    },
+                    { merge: true }
+                )
+            )
+    );
+
+    return latestSession;
 }
 
 export const getActiveLiveSession = async () => {
     try {
-        const controlledSession = await resolveActiveLiveSessionFromControl();
-        if (controlledSession?.sessionId) {
-            return controlledSession;
-        }
-
-        const activeSessions = await listActiveLiveSessions();
-        if (activeSessions.length === 0) {
-            return null;
-        }
-
-        const latestSession = [...activeSessions].sort((left, right) => {
-            const startedDiff = toIsoMillis(right?.startedAt) - toIsoMillis(left?.startedAt);
-            if (startedDiff !== 0) return startedDiff;
-            return String(left?.sessionId ?? '').localeCompare(String(right?.sessionId ?? ''));
-        })[0];
-
-        await setActiveLiveSessionControl(latestSession);
-        return latestSession;
+        return await settleActiveLiveSessions();
     } catch (error) {
         console.error('Error fetching active live session:', error);
         return null;
@@ -808,76 +769,34 @@ export const startLiveSession = async (payload = {}) => {
     const scenarioSetName = String(payload?.scenarioSetName ?? '').trim();
 
     try {
-        const sessionRef = doc(getLiveSessionsCollectionRef());
-        const nextSession = await runTransaction(firestore, async (transaction) => {
-            const controlRef = getActiveLiveSessionControlRef();
-            const controlSnap = await transaction.get(controlRef);
-            const control = controlSnap.exists()
-                ? normalizeActiveLiveSessionControl(controlSnap.data())
-                : normalizeActiveLiveSessionControl();
-            const previousSessionId = String(control?.activeSessionId ?? '').trim();
-
-            if (previousSessionId) {
-                transaction.set(
-                    getLiveSessionRef(previousSessionId),
+        const activeSessions = await listActiveLiveSessions();
+        await Promise.all(
+            activeSessions.map((session) =>
+                setDoc(
+                    getLiveSessionRef(session.sessionId),
                     {
                         status: 'ended',
                         endedAt: nowIso
                     },
                     { merge: true }
-                );
-            }
-
-            const createdSession = normalizeLiveSession(sessionRef.id, {
-                sessionId: sessionRef.id,
-                label,
-                status: 'active',
-                startedAt: nowIso,
-                endedAt: '',
-                plannedDurationMinutes: 20,
-                scenarioSetVersionId,
-                scenarioSetName
-            });
-
-            transaction.set(sessionRef, createdSession);
-            transaction.set(
-                controlRef,
-                normalizeActiveLiveSessionControl({
-                    activeSessionId: createdSession.sessionId,
-                    label: createdSession.label,
-                    scenarioSetVersionId: createdSession.scenarioSetVersionId,
-                    scenarioSetName: createdSession.scenarioSetName,
-                    startedAt: createdSession.startedAt,
-                    updatedAt: nowIso
-                }),
-                { merge: true }
-            );
-
-            return createdSession;
-        });
-
-        const strayActiveSessions = await listActiveLiveSessions();
-        const nextSessionStartedAtMs = toIsoMillis(nextSession.startedAt);
-        await Promise.all(
-            strayActiveSessions
-                .filter((session) =>
-                    session.sessionId
-                    && session.sessionId !== nextSession.sessionId
-                    && toIsoMillis(session.startedAt) < nextSessionStartedAtMs
                 )
-                .map((session) =>
-                    setDoc(
-                        getLiveSessionRef(session.sessionId),
-                        {
-                            status: 'ended',
-                            endedAt: nowIso
-                        },
-                        { merge: true }
-                    )
-                )
+            )
         );
 
-        return nextSession;
+        const sessionRef = doc(getLiveSessionsCollectionRef());
+        const nextSession = normalizeLiveSession(sessionRef.id, {
+            sessionId: sessionRef.id,
+            label,
+            status: 'active',
+            startedAt: nowIso,
+            endedAt: '',
+            plannedDurationMinutes: 20,
+            scenarioSetVersionId,
+            scenarioSetName
+        });
+
+        await setDoc(sessionRef, nextSession);
+        return (await settleActiveLiveSessions()) || nextSession;
     } catch (error) {
         console.error('Error starting live session:', error);
         throw error;
@@ -889,59 +808,31 @@ export const endLiveSession = async (sessionId = '') => {
     const nowIso = new Date().toISOString();
 
     try {
-        const endedSession = await runTransaction(firestore, async (transaction) => {
-            const controlRef = getActiveLiveSessionControlRef();
-            const controlSnap = await transaction.get(controlRef);
-            const control = controlSnap.exists()
-                ? normalizeActiveLiveSessionControl(controlSnap.data())
-                : normalizeActiveLiveSessionControl();
-            const resolvedTargetId = targetId || control.activeSessionId;
-            if (!resolvedTargetId) return null;
-
-            const targetRef = getLiveSessionRef(resolvedTargetId);
-            const targetSnap = await transaction.get(targetRef);
-            const existingSession = targetSnap.exists()
-                ? normalizeLiveSession(targetSnap.id, targetSnap.data())
-                : normalizeLiveSession(resolvedTargetId, {
-                    sessionId: resolvedTargetId,
-                    label: control.label,
-                    scenarioSetVersionId: control.scenarioSetVersionId,
-                    scenarioSetName: control.scenarioSetName,
-                    startedAt: control.startedAt
-                });
-
-            transaction.set(
-                targetRef,
-                {
-                    status: 'ended',
-                    endedAt: nowIso
-                },
-                { merge: true }
-            );
-
-            if (control.activeSessionId === resolvedTargetId) {
-                transaction.set(
-                    controlRef,
-                    normalizeActiveLiveSessionControl({
-                        activeSessionId: '',
-                        label: '',
-                        scenarioSetVersionId: '',
-                        scenarioSetName: '',
-                        startedAt: '',
-                        updatedAt: nowIso
-                    }),
-                    { merge: true }
-                );
+        let targetSession = null;
+        if (targetId) {
+            const snap = await getDoc(getLiveSessionRef(targetId));
+            if (snap.exists()) {
+                targetSession = normalizeLiveSession(snap.id, snap.data());
             }
+        } else {
+            targetSession = await getActiveLiveSession();
+        }
+        if (!targetSession?.sessionId) return null;
 
-            return {
-                ...existingSession,
+        await setDoc(
+            getLiveSessionRef(targetSession.sessionId),
+            {
                 status: 'ended',
                 endedAt: nowIso
-            };
-        });
+            },
+            { merge: true }
+        );
 
-        return endedSession;
+        return {
+            ...targetSession,
+            status: 'ended',
+            endedAt: nowIso
+        };
     } catch (error) {
         console.error('Error ending live session:', error);
         throw error;
@@ -977,17 +868,15 @@ export const upsertLiveSessionParticipant = async (sessionId, participantId, pay
 };
 
 export const subscribeToActiveLiveSession = (callback) => {
+    const activeQuery = query(getLiveSessionsCollectionRef(), where('status', '==', 'active'));
     return onSnapshot(
-        getActiveLiveSessionControlRef(),
-        async () => {
+        activeQuery,
+        (snap) => {
             if (typeof callback !== 'function') return;
-            try {
-                const session = await getActiveLiveSession();
-                callback(session);
-            } catch (error) {
-                console.error('Active live session subscription failed:', error);
-                callback(null, error);
-            }
+            const sessions = snap.docs
+                .map((sessionDoc) => normalizeLiveSession(sessionDoc.id, sessionDoc.data()))
+                .filter((session) => session.sessionId);
+            callback(pickLatestLiveSession(sessions));
         },
         (error) => {
             console.error('Active live session subscription failed:', error);
