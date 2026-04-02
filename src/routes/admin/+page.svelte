@@ -1,6 +1,7 @@
 <script>
     import { onMount } from 'svelte';
     import { retrieveData, getActiveLiveSession } from '$lib/firebaseDB.js';
+    import { generateAuthToken } from '$lib/authToken.js';
     
     let stats = {
         totalUsers: 0,
@@ -11,6 +12,12 @@
     let loading = true;
     let error = null;
     let activeLiveSession = null;
+    let tokenUserId = '';
+    let copyMessage = '';
+    let copyMessageTone = 'text-slate-600';
+
+    $: normalizedTokenUserId = tokenUserId.trim();
+    $: generatedToken = normalizedTokenUserId ? generateAuthToken(normalizedTokenUserId) : '';
     
     onMount(async () => {
         try {
@@ -42,6 +49,19 @@
             loading = false;
         }
     });
+
+    async function copyGeneratedToken() {
+        if (!generatedToken) return;
+        try {
+            await navigator.clipboard.writeText(generatedToken);
+            copyMessage = 'Token copied to clipboard.';
+            copyMessageTone = 'text-emerald-600';
+        } catch (err) {
+            console.error('Unable to copy generated token:', err);
+            copyMessage = 'Copy failed. You can still highlight and copy the token manually.';
+            copyMessageTone = 'text-amber-600';
+        }
+    }
 </script>
 
 <div class="space-y-6">
@@ -62,6 +82,71 @@
                         Start Live Class Leaderboard
                     {/if}
                 </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="overflow-hidden rounded-lg border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 shadow">
+        <div class="px-4 py-5 sm:px-6">
+            <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div class="max-w-2xl">
+                    <h3 class="text-lg font-medium text-slate-900">User Token Generator</h3>
+                    <p class="mt-1 text-sm text-slate-600">
+                        Enter any username to generate the deterministic access token used by the game login screen.
+                    </p>
+                </div>
+                <div class="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                    Admin Helper
+                </div>
+            </div>
+
+            <div class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700" for="token-user-id">Username</label>
+                    <input
+                        id="token-user-id"
+                        bind:value={tokenUserId}
+                        class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                        type="text"
+                        placeholder="Enter username"
+                        autocomplete="off"
+                        spellcheck="false"
+                    />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700" for="generated-token">Generated Token</label>
+                    <input
+                        id="generated-token"
+                        class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 font-mono text-sm tracking-[0.18em] text-emerald-300 shadow-sm focus:outline-none"
+                        type="text"
+                        value={generatedToken}
+                        readonly
+                        placeholder="Token appears here"
+                    />
+                </div>
+
+                <button
+                    type="button"
+                    class="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    on:click={copyGeneratedToken}
+                    disabled={!generatedToken}
+                >
+                    Copy Token
+                </button>
+            </div>
+
+            <div class="mt-3 flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-slate-500">
+                    {#if generatedToken}
+                        Login pair: <span class="font-medium text-slate-700">{normalizedTokenUserId}</span> / <span class="font-mono text-slate-900">{generatedToken}</span>
+                    {:else}
+                        Enter a username to generate its login token.
+                    {/if}
+                </p>
+                {#if copyMessage}
+                    <p class={copyMessageTone}>{copyMessage}</p>
+                {/if}
             </div>
         </div>
     </div>
