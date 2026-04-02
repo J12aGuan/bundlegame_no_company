@@ -613,31 +613,45 @@ export const saveDetailedActionSummaries = async (id, payload = {}) => {
 
 //returns 0 on error and 1 on success
 export const authenticateUser = async (id, token) => {
-    const userDocRef = doc(collection(firestore, 'Auth'), id);
-    const userDocSnap = await getDoc(userDocRef)
-    if (userDocSnap.exists()) {
-        if (userDocSnap.data().status == 2) {
-            return 1
-        }
-        return 0
+    const normalizedId = String(id ?? '').trim();
+    const normalizedToken = String(token ?? '').trim();
+    if (!normalizedId || !normalizedToken) {
+        return 0;
     }
-    //token does not exist, generate a token for the user and see if matches
-    let generatedToken = generateAuthToken(id)
-    if (generatedToken == token) {
-        const data = {
-            userid: id,
-            status: 1
-        }
-        const userDocRef = doc(collection(firestore, 'Auth'), token);
-        try {
-            await setDoc(userDocRef, data);
-        } catch (error) {
-            console.error("Error adding document: ", error);
-        }
-        return 1
-    } else {
-        return 0
+
+    // Preserve legacy admin overrides stored by user id.
+    const legacyAuthRef = doc(collection(firestore, 'Auth'), normalizedId);
+    const legacyAuthSnap = await getDoc(legacyAuthRef);
+    if (legacyAuthSnap.exists() && legacyAuthSnap.data().status == 2) {
+        return 1;
     }
+
+    const tokenAuthRef = doc(collection(firestore, 'Auth'), normalizedToken);
+    const tokenAuthSnap = await getDoc(tokenAuthRef);
+    if (tokenAuthSnap.exists()) {
+        const tokenAuthData = tokenAuthSnap.data() || {};
+        if (String(tokenAuthData.userid ?? '').trim() === normalizedId) {
+            return 1;
+        }
+    }
+
+    const generatedToken = generateAuthToken(normalizedId);
+    if (generatedToken !== normalizedToken) {
+        return 0;
+    }
+
+    const data = {
+        userid: normalizedId,
+        status: 1
+    };
+
+    try {
+        await setDoc(tokenAuthRef, data, { merge: true });
+    } catch (error) {
+        console.error("Error adding document: ", error);
+    }
+
+    return 1;
 }
 
 async function getSubcollections(id, field) {
