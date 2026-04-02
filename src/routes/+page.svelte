@@ -109,6 +109,33 @@
         }
     }
 
+    function returnToSignIn() {
+        userInput = '';
+        userPass = '';
+        started = false;
+        authResolved = true;
+        savingProgress = false;
+        copyStatus = 'idle';
+        copyErrorMessage = '';
+        copyActionMessage = '';
+        recordingCode = false;
+        retryingFinalSave = false;
+        resendingBackup = false;
+        participantResultUrl.set('');
+        id.set('');
+        completionState.set({
+            phase: 'idle',
+            reason: '',
+            saveStatus: '',
+            saveAttempts: 0,
+            error: '',
+            payload: null,
+            retryRequest: null,
+            recoveryPosted: false
+        });
+        GameOver.set(false);
+    }
+
     async function saveAndExit() {
         if (!inSelect || $game.penaltyTriggered) {
             alert("Progress can only be saved from the main order selection screen when no penalty is active.");
@@ -362,6 +389,14 @@
                             </button>
                         </div>
                     {/if}
+
+                    <button
+                        type="button"
+                        class="w-full rounded-lg border border-slate-300 bg-white py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition"
+                        on:click={returnToSignIn}
+                    >
+                        Back to Sign In
+                    </button>
                 {/if}
             </div>
         </div>
