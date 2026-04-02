@@ -391,7 +391,11 @@ export const saveScenarioSetProgress = async (id, progress = {}) => {
             completedScenarios,
             inProgressScenario: completedScenarios.includes(nextInProgressScenario) ? '' : nextInProgressScenario,
             currentRound: Math.max(1, Number(progress?.currentRound ?? existingEntry?.currentRound) || 1),
-            currentLocation: String(progress?.currentLocation ?? existingEntry?.currentLocation ?? '').trim()
+            currentLocation: String(progress?.currentLocation ?? existingEntry?.currentLocation ?? '').trim(),
+            roundsCompleted: Math.max(0, Number(progress?.roundsCompleted ?? existingEntry?.roundsCompleted) || 0),
+            optimalChoices: Math.max(0, Number(progress?.optimalChoices ?? existingEntry?.optimalChoices) || 0),
+            totalGameTime: Math.max(0, Number(progress?.totalGameTime ?? existingEntry?.totalGameTime) || 0),
+            earnings: Math.max(0, Number(progress?.earnings ?? existingEntry?.earnings) || 0)
         });
 
         await setDoc(progressRef, {

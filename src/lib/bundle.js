@@ -683,6 +683,12 @@ function shouldPreferPendingProgress(remoteSummary = {}, pendingPayload = null) 
 	return pendingTime >= remoteTime;
 }
 
+function resolveResumeNumber(summaryValue, progressValue) {
+	const summaryNumber = Math.max(0, Number(summaryValue) || 0);
+	const progressNumber = Math.max(0, Number(progressValue) || 0);
+	return Math.max(summaryNumber, progressNumber);
+}
+
 function getPreciseElapsedSeconds() {
 	return Math.max(0, (Number(get(timeStamp)) || 0) / 1000);
 }
@@ -811,7 +817,11 @@ function buildProgressPayload(overrides = {}) {
 		completedScenarios: Array.isArray(progressSnapshot?.completedScenarios) ? progressSnapshot.completedScenarios : [],
 		inProgressScenario: String(progressSnapshot?.inProgressScenario ?? '').trim(),
 		currentRound: Math.max(1, Number(progressSnapshot?.currentRound ?? get(currentRound)) || 1),
-		currentLocation: String(progressSnapshot?.currentLocation ?? get(currLocation) ?? '').trim()
+		currentLocation: String(progressSnapshot?.currentLocation ?? get(currLocation) ?? '').trim(),
+		roundsCompleted: summaryPayload.roundsCompleted,
+		optimalChoices: summaryPayload.optimalChoices,
+		totalGameTime: summaryPayload.totalGameTime,
+		earnings: summaryPayload.earnings
 	};
 	let actionSnapshot = {
 		...(overrides?.scenarioActions || get(scenarioActions) || {})
@@ -1044,6 +1054,10 @@ async function loadSavedScenarioState(userId) {
 				: (remoteDetailedActionEntry?.actionsByScenarioId || {})
 		}
 		: remoteDetailedActionEntry;
+	const resolvedRoundsCompleted = resolveResumeNumber(summaryEntry?.roundsCompleted, progressEntry?.roundsCompleted);
+	const resolvedOptimalChoices = resolveResumeNumber(summaryEntry?.optimalChoices, progressEntry?.optimalChoices);
+	const resolvedTotalGameTime = resolveResumeNumber(summaryEntry?.totalGameTime, progressEntry?.totalGameTime);
+	const resolvedEarnings = resolveResumeNumber(summaryEntry?.earnings, progressEntry?.earnings);
 	const completedScenarios = Array.isArray(progressEntry?.completedScenarios) ? progressEntry.completedScenarios : [];
 	const inProgressScenario = String(progressEntry?.inProgressScenario ?? '').trim();
 	const actionsByScenarioId = actionEntry?.actionsByScenarioId && typeof actionEntry.actionsByScenarioId === 'object'
@@ -1070,10 +1084,10 @@ async function loadSavedScenarioState(userId) {
 			Object.entries(detailedActionsByScenarioId).map(([scenarioId, entry]) => [scenarioId, toDetailedScenarioActionEntry(entry)])
 		)
 	);
-	earned.set(Number(summaryEntry?.earnings) || 0);
-	uniqueSets.set(Number(summaryEntry?.roundsCompleted) || 0);
-	optimalChoices.set(Number(summaryEntry?.optimalChoices) || 0);
-	resumeElapsedSeconds.set(Math.max(0, Number(summaryEntry?.totalGameTime) || 0));
+	earned.set(resolvedEarnings);
+	uniqueSets.set(resolvedRoundsCompleted);
+	optimalChoices.set(resolvedOptimalChoices);
+	resumeElapsedSeconds.set(resolvedTotalGameTime);
 	const totalRounds = get(scenarios).length;
 	const resumeScenarioId = inProgressScenario;
 	const savedRound = Math.max(1, Number(progressEntry?.currentRound) || 1);
