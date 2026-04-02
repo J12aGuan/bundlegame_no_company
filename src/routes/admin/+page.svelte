@@ -2,6 +2,7 @@
     import { onMount } from 'svelte';
     import { retrieveData, getActiveLiveSession } from '$lib/firebaseDB.js';
     import { generateAuthToken } from '$lib/authToken.js';
+    import { deriveUserRunMetrics } from '$lib/userRunMetrics.js';
     
     let stats = {
         totalUsers: 0,
@@ -38,9 +39,10 @@
             let completedCount = 0;
             
             data.forEach(user => {
-                totalEarnings += user.earnings || 0;
-                totalOrders += (user.ordersComplete || 0);
-                if (user.ordersComplete > 0) completedCount++;
+                const metrics = deriveUserRunMetrics(user);
+                totalEarnings += metrics.earnings || 0;
+                totalOrders += (metrics.roundsCompleted || 0);
+                if (metrics.completedGame) completedCount++;
             });
             
             stats.totalOrders = totalOrders;
