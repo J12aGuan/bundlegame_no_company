@@ -1,7 +1,7 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, endGameSession, notifyTutorialRoundProgress, notifyMainGameComplete, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction } from "$lib/bundle.js"
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, notifyTutorialRoundProgress, finalizeMainGameSession, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction } from "$lib/bundle.js"
     import { storeConfig, getCityTravelInfo } from "$lib/config.js";
     
     let config = {}; // Will be set properly in onMount()
@@ -647,7 +647,7 @@
             try {
                 if ($gameMode !== 'tutorial') {
                     recordDetailedAction(activeScenarioId, 'game_completed', 'system', 'all_rounds_complete');
-                    await persistRoundSnapshot({
+                    await finalizeMainGameSession('all_rounds_complete', {
                         totalRounds,
                         roundsCompleted: completedRounds,
                         totalGameTime: get(elapsed),
@@ -657,11 +657,7 @@
                         currentLocation: String(get(currLocation) ?? '').trim()
                     });
                 }
-                if ($gameMode !== 'tutorial') {
-                    notifyMainGameComplete('all_rounds_complete', completedRounds, totalRounds);
-                }
             } finally {
-                endGameSession();
                 roundCompletionInProgress = false;
             }
             return;

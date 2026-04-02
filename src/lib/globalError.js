@@ -16,12 +16,29 @@ console.error = function (...args) {
     errorMsg.includes('Fetch is aborted') ||
     errorMsg.includes('permission-denied') ||
     errorMsg.includes('Missing or insufficient permissions') ||
+    (
+      lowered.includes('notallowederror') &&
+      lowered.includes('clipboard')
+    ) ||
+    (
+      lowered.includes('writetext') &&
+      lowered.includes('clipboard')
+    ) ||
+    lowered.includes('permissions policy applied to the current document') ||
     lowered.includes('style is not done loading') ||
     lowered.includes('code=unavailable') ||
     lowered.includes('client is offline')
   ) {
     // Ensure transient map/network issues do not leave the UI stuck in global error state.
     if (
+      (
+        lowered.includes('clipboard') &&
+        (
+          lowered.includes('notallowederror') ||
+          lowered.includes('writetext') ||
+          lowered.includes('permissions policy applied to the current document')
+        )
+      ) ||
       lowered.includes('style is not done loading') ||
       lowered.includes('code=unavailable') ||
       lowered.includes('client is offline')

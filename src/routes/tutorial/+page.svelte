@@ -26,6 +26,8 @@
     let authResolved = false;
     let showPracticeChoice = false;
     let practiceChoiceHandled = false;
+    let copyStatus = 'idle';
+    let copyErrorMessage = '';
 
     $: if (started && !$GameOver && $uniqueSets >= 2 && !practiceChoiceHandled) {
         showPracticeChoice = true;
@@ -36,8 +38,11 @@
         if (!resultCode) return;
         try {
             await navigator.clipboard.writeText(resultCode);
+            copyStatus = 'copied';
+            copyErrorMessage = '';
         } catch (err) {
-            console.error('Failed to copy result code:', err);
+            copyStatus = 'manual_required';
+            copyErrorMessage = 'Copy was blocked by Qualtrics or browser permissions. Please copy the result code manually.';
         }
     }
 
@@ -108,8 +113,9 @@
             {:else if $needsAuth}
                 <div class="space-y-4">
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-slate-700">User ID</label>
+                        <label class="text-sm font-medium text-slate-700" for="tutorial-user-id">User ID</label>
                         <input
+                            id="tutorial-user-id"
                             class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
                             type="text"
                             bind:value={userInput}
@@ -117,8 +123,9 @@
                         />
                     </div>
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-slate-700">Token (include dashes)</label>
+                        <label class="text-sm font-medium text-slate-700" for="tutorial-user-token">Token (include dashes)</label>
                         <input
+                            id="tutorial-user-token"
                             class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
                             type="password"
                             bind:value={userPass}

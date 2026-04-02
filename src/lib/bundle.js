@@ -35,6 +35,8 @@ let initializedMode = null;
 let activeScenarioSetVersionId = '';
 let activeScenarioSetName = '';
 const PENDING_PROGRESS_STORAGE_KEY = 'bundlegame:pendingProgressSave';
+const FINAL_SAVE_MAX_ATTEMPTS = 3;
+const FINAL_SAVE_RETRY_DELAY_MS = 1500;
 let pendingProgressFlushInFlight = false;
 let pendingProgressListenerRegistered = false;
 
@@ -120,10 +122,26 @@ let orderConfigs = []
 let start;
 let stopTimeInterval;
 let completionMessageSent = false;
+let recoveryMessageSent = false;
+
+function createDefaultCompletionState() {
+	return {
+		phase: 'idle',
+		reason: '',
+		saveStatus: '',
+		saveAttempts: 0,
+		error: '',
+		payload: null,
+		retryRequest: null,
+		recoveryPosted: false
+	};
+}
+
 export const uniqueSets = writable(0);
 export const orderList = writable([])
 export const FullTimeLimit = writable(config["timeLimit"]);
 export const participantResultUrl = writable("");
+export const completionState = writable(createDefaultCompletionState());
 export const gameMode = writable('main');
 export const scenarioSetVersionId = writable('');
 export const optimalChoices = writable(0);
@@ -644,6 +662,97 @@ function getPreciseElapsedSeconds() {
 	return Math.max(0, (Number(get(timeStamp)) || 0) / 1000);
 }
 
+function sleep(ms = 0) {
+	return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
+
+function buildResultCode(userId = '', resultAccessKey = '') {
+	const normalizedUserId = String(userId ?? '').trim();
+	const normalizedKey = String(resultAccessKey ?? '').trim();
+	if (!normalizedUserId || !normalizedKey) return '';
+	return `userId=${encodeURIComponent(normalizedUserId)}&key=${encodeURIComponent(normalizedKey)}`;
+}
+
+function getResultCodeFromUrl(url = '') {
+	const normalizedUrl = String(url ?? '').trim();
+	if (!normalizedUrl) return '';
+	const queryIndex = normalizedUrl.indexOf('?');
+	return queryIndex >= 0 ? normalizedUrl.slice(queryIndex + 1) : normalizedUrl;
+}
+
+function getResultAccessKeyFromUrl(url = '') {
+	const resultCode = getResultCodeFromUrl(url);
+	if (!resultCode) return '';
+	try {
+		const params = new URLSearchParams(resultCode);
+		return String(params.get('key') ?? '').trim();
+	} catch (_error) {
+		return '';
+	}
+}
+
+function getParticipantResultUrl(userId = '', resultAccessKey = '') {
+	const resultCode = buildResultCode(userId, resultAccessKey);
+	if (!browser || typeof window === 'undefined' || !resultCode) return '';
+	return `${window.location.origin}/result?${resultCode}`;
+}
+
+function buildCompletionPayload({
+	reason = 'completed',
+	summary = null,
+	summaryPayload = null,
+	saveStatus = '',
+	saveAttempts = 0,
+	error = ''
+} = {}) {
+	const userId = String(get(id) ?? '').trim();
+	const scenarioSetVersion = String(get(scenarioSetVersionId) ?? '').trim();
+	const summaryResultKey = String(summary?.resultAccessKey ?? '').trim();
+	const currentResultKey = getResultAccessKeyFromUrl(get(participantResultUrl));
+	const resultAccessKey = summaryResultKey || currentResultKey;
+	const resultCode = buildResultCode(userId, resultAccessKey);
+	const payload = {
+		userId,
+		scenarioSetVersionId: scenarioSetVersion,
+		resultCode,
+		resultAccessKey,
+		roundsCompleted: Number(summary?.roundsCompleted ?? summaryPayload?.roundsCompleted ?? get(uniqueSets)) || 0,
+		totalRounds: Number(summary?.totalRounds ?? summaryPayload?.totalRounds ?? get(scenarios).length) || 0,
+		optimalChoices: Number(summary?.optimalChoices ?? summaryPayload?.optimalChoices ?? get(optimalChoices)) || 0,
+		earnings: Number(summary?.earnings ?? summaryPayload?.earnings ?? get(earned)) || 0,
+		totalGameTime: Number(summary?.totalGameTime ?? summaryPayload?.totalGameTime ?? get(elapsed)) || 0,
+		completedGame: Boolean(summary?.completedGame ?? summaryPayload?.completedGame),
+		reason: String(reason || 'completed'),
+		saveStatus: String(saveStatus || '').trim(),
+		saveAttempts: Math.max(0, Number(saveAttempts) || 0),
+		copyVerificationMethod: String(summary?.completionMeta?.copyVerificationMethod ?? get(completionState)?.payload?.copyVerificationMethod ?? 'none').trim() || 'none',
+		saveError: String(error || summary?.completionMeta?.lastSaveError || '').trim()
+	};
+	return payload;
+}
+
+async function persistCompletionMetadata(fields = {}, summaryFields = {}) {
+	const userIdValue = String(get(id) ?? '').trim();
+	const versionIdValue = String(get(scenarioSetVersionId) ?? '').trim();
+	if (!userIdValue || !versionIdValue) return null;
+	return saveUserProgressSummary(userIdValue, {
+		scenarioSetVersionId: versionIdValue,
+		...summaryFields,
+		completionMeta: fields
+	});
+}
+
+function updateCompletionStatePayload(mutator) {
+	completionState.update((state) => {
+		const currentState = state || createDefaultCompletionState();
+		const nextPayload = typeof mutator === 'function' ? mutator(currentState.payload || null) : currentState.payload;
+		return {
+			...currentState,
+			payload: nextPayload
+		};
+	});
+}
+
 function buildProgressPayload(overrides = {}) {
 	const totalGameTime = overrides?.totalGameTime ?? get(elapsed);
 	const flushAtSeconds = overrides?.totalGameTime ?? getPreciseElapsedSeconds();
@@ -721,7 +830,7 @@ async function persistProgressPayload(payload) {
 		throw new Error('Progress persistence incomplete');
 	}
 	if (browser && summary?.resultAccessKey) {
-		participantResultUrl.set(`${window.location.origin}/result?userId=${encodeURIComponent(payload.userId)}&key=${encodeURIComponent(summary.resultAccessKey)}`);
+		participantResultUrl.set(getParticipantResultUrl(payload.userId, summary.resultAccessKey));
 	}
 	return summary;
 }
@@ -961,6 +1070,264 @@ export const saveProgressAndEndSession = async () => {
 	endGameSession();
 };
 
+function getSummaryFieldsFromCompletionPayload(payload = {}) {
+	if (!payload || typeof payload !== 'object') return {};
+	return {
+		totalRounds: Number(payload?.totalRounds) || 0,
+		roundsCompleted: Number(payload?.roundsCompleted) || 0,
+		optimalChoices: Number(payload?.optimalChoices) || 0,
+		totalGameTime: Number(payload?.totalGameTime) || 0,
+		completedGame: Boolean(payload?.completedGame),
+		earnings: Number(payload?.earnings) || 0
+	};
+}
+
+export async function recordResultCodeVerification(method = 'manual_confirm') {
+	const normalizedMethod = method === 'clipboard_success' ? 'clipboard_success' : 'manual_confirm';
+	const timestamp = new Date().toISOString();
+	const currentPayload = get(completionState)?.payload || null;
+	const verificationPayload = currentPayload || buildCompletionPayload({
+		reason: get(completionState)?.reason || 'completed',
+		saveStatus: get(completionState)?.saveStatus || ''
+	});
+
+	updateCompletionStatePayload((payload) => (
+		payload
+			? {
+				...payload,
+				copyVerificationMethod: normalizedMethod
+			}
+			: payload
+	));
+
+	try {
+		const summary = await persistCompletionMetadata(
+			{
+				copyVerificationMethod: normalizedMethod,
+				copyVerificationAt: timestamp
+			},
+			getSummaryFieldsFromCompletionPayload(currentPayload)
+		);
+		postParentMessage({
+			type: 'resultCodeVerificationUpdated',
+			userId: String(verificationPayload?.userId ?? '').trim(),
+			scenarioSetVersionId: String(verificationPayload?.scenarioSetVersionId ?? '').trim(),
+			resultCode: String(verificationPayload?.resultCode ?? '').trim(),
+			copyVerificationMethod: normalizedMethod,
+			copyVerificationAt: timestamp
+		});
+		return summary;
+	} catch (error) {
+		console.warn('Unable to record result-code verification:', error);
+		return null;
+	}
+}
+
+function setCompletionStateForSave(phase, reason, payload = {}) {
+	const currentState = get(completionState) || createDefaultCompletionState();
+	completionState.set({
+		...currentState,
+		phase,
+		reason: String(reason || currentState.reason || 'completed'),
+		saveStatus: String(payload?.saveStatus || currentState.saveStatus || '').trim(),
+		saveAttempts: Math.max(0, Number(payload?.saveAttempts ?? currentState.saveAttempts) || 0),
+		error: String(payload?.saveError ?? currentState.error ?? '').trim(),
+		payload: payload && Object.keys(payload).length > 0 ? payload : currentState.payload,
+		recoveryPosted: Boolean(currentState.recoveryPosted),
+		retryRequest: currentState.retryRequest
+	});
+}
+
+export async function retryFinalResultsSave() {
+	const retryRequest = get(completionState)?.retryRequest;
+	if (!retryRequest?.reason) return null;
+	return finalizeMainGameSession(retryRequest.reason, retryRequest.overrides || {});
+}
+
+export async function resendRecoveryCompletionPayload() {
+	const state = get(completionState) || createDefaultCompletionState();
+	if (state.phase !== 'recovery' || !state.payload) return null;
+	recoveryMessageSent = false;
+	return notifyMainGameRecoveryRequired(state.reason || 'completed', state.payload);
+}
+
+export async function finalizeMainGameSession(reason = 'completed', overrides = {}) {
+	const normalizedReason = String(reason || 'completed').trim() || 'completed';
+	const retryRequest = {
+		reason: normalizedReason,
+		overrides: { ...(overrides || {}) }
+	};
+
+	completionState.set({
+		...createDefaultCompletionState(),
+		phase: 'saving',
+		reason: normalizedReason,
+		saveStatus: 'saving',
+		retryRequest
+	});
+	completionMessageSent = false;
+	recoveryMessageSent = false;
+
+	if (get(gameMode) === 'tutorial' || !get(needsAuth) || !get(id) || !get(scenarioSetVersionId)) {
+		setCompletionStateForSave('ready', normalizedReason, {
+			...buildCompletionPayload({
+				reason: normalizedReason,
+				summaryPayload: {
+					totalRounds: overrides?.totalRounds ?? get(scenarios).length,
+					roundsCompleted: overrides?.roundsCompleted ?? get(uniqueSets),
+					optimalChoices: overrides?.optimalChoices ?? get(optimalChoices),
+					totalGameTime: overrides?.totalGameTime ?? get(elapsed),
+					completedGame: overrides?.completedGame ?? true,
+					earnings: overrides?.earnings ?? get(earned)
+				},
+				saveStatus: 'not_required'
+			}),
+			saveStatus: 'not_required'
+		});
+		endGameSession();
+		return { ok: true, skippedPersistence: true };
+	}
+
+	ensurePendingProgressListener();
+	void flushPendingProgressSave();
+	const payload = buildProgressPayload(overrides);
+
+	if (!payload?.userId || !payload?.versionId) {
+		setCompletionStateForSave('recovery', normalizedReason, {
+			...buildCompletionPayload({
+				reason: normalizedReason,
+				summaryPayload: payload?.summaryPayload,
+				saveStatus: 'recovery_required',
+				error: 'Missing participant ID or scenario set version for final save.'
+			}),
+			saveStatus: 'recovery_required',
+			saveError: 'Missing participant ID or scenario set version for final save.'
+		});
+		await notifyMainGameRecoveryRequired(normalizedReason, get(completionState)?.payload || null);
+		endGameSession();
+		return { ok: false, error: new Error('Missing participant ID or scenario set version for final save.') };
+	}
+
+	if (!isBrowserOnline()) {
+		writePendingProgressPayload(payload);
+		const offlineError = 'Browser is offline. Final Firebase save could not be confirmed.';
+		try {
+			await persistCompletionMetadata(
+				{
+					finalSaveStatus: 'recovery_required',
+					finalSaveAttemptCount: 0,
+					lastSaveError: offlineError
+				},
+				payload.summaryPayload
+			);
+		} catch (_error) {
+			// Ignore metadata failures when the client is offline.
+		}
+		setCompletionStateForSave('recovery', normalizedReason, {
+			...buildCompletionPayload({
+				reason: normalizedReason,
+				summaryPayload: payload.summaryPayload,
+				saveStatus: 'recovery_required',
+				error: offlineError
+			}),
+			saveStatus: 'recovery_required',
+			saveError: offlineError
+		});
+		await notifyMainGameRecoveryRequired(normalizedReason, get(completionState)?.payload || null);
+		endGameSession();
+		return { ok: false, error: new Error(offlineError) };
+	}
+
+	let lastError = null;
+	for (let attempt = 1; attempt <= FINAL_SAVE_MAX_ATTEMPTS; attempt += 1) {
+		setCompletionStateForSave('saving', normalizedReason, {
+			...buildCompletionPayload({
+				reason: normalizedReason,
+				summaryPayload: payload.summaryPayload,
+				saveStatus: 'saving',
+				saveAttempts: attempt
+			}),
+			saveStatus: 'saving',
+			saveAttempts: attempt
+		});
+
+		try {
+			const summary = await persistProgressPayload(payload);
+			clearPendingProgressPayload();
+			const finalSaveConfirmedAt = new Date().toISOString();
+			const summaryWithMeta = await persistCompletionMetadata(
+				{
+					finalSaveStatus: 'confirmed',
+					finalSaveConfirmedAt,
+					finalSaveAttemptCount: attempt,
+					lastSaveError: ''
+				},
+				payload.summaryPayload
+			);
+			const confirmedSummary = summaryWithMeta || summary;
+			const completionPayload = buildCompletionPayload({
+				reason: normalizedReason,
+				summary: confirmedSummary,
+				summaryPayload: payload.summaryPayload,
+				saveStatus: 'confirmed',
+				saveAttempts: attempt
+			});
+			completionState.set({
+				...createDefaultCompletionState(),
+				phase: 'ready',
+				reason: normalizedReason,
+				saveStatus: 'confirmed',
+				saveAttempts: attempt,
+				payload: completionPayload,
+				retryRequest
+			});
+			await notifyMainGameComplete(normalizedReason, completionPayload);
+			endGameSession();
+			return { ok: true, summary: confirmedSummary };
+		} catch (error) {
+			lastError = error;
+			writePendingProgressPayload(payload);
+			if (attempt < FINAL_SAVE_MAX_ATTEMPTS) {
+				await sleep(FINAL_SAVE_RETRY_DELAY_MS * attempt);
+			}
+		}
+	}
+
+	const recoveryError = String(lastError?.message || 'Final Firebase save could not be confirmed.').trim();
+	try {
+		await persistCompletionMetadata(
+			{
+				finalSaveStatus: 'recovery_required',
+				finalSaveAttemptCount: FINAL_SAVE_MAX_ATTEMPTS,
+				lastSaveError: recoveryError
+			},
+			payload.summaryPayload
+		);
+	} catch (_error) {
+		// Recovery metadata is best-effort; the Qualtrics backup payload is the fallback path.
+	}
+	const recoveryPayload = buildCompletionPayload({
+		reason: normalizedReason,
+		summaryPayload: payload.summaryPayload,
+		saveStatus: 'recovery_required',
+		saveAttempts: FINAL_SAVE_MAX_ATTEMPTS,
+		error: recoveryError
+	});
+	completionState.set({
+		...createDefaultCompletionState(),
+		phase: 'recovery',
+		reason: normalizedReason,
+		saveStatus: 'recovery_required',
+		saveAttempts: FINAL_SAVE_MAX_ATTEMPTS,
+		error: recoveryError,
+		payload: recoveryPayload,
+		retryRequest
+	});
+	await notifyMainGameRecoveryRequired(normalizedReason, recoveryPayload);
+	endGameSession();
+	return { ok: false, error: lastError || new Error(recoveryError) };
+}
+
 function getActiveScenarioIdForSystemEvent() {
 	const progressSnapshot = get(scenarioSetProgress) || {};
 	const inProgressScenario = String(progressSnapshot?.inProgressScenario ?? '').trim();
@@ -977,20 +1344,16 @@ async function finalizeTimedOutGame(totalGameTime) {
 			endTimeSeconds: totalGameTime
 		});
 	}
-	if (get(needsAuth) && get(id)) {
-		if (get(gameMode) !== 'tutorial') {
-			await saveCurrentProgress({
-				totalRounds: get(scenarios).length,
-				roundsCompleted: get(uniqueSets),
-				optimalChoices: get(optimalChoices),
-				totalGameTime,
-				completedGame: true,
-				earnings: get(earned)
-			});
-		}
-	}
 	if (get(gameMode) !== 'tutorial') {
-		notifyMainGameComplete('time_expired', get(uniqueSets), get(scenarios).length);
+		await finalizeMainGameSession('time_expired', {
+			totalRounds: get(scenarios).length,
+			roundsCompleted: get(uniqueSets),
+			optimalChoices: get(optimalChoices),
+			totalGameTime,
+			completedGame: true,
+			earnings: get(earned)
+		});
+		return;
 	}
 	GameOver.set(true);
 	stopTimeInterval?.();
@@ -1055,15 +1418,111 @@ export function notifyTutorialRoundProgress(roundsCompleted = 0, totalRounds = 0
 	});
 }
 
-export function notifyMainGameComplete(reason = 'completed', roundsCompleted = 0, totalRounds = 0) {
-	if (completionMessageSent) return;
+export async function notifyMainGameComplete(reason = 'completed', payload = null) {
+	const normalizedReason = String(reason || 'completed').trim() || 'completed';
+	const resolvedPayload = payload || buildCompletionPayload({ reason: normalizedReason, saveStatus: 'confirmed' });
+	if (completionMessageSent) return resolvedPayload;
 	completionMessageSent = true;
+	recoveryMessageSent = false;
+
 	postParentMessage({
 		type: 'mainGameComplete',
-		reason: String(reason || 'completed'),
-		roundsCompleted: Number(roundsCompleted) || 0,
-		totalRounds: Number(totalRounds) || 0
+		reason: normalizedReason,
+		saveStatus: 'confirmed',
+		userId: String(resolvedPayload?.userId ?? '').trim(),
+		scenarioSetVersionId: String(resolvedPayload?.scenarioSetVersionId ?? '').trim(),
+		resultCode: String(resolvedPayload?.resultCode ?? '').trim(),
+		resultAccessKey: String(resolvedPayload?.resultAccessKey ?? '').trim(),
+		roundsCompleted: Number(resolvedPayload?.roundsCompleted) || 0,
+		totalRounds: Number(resolvedPayload?.totalRounds) || 0,
+		optimalChoices: Number(resolvedPayload?.optimalChoices) || 0,
+		earnings: Number(resolvedPayload?.earnings) || 0,
+		totalGameTime: Number(resolvedPayload?.totalGameTime) || 0,
+		completedGame: Boolean(resolvedPayload?.completedGame),
+		copyVerificationMethod: String(resolvedPayload?.copyVerificationMethod ?? 'none').trim() || 'none',
+		saveAttempts: Number(resolvedPayload?.saveAttempts) || 0,
+		saveError: ''
 	});
+
+	const handoffPostedAt = new Date().toISOString();
+	updateCompletionStatePayload((currentPayload) => (
+		currentPayload
+			? {
+				...currentPayload,
+				saveStatus: 'confirmed'
+			}
+			: currentPayload
+	));
+	try {
+		await persistCompletionMetadata(
+			{
+				finalSaveStatus: 'confirmed',
+				handoffPostedAt,
+				lastSaveError: ''
+			},
+			getSummaryFieldsFromCompletionPayload(resolvedPayload)
+		);
+	} catch (error) {
+		console.warn('Unable to persist completion handoff metadata:', error);
+	}
+	return resolvedPayload;
+}
+
+export async function notifyMainGameRecoveryRequired(reason = 'completed', payload = null) {
+	const normalizedReason = String(reason || 'completed').trim() || 'completed';
+	const resolvedPayload = payload || buildCompletionPayload({
+		reason: normalizedReason,
+		saveStatus: 'recovery_required'
+	});
+	if (recoveryMessageSent) return resolvedPayload;
+	recoveryMessageSent = true;
+	completionMessageSent = false;
+
+	postParentMessage({
+		type: 'mainGameRecoveryRequired',
+		reason: normalizedReason,
+		saveStatus: 'recovery_required',
+		userId: String(resolvedPayload?.userId ?? '').trim(),
+		scenarioSetVersionId: String(resolvedPayload?.scenarioSetVersionId ?? '').trim(),
+		resultCode: String(resolvedPayload?.resultCode ?? '').trim(),
+		resultAccessKey: String(resolvedPayload?.resultAccessKey ?? '').trim(),
+		roundsCompleted: Number(resolvedPayload?.roundsCompleted) || 0,
+		totalRounds: Number(resolvedPayload?.totalRounds) || 0,
+		optimalChoices: Number(resolvedPayload?.optimalChoices) || 0,
+		earnings: Number(resolvedPayload?.earnings) || 0,
+		totalGameTime: Number(resolvedPayload?.totalGameTime) || 0,
+		completedGame: Boolean(resolvedPayload?.completedGame),
+		copyVerificationMethod: String(resolvedPayload?.copyVerificationMethod ?? 'none').trim() || 'none',
+		saveAttempts: Number(resolvedPayload?.saveAttempts) || 0,
+		saveError: String(resolvedPayload?.saveError ?? '').trim()
+	});
+
+	const handoffPostedAt = new Date().toISOString();
+	updateCompletionStatePayload((currentPayload) => (
+		currentPayload
+			? {
+				...currentPayload,
+				saveStatus: 'recovery_required'
+			}
+			: currentPayload
+	));
+	completionState.update((state) => ({
+		...(state || createDefaultCompletionState()),
+		recoveryPosted: true
+	}));
+	try {
+		await persistCompletionMetadata(
+			{
+				finalSaveStatus: 'recovery_required',
+				handoffPostedAt,
+				lastSaveError: String(resolvedPayload?.saveError ?? '').trim()
+			},
+			getSummaryFieldsFromCompletionPayload(resolvedPayload)
+		);
+	} catch (error) {
+		console.warn('Unable to persist recovery handoff metadata:', error);
+	}
+	return resolvedPayload;
 }
 
 function resetRuntimeState() {
@@ -1105,7 +1564,9 @@ function resetRuntimeState() {
 		refresh: config["refresh"],
 		penaltyTriggered: false
 	});
+	completionState.set(createDefaultCompletionState());
 	completionMessageSent = false;
+	recoveryMessageSent = false;
 	timeoutGameOverProcessed = false;
 }
 
@@ -1258,7 +1719,7 @@ export async function createNewUser(id, mode = 'main') {
 			totalRounds: get(scenarios).length
 		});
 		if (browser && summary?.resultAccessKey) {
-			participantResultUrl.set(`${window.location.origin}/result?userId=${encodeURIComponent(id)}&key=${encodeURIComponent(summary.resultAccessKey)}`);
+			participantResultUrl.set(getParticipantResultUrl(id, summary.resultAccessKey));
 		} else {
 			participantResultUrl.set("");
 		}
