@@ -132,46 +132,46 @@
 	function statusClasses(status = '') {
 		switch (String(status ?? '').trim()) {
 			case 'completed':
-				return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
+				return 'border-emerald-200 bg-emerald-50 text-emerald-700';
 			case 'in_progress':
-				return 'border-cyan-400/20 bg-cyan-400/10 text-cyan-200';
+				return 'border-sky-200 bg-sky-50 text-sky-700';
 			default:
-				return 'border-slate-500/30 bg-slate-400/10 text-slate-200';
+				return 'border-slate-200 bg-slate-100 text-slate-600';
 		}
 	}
 
 	function getAvatarClasses(rank = 0) {
-		if (rank === 1) return 'border-emerald-400/40 bg-gradient-to-br from-emerald-500/20 via-slate-900 to-cyan-500/10 text-emerald-100';
-		if (rank === 2) return 'border-cyan-400/30 bg-gradient-to-br from-cyan-500/15 via-slate-900 to-sky-500/10 text-cyan-100';
-		if (rank === 3) return 'border-slate-500/35 bg-gradient-to-br from-slate-500/20 via-slate-900 to-slate-700/20 text-slate-100';
-		return 'border-slate-700 bg-gradient-to-br from-slate-800 via-slate-950 to-slate-900 text-slate-100';
+		if (rank === 1) return 'border-amber-200 bg-gradient-to-br from-amber-50 via-white to-yellow-100 text-amber-700';
+		if (rank === 2) return 'border-sky-200 bg-gradient-to-br from-sky-50 via-white to-cyan-100 text-sky-700';
+		if (rank === 3) return 'border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-100 text-emerald-700';
+		return 'border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-700';
 	}
 
 	function getRankBadgeClasses(rank = 0) {
-		if (rank === 1) return 'bg-gradient-to-br from-emerald-400 to-cyan-400 text-slate-950 shadow-lg shadow-emerald-500/20';
-		if (rank === 2) return 'bg-gradient-to-br from-cyan-300 to-sky-400 text-slate-950 shadow-lg shadow-cyan-500/20';
-		if (rank === 3) return 'bg-gradient-to-br from-slate-300 to-slate-100 text-slate-950 shadow-lg shadow-slate-500/20';
-		return 'bg-slate-800 text-slate-300';
+		if (rank === 1) return 'bg-gradient-to-br from-amber-400 to-yellow-300 text-white shadow-lg shadow-amber-200';
+		if (rank === 2) return 'bg-gradient-to-br from-sky-400 to-cyan-300 text-white shadow-lg shadow-sky-200';
+		if (rank === 3) return 'bg-gradient-to-br from-emerald-400 to-teal-300 text-white shadow-lg shadow-emerald-200';
+		return 'bg-slate-200 text-slate-700';
 	}
 
 	function getBarFillClasses(rank = 0) {
-		if (rank === 1) return 'bg-gradient-to-r from-emerald-400 via-emerald-300 to-cyan-300';
-		if (rank === 2) return 'bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400';
-		if (rank === 3) return 'bg-gradient-to-r from-slate-300 via-slate-200 to-slate-100';
-		return 'bg-gradient-to-r from-sky-500 via-blue-500 to-cyan-400';
+		if (rank === 1) return 'bg-gradient-to-r from-amber-400 via-yellow-300 to-orange-300';
+		if (rank === 2) return 'bg-gradient-to-r from-sky-500 via-cyan-400 to-blue-300';
+		if (rank === 3) return 'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-300';
+		return 'bg-gradient-to-r from-sky-400 via-blue-300 to-cyan-300';
 	}
 
 	function getRowShellClasses(rank = 0) {
-		if (rank === 1) return 'border border-emerald-400/18 bg-gradient-to-r from-emerald-500/8 via-slate-900/50 to-slate-950/80 shadow-lg shadow-emerald-950/25';
-		if (rank === 2) return 'border border-cyan-400/18 bg-gradient-to-r from-cyan-500/8 via-slate-900/50 to-slate-950/80 shadow-md shadow-cyan-950/20';
-		if (rank === 3) return 'border border-slate-400/20 bg-gradient-to-r from-slate-400/8 via-slate-900/50 to-slate-950/80 shadow-md shadow-slate-950/20';
-		return 'border border-white/6 bg-slate-950/35';
+		if (rank === 1) return 'border border-amber-200 bg-gradient-to-r from-amber-50 via-white to-yellow-50 shadow-md shadow-amber-100/70';
+		if (rank === 2) return 'border border-sky-200 bg-gradient-to-r from-sky-50 via-white to-cyan-50 shadow-md shadow-sky-100/70';
+		if (rank === 3) return 'border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-teal-50 shadow-md shadow-emerald-100/70';
+		return 'border border-slate-200 bg-white shadow-sm';
 	}
 
 	function getPodiumCardClasses(slot = '') {
-		if (slot === '1st') return 'border border-emerald-400/25 bg-gradient-to-br from-emerald-500/14 via-slate-950 to-cyan-500/8 shadow-xl shadow-emerald-950/30';
-		if (slot === '2nd') return 'border border-cyan-400/20 bg-gradient-to-br from-cyan-500/12 via-slate-950 to-sky-500/8 shadow-lg shadow-cyan-950/25';
-		return 'border border-slate-400/18 bg-gradient-to-br from-slate-400/10 via-slate-950 to-slate-700/10 shadow-lg shadow-slate-950/20';
+		if (slot === '1st') return 'border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-yellow-50 shadow-xl shadow-amber-100/80';
+		if (slot === '2nd') return 'border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-cyan-50 shadow-lg shadow-sky-100/70';
+		return 'border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 shadow-lg shadow-emerald-100/70';
 	}
 
 	function computeGoalTarget(maxValue = 0) {
@@ -327,6 +327,11 @@
 		? leaderboardSummary.totalEarnings / rankedParticipants.length
 		: 0;
 
+	$: ladderTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => ({
+		ratio,
+		value: goalTarget * ratio
+	}));
+
 	$: leaderboardSplitIndex = Math.ceil(rankedParticipants.length / 2);
 
 	$: leaderboardColumns = rankedParticipants.length > 10
@@ -338,45 +343,45 @@
 </script>
 
 <div class="space-y-6">
-	<div class="overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-700 shadow-2xl">
-		<div class="grid gap-5 px-5 py-6 text-white lg:grid-cols-[1.45fr,0.95fr] lg:px-7">
+	<div class="overflow-hidden rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.12),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.12),_transparent_26%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)] shadow-xl">
+		<div class="grid gap-5 px-5 py-6 text-slate-900 lg:grid-cols-[1.45fr,0.95fr] lg:px-7">
 			<div class="space-y-3">
-				<div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-slate-200">
-					<span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+				<div class="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-sky-700 shadow-sm">
+					<span class="h-2 w-2 rounded-full bg-emerald-500"></span>
 					Live Class Leaderboard
 				</div>
 				<div>
-					<h2 class="text-3xl font-black tracking-tight">Project the class standings in real time.</h2>
-					<p class="mt-2 max-w-2xl text-sm leading-6 text-slate-200">
+					<h2 class="text-3xl font-black tracking-tight text-slate-950">Project the class standings in real time.</h2>
+					<p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
 						Start a live class session before tomorrow’s run. Only students who enter while this session is active will appear on the board.
 						The planned duration is 20 minutes, but the session never auto-removes students or stops updating until you end it here.
 					</p>
 				</div>
 				<div class="grid gap-3 sm:grid-cols-4">
-					<div class="rounded-2xl border border-white/10 bg-white/10 p-3.5 backdrop-blur">
-						<p class="text-xs uppercase tracking-[0.2em] text-slate-300">Joined</p>
-						<p class="mt-1.5 text-3xl font-black">{leaderboardSummary.totalJoined}</p>
+					<div class="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+						<p class="text-xs uppercase tracking-[0.2em] text-slate-500">Joined</p>
+						<p class="mt-1.5 text-3xl font-black text-slate-950">{leaderboardSummary.totalJoined}</p>
 					</div>
-					<div class="rounded-2xl border border-white/10 bg-white/10 p-3.5 backdrop-blur">
-						<p class="text-xs uppercase tracking-[0.2em] text-slate-300">In Progress</p>
-						<p class="mt-1.5 text-3xl font-black">{leaderboardSummary.inProgress}</p>
+					<div class="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+						<p class="text-xs uppercase tracking-[0.2em] text-slate-500">In Progress</p>
+						<p class="mt-1.5 text-3xl font-black text-slate-950">{leaderboardSummary.inProgress}</p>
 					</div>
-					<div class="rounded-2xl border border-white/10 bg-white/10 p-3.5 backdrop-blur">
-						<p class="text-xs uppercase tracking-[0.2em] text-slate-300">Completed</p>
-						<p class="mt-1.5 text-3xl font-black">{leaderboardSummary.completed}</p>
+					<div class="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+						<p class="text-xs uppercase tracking-[0.2em] text-slate-500">Completed</p>
+						<p class="mt-1.5 text-3xl font-black text-slate-950">{leaderboardSummary.completed}</p>
 					</div>
-					<div class="rounded-2xl border border-white/10 bg-white/10 p-3.5 backdrop-blur">
-						<p class="text-xs uppercase tracking-[0.2em] text-slate-300">Total Money</p>
-						<p class="mt-1.5 text-3xl font-black">{formatMoney(leaderboardSummary.totalEarnings)}</p>
+					<div class="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+						<p class="text-xs uppercase tracking-[0.2em] text-slate-500">Total Money</p>
+						<p class="mt-1.5 text-3xl font-black text-emerald-700">{formatMoney(leaderboardSummary.totalEarnings)}</p>
 					</div>
 				</div>
 			</div>
 
-			<div class="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur">
+			<div class="rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm backdrop-blur">
 				<div class="flex items-start justify-between gap-3">
 					<div>
-						<p class="text-xs uppercase tracking-[0.22em] text-slate-300">Session Control</p>
-						<h3 class="mt-2 text-xl font-bold">
+						<p class="text-xs uppercase tracking-[0.22em] text-slate-500">Session Control</p>
+						<h3 class="mt-2 text-xl font-bold text-slate-950">
 							{#if activeSession?.sessionId}
 								{activeSession.label || activeSession.sessionId}
 							{:else}
@@ -384,18 +389,18 @@
 							{/if}
 						</h3>
 					</div>
-					<span class={`rounded-full px-3 py-1 text-xs font-semibold ${activeSession?.sessionId ? 'bg-emerald-400/20 text-emerald-200' : 'bg-white/10 text-slate-200'}`}>
+					<span class={`rounded-full px-3 py-1 text-xs font-semibold ${activeSession?.sessionId ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
 						{activeSession?.sessionId ? 'Active' : 'Idle'}
 					</span>
 				</div>
 
 				<div class="mt-5 space-y-4">
-					<label class="block text-sm font-medium text-slate-100" for="live-session-label">Session label</label>
+					<label class="block text-sm font-medium text-slate-700" for="live-session-label">Session label</label>
 					<input
 						id="live-session-label"
 						type="text"
 						bind:value={sessionLabelDraft}
-						class="w-full rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-white placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+						class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
 						placeholder="Class Session"
 						disabled={Boolean(activeSession?.sessionId)}
 					/>
@@ -403,7 +408,7 @@
 					<div class="grid gap-3 sm:grid-cols-2">
 						<button
 							type="button"
-							class="rounded-2xl bg-cyan-400 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+							class="rounded-2xl bg-sky-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
 							on:click={startSessionNow}
 							disabled={actionLoading || Boolean(activeSession?.sessionId)}
 						>
@@ -411,7 +416,7 @@
 						</button>
 						<button
 							type="button"
-							class="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+							class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
 							on:click={endSessionNow}
 							disabled={actionLoading || !activeSession?.sessionId}
 						>
@@ -419,14 +424,14 @@
 						</button>
 					</div>
 
-					<div class="rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-200">
-						<p><span class="font-semibold text-white">Dataset:</span> {activeSession?.scenarioSetName || sessionDefaults.scenarioSetName || 'Unknown'}</p>
-						<p class="mt-1"><span class="font-semibold text-white">Version:</span> {activeSession?.scenarioSetVersionId || sessionDefaults.scenarioSetVersionId || 'Unavailable'}</p>
-						<p class="mt-1"><span class="font-semibold text-white">Planned duration:</span> 20 minutes</p>
+					<div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+						<p><span class="font-semibold text-slate-950">Dataset:</span> {activeSession?.scenarioSetName || sessionDefaults.scenarioSetName || 'Unknown'}</p>
+						<p class="mt-1"><span class="font-semibold text-slate-950">Version:</span> {activeSession?.scenarioSetVersionId || sessionDefaults.scenarioSetVersionId || 'Unavailable'}</p>
+						<p class="mt-1"><span class="font-semibold text-slate-950">Planned duration:</span> 20 minutes</p>
 						{#if activeSession?.startedAt}
-							<p class="mt-1"><span class="font-semibold text-white">Started:</span> {formatDateTime(activeSession.startedAt)}</p>
+							<p class="mt-1"><span class="font-semibold text-slate-950">Started:</span> {formatDateTime(activeSession.startedAt)}</p>
 						{/if}
-						<p class="mt-3 text-xs text-slate-400">
+						<p class="mt-3 text-xs text-slate-500">
 							Students stay on this leaderboard until you end the session manually. The 20-minute duration is informational only.
 						</p>
 					</div>
@@ -459,39 +464,39 @@
 		</div>
 	{:else}
 		<div class="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_340px]">
-			<section class="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 shadow-2xl">
-				<div class="border-b border-white/8 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.14),_transparent_25%),linear-gradient(180deg,_rgba(15,23,42,1)_0%,_rgba(2,6,23,1)_100%)] p-5 lg:p-6">
+			<section class="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl">
+				<div class="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.12),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.12),_transparent_24%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)] p-5 lg:p-6">
 					<div class="flex flex-col gap-4">
 						<div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
 							<div>
-								<p class="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-300">Live Market Board</p>
-								<h3 class="mt-2 text-3xl font-black tracking-tight text-white">Class earnings ranked like a trading desk.</h3>
-								<p class="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-									Dense, projection-friendly, and optimized for around 20 students. Rankings update live from the current session using earnings, rounds completed, and fastest time.
+								<p class="text-xs font-semibold uppercase tracking-[0.3em] text-sky-600">Leaderboard Ladder</p>
+								<h3 class="mt-2 text-3xl font-black tracking-tight text-slate-950">See the whole class at a glance.</h3>
+								<p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+									This board is easy to project, fits a full class, and updates live as students play. Rankings use earnings first, then rounds completed, then fastest time.
 								</p>
 							</div>
-							<div class="inline-flex items-center gap-3 self-start rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-100 shadow-lg shadow-emerald-950/30">
-								<span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
-								Market open
+							<div class="inline-flex items-center gap-3 self-start rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700 shadow-sm">
+								<span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+								Live updates
 							</div>
 						</div>
 
 						<div class="grid gap-3 sm:grid-cols-4">
-							<div class="rounded-[1.35rem] border border-white/8 bg-white/5 p-4 backdrop-blur">
-								<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Students</p>
-								<p class="mt-2 text-3xl font-black text-white">{leaderboardSummary.totalJoined}</p>
+							<div class="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm">
+								<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Students</p>
+								<p class="mt-2 text-3xl font-black text-slate-950">{leaderboardSummary.totalJoined}</p>
 							</div>
-							<div class="rounded-[1.35rem] border border-white/8 bg-white/5 p-4 backdrop-blur">
-								<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">In Market</p>
-								<p class="mt-2 text-3xl font-black text-white">{leaderboardSummary.inProgress}</p>
+							<div class="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm">
+								<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Playing</p>
+								<p class="mt-2 text-3xl font-black text-slate-950">{leaderboardSummary.inProgress}</p>
 							</div>
-							<div class="rounded-[1.35rem] border border-white/8 bg-white/5 p-4 backdrop-blur">
-								<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Total Money</p>
-								<p class="mt-2 text-3xl font-black text-emerald-300">{formatMoneyCompact(leaderboardSummary.totalEarnings)}</p>
+							<div class="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm">
+								<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Total Money</p>
+								<p class="mt-2 text-3xl font-black text-emerald-700">{formatMoneyCompact(leaderboardSummary.totalEarnings)}</p>
 							</div>
-							<div class="rounded-[1.35rem] border border-white/8 bg-white/5 p-4 backdrop-blur">
-								<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Leader Spread</p>
-								<p class="mt-2 text-3xl font-black text-cyan-300">{formatMoneyCompact(leaderSpread)}</p>
+							<div class="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm">
+								<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Lead Margin</p>
+								<p class="mt-2 text-3xl font-black text-sky-700">{formatMoneyCompact(leaderSpread)}</p>
 							</div>
 						</div>
 					</div>
@@ -499,36 +504,42 @@
 
 				<div class="p-4">
 					<div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-						<div class="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-							<span class="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-slate-300">Sorted by earnings</span>
-							<span class="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-slate-300">Tie-breaker: rounds, then time</span>
+						<div class="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+							<span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-600">Sorted by earnings</span>
+							<span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-600">Tie-breaker: rounds, then time</span>
 						</div>
 						<p class="text-xs text-slate-500">
-							{leaderboardColumns.length > 1 ? 'Two-column board enabled for larger classes.' : 'Single-column board for smaller groups.'}
+							{leaderboardColumns.length > 1 ? 'Two-column ladder layout is on for a full class.' : 'Single-column ladder layout is on for a smaller group.'}
 						</p>
 					</div>
 
-					<div class="rounded-[1.5rem] border border-white/8 bg-slate-900/75 shadow-xl shadow-slate-950/30">
+					<div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 shadow-sm">
 						{#if rankedParticipants.length === 0}
-							<div class="m-4 rounded-[1.25rem] border border-dashed border-white/10 bg-slate-950/40 p-8 text-center text-sm text-slate-400">
+							<div class="m-4 rounded-[1.25rem] border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
 								No students have joined this live session yet.
 							</div>
 						{:else}
 							<div class={`grid gap-px ${leaderboardColumns.length > 1 ? 'xl:grid-cols-2' : 'grid-cols-1'}`}>
 								{#each leaderboardColumns as column}
 									<div class="min-w-0">
-										<div class="grid grid-cols-[44px,minmax(0,1.45fr),96px,54px,58px,72px] items-center gap-2 border-b border-white/8 bg-slate-900/95 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-											<div>Rank</div>
-											<div>Student</div>
-											<div class="text-right">P&amp;L</div>
-											<div class="text-center">Rd</div>
-											<div class="text-center">Opt</div>
-											<div class="text-right">Time</div>
+										<div class="rounded-t-[1.35rem] border-b border-slate-200 bg-white px-3 py-3">
+											<div class="grid grid-cols-[44px,minmax(0,1fr),84px] items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+												<div>Rank</div>
+												<div>Student</div>
+												<div class="text-right">Score</div>
+											</div>
+											<div class="ml-[56px] mr-[84px] mt-3 grid grid-cols-5 text-[10px] font-medium text-slate-400">
+												{#each ladderTicks as tick}
+													<span class={tick.ratio === 0 ? 'text-left' : tick.ratio === 1 ? 'text-right' : 'text-center'}>
+														{formatMoneyCompact(tick.value)}
+													</span>
+												{/each}
+											</div>
 										</div>
-										<div class="space-y-2 p-3">
+										<div class="space-y-2 bg-white p-3">
 										{#each column as participant}
 											<article class={`rounded-[1.15rem] px-3 py-2.5 ${getRowShellClasses(participant.rank)}`}>
-												<div class="grid grid-cols-[44px,minmax(0,1.45fr),96px,54px,58px,72px] items-center gap-2">
+												<div class="grid grid-cols-[44px,minmax(0,1fr),84px] items-center gap-3">
 													<div class="flex items-center justify-center">
 														<div class={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black ${getRankBadgeClasses(participant.rank)}`}>
 															{participant.rank}
@@ -542,17 +553,18 @@
 														</div>
 														<div class="min-w-0">
 															<div class="flex flex-wrap items-center gap-2">
-																<h4 class="truncate text-sm font-black text-white">{participant.displayName}</h4>
+																<h4 class="truncate text-sm font-black text-slate-950">{participant.displayName}</h4>
 																<span class={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${statusClasses(participant.status)}`}>
 																	{statusLabel(participant.status)}
 																</span>
 															</div>
-															<p class="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-400">
-																Updated {formatRelativeTime(participant.lastActivityAt)}
+															<p class="mt-1 text-[10px] text-slate-500">
+																{participant.roundsCompleted} rounds • {participant.optimalChoices} optimal • {formatRuntime(participant.totalGameTime)} • updated {formatRelativeTime(participant.lastActivityAt)}
 															</p>
 														</div>
 														</div>
-														<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+														<div class="relative mt-2 h-3 overflow-hidden rounded-full bg-slate-100">
+															<div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(148,163,184,0.16)_1px,transparent_1px)] bg-[length:25%_100%] opacity-80"></div>
 															<div
 																class={`h-full rounded-full ${getBarFillClasses(participant.rank)}`}
 																style={`width: ${Math.max(getDisplayBarWidth(participant.earnings, goalTarget), 6)}%;`}
@@ -561,17 +573,13 @@
 													</div>
 
 													<div class="text-right">
-														<p class={`font-mono text-sm font-black ${participant.rank === 1 ? 'text-emerald-300' : participant.rank === 2 ? 'text-cyan-300' : 'text-white'}`}>
+														<p class={`font-mono text-sm font-black ${participant.rank === 1 ? 'text-emerald-700' : participant.rank === 2 ? 'text-sky-700' : participant.rank === 3 ? 'text-amber-700' : 'text-slate-900'}`}>
 															{formatMoneyCompact(participant.earnings)}
 														</p>
-														<p class="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-500">
-															{participant.rank === 1 ? 'Leader' : formatMoneyCompact(Math.max(0, leader?.earnings - participant.earnings))}
+														<p class="mt-1 text-[10px] text-slate-500">
+															{participant.rank === 1 ? 'Leader' : `${formatMoneyCompact(Math.max(0, leader?.earnings - participant.earnings))} back`}
 														</p>
 													</div>
-
-													<div class="text-center font-mono text-sm font-semibold text-slate-200">{participant.roundsCompleted}</div>
-													<div class="text-center font-mono text-sm font-semibold text-slate-200">{participant.optimalChoices}</div>
-													<div class="text-right font-mono text-sm font-semibold text-slate-300">{formatRuntime(participant.totalGameTime)}</div>
 												</div>
 											</article>
 										{/each}
@@ -585,48 +593,48 @@
 			</section>
 
 			<section class="space-y-4">
-				<div class="overflow-hidden rounded-[2rem] bg-slate-950 text-white shadow-2xl">
-					<div class="bg-[linear-gradient(180deg,rgba(15,23,42,0.98)_0%,rgba(2,6,23,0.98)_100%)] p-5">
+				<div class="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+					<div class="bg-[linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)] p-5">
 						<div class="flex items-start justify-between gap-3">
 							<div>
-								<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Session Snapshot</p>
-								<h3 class="mt-2 text-xl font-black">
+								<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Session Snapshot</p>
+								<h3 class="mt-2 text-xl font-black text-slate-950">
 									{activeSession.label || activeSession.sessionId}
 								</h3>
 							</div>
-							<span class="rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-200">
+							<span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
 								Active
 							</span>
 						</div>
 
-						<div class="mt-4 rounded-[1.25rem] border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
-							<p><span class="font-semibold text-white">Dataset:</span> {activeSession?.scenarioSetName || sessionDefaults.scenarioSetName || 'Unknown'}</p>
-							<p class="mt-1"><span class="font-semibold text-white">Version:</span> {activeSession?.scenarioSetVersionId || sessionDefaults.scenarioSetVersionId || 'Unavailable'}</p>
-							<p class="mt-1"><span class="font-semibold text-white">Started:</span> {formatDateTime(activeSession.startedAt)}</p>
-							<p class="mt-1"><span class="font-semibold text-white">Duration:</span> 20 minutes planned</p>
-							<p class="mt-3 text-xs text-slate-400">
+						<div class="mt-4 rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+							<p><span class="font-semibold text-slate-950">Dataset:</span> {activeSession?.scenarioSetName || sessionDefaults.scenarioSetName || 'Unknown'}</p>
+							<p class="mt-1"><span class="font-semibold text-slate-950">Version:</span> {activeSession?.scenarioSetVersionId || sessionDefaults.scenarioSetVersionId || 'Unavailable'}</p>
+							<p class="mt-1"><span class="font-semibold text-slate-950">Started:</span> {formatDateTime(activeSession.startedAt)}</p>
+							<p class="mt-1"><span class="font-semibold text-slate-950">Duration:</span> 20 minutes planned</p>
+							<p class="mt-3 text-xs text-slate-500">
 								Students stay listed until you manually end the session.
 							</p>
 						</div>
 					</div>
 				</div>
 
-				<div class="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 text-white shadow-xl">
-					<div class="border-b border-white/8 p-5">
-						<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Top Desks</p>
-						<h3 class="mt-2 text-xl font-black">Leader stack</h3>
+				<div class="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+					<div class="border-b border-slate-200 p-5">
+						<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Top 3</p>
+						<h3 class="mt-2 text-xl font-black text-slate-950">Leading students right now</h3>
 					</div>
 					<div class="space-y-3 p-4">
 						{#each podiumCards as card}
 							<div class={`rounded-[1.25rem] p-4 ${getPodiumCardClasses(card.slot)}`}>
 								<div class="flex items-start justify-between gap-3">
 									<div>
-										<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">{card.slot}</p>
+										<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">{card.slot}</p>
 										{#if card.participant}
-											<p class="mt-2 truncate text-lg font-black text-white">{card.participant.displayName}</p>
-											<p class="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">{card.participant.roundsCompleted} rounds • {card.participant.optimalChoices} optimal</p>
+											<p class="mt-2 truncate text-lg font-black text-slate-950">{card.participant.displayName}</p>
+											<p class="mt-1 text-[11px] text-slate-500">{card.participant.roundsCompleted} rounds • {card.participant.optimalChoices} optimal</p>
 										{:else}
-											<p class="mt-2 text-sm text-slate-400">Waiting for a student to claim this slot.</p>
+											<p class="mt-2 text-sm text-slate-500">Waiting for a student to claim this slot.</p>
 										{/if}
 									</div>
 									{#if card.participant}
@@ -636,38 +644,38 @@
 									{/if}
 								</div>
 								{#if card.participant}
-									<p class="mt-4 font-mono text-2xl font-black text-emerald-300">{formatMoneyCompact(card.participant.earnings)}</p>
+									<p class="mt-4 font-mono text-2xl font-black text-emerald-700">{formatMoneyCompact(card.participant.earnings)}</p>
 								{/if}
 							</div>
 						{/each}
 					</div>
 				</div>
 
-				<div class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 text-white shadow-xl">
+				<div class="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
 					<div class="flex items-center justify-between gap-3">
 						<div>
-							<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Class Pulse</p>
-							<h3 class="mt-2 text-xl font-black">Desk readout</h3>
+							<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Class Pulse</p>
+							<h3 class="mt-2 text-xl font-black text-slate-950">Quick read</h3>
 						</div>
-						<p class="text-xs font-medium text-slate-500">Built for larger cohorts</p>
+						<p class="text-xs font-medium text-slate-500">Built for a full class</p>
 					</div>
 
 					<div class="mt-4 grid gap-3">
-						<div class="rounded-[1.15rem] border border-white/8 bg-white/5 px-4 py-3">
-							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Students</p>
-							<p class="mt-1.5 text-2xl font-black text-white">{leaderboardSummary.totalJoined}</p>
+						<div class="rounded-[1.15rem] border border-slate-200 bg-slate-50 px-4 py-3">
+							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Students</p>
+							<p class="mt-1.5 text-2xl font-black text-slate-950">{leaderboardSummary.totalJoined}</p>
 						</div>
-						<div class="rounded-[1.15rem] border border-white/8 bg-white/5 px-4 py-3">
-							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Completed</p>
-							<p class="mt-1.5 text-2xl font-black text-white">{leaderboardSummary.completed}</p>
+						<div class="rounded-[1.15rem] border border-slate-200 bg-slate-50 px-4 py-3">
+							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Completed</p>
+							<p class="mt-1.5 text-2xl font-black text-slate-950">{leaderboardSummary.completed}</p>
 						</div>
-						<div class="rounded-[1.15rem] border border-white/8 bg-white/5 px-4 py-3">
-							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Average earnings</p>
-							<p class="mt-1.5 font-mono text-2xl font-black text-cyan-300">{formatMoneyCompact(averageEarnings)}</p>
+						<div class="rounded-[1.15rem] border border-slate-200 bg-slate-50 px-4 py-3">
+							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Average earnings</p>
+							<p class="mt-1.5 font-mono text-2xl font-black text-sky-700">{formatMoneyCompact(averageEarnings)}</p>
 						</div>
-						<div class="rounded-[1.15rem] border border-white/8 bg-white/5 px-4 py-3">
-							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Leader spread</p>
-							<p class="mt-1.5 font-mono text-2xl font-black text-emerald-300">{formatMoneyCompact(leaderSpread)}</p>
+						<div class="rounded-[1.15rem] border border-slate-200 bg-slate-50 px-4 py-3">
+							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Lead margin</p>
+							<p class="mt-1.5 font-mono text-2xl font-black text-emerald-700">{formatMoneyCompact(leaderSpread)}</p>
 						</div>
 					</div>
 				</div>
