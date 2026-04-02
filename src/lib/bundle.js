@@ -760,7 +760,7 @@ async function syncLiveSessionParticipantState(
 	const resolvedFinalizedAt = normalizeIsoDateString(finalizedAt)
 		|| (Boolean(effectivePayload?.completedGame) ? new Date().toISOString() : '');
 
-	return upsertLiveSessionParticipant(normalizedSessionId, normalizedParticipantId, {
+	const syncedEntry = await upsertLiveSessionParticipant(normalizedSessionId, normalizedParticipantId, {
 		displayName: String(displayName || normalizedParticipantId).trim(),
 		earnings: Number(effectivePayload?.earnings) || 0,
 		roundsCompleted: Number(effectivePayload?.roundsCompleted) || 0,
@@ -772,6 +772,10 @@ async function syncLiveSessionParticipantState(
 		lastActivityAt: resolvedLastActivityAt,
 		finalizedAt: resolvedFinalizedAt
 	});
+	if (!syncedEntry) {
+		throw new Error('Live session participant sync returned no data');
+	}
+	return syncedEntry;
 }
 
 function buildResultCode(userId = '', resultAccessKey = '') {
@@ -1911,19 +1915,23 @@ export async function createNewUser(id, mode = 'main') {
 		await flushPendingProgressSave();
 		await loadSavedScenarioState(id);
 		if (currentLiveSessionParticipation?.sessionId) {
-			await syncLiveSessionParticipantState(id, {
-				summaryPayload: {
-					earnings: get(earned),
-					roundsCompleted: get(uniqueSets),
-					optimalChoices: get(optimalChoices),
-					totalGameTime: get(resumeElapsedSeconds),
-					completedGame: false,
-					lastActivityAt: new Date().toISOString()
-				},
-				status: 'joined',
-				lastActivityAt: new Date().toISOString(),
-				displayName: id
-			});
+			try {
+				await syncLiveSessionParticipantState(id, {
+					summaryPayload: {
+						earnings: get(earned),
+						roundsCompleted: get(uniqueSets),
+						optimalChoices: get(optimalChoices),
+						totalGameTime: get(resumeElapsedSeconds),
+						completedGame: false,
+						lastActivityAt: new Date().toISOString()
+					},
+					status: 'joined',
+					lastActivityAt: new Date().toISOString(),
+					displayName: id
+				});
+			} catch (error) {
+				console.warn('Unable to add participant to live leaderboard on join:', error);
+			}
 		}
 	} else {
 		participantResultUrl.set("");
