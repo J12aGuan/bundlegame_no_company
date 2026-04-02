@@ -548,12 +548,12 @@
 
 													<div class="min-w-0">
 														<div class="flex min-w-0 items-center gap-2.5">
-														<div class={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-[11px] font-black shadow ${getAvatarClasses(participant.rank)}`}>
+														<div class={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-xs font-black shadow ${getAvatarClasses(participant.rank)}`}>
 															{getInitials(participant.displayName)}
 														</div>
 														<div class="min-w-0">
 															<div class="flex flex-wrap items-center gap-2">
-																<h4 class="truncate text-sm font-black text-slate-950">{participant.displayName}</h4>
+																<h4 class="truncate text-base font-black tracking-tight text-slate-950 sm:text-lg">{participant.displayName}</h4>
 																<span class={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${statusClasses(participant.status)}`}>
 																	{statusLabel(participant.status)}
 																</span>
@@ -631,14 +631,14 @@
 									<div>
 										<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">{card.slot}</p>
 										{#if card.participant}
-											<p class="mt-2 truncate text-lg font-black text-slate-950">{card.participant.displayName}</p>
+											<p class="mt-2 truncate text-xl font-black tracking-tight text-slate-950">{card.participant.displayName}</p>
 											<p class="mt-1 text-[11px] text-slate-500">{card.participant.roundsCompleted} rounds • {card.participant.optimalChoices} optimal</p>
 										{:else}
 											<p class="mt-2 text-sm text-slate-500">Waiting for a student to claim this slot.</p>
 										{/if}
 									</div>
 									{#if card.participant}
-										<div class={`flex h-10 w-10 items-center justify-center rounded-xl border text-[11px] font-black ${getAvatarClasses(card.participant.rank)}`}>
+										<div class={`flex h-11 w-11 items-center justify-center rounded-xl border text-xs font-black ${getAvatarClasses(card.participant.rank)}`}>
 											{getInitials(card.participant.displayName)}
 										</div>
 									{/if}
