@@ -76,23 +76,6 @@
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
 	}
 
-	function formatOrdinal(rank = 0) {
-		const safeRank = Math.max(0, Math.floor(toNumber(rank, 0)));
-		if (!safeRank) return '—';
-		const remainder = safeRank % 100;
-		if (remainder >= 11 && remainder <= 13) return `${safeRank}th`;
-		switch (safeRank % 10) {
-			case 1:
-				return `${safeRank}st`;
-			case 2:
-				return `${safeRank}nd`;
-			case 3:
-				return `${safeRank}rd`;
-			default:
-				return `${safeRank}th`;
-		}
-	}
-
 	function getInitials(name = '') {
 		const normalized = String(name ?? '').trim();
 		if (!normalized) return '?';
@@ -149,46 +132,46 @@
 	function statusClasses(status = '') {
 		switch (String(status ?? '').trim()) {
 			case 'completed':
-				return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+				return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
 			case 'in_progress':
-				return 'border-sky-200 bg-sky-50 text-sky-700';
+				return 'border-cyan-400/20 bg-cyan-400/10 text-cyan-200';
 			default:
-				return 'border-amber-200 bg-amber-50 text-amber-700';
+				return 'border-slate-500/30 bg-slate-400/10 text-slate-200';
 		}
 	}
 
 	function getAvatarClasses(rank = 0) {
-		if (rank === 1) return 'border-amber-300 bg-gradient-to-br from-amber-100 via-white to-amber-50 text-amber-700';
-		if (rank === 2) return 'border-slate-300 bg-gradient-to-br from-slate-100 via-white to-slate-50 text-slate-700';
-		if (rank === 3) return 'border-rose-200 bg-gradient-to-br from-rose-100 via-white to-orange-50 text-rose-700';
-		return 'border-sky-200 bg-gradient-to-br from-sky-100 via-white to-cyan-50 text-sky-700';
+		if (rank === 1) return 'border-emerald-400/40 bg-gradient-to-br from-emerald-500/20 via-slate-900 to-cyan-500/10 text-emerald-100';
+		if (rank === 2) return 'border-cyan-400/30 bg-gradient-to-br from-cyan-500/15 via-slate-900 to-sky-500/10 text-cyan-100';
+		if (rank === 3) return 'border-slate-500/35 bg-gradient-to-br from-slate-500/20 via-slate-900 to-slate-700/20 text-slate-100';
+		return 'border-slate-700 bg-gradient-to-br from-slate-800 via-slate-950 to-slate-900 text-slate-100';
 	}
 
 	function getRankBadgeClasses(rank = 0) {
-		if (rank === 1) return 'bg-gradient-to-br from-amber-400 to-yellow-300 text-white shadow-lg shadow-amber-200';
-		if (rank === 2) return 'bg-gradient-to-br from-slate-300 to-slate-200 text-slate-700 shadow-lg shadow-slate-200';
-		if (rank === 3) return 'bg-gradient-to-br from-orange-300 to-rose-200 text-rose-700 shadow-lg shadow-orange-100';
-		return 'bg-slate-100 text-slate-500';
+		if (rank === 1) return 'bg-gradient-to-br from-emerald-400 to-cyan-400 text-slate-950 shadow-lg shadow-emerald-500/20';
+		if (rank === 2) return 'bg-gradient-to-br from-cyan-300 to-sky-400 text-slate-950 shadow-lg shadow-cyan-500/20';
+		if (rank === 3) return 'bg-gradient-to-br from-slate-300 to-slate-100 text-slate-950 shadow-lg shadow-slate-500/20';
+		return 'bg-slate-800 text-slate-300';
 	}
 
 	function getBarFillClasses(rank = 0) {
-		if (rank === 1) return 'bg-gradient-to-r from-amber-400 via-yellow-300 to-orange-400';
-		if (rank === 2) return 'bg-gradient-to-r from-slate-400 via-slate-300 to-slate-200';
-		if (rank === 3) return 'bg-gradient-to-r from-rose-400 via-orange-300 to-amber-200';
-		return 'bg-gradient-to-r from-sky-500 via-cyan-400 to-blue-300';
+		if (rank === 1) return 'bg-gradient-to-r from-emerald-400 via-emerald-300 to-cyan-300';
+		if (rank === 2) return 'bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400';
+		if (rank === 3) return 'bg-gradient-to-r from-slate-300 via-slate-200 to-slate-100';
+		return 'bg-gradient-to-r from-sky-500 via-blue-500 to-cyan-400';
 	}
 
 	function getRowShellClasses(rank = 0) {
-		if (rank === 1) return 'border-amber-200 bg-gradient-to-r from-amber-50 via-white to-amber-50/70 shadow-lg shadow-amber-100/70';
-		if (rank === 2) return 'border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50/70 shadow-md shadow-slate-100';
-		if (rank === 3) return 'border-rose-100 bg-gradient-to-r from-rose-50 via-white to-orange-50/60 shadow-md shadow-orange-100/70';
-		return 'border-slate-200 bg-white shadow-sm';
+		if (rank === 1) return 'border border-emerald-400/18 bg-gradient-to-r from-emerald-500/8 via-slate-900/50 to-slate-950/80 shadow-lg shadow-emerald-950/25';
+		if (rank === 2) return 'border border-cyan-400/18 bg-gradient-to-r from-cyan-500/8 via-slate-900/50 to-slate-950/80 shadow-md shadow-cyan-950/20';
+		if (rank === 3) return 'border border-slate-400/20 bg-gradient-to-r from-slate-400/8 via-slate-900/50 to-slate-950/80 shadow-md shadow-slate-950/20';
+		return 'border border-white/6 bg-slate-950/35';
 	}
 
 	function getPodiumCardClasses(slot = '') {
-		if (slot === '1st') return 'border-amber-300 bg-gradient-to-br from-amber-100 via-yellow-50 to-white shadow-xl shadow-amber-100';
-		if (slot === '2nd') return 'border-slate-200 bg-gradient-to-br from-slate-100 via-white to-slate-50 shadow-md shadow-slate-100';
-		return 'border-rose-100 bg-gradient-to-br from-orange-50 via-white to-rose-50 shadow-md shadow-orange-100';
+		if (slot === '1st') return 'border border-emerald-400/25 bg-gradient-to-br from-emerald-500/14 via-slate-950 to-cyan-500/8 shadow-xl shadow-emerald-950/30';
+		if (slot === '2nd') return 'border border-cyan-400/20 bg-gradient-to-br from-cyan-500/12 via-slate-950 to-sky-500/8 shadow-lg shadow-cyan-950/25';
+		return 'border border-slate-400/18 bg-gradient-to-br from-slate-400/10 via-slate-950 to-slate-700/10 shadow-lg shadow-slate-950/20';
 	}
 
 	function computeGoalTarget(maxValue = 0) {
@@ -209,17 +192,6 @@
 		const basePercent = getProgressPercent(value, total);
 		if (basePercent === 0) return 12;
 		return Math.min(100, Math.max(basePercent, 18));
-	}
-
-	function getBarLabelPosition(value = 0, total = 0) {
-		return Math.min(97, Math.max(16, getDisplayBarWidth(value, total)));
-	}
-
-	function getLeaderGapText(participant, leader) {
-		if (!leader || !participant) return 'Waiting for the class leaderboard to fill in.';
-		if (participant.rank === 1) return 'Setting the pace for the room.';
-		const gap = Math.max(0, leader.earnings - participant.earnings);
-		return `${formatMoney(gap)} behind the current leader`;
 	}
 
 	async function loadSessionDefaults() {
@@ -347,9 +319,17 @@
 		totalEarnings: rankedParticipants.reduce((sum, participant) => sum + participant.earnings, 0)
 	};
 
+	$: leaderSpread = leader && rankedParticipants[1]
+		? Math.max(0, leader.earnings - rankedParticipants[1].earnings)
+		: 0;
+
+	$: averageEarnings = rankedParticipants.length
+		? leaderboardSummary.totalEarnings / rankedParticipants.length
+		: 0;
+
 	$: leaderboardSplitIndex = Math.ceil(rankedParticipants.length / 2);
 
-	$: leaderboardColumns = rankedParticipants.length > 12
+	$: leaderboardColumns = rankedParticipants.length > 10
 		? [
 			rankedParticipants.slice(0, leaderboardSplitIndex),
 			rankedParticipants.slice(leaderboardSplitIndex)
@@ -478,106 +458,124 @@
 			</p>
 		</div>
 	{:else}
-		<div class="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_360px]">
-			<section class="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl">
-				<div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.12),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(251,191,36,0.12),_transparent_26%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)]"></div>
-				<div class="relative p-5 lg:p-6">
-					<div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-						<div>
-							<p class="text-xs font-semibold uppercase tracking-[0.28em] text-sky-600">Class Leaderboard</p>
-							<h3 class="mt-2 text-3xl font-black tracking-tight text-slate-950">Everyone in the live session</h3>
-							<p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-								Compact, competitive, and sorted for classroom projection. Students are ranked by earnings, then rounds completed, then fastest time.
-							</p>
+		<div class="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_340px]">
+			<section class="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 shadow-2xl">
+				<div class="border-b border-white/8 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.14),_transparent_25%),linear-gradient(180deg,_rgba(15,23,42,1)_0%,_rgba(2,6,23,1)_100%)] p-5 lg:p-6">
+					<div class="flex flex-col gap-4">
+						<div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+							<div>
+								<p class="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-300">Live Market Board</p>
+								<h3 class="mt-2 text-3xl font-black tracking-tight text-white">Class earnings ranked like a trading desk.</h3>
+								<p class="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+									Dense, projection-friendly, and optimized for around 20 students. Rankings update live from the current session using earnings, rounds completed, and fastest time.
+								</p>
+							</div>
+							<div class="inline-flex items-center gap-3 self-start rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-100 shadow-lg shadow-emerald-950/30">
+								<span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+								Market open
+							</div>
 						</div>
-						<div class="inline-flex items-center gap-3 self-start rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white shadow-lg">
-							<span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
-							Streaming live
+
+						<div class="grid gap-3 sm:grid-cols-4">
+							<div class="rounded-[1.35rem] border border-white/8 bg-white/5 p-4 backdrop-blur">
+								<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Students</p>
+								<p class="mt-2 text-3xl font-black text-white">{leaderboardSummary.totalJoined}</p>
+							</div>
+							<div class="rounded-[1.35rem] border border-white/8 bg-white/5 p-4 backdrop-blur">
+								<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">In Market</p>
+								<p class="mt-2 text-3xl font-black text-white">{leaderboardSummary.inProgress}</p>
+							</div>
+							<div class="rounded-[1.35rem] border border-white/8 bg-white/5 p-4 backdrop-blur">
+								<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Total Money</p>
+								<p class="mt-2 text-3xl font-black text-emerald-300">{formatMoneyCompact(leaderboardSummary.totalEarnings)}</p>
+							</div>
+							<div class="rounded-[1.35rem] border border-white/8 bg-white/5 p-4 backdrop-blur">
+								<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Leader Spread</p>
+								<p class="mt-2 text-3xl font-black text-cyan-300">{formatMoneyCompact(leaderSpread)}</p>
+							</div>
 						</div>
+					</div>
+				</div>
+
+				<div class="p-4">
+					<div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+						<div class="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+							<span class="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-slate-300">Sorted by earnings</span>
+							<span class="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-slate-300">Tie-breaker: rounds, then time</span>
+						</div>
+						<p class="text-xs text-slate-500">
+							{leaderboardColumns.length > 1 ? 'Two-column board enabled for larger classes.' : 'Single-column board for smaller groups.'}
+						</p>
 					</div>
 
-					<div class="mt-6 grid gap-4 lg:grid-cols-[1fr,1fr,1fr]">
-						{#each podiumCards as card}
-							<div class={`rounded-[1.5rem] border p-4 ${getPodiumCardClasses(card.slot)} ${card.slot === '1st' ? 'lg:-translate-y-2' : ''}`}>
-								<p class="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">{card.slot}</p>
-								{#if card.participant}
-									<div class="mt-4 flex items-center gap-3">
-										<div class={`flex h-12 w-12 items-center justify-center rounded-full border-4 text-xs font-black shadow ${getAvatarClasses(card.participant.rank)}`}>
-											{getInitials(card.participant.displayName)}
-										</div>
-										<div class="min-w-0">
-											<p class="truncate text-xl font-black text-slate-950">{card.participant.displayName}</p>
-											<p class="mt-1 text-xs font-medium text-slate-500">{card.participant.roundsCompleted} rounds • {card.participant.optimalChoices} optimal</p>
-										</div>
-									</div>
-									<p class="mt-4 text-3xl font-black text-slate-950">{formatMoneyCompact(card.participant.earnings)}</p>
-									<p class="mt-2 text-xs text-slate-500">{getLeaderGapText(card.participant, leader)}</p>
-								{:else}
-									<p class="mt-6 text-sm text-slate-500">No student has claimed this podium slot yet.</p>
-								{/if}
-							</div>
-						{/each}
-					</div>
-					<div class="mt-6 rounded-[1.5rem] border border-slate-200 bg-white/90 p-4 shadow-sm">
+					<div class="rounded-[1.5rem] border border-white/8 bg-slate-900/75 shadow-xl shadow-slate-950/30">
 						{#if rankedParticipants.length === 0}
-							<div class="rounded-[1.25rem] border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+							<div class="m-4 rounded-[1.25rem] border border-dashed border-white/10 bg-slate-950/40 p-8 text-center text-sm text-slate-400">
 								No students have joined this live session yet.
 							</div>
 						{:else}
-							<div class={`grid gap-3 ${leaderboardColumns.length > 1 ? 'xl:grid-cols-2' : 'grid-cols-1'}`}>
+							<div class={`grid gap-px ${leaderboardColumns.length > 1 ? 'xl:grid-cols-2' : 'grid-cols-1'}`}>
 								{#each leaderboardColumns as column}
-									<div class="space-y-3">
+									<div class="min-w-0">
+										<div class="grid grid-cols-[44px,minmax(0,1.45fr),96px,54px,58px,72px] items-center gap-2 border-b border-white/8 bg-slate-900/95 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+											<div>Rank</div>
+											<div>Student</div>
+											<div class="text-right">P&amp;L</div>
+											<div class="text-center">Rd</div>
+											<div class="text-center">Opt</div>
+											<div class="text-right">Time</div>
+										</div>
+										<div class="space-y-2 p-3">
 										{#each column as participant}
-											<article class={`relative overflow-hidden rounded-[1.4rem] border px-3 py-3 ${getRowShellClasses(participant.rank)}`}>
-												<div class="grid gap-3 lg:grid-cols-[58px,minmax(0,1fr),minmax(180px,0.9fr)] lg:items-center">
-													<div class="flex items-center gap-3 lg:flex-col lg:items-center">
-														<div class={`flex h-12 w-12 items-center justify-center rounded-[1rem] text-2xl font-black ${getRankBadgeClasses(participant.rank)}`}>
+											<article class={`rounded-[1.15rem] px-3 py-2.5 ${getRowShellClasses(participant.rank)}`}>
+												<div class="grid grid-cols-[44px,minmax(0,1.45fr),96px,54px,58px,72px] items-center gap-2">
+													<div class="flex items-center justify-center">
+														<div class={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black ${getRankBadgeClasses(participant.rank)}`}>
 															{participant.rank}
 														</div>
-														<p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-															{formatOrdinal(participant.rank)}
-														</p>
 													</div>
 
-													<div class="flex min-w-0 items-center gap-3">
-														<div class={`flex h-12 w-12 items-center justify-center rounded-[1rem] border-4 text-xs font-black shadow ${getAvatarClasses(participant.rank)}`}>
+													<div class="min-w-0">
+														<div class="flex min-w-0 items-center gap-2.5">
+														<div class={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-[11px] font-black shadow ${getAvatarClasses(participant.rank)}`}>
 															{getInitials(participant.displayName)}
 														</div>
 														<div class="min-w-0">
 															<div class="flex flex-wrap items-center gap-2">
-																<h4 class="truncate text-lg font-black text-slate-950">{participant.displayName}</h4>
+																<h4 class="truncate text-sm font-black text-white">{participant.displayName}</h4>
 																<span class={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${statusClasses(participant.status)}`}>
 																	{statusLabel(participant.status)}
 																</span>
 															</div>
-															<p class="mt-1 text-xs text-slate-500">
-																{participant.roundsCompleted} rounds • {participant.optimalChoices} optimal • {formatRuntime(participant.totalGameTime)}
+															<p class="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-400">
+																Updated {formatRelativeTime(participant.lastActivityAt)}
 															</p>
+														</div>
+														</div>
+														<div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+															<div
+																class={`h-full rounded-full ${getBarFillClasses(participant.rank)}`}
+																style={`width: ${Math.max(getDisplayBarWidth(participant.earnings, goalTarget), 6)}%;`}
+															></div>
 														</div>
 													</div>
 
-													<div>
-														<div class="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-															<span>Money</span>
-															<span>{formatRelativeTime(participant.lastActivityAt)}</span>
-														</div>
-														<div class="relative h-12 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
-															<div
-																class={`absolute inset-y-1 left-1 rounded-full ${getBarFillClasses(participant.rank)} shadow`}
-																style={`width: calc(${getDisplayBarWidth(participant.earnings, goalTarget)}% - 0.5rem);`}
-															></div>
-															<div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(148,163,184,0.14)_1px,transparent_1px)] bg-[length:20%_100%] opacity-70"></div>
-															<div
-																class="absolute top-1/2 rounded-full bg-slate-950 px-3 py-1.5 text-xs font-black text-white shadow"
-																style={`left: ${getBarLabelPosition(participant.earnings, goalTarget)}%; transform: translate(-100%, -50%);`}
-															>
-																{formatMoneyCompact(participant.earnings)}
-															</div>
-														</div>
+													<div class="text-right">
+														<p class={`font-mono text-sm font-black ${participant.rank === 1 ? 'text-emerald-300' : participant.rank === 2 ? 'text-cyan-300' : 'text-white'}`}>
+															{formatMoneyCompact(participant.earnings)}
+														</p>
+														<p class="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-500">
+															{participant.rank === 1 ? 'Leader' : formatMoneyCompact(Math.max(0, leader?.earnings - participant.earnings))}
+														</p>
 													</div>
+
+													<div class="text-center font-mono text-sm font-semibold text-slate-200">{participant.roundsCompleted}</div>
+													<div class="text-center font-mono text-sm font-semibold text-slate-200">{participant.optimalChoices}</div>
+													<div class="text-right font-mono text-sm font-semibold text-slate-300">{formatRuntime(participant.totalGameTime)}</div>
 												</div>
 											</article>
 										{/each}
+										</div>
 									</div>
 								{/each}
 							</div>
@@ -588,7 +586,7 @@
 
 			<section class="space-y-4">
 				<div class="overflow-hidden rounded-[2rem] bg-slate-950 text-white shadow-2xl">
-					<div class="bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(30,41,59,0.94)_100%)] p-5">
+					<div class="bg-[linear-gradient(180deg,rgba(15,23,42,0.98)_0%,rgba(2,6,23,0.98)_100%)] p-5">
 						<div class="flex items-start justify-between gap-3">
 							<div>
 								<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Session Snapshot</p>
@@ -613,54 +611,63 @@
 					</div>
 				</div>
 
-				<div class="rounded-[2rem] border border-slate-200 bg-white p-5 shadow">
-					<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Leader Right Now</p>
-					{#if leader}
-						<div class="mt-4 flex items-center gap-3">
-							<div class={`flex h-14 w-14 items-center justify-center rounded-full border-4 text-sm font-black shadow-lg ${getAvatarClasses(leader.rank)}`}>
-								{getInitials(leader.displayName)}
+				<div class="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 text-white shadow-xl">
+					<div class="border-b border-white/8 p-5">
+						<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Top Desks</p>
+						<h3 class="mt-2 text-xl font-black">Leader stack</h3>
+					</div>
+					<div class="space-y-3 p-4">
+						{#each podiumCards as card}
+							<div class={`rounded-[1.25rem] p-4 ${getPodiumCardClasses(card.slot)}`}>
+								<div class="flex items-start justify-between gap-3">
+									<div>
+										<p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">{card.slot}</p>
+										{#if card.participant}
+											<p class="mt-2 truncate text-lg font-black text-white">{card.participant.displayName}</p>
+											<p class="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">{card.participant.roundsCompleted} rounds • {card.participant.optimalChoices} optimal</p>
+										{:else}
+											<p class="mt-2 text-sm text-slate-400">Waiting for a student to claim this slot.</p>
+										{/if}
+									</div>
+									{#if card.participant}
+										<div class={`flex h-10 w-10 items-center justify-center rounded-xl border text-[11px] font-black ${getAvatarClasses(card.participant.rank)}`}>
+											{getInitials(card.participant.displayName)}
+										</div>
+									{/if}
+								</div>
+								{#if card.participant}
+									<p class="mt-4 font-mono text-2xl font-black text-emerald-300">{formatMoneyCompact(card.participant.earnings)}</p>
+								{/if}
 							</div>
-							<div class="min-w-0">
-								<p class="truncate text-xl font-black text-slate-950">{leader.displayName}</p>
-								<p class="mt-1 text-xs text-slate-500">{leader.roundsCompleted} rounds • {leader.optimalChoices} optimal • updated {formatRelativeTime(leader.lastActivityAt)}</p>
-							</div>
-						</div>
-						<div class="mt-4 rounded-[1.25rem] bg-slate-950 px-4 py-4 text-white">
-							<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Current score</p>
-							<p class="mt-1.5 text-3xl font-black">{formatMoneyCompact(leader.earnings)}</p>
-						</div>
-					{:else}
-						<div class="mt-4 rounded-[1.25rem] border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">
-							No student has posted a score yet.
-						</div>
-					{/if}
+						{/each}
+					</div>
 				</div>
 
-				<div class="rounded-[2rem] border border-slate-200 bg-white p-5 shadow">
+				<div class="rounded-[2rem] border border-slate-800 bg-slate-950 p-5 text-white shadow-xl">
 					<div class="flex items-center justify-between gap-3">
 						<div>
 							<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Class Pulse</p>
-							<h3 class="mt-2 text-xl font-black text-slate-950">Live status</h3>
+							<h3 class="mt-2 text-xl font-black">Desk readout</h3>
 						</div>
-						<p class="text-xs font-medium text-slate-500">Everyone stays visible</p>
+						<p class="text-xs font-medium text-slate-500">Built for larger cohorts</p>
 					</div>
 
 					<div class="mt-4 grid gap-3">
-						<div class="rounded-[1.15rem] bg-sky-50 px-4 py-3">
-							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">Students</p>
-							<p class="mt-1.5 text-2xl font-black text-slate-950">{leaderboardSummary.totalJoined}</p>
+						<div class="rounded-[1.15rem] border border-white/8 bg-white/5 px-4 py-3">
+							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Students</p>
+							<p class="mt-1.5 text-2xl font-black text-white">{leaderboardSummary.totalJoined}</p>
 						</div>
-						<div class="rounded-[1.15rem] bg-emerald-50 px-4 py-3">
-							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Playing</p>
-							<p class="mt-1.5 text-2xl font-black text-slate-950">{leaderboardSummary.inProgress}</p>
+						<div class="rounded-[1.15rem] border border-white/8 bg-white/5 px-4 py-3">
+							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Completed</p>
+							<p class="mt-1.5 text-2xl font-black text-white">{leaderboardSummary.completed}</p>
 						</div>
-						<div class="rounded-[1.15rem] bg-amber-50 px-4 py-3">
-							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">Completed</p>
-							<p class="mt-1.5 text-2xl font-black text-slate-950">{leaderboardSummary.completed}</p>
+						<div class="rounded-[1.15rem] border border-white/8 bg-white/5 px-4 py-3">
+							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Average earnings</p>
+							<p class="mt-1.5 font-mono text-2xl font-black text-cyan-300">{formatMoneyCompact(averageEarnings)}</p>
 						</div>
-						<div class="rounded-[1.15rem] bg-slate-100 px-4 py-3">
-							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Total Money</p>
-							<p class="mt-1.5 text-2xl font-black text-slate-950">{formatMoneyCompact(leaderboardSummary.totalEarnings)}</p>
+						<div class="rounded-[1.15rem] border border-white/8 bg-white/5 px-4 py-3">
+							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Leader spread</p>
+							<p class="mt-1.5 font-mono text-2xl font-black text-emerald-300">{formatMoneyCompact(leaderSpread)}</p>
 						</div>
 					</div>
 				</div>
