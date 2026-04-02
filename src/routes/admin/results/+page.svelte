@@ -16,13 +16,41 @@
 	let sessionFilter = 'all';
 	let activeSessionId = '';
 
+	function normalizeDateLike(value) {
+		if (!value) return '';
+		if (value?.toDate && typeof value.toDate === 'function') {
+			const converted = value.toDate();
+			return converted instanceof Date && !Number.isNaN(converted.getTime()) ? converted.toISOString() : '';
+		}
+		if (value instanceof Date) {
+			return Number.isNaN(value.getTime()) ? '' : value.toISOString();
+		}
+		if (typeof value === 'number' && Number.isFinite(value)) {
+			const millis = value > 1e12 ? value : value * 1000;
+			const converted = new Date(millis);
+			return Number.isNaN(converted.getTime()) ? '' : converted.toISOString();
+		}
+		if (typeof value === 'object') {
+			const seconds = Number(value?.seconds ?? value?._seconds);
+			const nanoseconds = Number(value?.nanoseconds ?? value?._nanoseconds ?? 0);
+			if (Number.isFinite(seconds) && seconds > 0) {
+				const converted = new Date((seconds * 1000) + Math.floor(nanoseconds / 1e6));
+				return Number.isNaN(converted.getTime()) ? '' : converted.toISOString();
+			}
+		}
+		const normalized = String(value ?? '').trim();
+		if (!normalized) return '';
+		const millis = Date.parse(normalized);
+		return Number.isFinite(millis) ? new Date(millis).toISOString() : '';
+	}
+
 	function toNumber(value, fallback = 0) {
 		const numeric = Number(value);
 		return Number.isFinite(numeric) ? numeric : fallback;
 	}
 
 	function toMillis(value = '') {
-		const normalized = String(value ?? '').trim();
+		const normalized = normalizeDateLike(value);
 		if (!normalized) return 0;
 		const millis = Date.parse(normalized);
 		return Number.isFinite(millis) ? millis : 0;
@@ -75,11 +103,51 @@
 		return [...new Set(maps.flatMap((map) => Object.keys(map || {}).filter(Boolean)))];
 	}
 
-	function completionTimestampFromSummary(summary = {}) {
-		return resolveText(
-			summary?.completionMeta?.finalSaveConfirmedAt,
-			summary?.completionMeta?.handoffPostedAt
-		);
+	function getLatestCollectionDate(entries = []) {
+		let latestValue = '';
+		let latestMillis = 0;
+		for (const entry of Array.isArray(entries) ? entries : []) {
+			for (const candidate of [entry?.updatedAt, entry?.createdAt, entry?.timestamp]) {
+				const normalized = normalizeDateLike(candidate);
+				const millis = toMillis(normalized);
+				if (millis > latestMillis) {
+					latestMillis = millis;
+					latestValue = normalized;
+				}
+			}
+		}
+		return latestValue;
+	}
+
+	function resolveCompletionInfo({ summary = {}, user = {}, orders = [], actions = [], lastActivityAt = '', sessionStartedAt = '' } = {}) {
+		const candidates = [
+			{ value: summary?.completionMeta?.finalSaveConfirmedAt, source: 'Final save confirmed' },
+			{ value: summary?.completionMeta?.handoffPostedAt, source: 'Completion handoff' },
+			{ value: summary?.completionMeta?.copyVerificationAt, source: 'Result code verified' },
+			{ value: lastActivityAt, source: 'Last activity' },
+			{ value: getLatestCollectionDate(actions), source: 'Legacy action timestamp' },
+			{ value: getLatestCollectionDate(orders), source: 'Legacy order timestamp' },
+			{ value: sessionStartedAt, source: 'Session started' },
+			{ value: user?.updatedAt, source: 'User updated' },
+			{ value: user?.createdAt, source: 'User created' }
+		];
+
+		for (const candidate of candidates) {
+			const normalized = normalizeDateLike(candidate.value);
+			if (normalized) {
+				return {
+					value: normalized,
+					source: candidate.source,
+					isFallback: candidate.source !== 'Final save confirmed' && candidate.source !== 'Completion handoff'
+				};
+			}
+		}
+
+		return {
+			value: '',
+			source: 'Undated',
+			isFallback: true
+		};
 	}
 
 	function buildVersionSnapshot(versionId, summaryMap = {}, progressMap = {}, actionsMap = {}, detailedActionsMap = {}) {
@@ -87,7 +155,6 @@
 		const progress = progressMap?.[versionId] || {};
 		const actionSummary = actionsMap?.[versionId] || {};
 		const detailedActionSummary = detailedActionsMap?.[versionId] || {};
-		const completionDate = completionTimestampFromSummary(summary);
 		const lastActivityAt = resolveText(summary?.lastActivityAt, progress?.lastActivityAt, summary?.completionMeta?.copyVerificationAt);
 		const sessionStartedAt = resolveText(summary?.sessionStartedAt, progress?.sessionStartedAt);
 		return {
@@ -97,14 +164,13 @@
 			actionSummary,
 			detailedActionSummary,
 			completionMeta: summary?.completionMeta || {},
-			completionDate,
 			lastActivityAt,
 			sessionStartedAt
 		};
 	}
 
 	function rankVersionSnapshot(snapshot = {}) {
-		const completionScore = toMillis(snapshot?.completionDate);
+		const completionScore = toMillis(snapshot?.completionMeta?.finalSaveConfirmedAt || snapshot?.completionMeta?.handoffPostedAt);
 		const activityScore = toMillis(snapshot?.lastActivityAt || snapshot?.sessionStartedAt);
 		const roundsCompleted = Math.max(
 			toNumber(snapshot?.summary?.roundsCompleted, 0),
@@ -166,10 +232,18 @@
 		);
 		const completedGame = Boolean(primarySummary.completedGame || progress.completedGame || (totalRounds > 0 && roundsCompleted >= totalRounds));
 		const optimalRate = roundsCompleted > 0 ? (optimalChoices / roundsCompleted) * 100 : 0;
-		const completionDate = primarySnapshot.completionDate || '';
+		const lastActivityAt = resolveText(primarySnapshot.lastActivityAt, progress.lastActivityAt);
+		const completionInfo = resolveCompletionInfo({
+			summary: primarySummary,
+			user,
+			orders: user.orders,
+			actions: user.actions,
+			lastActivityAt,
+			sessionStartedAt: primarySnapshot.sessionStartedAt
+		});
+		const completionDate = completionInfo.value || '';
 		const liveSessionId = resolveText(primarySummary.liveSessionId, progress.liveSessionId);
 		const sessionLabel = resolveText(primarySummary.sessionLabel, progress.sessionLabel);
-		const lastActivityAt = resolveText(primarySnapshot.lastActivityAt, progress.lastActivityAt);
 		const displayName = resolveText(user.displayName, user.id);
 		const hasProgress = Object.keys(progress || {}).length > 0;
 		const hasActionSummary = Object.keys(actionSummary?.actionsByScenarioId || {}).length > 0;
@@ -200,6 +274,8 @@
 			earnings,
 			completionMeta,
 			completionDate,
+			completionDateSource: completionInfo.source,
+			completionDateIsFallback: completionInfo.isFallback,
 			completionDateMs: toMillis(completionDate),
 			liveSessionId,
 			sessionLabel,
@@ -525,7 +601,12 @@
 						{#each sortedUsers as user (user.id)}
 							<tr class="hover:bg-gray-50">
 								<td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{user.displayName}</td>
-								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{formatDateTime(user.completionDate)}</td>
+								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
+									<div>{formatDateTime(user.completionDate)}</div>
+									{#if user.completionDate && user.completionDateSource && user.completionDateSource !== 'Final save confirmed'}
+										<div class="text-xs text-gray-400">{user.completionDateSource}</div>
+									{/if}
+								</td>
 								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{formatMoney(user.earnings)}</td>
 								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{user.roundsCompleted}</td>
 								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
@@ -560,6 +641,10 @@
 					<div>
 						<p class="block text-sm font-medium text-gray-700">Completion Date</p>
 						<p class="text-lg text-gray-900">{formatDateTime(selectedUser.completionDate)}</p>
+					</div>
+					<div>
+						<p class="block text-sm font-medium text-gray-700">Date Source</p>
+						<p class="text-lg text-gray-900">{selectedUser.completionDateSource || 'Undated'}</p>
 					</div>
 					<div>
 						<p class="block text-sm font-medium text-gray-700">Rounds Completed</p>
