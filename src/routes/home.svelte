@@ -80,6 +80,8 @@
 
     // Map Config
     let map;
+    let mapLayer = null;
+    let mapInitVersion = 0;
     let mapInitRetryCount = 0;
     let mapInitRetryTimer;
     const API_KEY = import.meta.env.VITE_MAPTILER_API_KEY;
@@ -291,7 +293,9 @@
 
     function isTransientStyleError(error) {
         const msg = String(error?.message || error || "").toLowerCase();
-        return msg.includes("style is not done loading");
+        return msg.includes("style is not done loading")
+            || msg.includes("sourcecaches")
+            || msg.includes("cleartiles");
     }
 
     function isValidCoords(coords) {
@@ -308,11 +312,43 @@
         mapInitRetryTimer = setTimeout(initMap, 250 * mapInitRetryCount);
     }
 
+    function destroyMap() {
+        mapInitVersion += 1;
+        try {
+            if (mapLayer && map && typeof map.removeLayer === 'function') {
+                map.removeLayer(mapLayer);
+            }
+        } catch (error) {
+            if (!isTransientStyleError(error)) {
+                console.warn("Map layer cleanup warning:", error);
+            }
+        } finally {
+            mapLayer = null;
+        }
+
+        try {
+            if (map && typeof map.off === 'function') {
+                map.off();
+            }
+            if (map && typeof map.remove === 'function') {
+                map.remove();
+            }
+        } catch (error) {
+            if (!isTransientStyleError(error)) {
+                console.warn("Map cleanup warning:", error);
+            }
+        } finally {
+            map = null;
+        }
+    }
+
     // --- MAP INIT ---
     function initMap() {
+        const initVersion = ++mapInitVersion;
         try {
             if (!document.getElementById('map')) return;
-            if (map && map.remove) { map.remove(); map = null; }
+            destroyMap();
+            if (initVersion !== mapInitVersion) return;
 
             const fallbackCoords = cityCoords["Berkeley"];
             const rawCurrentCoords = cityCoords[$currLocation];
@@ -329,10 +365,15 @@
                 touchZoom: false
             });
 
-            L.maptilerLayer({
+            mapLayer = L.maptilerLayer({
                 apiKey: API_KEY,
                 style: L.MaptilerStyle.STREETS
-            }).addTo(map);
+            });
+            if (initVersion !== mapInitVersion) {
+                destroyMap();
+                return;
+            }
+            mapLayer.addTo(map);
 
             Object.entries(cityCoords).forEach(([city, coords]) => {
                 if (!isValidCoords(coords)) return;
@@ -374,7 +415,7 @@
 
             mapInitRetryCount = 0;
         } catch (error) {
-            if (map && map.remove) { map.remove(); map = null; }
+            destroyMap();
             if (isTransientStyleError(error)) {
                 scheduleMapRetry();
                 return;
@@ -427,7 +468,7 @@
 
     onDestroy(() => {
         clearTimers();
-        if (map) map.remove();
+        destroyMap();
         if (mapInitRetryTimer) clearTimeout(mapInitRetryTimer);
     });
 </script>

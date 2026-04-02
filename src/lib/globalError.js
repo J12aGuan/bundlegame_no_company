@@ -26,6 +26,10 @@ console.error = function (...args) {
     ) ||
     lowered.includes('permissions policy applied to the current document') ||
     lowered.includes('style is not done loading') ||
+    (
+      lowered.includes('sourcecaches') &&
+      lowered.includes('cleartiles')
+    ) ||
     lowered.includes('code=unavailable') ||
     lowered.includes('client is offline')
   ) {
@@ -40,6 +44,10 @@ console.error = function (...args) {
         )
       ) ||
       lowered.includes('style is not done loading') ||
+      (
+        lowered.includes('sourcecaches') &&
+        lowered.includes('cleartiles')
+      ) ||
       lowered.includes('code=unavailable') ||
       lowered.includes('client is offline')
     ) {
