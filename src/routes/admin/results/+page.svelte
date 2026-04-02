@@ -1,6 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { retrieveData, getActiveLiveSession } from '$lib/firebaseDB.js';
+	import { deriveUserRunMetrics, toNumber, toMillis } from '$lib/userRunMetrics.js';
 
 	let users = [];
 	let loading = true;
@@ -15,46 +16,6 @@
 	let includeUndated = true;
 	let sessionFilter = 'all';
 	let activeSessionId = '';
-
-	function normalizeDateLike(value) {
-		if (!value) return '';
-		if (value?.toDate && typeof value.toDate === 'function') {
-			const converted = value.toDate();
-			return converted instanceof Date && !Number.isNaN(converted.getTime()) ? converted.toISOString() : '';
-		}
-		if (value instanceof Date) {
-			return Number.isNaN(value.getTime()) ? '' : value.toISOString();
-		}
-		if (typeof value === 'number' && Number.isFinite(value)) {
-			const millis = value > 1e12 ? value : value * 1000;
-			const converted = new Date(millis);
-			return Number.isNaN(converted.getTime()) ? '' : converted.toISOString();
-		}
-		if (typeof value === 'object') {
-			const seconds = Number(value?.seconds ?? value?._seconds);
-			const nanoseconds = Number(value?.nanoseconds ?? value?._nanoseconds ?? 0);
-			if (Number.isFinite(seconds) && seconds > 0) {
-				const converted = new Date((seconds * 1000) + Math.floor(nanoseconds / 1e6));
-				return Number.isNaN(converted.getTime()) ? '' : converted.toISOString();
-			}
-		}
-		const normalized = String(value ?? '').trim();
-		if (!normalized) return '';
-		const millis = Date.parse(normalized);
-		return Number.isFinite(millis) ? new Date(millis).toISOString() : '';
-	}
-
-	function toNumber(value, fallback = 0) {
-		const numeric = Number(value);
-		return Number.isFinite(numeric) ? numeric : fallback;
-	}
-
-	function toMillis(value = '') {
-		const normalized = normalizeDateLike(value);
-		if (!normalized) return 0;
-		const millis = Date.parse(normalized);
-		return Number.isFinite(millis) ? millis : 0;
-	}
 
 	function formatTime(seconds) {
 		const total = Math.max(0, Math.floor(toNumber(seconds, 0)));
@@ -86,211 +47,27 @@
 		return `$${toNumber(value, 0).toFixed(2)}`;
 	}
 
-	function resolveText(...values) {
-		for (const value of values) {
-			const normalized = String(value ?? '').trim();
-			if (normalized) return normalized;
-		}
-		return '';
-	}
-
-	function getVersionMap(source, field) {
-		const value = source?.[field];
-		return value && typeof value === 'object' ? value : {};
-	}
-
-	function getVersionIds(...maps) {
-		return [...new Set(maps.flatMap((map) => Object.keys(map || {}).filter(Boolean)))];
-	}
-
-	function getLatestCollectionDate(entries = []) {
-		let latestValue = '';
-		let latestMillis = 0;
-		for (const entry of Array.isArray(entries) ? entries : []) {
-			for (const candidate of [entry?.updatedAt, entry?.createdAt, entry?.timestamp]) {
-				const normalized = normalizeDateLike(candidate);
-				const millis = toMillis(normalized);
-				if (millis > latestMillis) {
-					latestMillis = millis;
-					latestValue = normalized;
-				}
-			}
-		}
-		return latestValue;
-	}
-
-	function resolveDateInfo(candidates = []) {
-		for (const candidate of candidates) {
-			const normalized = normalizeDateLike(candidate?.value);
-			if (normalized) {
-				return {
-					value: normalized,
-					source: String(candidate?.source ?? '').trim() || 'Unknown'
-				};
-			}
-		}
-		return {
-			value: '',
-			source: 'Undated'
-		};
-	}
-
-	function resolveCompletionInfo(summary = {}) {
-		return resolveDateInfo([
-			{ value: summary?.completionMeta?.finalSaveConfirmedAt, source: 'Final save confirmed' },
-			{ value: summary?.completionMeta?.handoffPostedAt, source: 'Completion handoff' }
-		]);
-	}
-
-	function resolveBestAvailableDateInfo({ summary = {}, user = {}, orders = [], actions = [], lastActivityAt = '', sessionStartedAt = '' } = {}) {
-		const completionInfo = resolveCompletionInfo(summary);
-		if (completionInfo.value) {
-			return completionInfo;
-		}
-		return resolveDateInfo([
-			{ value: summary?.completionMeta?.copyVerificationAt, source: 'Result code verified' },
-			{ value: lastActivityAt, source: 'Last activity' },
-			{ value: getLatestCollectionDate(actions), source: 'Legacy action timestamp' },
-			{ value: getLatestCollectionDate(orders), source: 'Legacy order timestamp' },
-			{ value: sessionStartedAt, source: 'Session started' },
-			{ value: user?.updatedAt, source: 'User updated' },
-			{ value: user?.createdAt, source: 'User created' }
-		]);
-	}
-
-	function buildVersionSnapshot(versionId, summaryMap = {}, progressMap = {}, actionsMap = {}, detailedActionsMap = {}) {
-		const summary = summaryMap?.[versionId] || {};
-		const progress = progressMap?.[versionId] || {};
-		const actionSummary = actionsMap?.[versionId] || {};
-		const detailedActionSummary = detailedActionsMap?.[versionId] || {};
-		const lastActivityAt = resolveText(summary?.lastActivityAt, progress?.lastActivityAt, summary?.completionMeta?.copyVerificationAt);
-		const sessionStartedAt = resolveText(summary?.sessionStartedAt, progress?.sessionStartedAt);
-		return {
-			versionId,
-			summary,
-			progress,
-			actionSummary,
-			detailedActionSummary,
-			completionMeta: summary?.completionMeta || {},
-			lastActivityAt,
-			sessionStartedAt
-		};
-	}
-
-	function rankVersionSnapshot(snapshot = {}) {
-		const completionScore = toMillis(snapshot?.completionMeta?.finalSaveConfirmedAt || snapshot?.completionMeta?.handoffPostedAt);
-		const activityScore = toMillis(snapshot?.lastActivityAt || snapshot?.sessionStartedAt);
-		const roundsCompleted = Math.max(
-			toNumber(snapshot?.summary?.roundsCompleted, 0),
-			toNumber(snapshot?.progress?.roundsCompleted, 0)
-		);
-		const earnings = Math.max(
-			toNumber(snapshot?.summary?.earnings, 0),
-			toNumber(snapshot?.progress?.earnings, 0)
-		);
-		const actionCount = snapshot?.actionSummary?.actionsByScenarioId && typeof snapshot.actionSummary.actionsByScenarioId === 'object'
-			? Object.keys(snapshot.actionSummary.actionsByScenarioId).length
-			: 0;
-		return completionScore + activityScore + (earnings * 1000) + (roundsCompleted * 100) + actionCount;
-	}
-
-	function pickPrimaryVersionSnapshot(summaryMap = {}, progressMap = {}, actionsMap = {}, detailedActionsMap = {}) {
-		const versionIds = getVersionIds(summaryMap, progressMap, actionsMap, detailedActionsMap);
-		if (versionIds.length === 0) {
-			return buildVersionSnapshot('', {}, {}, {}, {});
-		}
-		return versionIds
-			.map((versionId) => buildVersionSnapshot(versionId, summaryMap, progressMap, actionsMap, detailedActionsMap))
-			.sort((left, right) => rankVersionSnapshot(right) - rankVersionSnapshot(left))[0];
-	}
-
 	function hydrateUser(user) {
-		const summaryMap = getVersionMap(user.summaryDoc || user.progressSummary, 'summaryByScenarioSetVersionId');
-		const progressMap = getVersionMap(user.scenarioSetProgressDoc, 'progressByScenarioSetVersionId');
-		const actionsMap = getVersionMap(user.scenarioActionsDoc, 'actionsByScenarioSetVersionId');
-		const detailedActionsMap = getVersionMap(user.scenarioDetailedActionsDoc, 'detailedActionsByScenarioSetVersionId');
-		const primarySnapshot = pickPrimaryVersionSnapshot(summaryMap, progressMap, actionsMap, detailedActionsMap);
-		const primarySummary = primarySnapshot.summary || {};
-		const progress = primarySnapshot.progress || {};
-		const actionSummary = primarySnapshot.actionSummary || {};
-		const detailedActionSummary = primarySnapshot.detailedActionSummary || {};
-		const completionMeta = primarySnapshot.completionMeta || {};
-		const totalRounds = Math.max(
-			toNumber(primarySummary.totalRounds, 0),
-			toNumber(progress.totalRounds, 0)
-		);
-		const roundsCompleted = Math.max(
-			toNumber(primarySummary.roundsCompleted, 0),
-			toNumber(progress.roundsCompleted, 0),
-			toNumber(user.uniqueSetsComplete, 0)
-		);
-		const optimalChoices = Math.max(
-			toNumber(primarySummary.optimalChoices, 0),
-			toNumber(progress.optimalChoices, 0)
-		);
-		const totalGameTime = Math.max(
-			toNumber(primarySummary.totalGameTime, 0),
-			toNumber(progress.totalGameTime, 0),
-			toNumber(user.gametime, 0)
-		);
-		const earnings = Math.max(
-			toNumber(primarySummary.earnings, 0),
-			toNumber(progress.earnings, 0),
-			toNumber(user.earnings, 0)
-		);
-		const completedGame = Boolean(primarySummary.completedGame || progress.completedGame || (totalRounds > 0 && roundsCompleted >= totalRounds));
-		const optimalRate = roundsCompleted > 0 ? (optimalChoices / roundsCompleted) * 100 : 0;
-		const lastActivityAt = resolveText(primarySnapshot.lastActivityAt, progress.lastActivityAt);
-		const completionInfo = resolveCompletionInfo(primarySummary);
-		const bestAvailableDateInfo = resolveBestAvailableDateInfo({
-			summary: primarySummary,
-			user,
-			orders: user.orders,
-			actions: user.actions,
-			lastActivityAt,
-			sessionStartedAt: primarySnapshot.sessionStartedAt
-		});
-		const completionDate = completionInfo.value || '';
-		const liveSessionId = resolveText(primarySummary.liveSessionId, progress.liveSessionId);
-		const sessionLabel = resolveText(primarySummary.sessionLabel, progress.sessionLabel);
-		const displayName = resolveText(user.displayName, user.id);
-		const hasProgress = Object.keys(progress || {}).length > 0;
-		const hasActionSummary = Object.keys(actionSummary?.actionsByScenarioId || {}).length > 0;
-		const hasDetailedActionSummary = Object.keys(detailedActionSummary?.actionsByScenarioId || {}).length > 0;
+		const metrics = deriveUserRunMetrics(user);
+		const hasProgress = Object.keys(metrics.progress || {}).length > 0;
+		const hasActionSummary = Object.keys(metrics.actionSummary?.actionsByScenarioId || {}).length > 0;
+		const hasDetailedActionSummary = Object.keys(metrics.detailedActionSummary?.actionsByScenarioId || {}).length > 0;
 		let auditStatus = 'partial_firebase_data';
 
-		if (completionMeta?.finalSaveStatus === 'recovery_required') {
+		if (metrics.completionMeta?.finalSaveStatus === 'recovery_required') {
 			auditStatus = 'recovery_required';
-		} else if (completionMeta?.finalSaveStatus === 'confirmed' && hasProgress && hasActionSummary && hasDetailedActionSummary) {
-			auditStatus = completionMeta?.copyVerificationMethod && completionMeta.copyVerificationMethod !== 'none'
+		} else if (metrics.completionMeta?.finalSaveStatus === 'confirmed' && hasProgress && hasActionSummary && hasDetailedActionSummary) {
+			auditStatus = metrics.completionMeta?.copyVerificationMethod && metrics.completionMeta.copyVerificationMethod !== 'none'
 				? 'fully_confirmed'
 				: 'missing_copy_verification';
-		} else if (completionMeta?.copyVerificationMethod && completionMeta.copyVerificationMethod !== 'none') {
+		} else if (metrics.completionMeta?.copyVerificationMethod && metrics.completionMeta.copyVerificationMethod !== 'none') {
 			auditStatus = 'partial_firebase_data';
 		}
 
 		return {
 			...user,
-			displayName,
-			primaryVersionId: primarySnapshot.versionId || '',
-			progressSummary: primarySummary,
-			roundsCompleted,
-			optimalChoices,
-			totalGameTime,
-			completedGame,
-			totalRounds,
-			optimalRate,
-			earnings,
-			completionMeta,
-			completionDate,
-			completionDateSource: completionInfo.source,
-			completionDateMs: toMillis(completionDate),
-			bestAvailableDate: bestAvailableDateInfo.value || '',
-			bestAvailableDateSource: bestAvailableDateInfo.source,
-			bestAvailableDateMs: toMillis(bestAvailableDateInfo.value),
-			liveSessionId,
-			sessionLabel,
-			lastActivityAt,
+			...metrics,
+			progressSummary: metrics.primarySummary,
 			auditStatus
 		};
 	}
@@ -459,7 +236,7 @@
 	<div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 		<div>
 			<h2 class="text-2xl font-bold text-gray-900">Experiment Results</h2>
-			<p class="mt-1 text-sm text-gray-600">Participant results, completion timing, and live-session tags</p>
+			<p class="mt-1 text-sm text-gray-600">Latest recorded run per participant, with completion timing and live-session tags</p>
 		</div>
 		<div class="flex flex-wrap gap-3">
 			<button on:click={() => setQuickSort('newest')} class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Newest</button>
@@ -564,7 +341,7 @@
 				<p class="mt-4 text-sm text-amber-700">No active live class session is running right now, so the current-session filter has no rows to show.</p>
 			{/if}
 			<p class="mt-4 text-xs text-gray-500">
-				Completion filters and sorting use confirmed completion timestamps only. Rows without a confirmed finish may still show a best-available activity date in the table.
+				Completion filters and sorting use confirmed completion timestamps only. This table prefers each participant&apos;s latest recorded run, not the highest-scoring saved version. Rows without a confirmed finish may still show a best-available activity date in the table.
 			</p>
 		</div>
 
