@@ -658,6 +658,31 @@ function clearPendingProgressPayload() {
 	}
 }
 
+function getPendingProgressPayloadFor(userId = '', versionId = '') {
+	const pending = readPendingProgressPayload();
+	if (!pending) return null;
+	const normalizedUserId = String(userId ?? '').trim();
+	const normalizedVersionId = String(versionId ?? '').trim();
+	if (!normalizedUserId || !normalizedVersionId) return null;
+	if (String(pending?.userId ?? '').trim() !== normalizedUserId) return null;
+	if (String(pending?.versionId ?? '').trim() !== normalizedVersionId) return null;
+	return pending;
+}
+
+function shouldPreferPendingProgress(remoteSummary = {}, pendingPayload = null) {
+	if (!pendingPayload) return false;
+	const remoteTime = Math.max(0, Number(remoteSummary?.totalGameTime) || 0);
+	const pendingTime = Math.max(
+		0,
+		Number(pendingPayload?.summaryPayload?.totalGameTime ?? pendingPayload?.totalGameTime) || 0
+	);
+	const remoteRounds = Math.max(0, Number(remoteSummary?.roundsCompleted) || 0);
+	const pendingRounds = Math.max(0, Number(pendingPayload?.summaryPayload?.roundsCompleted) || 0);
+	if (pendingRounds > remoteRounds) return true;
+	if (pendingRounds < remoteRounds) return false;
+	return pendingTime >= remoteTime;
+}
+
 function getPreciseElapsedSeconds() {
 	return Math.max(0, (Number(get(timeStamp)) || 0) / 1000);
 }
@@ -985,10 +1010,40 @@ async function loadSavedScenarioState(userId) {
 		getDetailedActionSummaries(userId)
 	]);
 	const versionId = get(scenarioSetVersionId);
-	const summaryEntry = summaryDoc?.summaryByScenarioSetVersionId?.[versionId] || {};
-	const progressEntry = progressDoc?.progressByScenarioSetVersionId?.[versionId] || {};
-	const actionEntry = actionsDoc?.actionsByScenarioSetVersionId?.[versionId] || {};
-	const detailedActionEntry = detailedActionsDoc?.detailedActionsByScenarioSetVersionId?.[versionId] || {};
+	const pendingPayload = getPendingProgressPayloadFor(userId, versionId);
+	const remoteSummaryEntry = summaryDoc?.summaryByScenarioSetVersionId?.[versionId] || {};
+	const remoteProgressEntry = progressDoc?.progressByScenarioSetVersionId?.[versionId] || {};
+	const remoteActionEntry = actionsDoc?.actionsByScenarioSetVersionId?.[versionId] || {};
+	const remoteDetailedActionEntry = detailedActionsDoc?.detailedActionsByScenarioSetVersionId?.[versionId] || {};
+	const usePendingPayload = shouldPreferPendingProgress(remoteSummaryEntry, pendingPayload);
+	const summaryEntry = usePendingPayload
+		? {
+			...remoteSummaryEntry,
+			...(pendingPayload?.summaryPayload || {})
+		}
+		: remoteSummaryEntry;
+	const progressEntry = usePendingPayload
+		? {
+			...remoteProgressEntry,
+			...(pendingPayload?.normalizedProgress || {})
+		}
+		: remoteProgressEntry;
+	const actionEntry = usePendingPayload
+		? {
+			...remoteActionEntry,
+			actionsByScenarioId: pendingPayload?.actionPayload?.actionsByScenarioId && typeof pendingPayload.actionPayload.actionsByScenarioId === 'object'
+				? pendingPayload.actionPayload.actionsByScenarioId
+				: (remoteActionEntry?.actionsByScenarioId || {})
+		}
+		: remoteActionEntry;
+	const detailedActionEntry = usePendingPayload
+		? {
+			...remoteDetailedActionEntry,
+			actionsByScenarioId: pendingPayload?.detailedActionPayload?.actionsByScenarioId && typeof pendingPayload.detailedActionPayload.actionsByScenarioId === 'object'
+				? pendingPayload.detailedActionPayload.actionsByScenarioId
+				: (remoteDetailedActionEntry?.actionsByScenarioId || {})
+		}
+		: remoteDetailedActionEntry;
 	const completedScenarios = Array.isArray(progressEntry?.completedScenarios) ? progressEntry.completedScenarios : [];
 	const inProgressScenario = String(progressEntry?.inProgressScenario ?? '').trim();
 	const actionsByScenarioId = actionEntry?.actionsByScenarioId && typeof actionEntry.actionsByScenarioId === 'object'
@@ -1723,6 +1778,7 @@ export async function createNewUser(id, mode = 'main') {
 		} else {
 			participantResultUrl.set("");
 		}
+		await flushPendingProgressSave();
 		await loadSavedScenarioState(id);
 	} else {
 		participantResultUrl.set("");
