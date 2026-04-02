@@ -1,6 +1,5 @@
 <script>
-	import { onMount, tick } from 'svelte';
-	import Chart from 'chart.js/auto';
+	import { onMount } from 'svelte';
 	import {
 		getCentralConfig,
 		getScenarioDatasetBundle,
@@ -22,8 +21,6 @@
 		scenarioSetVersionId: ''
 	};
 	let sessionLabelDraft = '';
-	let leaderboardCanvas;
-	let leaderboardChart = null;
 	let unsubscribeActiveSession = () => {};
 	let unsubscribeParticipants = () => {};
 
@@ -41,6 +38,15 @@
 
 	function formatMoney(value = 0) {
 		return `$${toNumber(value, 0).toFixed(2)}`;
+	}
+
+	function formatMoneyCompact(value = 0) {
+		return new Intl.NumberFormat(undefined, {
+			style: 'currency',
+			currency: 'USD',
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 0
+		}).format(toNumber(value, 0));
 	}
 
 	function formatDateTime(value = '') {
@@ -68,6 +74,34 @@
 		const mins = Math.floor(total / 60);
 		const secs = total % 60;
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
+	}
+
+	function formatOrdinal(rank = 0) {
+		const safeRank = Math.max(0, Math.floor(toNumber(rank, 0)));
+		if (!safeRank) return '—';
+		const remainder = safeRank % 100;
+		if (remainder >= 11 && remainder <= 13) return `${safeRank}th`;
+		switch (safeRank % 10) {
+			case 1:
+				return `${safeRank}st`;
+			case 2:
+				return `${safeRank}nd`;
+			case 3:
+				return `${safeRank}rd`;
+			default:
+				return `${safeRank}th`;
+		}
+	}
+
+	function getInitials(name = '') {
+		const normalized = String(name ?? '').trim();
+		if (!normalized) return '?';
+		const words = normalized.split(/[\s_-]+/).filter(Boolean);
+		if (words.length >= 2) {
+			return `${words[0][0]}${words[1][0]}`.toUpperCase();
+		}
+		const alphanumeric = normalized.replace(/[^a-zA-Z0-9]/g, '');
+		return (alphanumeric.slice(0, 2) || normalized.slice(0, 2)).toUpperCase();
 	}
 
 	function buildDefaultLabel() {
@@ -123,6 +157,76 @@
 		}
 	}
 
+	function getAvatarClasses(rank = 0) {
+		if (rank === 1) return 'border-amber-300 bg-gradient-to-br from-amber-100 via-white to-amber-50 text-amber-700';
+		if (rank === 2) return 'border-slate-300 bg-gradient-to-br from-slate-100 via-white to-slate-50 text-slate-700';
+		if (rank === 3) return 'border-rose-200 bg-gradient-to-br from-rose-100 via-white to-orange-50 text-rose-700';
+		return 'border-sky-200 bg-gradient-to-br from-sky-100 via-white to-cyan-50 text-sky-700';
+	}
+
+	function getRankBadgeClasses(rank = 0) {
+		if (rank === 1) return 'bg-gradient-to-br from-amber-400 to-yellow-300 text-white shadow-lg shadow-amber-200';
+		if (rank === 2) return 'bg-gradient-to-br from-slate-300 to-slate-200 text-slate-700 shadow-lg shadow-slate-200';
+		if (rank === 3) return 'bg-gradient-to-br from-orange-300 to-rose-200 text-rose-700 shadow-lg shadow-orange-100';
+		return 'bg-slate-100 text-slate-500';
+	}
+
+	function getBarFillClasses(rank = 0) {
+		if (rank === 1) return 'bg-gradient-to-r from-amber-400 via-yellow-300 to-orange-400';
+		if (rank === 2) return 'bg-gradient-to-r from-slate-400 via-slate-300 to-slate-200';
+		if (rank === 3) return 'bg-gradient-to-r from-rose-400 via-orange-300 to-amber-200';
+		return 'bg-gradient-to-r from-sky-500 via-cyan-400 to-blue-300';
+	}
+
+	function getRowShellClasses(rank = 0) {
+		if (rank === 1) return 'border-amber-200 bg-gradient-to-r from-amber-50 via-white to-amber-50/70 shadow-lg shadow-amber-100/70';
+		if (rank === 2) return 'border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50/70 shadow-md shadow-slate-100';
+		if (rank === 3) return 'border-rose-100 bg-gradient-to-r from-rose-50 via-white to-orange-50/60 shadow-md shadow-orange-100/70';
+		return 'border-slate-200 bg-white shadow-sm';
+	}
+
+	function getPodiumCardClasses(slot = '') {
+		if (slot === '1st') return 'border-amber-300 bg-gradient-to-br from-amber-100 via-yellow-50 to-white shadow-xl shadow-amber-100';
+		if (slot === '2nd') return 'border-slate-200 bg-gradient-to-br from-slate-100 via-white to-slate-50 shadow-md shadow-slate-100';
+		return 'border-rose-100 bg-gradient-to-br from-orange-50 via-white to-rose-50 shadow-md shadow-orange-100';
+	}
+
+	function computeGoalTarget(maxValue = 0) {
+		const safeValue = Math.max(toNumber(maxValue, 0) * 1.08, 10);
+		const magnitude = 10 ** Math.floor(Math.log10(safeValue));
+		const normalized = safeValue / magnitude;
+		const steps = [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 7.5, 10];
+		const nextStep = steps.find((step) => normalized <= step) ?? 10;
+		return nextStep * magnitude;
+	}
+
+	function getProgressPercent(value = 0, total = 0) {
+		if (total <= 0) return 0;
+		return Math.max(0, Math.min(100, (toNumber(value, 0) / total) * 100));
+	}
+
+	function getDisplayBarWidth(value = 0, total = 0) {
+		const basePercent = getProgressPercent(value, total);
+		if (basePercent === 0) return 12;
+		return Math.min(100, Math.max(basePercent, 18));
+	}
+
+	function getBarLabelPosition(value = 0, total = 0) {
+		return Math.min(97, Math.max(16, getDisplayBarWidth(value, total)));
+	}
+
+	function getTrackProgressPercent(value = 0, total = 0) {
+		if (total <= 0) return 6;
+		return Math.min(96, Math.max(4, getProgressPercent(value, total)));
+	}
+
+	function getLeaderGapText(participant, leader) {
+		if (!leader || !participant) return 'Waiting for the class leaderboard to fill in.';
+		if (participant.rank === 1) return 'Setting the pace for the room.';
+		const gap = Math.max(0, leader.earnings - participant.earnings);
+		return `${formatMoney(gap)} behind the current leader`;
+	}
+
 	async function loadSessionDefaults() {
 		try {
 			const centralConfig = await getCentralConfig();
@@ -149,81 +253,6 @@
 		}
 	}
 
-	function destroyChart() {
-		if (!leaderboardChart) return;
-		try {
-			leaderboardChart.destroy();
-		} catch {
-			// no-op
-		}
-		leaderboardChart = null;
-	}
-
-	function renderLeaderboardChart() {
-		destroyChart();
-		if (!leaderboardCanvas || rankedParticipants.length === 0) return;
-		const topEntries = rankedParticipants.slice(0, 10);
-		leaderboardChart = new Chart(leaderboardCanvas, {
-			type: 'bar',
-			data: {
-				labels: topEntries.map((participant) => participant.displayName),
-				datasets: [
-					{
-						label: 'Earnings',
-						data: topEntries.map((participant) => participant.earnings),
-						backgroundColor: topEntries.map((_, index) => {
-							if (index === 0) return '#f59e0b';
-							if (index === 1) return '#94a3b8';
-							if (index === 2) return '#fb7185';
-							return '#38bdf8';
-						}),
-						borderRadius: 12,
-						borderSkipped: false
-					}
-				]
-			},
-			options: {
-				indexAxis: 'y',
-				responsive: true,
-				maintainAspectRatio: false,
-				plugins: {
-					legend: { display: false },
-					tooltip: {
-						backgroundColor: '#0f172a',
-						titleColor: '#f8fafc',
-						bodyColor: '#e2e8f0',
-						callbacks: {
-							label(context) {
-								return ` ${formatMoney(context.parsed.x)}`;
-							}
-						}
-					}
-				},
-				scales: {
-					x: {
-						grid: { color: 'rgba(148, 163, 184, 0.18)' },
-						ticks: {
-							color: '#475569',
-							callback(value) {
-								return formatMoney(value);
-							}
-						}
-					},
-					y: {
-						grid: { display: false },
-						ticks: {
-							color: '#0f172a',
-							font: {
-								family: 'IBM Plex Mono, monospace',
-								size: 11
-							}
-						}
-					}
-				}
-			}
-		});
-	}
-
 	function resetParticipantSubscription() {
 		unsubscribeParticipants?.();
 		unsubscribeParticipants = () => {};
@@ -233,17 +262,14 @@
 		resetParticipantSubscription();
 		if (!sessionId) {
 			participants = [];
-			destroyChart();
 			return;
 		}
-		unsubscribeParticipants = subscribeToLiveSessionParticipants(sessionId, async (nextParticipants, subscriptionError) => {
+		unsubscribeParticipants = subscribeToLiveSessionParticipants(sessionId, (nextParticipants, subscriptionError) => {
 			if (subscriptionError) {
 				error = subscriptionError?.message || 'Unable to stream leaderboard participants.';
 				return;
 			}
 			participants = Array.isArray(nextParticipants) ? nextParticipants.map(normalizeParticipant) : [];
-			await tick();
-			renderLeaderboardChart();
 		});
 	}
 
@@ -284,7 +310,7 @@
 
 	onMount(() => {
 		void loadSessionDefaults().then(() => {
-			unsubscribeActiveSession = subscribeToActiveLiveSession(async (session, subscriptionError) => {
+			unsubscribeActiveSession = subscribeToActiveLiveSession((session, subscriptionError) => {
 				if (subscriptionError) {
 					error = subscriptionError?.message || 'Unable to stream live class session state.';
 				}
@@ -295,15 +321,12 @@
 				}
 				attachParticipantSubscription(activeSession?.sessionId || '');
 				loading = false;
-				await tick();
-				renderLeaderboardChart();
 			});
 		});
 
 		return () => {
 			unsubscribeActiveSession?.();
 			resetParticipantSubscription();
-			destroyChart();
 		};
 	});
 
@@ -312,10 +335,28 @@
 		rank: index + 1
 	}));
 
-	$: podiumParticipants = [
-		rankedParticipants[1] || null,
-		rankedParticipants[0] || null,
-		rankedParticipants[2] || null
+	$: leader = rankedParticipants[0] || null;
+
+	$: goalTarget = computeGoalTarget(rankedParticipants.reduce((maxValue, participant) => Math.max(maxValue, participant.earnings), 0));
+
+	$: goalMarkers = Array.from({ length: 5 }, (_, index) => {
+		const percent = index * 25;
+		return {
+			percent,
+			value: goalTarget * (percent / 100)
+		};
+	});
+
+	$: featuredTrackParticipants = rankedParticipants.slice(0, 12).map((participant, index) => ({
+		...participant,
+		trackPercent: getTrackProgressPercent(participant.earnings, goalTarget),
+		trackTopOffset: index % 2 === 0 ? 0 : 68
+	}));
+
+	$: podiumCards = [
+		{ slot: '2nd', participant: rankedParticipants[1] || null },
+		{ slot: '1st', participant: rankedParticipants[0] || null },
+		{ slot: '3rd', participant: rankedParticipants[2] || null }
 	];
 
 	$: leaderboardSummary = {
@@ -324,16 +365,6 @@
 		completed: rankedParticipants.filter((participant) => participant.status === 'completed' || participant.completedGame).length,
 		totalEarnings: rankedParticipants.reduce((sum, participant) => sum + participant.earnings, 0)
 	};
-
-	$: chartSignature = `${activeSession?.sessionId || 'none'}:${rankedParticipants
-		.map((participant) => `${participant.participantId}:${participant.earnings}:${participant.roundsCompleted}:${participant.totalGameTime}`)
-		.join('|')}`;
-
-	$: if (leaderboardCanvas && chartSignature) {
-		void tick().then(() => {
-			renderLeaderboardChart();
-		});
-	}
 </script>
 
 <div class="space-y-6">
@@ -457,141 +488,280 @@
 			</p>
 		</div>
 	{:else}
-		<div class="grid gap-6 xl:grid-cols-[0.95fr,1.05fr]">
-			<section class="rounded-3xl bg-white p-6 shadow">
-				<div class="flex items-center justify-between gap-3">
-					<div>
-						<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Leaderboard Graph</p>
-						<h3 class="mt-1 text-2xl font-bold text-slate-900">Top earners live</h3>
-					</div>
-					<p class="text-xs font-medium text-slate-500">Streaming current session data</p>
-				</div>
-				<div class="mt-6 h-[360px]">
-					{#if rankedParticipants.length > 0}
-						<canvas bind:this={leaderboardCanvas}></canvas>
-					{:else}
-						<div class="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
-							Waiting for students to join this class session...
-						</div>
-					{/if}
-				</div>
-			</section>
-
-			<section class="space-y-6">
-				<div class="rounded-3xl bg-white p-6 shadow">
-					<div class="flex items-center justify-between gap-3">
+		<div class="grid gap-6 xl:grid-cols-[1.45fr,0.92fr]">
+			<section class="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-xl">
+				<div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.16),_transparent_35%),radial-gradient(circle_at_top_right,_rgba(251,191,36,0.16),_transparent_30%),linear-gradient(180deg,_#ffffff_0%,_#f8fbff_100%)]"></div>
+				<div class="relative p-6 lg:p-8">
+					<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 						<div>
-							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Podium</p>
-							<h3 class="mt-1 text-2xl font-bold text-slate-900">Class ranking</h3>
+							<p class="text-xs font-semibold uppercase tracking-[0.32em] text-sky-600">Live Class Race</p>
+							<h3 class="mt-3 text-4xl font-black tracking-tight text-slate-950">Competitive standings for the whole room</h3>
+							<p class="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+								Every student in this active session is ranked here. Earnings push them further down the race track, and the full leaderboard below keeps everyone visible so the class can compete live.
+							</p>
 						</div>
-						<p class="text-xs font-medium text-slate-500">Sorted by earnings</p>
+						<div class="inline-flex items-center gap-3 self-start rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white shadow-lg">
+							<span class="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+							Streaming live
+						</div>
 					</div>
 
-					<div class="mt-6 grid gap-4 md:grid-cols-3">
-						{#each podiumParticipants as participant, index}
-							<div class={`rounded-3xl p-5 ${index === 1 ? 'bg-gradient-to-br from-amber-200 via-amber-100 to-white border border-amber-300 shadow-lg' : 'border border-slate-200 bg-slate-50'}`}>
-								<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-									{index === 1 ? '1st' : index === 0 ? '2nd' : '3rd'}
-								</p>
-								{#if participant}
-									<p class="mt-4 text-xl font-black text-slate-900">{participant.displayName}</p>
-									<p class="mt-2 text-3xl font-black text-slate-950">{formatMoney(participant.earnings)}</p>
-									<p class="mt-2 text-sm text-slate-600">
-										{participant.roundsCompleted} rounds • {participant.optimalChoices} optimal
-									</p>
+					<div class="mt-8 grid gap-3 sm:grid-cols-4">
+						<div class="rounded-[1.5rem] border border-slate-200 bg-white/80 px-5 py-4 shadow-sm backdrop-blur">
+							<p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Students</p>
+							<p class="mt-2 text-3xl font-black text-slate-950">{leaderboardSummary.totalJoined}</p>
+						</div>
+						<div class="rounded-[1.5rem] border border-slate-200 bg-white/80 px-5 py-4 shadow-sm backdrop-blur">
+							<p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Active now</p>
+							<p class="mt-2 text-3xl font-black text-slate-950">{leaderboardSummary.inProgress}</p>
+						</div>
+						<div class="rounded-[1.5rem] border border-slate-200 bg-white/80 px-5 py-4 shadow-sm backdrop-blur">
+							<p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Finished</p>
+							<p class="mt-2 text-3xl font-black text-slate-950">{leaderboardSummary.completed}</p>
+						</div>
+						<div class="rounded-[1.5rem] border border-slate-200 bg-white/80 px-5 py-4 shadow-sm backdrop-blur">
+							<p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Prize pool</p>
+							<p class="mt-2 text-3xl font-black text-slate-950">{formatMoneyCompact(leaderboardSummary.totalEarnings)}</p>
+						</div>
+					</div>
+
+					<div class="mt-8 rounded-[1.75rem] border border-slate-200 bg-white/80 p-5 shadow-inner backdrop-blur">
+						<div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+							<div>
+								<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Goal Track</p>
+								<h4 class="mt-2 text-2xl font-black text-slate-950">First to {formatMoneyCompact(goalTarget)}</h4>
+							</div>
+							<p class="text-xs font-medium text-slate-500">
+								{#if rankedParticipants.length > featuredTrackParticipants.length}
+									Showing the top {featuredTrackParticipants.length} on the track. Full board below shows everyone.
 								{:else}
-									<p class="mt-6 text-sm text-slate-500">No student in this podium slot yet.</p>
+									All current students are represented in the live board below.
+								{/if}
+							</p>
+						</div>
+
+						<div class="relative mt-10 pb-10">
+							<div class="absolute left-0 right-0 top-11 h-3 rounded-full bg-slate-200"></div>
+							<div class="absolute left-0 right-0 top-11 h-3 rounded-full bg-gradient-to-r from-sky-500 via-lime-400 to-amber-400 shadow-[0_0_40px_rgba(56,189,248,0.18)]"></div>
+
+							{#each goalMarkers as marker}
+								<div class="absolute top-0 -translate-x-1/2" style={`left: ${marker.percent}%`}>
+									<div class="h-[4.5rem] w-px bg-slate-200"></div>
+									<div class="mt-10 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500 shadow-sm ring-1 ring-slate-200">
+										{formatMoneyCompact(marker.value)}
+									</div>
+								</div>
+							{/each}
+
+							<div class="relative min-h-[10.5rem]">
+								{#if featuredTrackParticipants.length === 0}
+									<div class="flex min-h-[10.5rem] items-center justify-center rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
+										Waiting for students to join this live class session...
+									</div>
+								{:else}
+									{#each featuredTrackParticipants as participant}
+										<div
+											class="absolute flex w-16 -translate-x-1/2 flex-col items-center gap-2"
+											style={`left: ${participant.trackPercent}%; top: ${participant.trackTopOffset}px;`}
+										>
+											<div class={`flex h-14 w-14 items-center justify-center rounded-full border-4 text-sm font-black shadow-lg ${getAvatarClasses(participant.rank)}`}>
+												{getInitials(participant.displayName)}
+											</div>
+											<div class="rounded-full bg-slate-950 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white shadow">
+												{formatOrdinal(participant.rank)}
+											</div>
+										</div>
+									{/each}
+								{/if}
+							</div>
+						</div>
+					</div>
+
+					<div class="mt-8 grid gap-4 lg:grid-cols-[1fr,1.15fr,1fr]">
+						{#each podiumCards as card}
+							<div class={`rounded-[1.75rem] border p-5 ${getPodiumCardClasses(card.slot)} ${card.slot === '1st' ? 'lg:-translate-y-3' : ''}`}>
+								<p class="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">{card.slot}</p>
+								{#if card.participant}
+									<div class="mt-5 flex items-center gap-4">
+										<div class={`flex h-14 w-14 items-center justify-center rounded-full border-4 text-sm font-black shadow ${getAvatarClasses(card.participant.rank)}`}>
+											{getInitials(card.participant.displayName)}
+										</div>
+										<div class="min-w-0">
+											<p class="truncate text-2xl font-black text-slate-950">{card.participant.displayName}</p>
+											<p class="mt-1 text-sm font-medium text-slate-500">{card.participant.roundsCompleted} rounds • {card.participant.optimalChoices} optimal</p>
+										</div>
+									</div>
+									<p class="mt-5 text-4xl font-black text-slate-950">{formatMoneyCompact(card.participant.earnings)}</p>
+									<p class="mt-2 text-sm text-slate-500">{getLeaderGapText(card.participant, leader)}</p>
+								{:else}
+									<p class="mt-6 text-sm text-slate-500">No student has claimed this podium slot yet.</p>
 								{/if}
 							</div>
 						{/each}
 					</div>
 				</div>
+			</section>
 
-				<div class="rounded-3xl bg-white p-6 shadow">
-					<div class="flex items-center justify-between gap-3">
-						<div>
-							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">In The Game</p>
-							<h3 class="mt-1 text-2xl font-bold text-slate-900">Current class roster</h3>
+			<section class="space-y-6">
+				<div class="overflow-hidden rounded-[2rem] bg-slate-950 text-white shadow-2xl">
+					<div class="bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(30,41,59,0.94)_100%)] p-6">
+						<div class="flex items-start justify-between gap-3">
+							<div>
+								<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Session Snapshot</p>
+								<h3 class="mt-2 text-2xl font-black">
+									{activeSession.label || activeSession.sessionId}
+								</h3>
+							</div>
+							<span class="rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-200">
+								Active
+							</span>
 						</div>
-						<p class="text-xs font-medium text-slate-500">Students remain listed until you end the session.</p>
-					</div>
 
-					{#if rankedParticipants.length === 0}
-						<div class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-							No students have joined this session yet.
+						<div class="mt-5 rounded-[1.5rem] border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+							<p><span class="font-semibold text-white">Dataset:</span> {activeSession?.scenarioSetName || sessionDefaults.scenarioSetName || 'Unknown'}</p>
+							<p class="mt-1"><span class="font-semibold text-white">Version:</span> {activeSession?.scenarioSetVersionId || sessionDefaults.scenarioSetVersionId || 'Unavailable'}</p>
+							<p class="mt-1"><span class="font-semibold text-white">Started:</span> {formatDateTime(activeSession.startedAt)}</p>
+							<p class="mt-1"><span class="font-semibold text-white">Duration:</span> 20 minutes planned</p>
+							<p class="mt-1"><span class="font-semibold text-white">Goal line:</span> {formatMoneyCompact(goalTarget)}</p>
+							<p class="mt-3 text-xs text-slate-400">
+								All students stay on the board until you manually end the session from the control panel above.
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow">
+					<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Leader Right Now</p>
+					{#if leader}
+						<div class="mt-4 flex items-center gap-4">
+							<div class={`flex h-16 w-16 items-center justify-center rounded-full border-4 text-base font-black shadow-lg ${getAvatarClasses(leader.rank)}`}>
+								{getInitials(leader.displayName)}
+							</div>
+							<div class="min-w-0">
+								<p class="truncate text-2xl font-black text-slate-950">{leader.displayName}</p>
+								<p class="mt-1 text-sm text-slate-500">{leader.roundsCompleted} rounds • {leader.optimalChoices} optimal • updated {formatRelativeTime(leader.lastActivityAt)}</p>
+							</div>
+						</div>
+						<div class="mt-5 rounded-[1.5rem] bg-slate-950 px-5 py-4 text-white">
+							<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Current score</p>
+							<p class="mt-2 text-4xl font-black">{formatMoneyCompact(leader.earnings)}</p>
 						</div>
 					{:else}
-						<div class="mt-6 flex flex-wrap gap-3">
-							{#each rankedParticipants as participant}
-								<div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-									<div class="flex items-center gap-3">
-										<span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white">
-											{participant.rank}
-										</span>
-										<div>
-											<p class="font-semibold text-slate-900">{participant.displayName}</p>
-											<p class="text-xs text-slate-500">{formatMoney(participant.earnings)} • updated {formatRelativeTime(participant.lastActivityAt)}</p>
-										</div>
-									</div>
-								</div>
-							{/each}
+						<div class="mt-4 rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">
+							No student has posted a score yet.
 						</div>
 					{/if}
+				</div>
+
+				<div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow">
+					<div class="flex items-center justify-between gap-3">
+						<div>
+							<p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Room Status</p>
+							<h3 class="mt-2 text-2xl font-black text-slate-950">Class pulse</h3>
+						</div>
+						<p class="text-xs font-medium text-slate-500">Everyone stays visible until session end</p>
+					</div>
+
+					<div class="mt-5 grid gap-3 sm:grid-cols-3">
+						<div class="rounded-[1.25rem] bg-sky-50 px-4 py-4">
+							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">Joined</p>
+							<p class="mt-2 text-3xl font-black text-slate-950">{leaderboardSummary.totalJoined}</p>
+						</div>
+						<div class="rounded-[1.25rem] bg-emerald-50 px-4 py-4">
+							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Playing</p>
+							<p class="mt-2 text-3xl font-black text-slate-950">{leaderboardSummary.inProgress}</p>
+						</div>
+						<div class="rounded-[1.25rem] bg-amber-50 px-4 py-4">
+							<p class="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">Completed</p>
+							<p class="mt-2 text-3xl font-black text-slate-950">{leaderboardSummary.completed}</p>
+						</div>
+					</div>
 				</div>
 			</section>
 		</div>
 
-		<section class="rounded-3xl bg-white p-6 shadow">
-			<div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+		<section class="overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl">
+			<div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
 				<div>
-					<p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Leaderboard Table</p>
-					<h3 class="mt-1 text-2xl font-bold text-slate-900">All students in this live class session</h3>
+					<p class="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Class Leaderboard</p>
+					<h3 class="mt-2 text-3xl font-black tracking-tight text-slate-950">Every student in this session</h3>
+					<p class="mt-2 text-sm text-slate-600">
+						Sorted by earnings first, then rounds completed, then fastest time. This board keeps the whole class visible for live competition.
+					</p>
 				</div>
-				<p class="text-sm text-slate-500">
-					Started {formatDateTime(activeSession.startedAt)} • planned 20m • manual end only
-				</p>
+				<div class="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
+					Goal line {formatMoneyCompact(goalTarget)}
+				</div>
 			</div>
 
-			<div class="mt-6 overflow-x-auto">
-				<table class="min-w-full divide-y divide-slate-200">
-					<thead class="bg-slate-50">
-						<tr>
-							<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Rank</th>
-							<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Student</th>
-							<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Status</th>
-							<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Earnings</th>
-							<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Rounds</th>
-							<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Optimal</th>
-							<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Runtime</th>
-							<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Last Update</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-slate-200">
-						{#each rankedParticipants as participant}
-							<tr class="hover:bg-slate-50">
-								<td class="px-4 py-4 text-sm font-black text-slate-900">#{participant.rank}</td>
-								<td class="px-4 py-4">
-									<p class="text-sm font-semibold text-slate-900">{participant.displayName}</p>
-									<p class="text-xs text-slate-500">Joined {formatDateTime(participant.joinedAt)}</p>
-								</td>
-								<td class="px-4 py-4">
-									<span class={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses(participant.status)}`}>
-										{statusLabel(participant.status)}
-									</span>
-								</td>
-								<td class="px-4 py-4 text-sm font-semibold text-slate-900">{formatMoney(participant.earnings)}</td>
-								<td class="px-4 py-4 text-sm text-slate-600">{participant.roundsCompleted}</td>
-								<td class="px-4 py-4 text-sm text-slate-600">{participant.optimalChoices}</td>
-								<td class="px-4 py-4 text-sm text-slate-600">{formatRuntime(participant.totalGameTime)}</td>
-								<td class="px-4 py-4 text-sm text-slate-600">
-									<div>{formatRelativeTime(participant.lastActivityAt)}</div>
-									<div class="text-xs text-slate-400">{formatDateTime(participant.lastActivityAt)}</div>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
+			{#if rankedParticipants.length === 0}
+				<div class="mt-8 rounded-[1.75rem] border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-sm text-slate-500">
+					No students have joined this live session yet.
+				</div>
+			{:else}
+				<div class="mt-8 space-y-4">
+					{#each rankedParticipants as participant}
+						<article class={`relative overflow-hidden rounded-[1.75rem] border p-5 lg:p-6 ${getRowShellClasses(participant.rank)}`}>
+							<div class="grid gap-5 lg:grid-cols-[88px,minmax(0,1.25fr),minmax(0,2fr)] lg:items-center">
+								<div class="flex items-center gap-4 lg:flex-col lg:items-center">
+									<div class={`flex h-16 w-16 items-center justify-center rounded-[1.25rem] text-3xl font-black ${getRankBadgeClasses(participant.rank)}`}>
+										{participant.rank}
+									</div>
+									<p class="text-xs font-semibold uppercase tracking-[0.26em] text-slate-500">
+										{formatOrdinal(participant.rank)}
+									</p>
+								</div>
+
+								<div class="flex items-center gap-4">
+									<div class={`flex h-16 w-16 items-center justify-center rounded-[1.25rem] border-4 text-lg font-black shadow-lg ${getAvatarClasses(participant.rank)}`}>
+										{getInitials(participant.displayName)}
+									</div>
+									<div class="min-w-0">
+										<div class="flex flex-wrap items-center gap-2">
+											<h4 class="truncate text-2xl font-black text-slate-950">{participant.displayName}</h4>
+											<span class={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses(participant.status)}`}>
+												{statusLabel(participant.status)}
+											</span>
+										</div>
+										<div class="mt-3 flex flex-wrap gap-2">
+											<span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{participant.roundsCompleted} rounds</span>
+											<span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{participant.optimalChoices} optimal</span>
+											<span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{formatRuntime(participant.totalGameTime)} runtime</span>
+										</div>
+										<p class="mt-3 text-xs font-medium text-slate-500">
+											{getLeaderGapText(participant, leader)}
+										</p>
+									</div>
+								</div>
+
+								<div>
+									<div class="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+										<span>Score Track</span>
+										<span>{formatRelativeTime(participant.lastActivityAt)}</span>
+									</div>
+									<div class="relative h-16 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+										<div
+											class={`absolute inset-y-1 left-1 rounded-full ${getBarFillClasses(participant.rank)} shadow-lg`}
+											style={`width: calc(${getDisplayBarWidth(participant.earnings, goalTarget)}% - 0.5rem);`}
+										></div>
+										<div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(148,163,184,0.18)_1px,transparent_1px)] bg-[length:20%_100%] opacity-70"></div>
+										<div
+											class="absolute top-1/2 rounded-full bg-slate-950 px-4 py-2 text-sm font-black text-white shadow-lg"
+											style={`left: ${getBarLabelPosition(participant.earnings, goalTarget)}%; transform: translate(-100%, -50%);`}
+										>
+											{formatMoneyCompact(participant.earnings)}
+										</div>
+									</div>
+									<div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+										<span>Joined {formatDateTime(participant.joinedAt)}</span>
+										<span>{formatDateTime(participant.lastActivityAt)}</span>
+									</div>
+								</div>
+							</div>
+						</article>
+					{/each}
+				</div>
+			{/if}
 		</section>
 	{/if}
 </div>
