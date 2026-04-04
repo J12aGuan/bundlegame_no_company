@@ -27,6 +27,7 @@
     
     const navItems = [
         { label: 'Dashboard', href: '/admin' },
+        { label: 'Live Class', href: '/admin/live' },
         { label: 'Master Data', href: '/admin/masterdata' },
         { label: 'Results', href: '/admin/results' },
         { label: 'Analysis', href: '/admin/analysis' }

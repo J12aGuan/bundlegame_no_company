@@ -105,6 +105,22 @@ service cloud.firestore {
       allow delete: if true;
     }
 
+    // Live classroom leaderboard sessions
+    match /LiveSessions/{sessionId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if false;
+
+      // Per-session leaderboard participant rows
+      match /participants/{participantId} {
+        allow read: if true;
+        allow create: if true;
+        allow update: if true;
+        allow delete: if false;
+      }
+    }
+
     // Block everything else
     match /{document=**} {
       allow read, write: if false;

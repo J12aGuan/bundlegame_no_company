@@ -1,6 +1,6 @@
-import { timeStamp } from './bundle';
 import {firestore} from './firebaseConfig';
-import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, deleteField } from "firebase/firestore";
+import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, deleteField, query, where, onSnapshot } from "firebase/firestore";
+import { generateAuthToken } from './authToken';
 
 function removeUndefinedDeep(value) {
     if (Array.isArray(value)) {
@@ -20,21 +20,22 @@ function removeUndefinedDeep(value) {
 export const createUser = async (id, n) => {
     if (!id) return '';
     const userDocRef = doc(collection(firestore, 'Users'), id);
+    const now = Timestamp.fromDate(new Date());
 
     try {
         const existingUser = await getDoc(userDocRef);
         if (existingUser.exists()) {
+            const existingData = existingUser.data() || {};
             await setDoc(userDocRef, {
                 configuration: deleteField(),
-                createdAt: deleteField(),
-                updatedAt: deleteField(),
-                earnings: deleteField(),
-                ordersComplete: deleteField(),
-                uniqueSetsComplete: deleteField(),
-                gametime: deleteField()
+                createdAt: existingData.createdAt || now,
+                updatedAt: now
             }, { merge: true });
         } else {
-            await setDoc(userDocRef, {});
+            await setDoc(userDocRef, {
+                createdAt: now,
+                updatedAt: now
+            }, { merge: true });
         }
         console.log("Document written with ID: ", id);
     } catch (error) {
@@ -42,6 +43,18 @@ export const createUser = async (id, n) => {
     }
 
     return id
+}
+
+async function touchUserUpdatedAt(id) {
+    const normalizedId = String(id ?? '').trim();
+    if (!normalizedId) return;
+    try {
+        await setDoc(doc(collection(firestore, 'Users'), normalizedId), {
+            updatedAt: Timestamp.fromDate(new Date())
+        }, { merge: true });
+    } catch (error) {
+        console.warn("Unable to touch user updatedAt:", error);
+    }
 }
 
 function getSummaryRef(id) {
@@ -62,6 +75,73 @@ function getActionSummaryRef(id) {
 
 function getDetailedActionSummaryRef(id) {
     return doc(collection(firestore, 'Users/' + id + '/DetailedAction'), 'actions');
+}
+
+function getLiveSessionsCollectionRef() {
+    return collection(firestore, 'LiveSessions');
+}
+
+function getLiveSessionRef(sessionId) {
+    return doc(getLiveSessionsCollectionRef(), String(sessionId ?? '').trim());
+}
+
+function getLiveSessionParticipantsCollectionRef(sessionId) {
+    return collection(firestore, 'LiveSessions', String(sessionId ?? '').trim(), 'participants');
+}
+
+function getLiveSessionParticipantRef(sessionId, participantId) {
+    return doc(getLiveSessionParticipantsCollectionRef(sessionId), String(participantId ?? '').trim());
+}
+
+function normalizeIsoString(value = '') {
+    const normalized = String(value ?? '').trim();
+    if (!normalized) return '';
+    const millis = Date.parse(normalized);
+    return Number.isFinite(millis) ? new Date(millis).toISOString() : '';
+}
+
+function toIsoMillis(value = '') {
+    const normalized = normalizeIsoString(value);
+    if (!normalized) return 0;
+    const millis = Date.parse(normalized);
+    return Number.isFinite(millis) ? millis : 0;
+}
+
+function createSessionLabel(date = new Date()) {
+    const safeDate = date instanceof Date ? date : new Date();
+    return `Class Session ${safeDate.toLocaleString()}`;
+}
+
+function normalizeLiveSession(docId = '', data = {}) {
+    const source = data && typeof data === 'object' ? data : {};
+    return removeUndefinedDeep({
+        sessionId: String(source?.sessionId ?? docId ?? '').trim(),
+        label: String(source?.label ?? '').trim(),
+        status: String(source?.status ?? '').trim() || 'ended',
+        startedAt: normalizeIsoString(source?.startedAt),
+        endedAt: normalizeIsoString(source?.endedAt),
+        plannedDurationMinutes: Math.max(0, Number(source?.plannedDurationMinutes) || 0),
+        scenarioSetVersionId: String(source?.scenarioSetVersionId ?? '').trim(),
+        scenarioSetName: String(source?.scenarioSetName ?? '').trim()
+    });
+}
+
+function normalizeLiveSessionParticipant(participantId = '', data = {}) {
+    const source = data && typeof data === 'object' ? data : {};
+    const status = String(source?.status ?? '').trim() || 'joined';
+    return removeUndefinedDeep({
+        participantId: String(source?.participantId ?? participantId ?? '').trim(),
+        displayName: String(source?.displayName ?? source?.participantId ?? participantId ?? '').trim(),
+        earnings: Math.max(0, Number(source?.earnings) || 0),
+        roundsCompleted: Math.max(0, Number(source?.roundsCompleted) || 0),
+        optimalChoices: Math.max(0, Number(source?.optimalChoices) || 0),
+        totalGameTime: Math.max(0, Number(source?.totalGameTime) || 0),
+        completedGame: Boolean(source?.completedGame),
+        status,
+        joinedAt: normalizeIsoString(source?.joinedAt),
+        lastActivityAt: normalizeIsoString(source?.lastActivityAt),
+        finalizedAt: normalizeIsoString(source?.finalizedAt)
+    });
 }
 
 function normalizeScenarioIdList(value) {
@@ -214,6 +294,10 @@ function mergeScenarioSummaryEntry(existingEntry = {}, nextEntry = {}) {
         completedGame: nextEntry?.completedGame !== undefined ? Boolean(nextEntry?.completedGame) : Boolean(existingEntry?.completedGame),
         earnings: resolveSummaryNumber(nextEntry?.earnings, existingEntry?.earnings),
         resultAccessKey: String(existingEntry?.resultAccessKey ?? nextEntry?.resultAccessKey ?? '').trim(),
+        liveSessionId: String(nextEntry?.liveSessionId ?? existingEntry?.liveSessionId ?? '').trim(),
+        sessionStartedAt: normalizeIsoString(nextEntry?.sessionStartedAt || existingEntry?.sessionStartedAt || ''),
+        lastActivityAt: normalizeIsoString(nextEntry?.lastActivityAt || existingEntry?.lastActivityAt || ''),
+        sessionLabel: String(nextEntry?.sessionLabel ?? existingEntry?.sessionLabel ?? '').trim(),
         completionMeta: mergeCompletionMeta(existingEntry?.completionMeta, nextEntry?.completionMeta)
     });
 }
@@ -262,7 +346,12 @@ export const initializeUserProgress = async (id, progress = {}) => {
             totalGameTime: Number(existingEntry?.totalGameTime) || 0,
             completedGame: Boolean(existingEntry?.completedGame),
             earnings: Number(existingEntry?.earnings) || 0,
-            resultAccessKey: String(existingEntry?.resultAccessKey ?? resultAccessKey).trim()
+            resultAccessKey: String(existingEntry?.resultAccessKey ?? resultAccessKey).trim(),
+            liveSessionId: String(progress?.liveSessionId ?? existingEntry?.liveSessionId ?? '').trim(),
+            sessionStartedAt: normalizeIsoString(progress?.sessionStartedAt || existingEntry?.sessionStartedAt || ''),
+            lastActivityAt: normalizeIsoString(progress?.lastActivityAt || existingEntry?.lastActivityAt || ''),
+            sessionLabel: String(progress?.sessionLabel ?? existingEntry?.sessionLabel ?? '').trim(),
+            completionMeta: progress?.completionMeta || existingEntry?.completionMeta || {}
         });
 
         await setDoc(summaryRef, {
@@ -303,7 +392,12 @@ export const saveUserProgressSummary = async (id, progress = {}) => {
             totalGameTime: Number(progress?.totalGameTime) || 0,
             completedGame: Boolean(progress?.completedGame),
             earnings: Number(progress?.earnings) || 0,
-            resultAccessKey
+            resultAccessKey,
+            liveSessionId: String(progress?.liveSessionId ?? existingEntry?.liveSessionId ?? '').trim(),
+            sessionStartedAt: normalizeIsoString(progress?.sessionStartedAt || existingEntry?.sessionStartedAt || ''),
+            lastActivityAt: normalizeIsoString(progress?.lastActivityAt || existingEntry?.lastActivityAt || ''),
+            sessionLabel: String(progress?.sessionLabel ?? existingEntry?.sessionLabel ?? '').trim(),
+            completionMeta: progress?.completionMeta || existingEntry?.completionMeta || {}
         });
 
         await setDoc(summaryRef, {
@@ -312,6 +406,7 @@ export const saveUserProgressSummary = async (id, progress = {}) => {
                 [scenarioSetVersionId]: entry
             }
         });
+        await touchUserUpdatedAt(id);
         console.log("Summary updated for ", id);
         return entry;
     } catch (error) {
@@ -395,7 +490,11 @@ export const saveScenarioSetProgress = async (id, progress = {}) => {
             roundsCompleted: Math.max(0, Number(progress?.roundsCompleted ?? existingEntry?.roundsCompleted) || 0),
             optimalChoices: Math.max(0, Number(progress?.optimalChoices ?? existingEntry?.optimalChoices) || 0),
             totalGameTime: Math.max(0, Number(progress?.totalGameTime ?? existingEntry?.totalGameTime) || 0),
-            earnings: Math.max(0, Number(progress?.earnings ?? existingEntry?.earnings) || 0)
+            earnings: Math.max(0, Number(progress?.earnings ?? existingEntry?.earnings) || 0),
+            liveSessionId: String(progress?.liveSessionId ?? existingEntry?.liveSessionId ?? '').trim(),
+            sessionStartedAt: normalizeIsoString(progress?.sessionStartedAt || existingEntry?.sessionStartedAt || ''),
+            lastActivityAt: normalizeIsoString(progress?.lastActivityAt || existingEntry?.lastActivityAt || ''),
+            sessionLabel: String(progress?.sessionLabel ?? existingEntry?.sessionLabel ?? '').trim()
         });
 
         await setDoc(progressRef, {
@@ -514,111 +613,47 @@ export const saveDetailedActionSummaries = async (id, payload = {}) => {
     }
 };
 
-//function for a random number given a seed
-//written by CHATGPT
-function hashSeed(seed) {
-    let hash = 0;
-    for (let i = 0; i < seed.length; i++) {
-        hash = (hash * 31 + seed.charCodeAt(i)) % 2147483647;
-    }
-    return hash;
-}
-//written by CHAT GPT
-function seededRandom(seed) {
-    let x = seed % 2147483647;
-    if (x <= 0) x += 2147483646;
-    return function() {
-        x = x * 16807 % 2147483647;
-        return (x - 1) / 2147483646;
-    };
-}
-
-function digitToHex(digit) {
-    switch (digit) {
-        case 10:
-            return "A"
-        case 11:
-            return "B"
-        case 12:
-            return "C"
-        case 13:
-            return "D"
-        case 14:
-            return "E"
-        case 15:
-            return "F"
-        default:
-            return digit
-    }
-}
-
-function generateNumber(random, modulo) {
-    // Generate the first 3 digits randomly
-    const first3Digits = [];
-    for (let i = 0; i < 3; i++) {
-        first3Digits.push(Math.floor(random() * 16)); // Random digit between 0-15
-    }
-
-    // Compute the checksum (4th digit)
-    let total = 0;
-    for (let i = 0; i < first3Digits.length; i++) {
-        let digit = first3Digits[i];
-        if (i == 1) {
-            digit *= 2;
-            if (digit > 15) {
-                digit -= 15;
-            }
-        }
-        total += digit;
-        first3Digits[i] = digitToHex(digit)
-    }
-
-    // Calculate the checksum digit to make total % 16 === modulo
-    const checksumDigit = digitToHex(((16 - (total % 16)) + modulo) % 16);
-    
-    first3Digits.push(checksumDigit);
-
-    // Return the 4-digit number as a string
-    return first3Digits.join('');
-}
-
-function generateToken(id) {
-    const seed = hashSeed(id)
-    const random = seededRandom(seed);
-    let first = generateNumber(random, 11) //B
-    let second = generateNumber(random, 0) //0
-    let third = generateNumber(random, 11) //B
-    let fourth = generateNumber(random, 10) //A
-    return first + "-" + second + "-" + third + "-" + fourth
-}
-
 //returns 0 on error and 1 on success
 export const authenticateUser = async (id, token) => {
-    const userDocRef = doc(collection(firestore, 'Auth'), id);
-    const userDocSnap = await getDoc(userDocRef)
-    if (userDocSnap.exists()) {
-        if (userDocSnap.data().status == 2) {
-            return 1
-        }
-        return 0
+    const normalizedId = String(id ?? '').trim();
+    const normalizedToken = String(token ?? '').trim();
+    if (!normalizedId || !normalizedToken) {
+        return 0;
     }
-    //token does not exist, generate a token for the user and see if matches
-    let generatedToken = generateToken(id)
-    if (generatedToken == token) {
-        const data = {
-            userid: id,
-            status: 1
-        }
-        const userDocRef = doc(collection(firestore, 'Auth'), token);
-        try {
-            await setDoc(userDocRef, data);
-        } catch (error) {
-            console.error("Error adding document: ", error);
-        }
-        return 1
-    } else {
-        return 0
+
+    // Preserve legacy admin overrides stored by user id.
+    const legacyAuthRef = doc(collection(firestore, 'Auth'), normalizedId);
+    const legacyAuthSnap = await getDoc(legacyAuthRef);
+    if (legacyAuthSnap.exists() && legacyAuthSnap.data().status == 2) {
+        return 1;
     }
+
+    const tokenAuthRef = doc(collection(firestore, 'Auth'), normalizedToken);
+    const tokenAuthSnap = await getDoc(tokenAuthRef);
+    if (tokenAuthSnap.exists()) {
+        const tokenAuthData = tokenAuthSnap.data() || {};
+        if (String(tokenAuthData.userid ?? '').trim() === normalizedId) {
+            return 1;
+        }
+    }
+
+    const generatedToken = generateAuthToken(normalizedId);
+    if (generatedToken !== normalizedToken) {
+        return 0;
+    }
+
+    const data = {
+        userid: normalizedId,
+        status: 1
+    };
+
+    try {
+        await setDoc(tokenAuthRef, data, { merge: true });
+    } catch (error) {
+        console.error("Error adding document: ", error);
+    }
+
+    return 1;
 }
 
 async function getSubcollections(id, field) {
@@ -676,6 +711,202 @@ export const retrieveData = async () => {
 
     return data;
 }
+
+async function listActiveLiveSessions() {
+    const activeQuery = query(getLiveSessionsCollectionRef(), where('status', '==', 'active'));
+    const snap = await getDocs(activeQuery);
+    return snap.docs
+        .map((sessionDoc) => normalizeLiveSession(sessionDoc.id, sessionDoc.data()))
+        .filter((session) => session.sessionId);
+}
+
+function pickLatestLiveSession(sessions = []) {
+    const normalizedSessions = Array.isArray(sessions) ? sessions.filter((session) => session?.sessionId) : [];
+    if (normalizedSessions.length === 0) return null;
+    return [...normalizedSessions].sort((left, right) => {
+        const startedDiff = toIsoMillis(right?.startedAt) - toIsoMillis(left?.startedAt);
+        if (startedDiff !== 0) return startedDiff;
+        return String(left?.sessionId ?? '').localeCompare(String(right?.sessionId ?? ''));
+    })[0];
+}
+
+async function settleActiveLiveSessions() {
+    const activeSessions = await listActiveLiveSessions();
+    const latestSession = pickLatestLiveSession(activeSessions);
+    if (!latestSession?.sessionId) return null;
+
+    await Promise.all(
+        activeSessions
+            .filter((session) => session.sessionId && session.sessionId !== latestSession.sessionId)
+            .map((session) =>
+                setDoc(
+                    getLiveSessionRef(session.sessionId),
+                    {
+                        status: 'ended',
+                        endedAt: latestSession.startedAt || new Date().toISOString()
+                    },
+                    { merge: true }
+                )
+            )
+    );
+
+    return latestSession;
+}
+
+export const getActiveLiveSession = async () => {
+    try {
+        return await settleActiveLiveSessions();
+    } catch (error) {
+        console.error('Error fetching active live session:', error);
+        return null;
+    }
+};
+
+export const startLiveSession = async (payload = {}) => {
+    const nowIso = new Date().toISOString();
+    const label = String(payload?.label ?? '').trim() || createSessionLabel(new Date(nowIso));
+    const scenarioSetVersionId = String(payload?.scenarioSetVersionId ?? '').trim();
+    const scenarioSetName = String(payload?.scenarioSetName ?? '').trim();
+
+    try {
+        const activeSessions = await listActiveLiveSessions();
+        await Promise.all(
+            activeSessions.map((session) =>
+                setDoc(
+                    getLiveSessionRef(session.sessionId),
+                    {
+                        status: 'ended',
+                        endedAt: nowIso
+                    },
+                    { merge: true }
+                )
+            )
+        );
+
+        const sessionRef = doc(getLiveSessionsCollectionRef());
+        const nextSession = normalizeLiveSession(sessionRef.id, {
+            sessionId: sessionRef.id,
+            label,
+            status: 'active',
+            startedAt: nowIso,
+            endedAt: '',
+            plannedDurationMinutes: 20,
+            scenarioSetVersionId,
+            scenarioSetName
+        });
+
+        await setDoc(sessionRef, nextSession);
+        return (await settleActiveLiveSessions()) || nextSession;
+    } catch (error) {
+        console.error('Error starting live session:', error);
+        throw error;
+    }
+};
+
+export const endLiveSession = async (sessionId = '') => {
+    const targetId = String(sessionId ?? '').trim();
+    const nowIso = new Date().toISOString();
+
+    try {
+        let targetSession = null;
+        if (targetId) {
+            const snap = await getDoc(getLiveSessionRef(targetId));
+            if (snap.exists()) {
+                targetSession = normalizeLiveSession(snap.id, snap.data());
+            }
+        } else {
+            targetSession = await getActiveLiveSession();
+        }
+        if (!targetSession?.sessionId) return null;
+
+        await setDoc(
+            getLiveSessionRef(targetSession.sessionId),
+            {
+                status: 'ended',
+                endedAt: nowIso
+            },
+            { merge: true }
+        );
+
+        return {
+            ...targetSession,
+            status: 'ended',
+            endedAt: nowIso
+        };
+    } catch (error) {
+        console.error('Error ending live session:', error);
+        throw error;
+    }
+};
+
+export const upsertLiveSessionParticipant = async (sessionId, participantId, payload = {}) => {
+    const normalizedSessionId = String(sessionId ?? '').trim();
+    const normalizedParticipantId = String(participantId ?? '').trim();
+    if (!normalizedSessionId || !normalizedParticipantId) return null;
+
+    try {
+        const participantRef = getLiveSessionParticipantRef(normalizedSessionId, normalizedParticipantId);
+        const snap = await getDoc(participantRef);
+        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const nowIso = new Date().toISOString();
+        const entry = normalizeLiveSessionParticipant(normalizedParticipantId, {
+            ...existing,
+            ...payload,
+            participantId: normalizedParticipantId,
+            displayName: String(payload?.displayName ?? existing?.displayName ?? normalizedParticipantId).trim(),
+            joinedAt: existing?.joinedAt || payload?.joinedAt || nowIso,
+            lastActivityAt: payload?.lastActivityAt || existing?.lastActivityAt || nowIso,
+            finalizedAt: payload?.finalizedAt || existing?.finalizedAt || ''
+        });
+
+        await setDoc(participantRef, entry, { merge: true });
+        return entry;
+    } catch (error) {
+        console.error('Error updating live session participant:', error);
+        return null;
+    }
+};
+
+export const subscribeToActiveLiveSession = (callback) => {
+    const activeQuery = query(getLiveSessionsCollectionRef(), where('status', '==', 'active'));
+    return onSnapshot(
+        activeQuery,
+        (snap) => {
+            if (typeof callback !== 'function') return;
+            const sessions = snap.docs
+                .map((sessionDoc) => normalizeLiveSession(sessionDoc.id, sessionDoc.data()))
+                .filter((session) => session.sessionId);
+            callback(pickLatestLiveSession(sessions));
+        },
+        (error) => {
+            console.error('Active live session subscription failed:', error);
+            if (typeof callback === 'function') {
+                callback(null, error);
+            }
+        }
+    );
+};
+
+export const subscribeToLiveSessionParticipants = (sessionId, callback) => {
+    const normalizedSessionId = String(sessionId ?? '').trim();
+    if (!normalizedSessionId || typeof callback !== 'function') {
+        return () => {};
+    }
+
+    return onSnapshot(
+        getLiveSessionParticipantsCollectionRef(normalizedSessionId),
+        (snap) => {
+            const participants = snap.docs.map((participantDoc) =>
+                normalizeLiveSessionParticipant(participantDoc.id, participantDoc.data())
+            );
+            callback(participants);
+        },
+        (error) => {
+            console.error('Live session participants subscription failed:', error);
+            callback([], error);
+        }
+    );
+};
 
 // ============ MasterData Management ============
 
