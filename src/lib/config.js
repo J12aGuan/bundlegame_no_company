@@ -47,7 +47,8 @@ export function queueNFixedOrders(n) {
 /* Returns the configuration for a store */
 export function storeConfig(store) {
     let r = ""
-    default_job["stores"].forEach((e) => {
+    const stores = Array.isArray(default_job?.stores) ? default_job.stores : [];
+    stores.forEach((e) => {
         if (e["store"] === store) {
             r = e;
         }

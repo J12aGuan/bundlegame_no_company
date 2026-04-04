@@ -1,5 +1,4 @@
 <script>
-    import { globalError } from "$lib/globalError.js"
     import Bundlegame from "./bundlegame.svelte";
     import { game, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, completedOrdersCount, createNewUser, needsAuth, loadGame, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveProgressAndEndSession, resumeElapsedSeconds, completionState, recordResultCodeVerification, retryFinalResultsSave, resendRecoveryCompletionPayload } from "$lib/bundle.js";
 	import Home from "./home.svelte";
@@ -219,13 +218,7 @@
     })
 </script>
 
-{#if $globalError}
-    <div class="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-        <div class="text-red-600 font-bold bg-red-100 p-4 rounded-xl max-w-2xl">
-            ⚠️ Error: {$globalError}
-        </div>
-    </div>
-{:else if !started && !$GameOver}
+{#if !started && !$GameOver}
     <!-- Login Screen - Full screen delivery app style -->
     <main class="min-h-screen bg-slate-950 flex items-center justify-center px-4">
         <div class="bg-white rounded-3xl shadow-2xl p-8 md:p-10 w-full max-w-md">

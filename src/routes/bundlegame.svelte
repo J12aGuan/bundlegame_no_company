@@ -106,6 +106,16 @@
         stopScenarioPhase(activeScenarioId, 'idleOrOtherTime');
     }
 
+    function returnToSelectionWithWarning(message, metadata = {}) {
+        console.warn(message, metadata);
+        GameState = 0;
+        game.update((current) => ({
+            ...current,
+            inSelect: true,
+            inStore: false
+        }));
+    }
+
     async function persistRoundSnapshot(overrides = {}) {
         if ($gameMode === 'tutorial') return;
 
@@ -132,18 +142,27 @@
 
     onMount(() => {
         setScenarioInProgress(activeScenarioId);
-        const selOrders = get(orders)
-        startEarnings = selOrders.reduce((sum, order) => sum + order.earnings, 0)
-        totalEarnings = startEarnings
-        config = storeConfig($orders[0].store)
+        const selOrders = get(orders);
+        const primaryOrder = selOrders[0];
+        if (!primaryOrder) {
+            returnToSelectionWithWarning("Bundlegame mounted without selected orders", {
+                currentRound: $currentRound,
+                scenarioId: activeScenarioId
+            });
+            return;
+        }
+
+        startEarnings = selOrders.reduce((sum, order) => sum + order.earnings, 0);
+        totalEarnings = startEarnings;
+        config = storeConfig(primaryOrder.store);
         
         // Safety check for config
         if (!config || !config["Entrance"]) {
-            console.error("Invalid store config for:", $orders[0].store);
+            console.warn("Invalid store config for:", primaryOrder.store);
             config = { Entrance: [0, 0], locations: [[""]], cellDistance: 1000 };
         }
         
-        curLocation = getEntrancePosition(config)
+        curLocation = getEntrancePosition(config);
         currentDeliveryCity = String(get(currLocation) ?? selOrders[0]?.city ?? "");
         
         if ($game.tip) intervalId = setInterval(updateTip, 1000);
@@ -313,13 +332,22 @@
 
     function start() {
         const selOrders = get(orders);
+        const primaryOrder = selOrders[0];
+        if (!primaryOrder) {
+            returnToSelectionWithWarning("Start picking requested without selected orders", {
+                currentRound: $currentRound,
+                scenarioId: activeScenarioId
+            });
+            return;
+        }
+
         startTimer = $elapsed;
-        config = storeConfig(selOrders[0].store);
+        config = storeConfig(primaryOrder.store);
         recordDetailedAction(activeScenarioId, 'start_picking', 'button', 'startorder');
         
         // Safety check and reset location
         if (!config || !config["Entrance"]) {
-            console.error("Invalid store config for:", selOrders[0].store);
+            console.warn("Invalid store config for:", primaryOrder.store);
             config = { Entrance: [0, 0], locations: [[""]], cellDistance: 1000 };
         }
         
