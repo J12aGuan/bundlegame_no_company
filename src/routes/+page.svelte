@@ -1,6 +1,6 @@
 <script>
     import Bundlegame from "./bundlegame.svelte";
-    import { game, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, completedOrdersCount, createNewUser, needsAuth, loadGame, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveProgressAndEndSession, resumeElapsedSeconds, completionState, recordResultCodeVerification, retryFinalResultsSave, resendRecoveryCompletionPayload } from "$lib/bundle.js";
+    import { game, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, completedOrdersCount, createNewUser, needsAuth, loadGame, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveProgressAndEndSession, resumeElapsedSeconds, completionState, recordResultCodeVerification, retryFinalResultsSave, resendRecoveryCompletionPayload, resendCompletionHandoff } from "$lib/bundle.js";
 	import Home from "./home.svelte";
 	import { onMount } from "svelte";
     import { queueNFixedOrders } from "$lib/config.js";
@@ -36,6 +36,7 @@
     let recordingCode = false;
     let retryingFinalSave = false;
     let resendingBackup = false;
+    let advancingSurvey = false;
 
     function focusResultCodeField() {
         resultCodeField?.focus?.();
@@ -108,6 +109,24 @@
         }
     }
 
+    async function continueToQualtrics() {
+        advancingSurvey = true;
+        copyErrorMessage = '';
+        copyActionMessage = '';
+        try {
+            if (resultCode && copyVerificationMethod === 'none' && copyStatus !== 'confirmed') {
+                await recordResultCodeVerification(copyStatus === 'copied' ? 'clipboard_success' : 'manual_confirm');
+                copyStatus = 'confirmed';
+            }
+            await resendCompletionHandoff({ advanceRequested: true });
+            copyActionMessage = 'Handoff sent to Qualtrics again. If the survey still does not move forward, the Qualtrics page script needs to show or click Next when it receives the game completion message.';
+        } catch (err) {
+            copyErrorMessage = err?.message || 'Unable to resend the Qualtrics handoff right now. Keep the result code visible as your backup.';
+        } finally {
+            advancingSurvey = false;
+        }
+    }
+
     function returnToSignIn() {
         userInput = '';
         userPass = '';
@@ -120,6 +139,7 @@
         recordingCode = false;
         retryingFinalSave = false;
         resendingBackup = false;
+        advancingSurvey = false;
         participantResultUrl.set('');
         id.set('');
         completionState.set({
@@ -382,6 +402,15 @@
                             </button>
                         </div>
                     {/if}
+
+                    <button
+                        type="button"
+                        class="w-full rounded-lg bg-green-600 py-2 text-sm font-semibold text-white hover:bg-green-700 transition disabled:opacity-60"
+                        on:click={continueToQualtrics}
+                        disabled={advancingSurvey || completionPhase === 'saving'}
+                    >
+                        {advancingSurvey ? 'Sending to Qualtrics...' : 'Continue to Qualtrics'}
+                    </button>
 
                     <button
                         type="button"

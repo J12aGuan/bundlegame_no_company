@@ -1575,17 +1575,25 @@ export const toggleTime = () => {
 }
 
 function postParentMessage(payload = {}) {
-	if (!browser || typeof window === 'undefined' || !window.parent || window.parent === window) {
+	if (!browser || typeof window === 'undefined') {
 		return;
 	}
 
-	window.parent.postMessage(
-		{
-			source: 'bundlegame',
-			...payload
-		},
-		'*'
-	);
+	const message = {
+		source: 'bundlegame',
+		...payload
+	};
+	const targets = new Set();
+	if (window.parent && window.parent !== window) targets.add(window.parent);
+	if (window.top && window.top !== window) targets.add(window.top);
+
+	for (const target of targets) {
+		try {
+			target.postMessage(message, '*');
+		} catch (error) {
+			console.warn('Unable to post completion handoff message:', error);
+		}
+	}
 }
 
 export function notifyTutorialRoundProgress(roundsCompleted = 0, totalRounds = 0) {
@@ -1596,10 +1604,11 @@ export function notifyTutorialRoundProgress(roundsCompleted = 0, totalRounds = 0
 	});
 }
 
-export async function notifyMainGameComplete(reason = 'completed', payload = null) {
+export async function notifyMainGameComplete(reason = 'completed', payload = null, options = {}) {
 	const normalizedReason = String(reason || 'completed').trim() || 'completed';
 	const resolvedPayload = payload || buildCompletionPayload({ reason: normalizedReason, saveStatus: 'confirmed' });
-	if (completionMessageSent) return resolvedPayload;
+	const force = Boolean(options?.force);
+	if (completionMessageSent && !force) return resolvedPayload;
 	completionMessageSent = true;
 	recoveryMessageSent = false;
 
@@ -1619,7 +1628,9 @@ export async function notifyMainGameComplete(reason = 'completed', payload = nul
 		completedGame: Boolean(resolvedPayload?.completedGame),
 		copyVerificationMethod: String(resolvedPayload?.copyVerificationMethod ?? 'none').trim() || 'none',
 		saveAttempts: Number(resolvedPayload?.saveAttempts) || 0,
-		saveError: ''
+		saveError: '',
+		advanceRequested: Boolean(options?.advanceRequested),
+		manualHandoff: Boolean(options?.manualHandoff)
 	});
 
 	const handoffPostedAt = new Date().toISOString();
@@ -1646,13 +1657,14 @@ export async function notifyMainGameComplete(reason = 'completed', payload = nul
 	return resolvedPayload;
 }
 
-export async function notifyMainGameRecoveryRequired(reason = 'completed', payload = null) {
+export async function notifyMainGameRecoveryRequired(reason = 'completed', payload = null, options = {}) {
 	const normalizedReason = String(reason || 'completed').trim() || 'completed';
 	const resolvedPayload = payload || buildCompletionPayload({
 		reason: normalizedReason,
 		saveStatus: 'recovery_required'
 	});
-	if (recoveryMessageSent) return resolvedPayload;
+	const force = Boolean(options?.force);
+	if (recoveryMessageSent && !force) return resolvedPayload;
 	recoveryMessageSent = true;
 	completionMessageSent = false;
 
@@ -1672,7 +1684,9 @@ export async function notifyMainGameRecoveryRequired(reason = 'completed', paylo
 		completedGame: Boolean(resolvedPayload?.completedGame),
 		copyVerificationMethod: String(resolvedPayload?.copyVerificationMethod ?? 'none').trim() || 'none',
 		saveAttempts: Number(resolvedPayload?.saveAttempts) || 0,
-		saveError: String(resolvedPayload?.saveError ?? '').trim()
+		saveError: String(resolvedPayload?.saveError ?? '').trim(),
+		advanceRequested: Boolean(options?.advanceRequested),
+		manualHandoff: Boolean(options?.manualHandoff)
 	});
 
 	const handoffPostedAt = new Date().toISOString();
@@ -1701,6 +1715,26 @@ export async function notifyMainGameRecoveryRequired(reason = 'completed', paylo
 		console.warn('Unable to persist recovery handoff metadata:', error);
 	}
 	return resolvedPayload;
+}
+
+export async function resendCompletionHandoff({ advanceRequested = true } = {}) {
+	const state = get(completionState) || createDefaultCompletionState();
+	const normalizedReason = String(state.reason || 'completed').trim() || 'completed';
+	const resolvedPayload = state.payload || buildCompletionPayload({
+		reason: normalizedReason,
+		saveStatus: state.saveStatus || (state.phase === 'recovery' ? 'recovery_required' : 'confirmed')
+	});
+	const options = {
+		force: true,
+		advanceRequested: Boolean(advanceRequested),
+		manualHandoff: true
+	};
+
+	if (state.phase === 'recovery' || String(resolvedPayload?.saveStatus || '').trim() === 'recovery_required') {
+		return notifyMainGameRecoveryRequired(normalizedReason, resolvedPayload, options);
+	}
+
+	return notifyMainGameComplete(normalizedReason, resolvedPayload, options);
 }
 
 function resetRuntimeState() {

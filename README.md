@@ -134,6 +134,58 @@ Two recent operational fixes matter for data collection and classroom use:
 - The end screen provides manual result-code confirmation as a fallback.
 - Final completion now waits for confirmed Firebase persistence before the run is treated as complete.
 - Recovery metadata is stored when the final save cannot be confirmed.
+- The game is embedded in Qualtrics, so it cannot directly show or click Qualtrics' own Next button. It sends `postMessage` events instead: `mainGameComplete`, `mainGameRecoveryRequired`, and `resultCodeVerificationUpdated`.
+- The end screen includes a `Continue to Qualtrics` button that re-sends the completion handoff with `advanceRequested: true` in case the original completion message was missed.
+
+If Qualtrics hides Next on the embedded game page, the Qualtrics question JavaScript must listen for the game message and then show or click Next. Add this in the Qualtrics JavaScript editor for the question that embeds the game, adapting the embedded-data field names and the allowed origin:
+
+```js
+Qualtrics.SurveyEngine.addOnload(function () {
+  var question = this;
+  var allowedOrigin = 'https://YOUR-GAME-HOST';
+
+  question.hideNextButton();
+
+  window.__bundleGameCompletionHandler = function (event) {
+    if (event.origin !== allowedOrigin) return;
+
+    var data = event.data || {};
+    if (data.source !== 'bundlegame') return;
+
+    var completionTypes = [
+      'mainGameComplete',
+      'mainGameRecoveryRequired',
+      'resultCodeVerificationUpdated'
+    ];
+    if (completionTypes.indexOf(data.type) === -1) return;
+
+    if (data.resultCode) {
+      Qualtrics.SurveyEngine.setEmbeddedData('bundleGameResultCode', data.resultCode);
+      Qualtrics.SurveyEngine.setEmbeddedData('bundleGameUserId', data.userId || '');
+      Qualtrics.SurveyEngine.setEmbeddedData('bundleGameSaveStatus', data.saveStatus || '');
+    }
+
+    question.showNextButton();
+
+    if (
+      data.advanceRequested
+      && data.type === 'mainGameComplete'
+      && typeof question.clickNextButton === 'function'
+    ) {
+      question.clickNextButton();
+    }
+  };
+
+  window.addEventListener('message', window.__bundleGameCompletionHandler);
+});
+
+Qualtrics.SurveyEngine.addOnUnload(function () {
+  if (window.__bundleGameCompletionHandler) {
+    window.removeEventListener('message', window.__bundleGameCompletionHandler);
+    window.__bundleGameCompletionHandler = null;
+  }
+});
+```
 
 ### Results Page Improvements
 
