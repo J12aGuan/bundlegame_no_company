@@ -433,6 +433,9 @@
                         <span><span class="font-semibold text-slate-900">Time left:</span> {formattedRemaining}</span>
                         <span><span class="font-semibold text-slate-900">Earned:</span> ${$earned}</span>
                         <span><span class="font-semibold text-slate-900">Location:</span> {$currLocation}</span>
+                        <!-- Save Progress button temporarily hidden.
+                             Keep the saveAndExit flow intact so we can re-enable this UI later if needed. -->
+                        <!--
                         <button
                             id="saveprogress"
                             type="button"
@@ -443,6 +446,7 @@
                         >
                             {savingProgress ? 'Saving...' : 'Save Progress'}
                         </button>
+                        -->
                     </div>
                 </div>
             </header>
