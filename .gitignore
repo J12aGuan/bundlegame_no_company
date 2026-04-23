@@ -28,6 +28,7 @@ phase1_orders.json
 storesTemplate.json
 phase1_optimal.json
 phase1_possibilities.json
+firebase-debug*.log
 
 # Data analysis outputs (keep scripts, ignore data)
 data analysis/data/*.json
