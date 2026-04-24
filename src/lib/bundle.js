@@ -5,7 +5,7 @@ import {
     getCentralConfig, getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getCitiesData, getEmojisData,
     getScenarioDatasetBundle, initializeUserProgress, saveUserProgressSummary,
     getScenarioSetProgress, saveScenarioSetProgress, getActionSummaries, saveActionSummaries, getDetailedActionSummaries, saveDetailedActionSummaries, getUserSummary,
-    getActiveLiveSession, upsertLiveSessionParticipant
+    getActiveLiveSession, upsertLiveSessionParticipant, saveRoundSummaryAction
 } from './firebaseDB';
 
 import { switchJob, setPenaltyTimeout } from './config';
@@ -38,6 +38,20 @@ let activeScenarioSetName = '';
 let currentLiveSessionParticipation = null;
 const PENDING_PROGRESS_STORAGE_KEY = 'bundlegame:pendingProgressSave';
 const FINAL_SAVE_MAX_ATTEMPTS = 3;
+
+function removeUndefinedDeep(value) {
+	if (Array.isArray(value)) {
+		return value.map((entry) => removeUndefinedDeep(entry));
+	}
+	if (value && typeof value === 'object') {
+		return Object.fromEntries(
+			Object.entries(value)
+				.filter(([, entry]) => entry !== undefined)
+				.map(([key, entry]) => [key, removeUndefinedDeep(entry)])
+		);
+	}
+	return value;
+}
 const FINAL_SAVE_RETRY_DELAY_MS = 1500;
 let pendingProgressFlushInFlight = false;
 let pendingProgressListenerRegistered = false;
@@ -1831,6 +1845,57 @@ export const saveScenarioProgress = (progress) => {
 				orderSummary: chosenOrders
 			}
 		}));
+	}
+	if (
+		get(gameMode) !== 'tutorial' &&
+		get(needsAuth) &&
+		get(id) &&
+		get(scenarioSetVersionId) &&
+		scenarioId
+	) {
+		const liveSessionMetadata = getLiveSessionMetadata(new Date().toISOString());
+		void saveRoundSummaryAction(String(get(id) ?? '').trim(), {
+			scenarioSetVersionId: String(get(scenarioSetVersionId) ?? '').trim(),
+			round_index: Math.max(1, Number(progress?.roundIndex) || 1),
+			scenario_id: scenarioId,
+			phase: String(progress?.phase ?? '').trim(),
+			classification: String(progress?.classification ?? '').trim(),
+			current_city: String(progress?.currentCity ?? '').trim(),
+			final_location: String(progress?.finalLocation ?? '').trim(),
+			chosen_orders: chosenOrders,
+			shown_recommendation_bundle_ids: Array.isArray(progress?.shownRecommendationBundleIds)
+				? progress.shownRecommendationBundleIds
+				: [],
+			scenario_order_ids: Array.isArray(progress?.scenarioOrderIds)
+				? progress.scenarioOrderIds
+				: [],
+			best_bundle_ids: Array.isArray(progress?.bestBundleIds)
+				? progress.bestBundleIds
+				: [],
+			recommendation_quality: String(progress?.recommendationQuality ?? '').trim(),
+			success: Boolean(progress?.success),
+			duration: Math.max(0, Number(progress?.duration) || 0),
+			earnings: Math.max(0, Number(progress?.earnings) || 0),
+			decision_timestamp: new Date().toISOString(),
+			liveSessionId: String(liveSessionMetadata?.liveSessionId ?? '').trim(),
+			state_snapshot: removeUndefinedDeep({
+				current_city: String(progress?.currentCity ?? '').trim(),
+				phase: String(progress?.phase ?? '').trim(),
+				classification: String(progress?.classification ?? '').trim(),
+				shown_recommendation_bundle_ids: Array.isArray(progress?.shownRecommendationBundleIds)
+					? progress.shownRecommendationBundleIds
+					: [],
+				scenario_order_ids: Array.isArray(progress?.scenarioOrderIds)
+					? progress.scenarioOrderIds
+					: []
+			}),
+			outcome_snapshot: removeUndefinedDeep({
+				success: Boolean(progress?.success),
+				duration: Math.max(0, Number(progress?.duration) || 0),
+				earnings: Math.max(0, Number(progress?.earnings) || 0),
+				final_location: String(progress?.finalLocation ?? '').trim()
+			})
+		});
 	}
 	if (scenarioId && Boolean(progress?.success)) {
 		markScenarioCompleted(scenarioId);

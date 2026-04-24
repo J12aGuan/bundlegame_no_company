@@ -1,0 +1,74 @@
+[
+  {
+    "id": "recon_p1",
+    "summaryDoc": {
+      "id": "summary",
+      "summaryByScenarioSetVersionId": {
+        "experiment_v1": {
+          "scenarioSetName": "experiment",
+          "totalRounds": 2,
+          "roundsCompleted": 1,
+          "optimalChoices": 1,
+          "totalGameTime": 42,
+          "completedGame": false,
+          "earnings": 18
+        }
+      }
+    },
+    "progressSummary": {
+      "id": "summary",
+      "summaryByScenarioSetVersionId": {
+        "experiment_v1": {
+          "scenarioSetName": "experiment",
+          "totalRounds": 2,
+          "roundsCompleted": 1,
+          "optimalChoices": 1,
+          "totalGameTime": 42,
+          "completedGame": false,
+          "earnings": 18
+        }
+      }
+    },
+    "scenarioSetProgressDoc": {
+      "id": "progress",
+      "progressByScenarioSetVersionId": {
+        "experiment_v1": {
+          "scenarioSetName": "experiment",
+          "completedScenarios": [
+            "s1"
+          ],
+          "inProgressScenario": "s2",
+          "currentRound": 2,
+          "currentLocation": "Berkeley"
+        }
+      }
+    },
+    "scenarioActionsDoc": {
+      "id": "actions",
+      "actionsByScenarioSetVersionId": {
+        "experiment_v1": {
+          "actionsByScenarioId": {
+            "s1": {
+              "orderSummary": [
+                "o1",
+                "o2"
+              ],
+              "totalTimeSeconds": 42,
+              "timeSummary": {
+                "thinkingTime": 4,
+                "startPickingConfirmationTime": 3,
+                "aisleTravelTime": 6,
+                "itemAddToCartTime": 9,
+                "localDeliveryTime": 10,
+                "cityTravelTime": 5,
+                "penaltyTime": 1,
+                "idleOrOtherTime": 4
+              }
+            }
+          }
+        }
+      }
+    },
+    "actions": []
+  }
+]

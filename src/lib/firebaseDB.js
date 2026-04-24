@@ -77,6 +77,10 @@ function getDetailedActionSummaryRef(id) {
     return doc(collection(firestore, 'Users/' + id + '/DetailedAction'), 'actions');
 }
 
+function getRoundActionsCollectionRef(id) {
+    return collection(firestore, 'Users', String(id ?? '').trim(), 'Actions');
+}
+
 function getLiveSessionsCollectionRef() {
     return collection(firestore, 'LiveSessions');
 }
@@ -91,6 +95,22 @@ function getLiveSessionParticipantsCollectionRef(sessionId) {
 
 function getLiveSessionParticipantRef(sessionId, participantId) {
     return doc(getLiveSessionParticipantsCollectionRef(sessionId), String(participantId ?? '').trim());
+}
+
+function getResearchJobsCollectionRef() {
+    return collection(firestore, 'ResearchJobs');
+}
+
+function getResearchJobRef(jobId) {
+    return doc(getResearchJobsCollectionRef(), String(jobId ?? '').trim());
+}
+
+function getResearchSnapshotsCollectionRef() {
+    return collection(firestore, 'ResearchSnapshots');
+}
+
+function getResearchSnapshotRef(snapshotId) {
+    return doc(getResearchSnapshotsCollectionRef(), String(snapshotId ?? '').trim());
 }
 
 function normalizeIsoString(value = '') {
@@ -274,6 +294,106 @@ function mergeCompletionMeta(existingMeta = {}, nextMeta = {}) {
         copyVerificationMethod: String(next.copyVerificationMethod || existing.copyVerificationMethod || '').trim(),
         copyVerificationAt: String(next.copyVerificationAt || existing.copyVerificationAt || '').trim(),
         lastSaveError: String(next.lastSaveError || existing.lastSaveError || '').trim()
+    });
+}
+
+function normalizeIdList(value) {
+    if (!Array.isArray(value)) return [];
+    return [...new Set(
+        value
+            .map((entry) => String(entry ?? '').trim())
+            .filter(Boolean)
+    )];
+}
+
+function buildRoundSummaryActionId(scenarioSetVersionId = '', roundIndex = 0) {
+    const version = String(scenarioSetVersionId ?? '').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    const round = Math.max(0, Number(roundIndex) || 0);
+    return `${version || 'dataset'}__round_${round}`;
+}
+
+function normalizeRoundSummaryAction(existing = {}, payload = {}) {
+    const stateSnapshot = payload?.state_snapshot && typeof payload.state_snapshot === 'object'
+        ? removeUndefinedDeep(payload.state_snapshot)
+        : undefined;
+    const outcomeSnapshot = payload?.outcome_snapshot && typeof payload.outcome_snapshot === 'object'
+        ? removeUndefinedDeep(payload.outcome_snapshot)
+        : undefined;
+    return removeUndefinedDeep({
+        type: 'round_summary',
+        scenarioSetVersionId: String(payload?.scenarioSetVersionId ?? existing?.scenarioSetVersionId ?? '').trim(),
+        round_index: Math.max(1, Number(payload?.round_index ?? existing?.round_index) || 1),
+        scenario_id: String(payload?.scenario_id ?? existing?.scenario_id ?? '').trim(),
+        phase: String(payload?.phase ?? existing?.phase ?? '').trim(),
+        classification: String(payload?.classification ?? existing?.classification ?? '').trim(),
+        current_city: String(payload?.current_city ?? existing?.current_city ?? '').trim(),
+        final_location: String(payload?.final_location ?? existing?.final_location ?? '').trim(),
+        chosen_orders: normalizeIdList(payload?.chosen_orders ?? existing?.chosen_orders),
+        shown_recommendation_bundle_ids: normalizeIdList(
+            payload?.shown_recommendation_bundle_ids ?? existing?.shown_recommendation_bundle_ids
+        ),
+        scenario_order_ids: normalizeIdList(payload?.scenario_order_ids ?? existing?.scenario_order_ids),
+        best_bundle_ids: normalizeIdList(payload?.best_bundle_ids ?? existing?.best_bundle_ids),
+        recommendation_quality: String(payload?.recommendation_quality ?? existing?.recommendation_quality ?? '').trim(),
+        success: Boolean(payload?.success ?? existing?.success),
+        duration: Math.max(0, Number(payload?.duration ?? existing?.duration) || 0),
+        earnings: Math.max(0, Number(payload?.earnings ?? existing?.earnings) || 0),
+        liveSessionId: String(payload?.liveSessionId ?? existing?.liveSessionId ?? '').trim(),
+        decision_timestamp: normalizeIsoString(
+            payload?.decision_timestamp || existing?.decision_timestamp || new Date().toISOString()
+        ),
+        state_snapshot: stateSnapshot ?? existing?.state_snapshot,
+        outcome_snapshot: outcomeSnapshot ?? existing?.outcome_snapshot
+    });
+}
+
+function normalizeResearchJob(docId = '', payload = {}) {
+    const source = payload && typeof payload === 'object' ? payload : {};
+    return removeUndefinedDeep({
+        job_id: String(source?.job_id ?? docId ?? '').trim(),
+        job_type: String(source?.job_type ?? '').trim(),
+        dataset_snapshot_id: String(source?.dataset_snapshot_id ?? '').trim(),
+        algorithm: String(source?.algorithm ?? '').trim(),
+        config: source?.config && typeof source.config === 'object' ? removeUndefinedDeep(source.config) : {},
+        status: String(source?.status ?? '').trim() || 'queued',
+        started_at: normalizeIsoString(source?.started_at || ''),
+        ended_at: normalizeIsoString(source?.ended_at || ''),
+        created_at: normalizeIsoString(source?.created_at || new Date().toISOString()),
+        updated_at: normalizeIsoString(source?.updated_at || new Date().toISOString()),
+        metrics: source?.metrics && typeof source.metrics === 'object' ? removeUndefinedDeep(source.metrics) : {},
+        artifact_uris: Array.isArray(source?.artifact_uris)
+            ? source.artifact_uris.map((entry) => String(entry ?? '').trim()).filter(Boolean)
+            : [],
+        error_summary: String(source?.error_summary ?? '').trim()
+    });
+}
+
+function normalizeResearchSnapshot(docId = '', payload = {}) {
+    const source = payload && typeof payload === 'object' ? payload : {};
+    return removeUndefinedDeep({
+        snapshot_id: String(source?.snapshot_id ?? docId ?? '').trim(),
+        dataset_root: String(source?.dataset_root ?? '').trim(),
+        dataset_version: String(source?.dataset_version ?? '').trim(),
+        feature_version: String(source?.feature_version ?? '').trim(),
+        created_at: normalizeIsoString(source?.created_at || new Date().toISOString()),
+        benchmark_only_dataset: Boolean(source?.benchmark_only_dataset),
+        source_type: String(source?.source_type ?? '').trim(),
+        source_descriptor: source?.source_descriptor && typeof source.source_descriptor === 'object'
+            ? removeUndefinedDeep(source.source_descriptor)
+            : {},
+        job_runnable: source?.job_runnable !== undefined ? Boolean(source?.job_runnable) : true,
+        worker_notes: Array.isArray(source?.worker_notes)
+            ? source.worker_notes.map((entry) => String(entry ?? '').trim()).filter(Boolean)
+            : [],
+        split_manifest: source?.split_manifest && typeof source.split_manifest === 'object'
+            ? removeUndefinedDeep(source.split_manifest)
+            : {},
+        qa_report: source?.qa_report && typeof source.qa_report === 'object'
+            ? removeUndefinedDeep(source.qa_report)
+            : {},
+        analysis_outputs: source?.analysis_outputs && typeof source.analysis_outputs === 'object'
+            ? removeUndefinedDeep(source.analysis_outputs)
+            : {}
     });
 }
 
@@ -611,6 +731,147 @@ export const saveDetailedActionSummaries = async (id, payload = {}) => {
         console.error("Error saving detailed action summaries: ", error);
         return null;
     }
+};
+
+export const saveRoundSummaryAction = async (id, payload = {}) => {
+    const normalizedId = String(id ?? '').trim();
+    const scenarioSetVersionId = String(payload?.scenarioSetVersionId ?? '').trim();
+    const roundIndex = Math.max(1, Number(payload?.round_index) || 0);
+    if (!normalizedId || !scenarioSetVersionId || !roundIndex) return null;
+
+    try {
+        const actionRef = doc(
+            getRoundActionsCollectionRef(normalizedId),
+            buildRoundSummaryActionId(scenarioSetVersionId, roundIndex)
+        );
+        const snap = await getDoc(actionRef);
+        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const now = Timestamp.fromDate(new Date());
+        const normalized = normalizeRoundSummaryAction(existing, payload);
+
+        await setDoc(
+            actionRef,
+            {
+                ...normalized,
+                createdAt: existing?.createdAt || now,
+                updatedAt: now
+            },
+            { merge: true }
+        );
+        await touchUserUpdatedAt(normalizedId);
+        return {
+            id: actionRef.id,
+            ...normalized
+        };
+    } catch (error) {
+        console.error('Error saving round summary action:', error);
+        return null;
+    }
+};
+
+export const createResearchSnapshot = async (payload = {}) => {
+    try {
+        const snapshotRef = doc(getResearchSnapshotsCollectionRef());
+        const snapshot = normalizeResearchSnapshot(snapshotRef.id, payload);
+        await setDoc(snapshotRef, snapshot);
+        return snapshot;
+    } catch (error) {
+        console.error('Error creating research snapshot:', error);
+        return null;
+    }
+};
+
+export const listResearchSnapshots = async () => {
+    try {
+        const snap = await getDocs(getResearchSnapshotsCollectionRef());
+        return snap.docs
+            .map((docSnap) => normalizeResearchSnapshot(docSnap.id, docSnap.data()))
+            .sort((left, right) => String(right?.created_at ?? '').localeCompare(String(left?.created_at ?? '')));
+    } catch (error) {
+        console.error('Error listing research snapshots:', error);
+        return [];
+    }
+};
+
+export const subscribeToResearchSnapshots = (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    return onSnapshot(
+        getResearchSnapshotsCollectionRef(),
+        (snap) => {
+            const rows = snap.docs
+                .map((docSnap) => normalizeResearchSnapshot(docSnap.id, docSnap.data()))
+                .sort((left, right) => String(right?.created_at ?? '').localeCompare(String(left?.created_at ?? '')));
+            callback(rows);
+        },
+        (error) => {
+            console.error('Research snapshot subscription failed:', error);
+            callback([], error);
+        }
+    );
+};
+
+export const createResearchJob = async (payload = {}) => {
+    try {
+        const jobRef = doc(getResearchJobsCollectionRef());
+        const job = normalizeResearchJob(jobRef.id, payload);
+        await setDoc(jobRef, job);
+        return job;
+    } catch (error) {
+        console.error('Error creating research job:', error);
+        return null;
+    }
+};
+
+export const updateResearchJob = async (jobId, payload = {}) => {
+    const normalizedJobId = String(jobId ?? '').trim();
+    if (!normalizedJobId) return null;
+
+    try {
+        const jobRef = getResearchJobRef(normalizedJobId);
+        const snap = await getDoc(jobRef);
+        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const next = normalizeResearchJob(normalizedJobId, {
+            ...existing,
+            ...payload,
+            job_id: normalizedJobId,
+            created_at: existing?.created_at || payload?.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        });
+        await setDoc(jobRef, next, { merge: true });
+        return next;
+    } catch (error) {
+        console.error('Error updating research job:', error);
+        return null;
+    }
+};
+
+export const listResearchJobs = async () => {
+    try {
+        const snap = await getDocs(getResearchJobsCollectionRef());
+        return snap.docs
+            .map((docSnap) => normalizeResearchJob(docSnap.id, docSnap.data()))
+            .sort((left, right) => String(right?.created_at ?? '').localeCompare(String(left?.created_at ?? '')));
+    } catch (error) {
+        console.error('Error listing research jobs:', error);
+        return [];
+    }
+};
+
+export const subscribeToResearchJobs = (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    return onSnapshot(
+        getResearchJobsCollectionRef(),
+        (snap) => {
+            const rows = snap.docs
+                .map((docSnap) => normalizeResearchJob(docSnap.id, docSnap.data()))
+                .sort((left, right) => String(right?.created_at ?? '').localeCompare(String(left?.created_at ?? '')));
+            callback(rows);
+        },
+        (error) => {
+            console.error('Research job subscription failed:', error);
+            callback([], error);
+        }
+    );
 };
 
 //returns 0 on error and 1 on success

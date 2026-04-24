@@ -13,8 +13,13 @@
 		buildDecisionFacts,
 		computeAnalytics,
 		getDecisionFactExportColumns,
+		getAnalysisMasterExportColumns,
+		getPolicyTrainingExportColumns,
+		getRecommendationWorkbenchExportColumns,
+		getRecommendationSummaryExportColumns,
 		DEFAULT_BOOTSTRAP_B
 	} from '$lib/analysis/engine.js';
+	import { parseUploadedAnalysisSource } from '$lib/analysis/upload.js';
 
 	let loading = true;
 	let computing = false;
@@ -27,11 +32,23 @@
 	let participantSearch = '';
 	let bootstrapB = DEFAULT_BOOTSTRAP_B;
 	let activeView = 'compare';
+	let analysisSource = 'firestore';
+	let metadataJoinKey = 'participant_id';
+	let metadataSessionKey = '';
+	let uploadDatasetName = 'uploaded_dataset';
+	let uploadFiles = {
+		participants: null,
+		scenarioBundle: null,
+		stores: null,
+		cities: null,
+		metadata: null
+	};
 
 	let rawParticipants = [];
 	let scenarioBundle = { scenarios: [], orders: [], optimal: [], metadata: {} };
 	let storeDataset = { stores: [], distances: {} };
 	let citiesDataset = { startinglocation: '', travelTimes: {} };
+	let metadataRows = [];
 
 	let analysis = null;
 	let diagnostics = null;
@@ -43,6 +60,9 @@
 	let phaseTimingCanvas;
 	let deliverySplitCanvas;
 	let participantRuntimeCanvas;
+	let phaseBehaviorCanvas;
+	let recommendationQualityCanvas;
+	let participantSegmentCanvas;
 
 	let charts = [];
 
@@ -128,6 +148,14 @@
 		return getDecisionFactExportColumns(normalizedCohortField);
 	}
 
+	function getMasterColumns() {
+		return getAnalysisMasterExportColumns(normalizedCohortField, analysis?.metadataFields || []);
+	}
+
+	function getPolicyColumns() {
+		return getPolicyTrainingExportColumns([normalizedCohortField, ...(analysis?.metadataFields || [])]);
+	}
+
 	function exportDecisionFactCsv() {
 		if (!analysis) return;
 		downloadFile(
@@ -147,6 +175,55 @@
 			`decision_fact-${selectedDataset}.json`,
 			JSON.stringify(rows, null, 2),
 			'application/json;charset=utf-8'
+		);
+	}
+
+	function exportAnalysisMasterCsv() {
+		if (!analysis) return;
+		downloadFile(
+			`analysis_master-${selectedDataset}.csv`,
+			toCsv(analysis.analysisMasterRows, getMasterColumns()),
+			'text/csv;charset=utf-8'
+		);
+	}
+
+	function exportAnalysisMasterJson() {
+		if (!analysis) return;
+		const columns = getMasterColumns();
+		const rows = analysis.analysisMasterRows.map((row) =>
+			Object.fromEntries(columns.map((column) => [column, row?.[column] ?? null]))
+		);
+		downloadFile(
+			`analysis_master-${selectedDataset}.json`,
+			JSON.stringify(rows, null, 2),
+			'application/json;charset=utf-8'
+		);
+	}
+
+	function exportPolicyTrainingCsv() {
+		if (!analysis) return;
+		downloadFile(
+			`policy_training-${selectedDataset}.csv`,
+			toCsv(analysis.policyTrainingRows, getPolicyColumns()),
+			'text/csv;charset=utf-8'
+		);
+	}
+
+	function exportRecommendationWorkbenchCsv() {
+		if (!analysis) return;
+		downloadFile(
+			`recommendation_workbench-${selectedDataset}.csv`,
+			toCsv(analysis.recommendationWorkbenchRows, getRecommendationWorkbenchExportColumns()),
+			'text/csv;charset=utf-8'
+		);
+	}
+
+	function exportRecommendationSummaryCsv() {
+		if (!analysis) return;
+		downloadFile(
+			`recommendation_summary-${selectedDataset}.csv`,
+			toCsv(analysis.recommendationSummary, getRecommendationSummaryExportColumns()),
+			'text/csv;charset=utf-8'
 		);
 	}
 
@@ -273,6 +350,10 @@
 			out.push('Stored total and timing buckets do not match.');
 		}
 
+		if ((issueTypeCounts.failed_metadata_join || 0) > 0) {
+			out.push('Some uploaded metadata rows did not join to participants.');
+		}
+
 		if (Number(dataHealth?.decisionRowsMissingTiming || 0) > 0 && facts.length > 0) {
 			out.push('Runtime timing coverage is incomplete.');
 		}
@@ -340,6 +421,9 @@
 		const byClass = Array.isArray(classificationRows) ? classificationRows : [];
 		const timingByClass = byClass.filter((row) => row.delivery_runtime_time_mean != null || row.scenario_total_time_seconds_mean != null);
 		const facts = Array.isArray(analysis.decisionFacts) ? analysis.decisionFacts : [];
+		const byPhase = Array.isArray(analysis.behaviorByPhase) ? analysis.behaviorByPhase : [];
+		const byRecommendationQuality = Array.isArray(analysis.behaviorByRecommendationQuality) ? analysis.behaviorByRecommendationQuality : [];
+		const trajectorySegments = Array.isArray(analysis.trajectorySegments) ? analysis.trajectorySegments : [];
 		const scatterPoints = facts
 			.filter((row) => row.scenario_total_time_seconds != null && row.score_ratio_to_best != null)
 			.map((row) => ({
@@ -619,6 +703,129 @@
 				})
 			);
 		}
+
+		if (phaseBehaviorCanvas && byPhase.length > 0) {
+			charts.push(
+				new Chart(phaseBehaviorCanvas, {
+					type: 'bar',
+					data: {
+						labels: byPhase.map((row) => String(row.phase || 'Unknown')),
+						datasets: [
+							{
+								type: 'line',
+								label: 'Mean Score Ratio',
+								data: byPhase.map((row) => row.mean_score_ratio),
+								borderColor: chartPalette.steel,
+								backgroundColor: chartPalette.steel,
+								yAxisID: 'y'
+							},
+							{
+								type: 'bar',
+								label: 'Follow Rate',
+								data: byPhase.map((row) => row.recommendation_follow_rate),
+								backgroundColor: 'rgba(31, 138, 120, 0.55)',
+								yAxisID: 'y'
+							},
+							{
+								type: 'bar',
+								label: 'Bundle Size',
+								data: byPhase.map((row) => row.mean_bundle_size),
+								backgroundColor: 'rgba(240, 182, 90, 0.65)',
+								yAxisID: 'y1'
+							}
+						]
+					},
+					options: buildChartOptions({
+						scales: {
+							x: { grid: { display: false }, ticks: { color: chartPalette.graphite } },
+							y: {
+								min: 0,
+								max: 1,
+								position: 'left',
+								title: { display: true, text: 'Rate / Ratio', color: chartPalette.graphite },
+								grid: { color: chartPalette.grid },
+								ticks: { color: chartPalette.graphite }
+							},
+							y1: {
+								position: 'right',
+								title: { display: true, text: 'Mean Bundle Size', color: chartPalette.graphite },
+								grid: { drawOnChartArea: false },
+								ticks: { color: chartPalette.graphite }
+							}
+						}
+					})
+				})
+			);
+		}
+
+		if (recommendationQualityCanvas && byRecommendationQuality.length > 0) {
+			charts.push(
+				new Chart(recommendationQualityCanvas, {
+					type: 'bar',
+					data: {
+						labels: byRecommendationQuality.map((row) => String(row.recommendation_quality || 'unknown').toUpperCase()),
+						datasets: [
+							{
+								label: 'Follow',
+								data: byRecommendationQuality.map((row) => row.recommendation_follow_rate),
+								backgroundColor: chartPalette.teal
+							},
+							{
+								label: 'Helpful',
+								data: byRecommendationQuality.map((row) => row.recommendation_help_rate),
+								backgroundColor: chartPalette.steel
+							},
+							{
+								label: 'Harmful',
+								data: byRecommendationQuality.map((row) => row.recommendation_harm_rate),
+								backgroundColor: chartPalette.coral
+							}
+						]
+					},
+					options: buildChartOptions({
+						scales: {
+							x: { grid: { display: false }, ticks: { color: chartPalette.graphite } },
+							y: {
+								min: 0,
+								max: 1,
+								grid: { color: chartPalette.grid },
+								ticks: { color: chartPalette.graphite }
+							}
+						}
+					})
+				})
+			);
+		}
+
+		if (participantSegmentCanvas && trajectorySegments.length > 0) {
+			charts.push(
+				new Chart(participantSegmentCanvas, {
+					type: 'bar',
+					data: {
+						labels: trajectorySegments.map((row) => String(row.trajectory_segment)),
+						datasets: [
+							{
+								label: 'Participants',
+								data: trajectorySegments.map((row) => row.n_participants),
+								backgroundColor: [
+									chartPalette.teal,
+									chartPalette.steel,
+									chartPalette.gold,
+									chartPalette.coral,
+									chartPalette.slate
+								]
+							}
+						]
+					},
+					options: buildChartOptions({
+						scales: {
+							x: { grid: { display: false }, ticks: { color: chartPalette.graphite } },
+							y: { grid: { color: chartPalette.grid }, ticks: { color: chartPalette.graphite } }
+						}
+					})
+				})
+			);
+		}
 	}
 
 	async function loadDatasetOptions() {
@@ -640,6 +847,13 @@
 			citiesDataset,
 			storeDataset,
 			cohortField: normalizedCohortField,
+			metadataRows,
+			metadataJoinOptions: {
+				metadataJoinKey,
+				participantJoinKey: 'id',
+				metadataSessionKey,
+				participantSessionKey: 'liveSessionId'
+			},
 			bootstrapB: Number(bootstrapB) || DEFAULT_BOOTSTRAP_B,
 			seed: 42
 		});
@@ -747,20 +961,51 @@
 		}
 	}
 
+	function onUploadFileChange(kind, event) {
+		uploadFiles = {
+			...uploadFiles,
+			[kind]: event?.currentTarget?.files?.[0] || null
+		};
+	}
+
+	async function loadUploadSource() {
+		const uploaded = await parseUploadedAnalysisSource({
+			participantsFile: uploadFiles.participants,
+			scenarioBundleFile: uploadFiles.scenarioBundle,
+			storesFile: uploadFiles.stores,
+			citiesFile: uploadFiles.cities,
+			metadataFile: uploadFiles.metadata
+		});
+
+		rawParticipants = Array.isArray(uploaded.participants) ? uploaded.participants : [];
+		scenarioBundle = uploaded.scenarioBundle || { scenarios: [], orders: [], optimal: [], metadata: {} };
+		storeDataset = uploaded.storesDataset || { stores: [], distances: {} };
+		citiesDataset = uploaded.citiesDataset || { startinglocation: '', travelTimes: {} };
+		metadataRows = Array.isArray(uploaded.metadataRows) ? uploaded.metadataRows : [];
+		selectedDataset = uploadDatasetName.trim()
+			|| String(scenarioBundle?.metadata?.datasetRoot || '').trim()
+			|| 'uploaded_dataset';
+	}
+
 	async function fetchAndAnalyze({ allowDatasetAutoMatch = false } = {}) {
 		loading = true;
 		clearMessage();
 		try {
-			const [participants, bundle, stores, cities] = await Promise.all([
-				retrieveData(),
-				getScenarioDatasetBundle(selectedDataset),
-				getStoresData('store'),
-				getCitiesData('cities')
-			]);
-			rawParticipants = Array.isArray(participants) ? participants : [];
-			scenarioBundle = bundle || { scenarios: [], orders: [], optimal: [], metadata: {} };
-			storeDataset = stores || { stores: [], distances: {} };
-			citiesDataset = cities || { startinglocation: '', travelTimes: {} };
+			if (analysisSource === 'upload') {
+				await loadUploadSource();
+			} else {
+				const [participants, bundle, stores, cities] = await Promise.all([
+					retrieveData(),
+					getScenarioDatasetBundle(selectedDataset),
+					getStoresData('store'),
+					getCitiesData('cities')
+				]);
+				rawParticipants = Array.isArray(participants) ? participants : [];
+				scenarioBundle = bundle || { scenarios: [], orders: [], optimal: [], metadata: {} };
+				storeDataset = stores || { stores: [], distances: {} };
+				citiesDataset = cities || { startinglocation: '', travelTimes: {} };
+				metadataRows = [];
+			}
 			await runAnalysisComputation({ allowDatasetAutoMatch });
 		} catch (err) {
 			console.error('Error loading analysis data:', err);
@@ -791,6 +1036,9 @@
 	});
 
 	$: normalizedCohortField = cohortField.trim() || 'configuration';
+	$: if (analysisSource === 'firestore' && datasetNames.length > 0 && !datasetNames.includes(selectedDataset)) {
+		selectedDataset = datasetNames[0];
+	}
 	$: overall = analysis?.kpiOverall?.[0] || null;
 	$: timingOverall = analysis?.kpiTimingOverall?.[0] || null;
 	$: qaIssues = analysis?.qaIssues || [];
@@ -826,6 +1074,12 @@
 	$: hasTimingClassCharts = classificationRows.some((row) => row.delivery_runtime_time_mean != null || row.scenario_total_time_seconds_mean != null);
 	$: hasScatterChart = Array.isArray(analysis?.decisionFacts)
 		&& analysis.decisionFacts.some((row) => row.scenario_total_time_seconds != null && row.score_ratio_to_best != null);
+	$: behaviorByPhase = analysis?.behaviorByPhase || [];
+	$: behaviorByRecommendationQuality = analysis?.behaviorByRecommendationQuality || [];
+	$: participantTrajectories = analysis?.participantTrajectories || [];
+	$: trajectorySegments = analysis?.trajectorySegments || [];
+	$: recommendationWorkbenchRows = analysis?.recommendationWorkbenchRows || [];
+	$: recommendationSummary = analysis?.recommendationSummary || [];
 </script>
 
 <svelte:head>
@@ -839,17 +1093,69 @@
 		</div>
 
 		<div class="rail-block">
-			<label for="analysis-dataset">Scenario Dataset</label>
-			<select id="analysis-dataset" bind:value={selectedDataset} on:change={onDatasetChange}>
-				{#if datasetNames.length === 0}
-					<option value={selectedDataset}>{selectedDataset || 'No datasets'}</option>
-				{:else}
-					{#each datasetNames as name}
-						<option value={name}>{name}</option>
-					{/each}
-				{/if}
+			<label for="analysis-source">Source</label>
+			<select id="analysis-source" bind:value={analysisSource}>
+				<option value="firestore">Firestore</option>
+				<option value="upload">Uploaded Dataset</option>
 			</select>
 		</div>
+
+		{#if analysisSource === 'firestore'}
+			<div class="rail-block">
+				<label for="analysis-dataset">Scenario Dataset</label>
+				<select id="analysis-dataset" bind:value={selectedDataset} on:change={onDatasetChange}>
+					{#if datasetNames.length === 0}
+						<option value={selectedDataset}>{selectedDataset || 'No datasets'}</option>
+					{:else}
+						{#each datasetNames as name}
+							<option value={name}>{name}</option>
+						{/each}
+					{/if}
+				</select>
+			</div>
+		{:else}
+			<div class="rail-block">
+				<label for="analysis-upload-name">Dataset Name</label>
+				<input id="analysis-upload-name" bind:value={uploadDatasetName} placeholder="uploaded_dataset" />
+			</div>
+
+			<div class="rail-block">
+				<p class="rail-label">Upload Files</p>
+				<div class="upload-stack">
+					<label class="file-input">
+						<span>Participants JSON</span>
+						<input type="file" accept=".json,application/json" on:change={(event) => onUploadFileChange('participants', event)} />
+					</label>
+					<label class="file-input">
+						<span>Scenario Bundle JSON</span>
+						<input type="file" accept=".json,application/json" on:change={(event) => onUploadFileChange('scenarioBundle', event)} />
+					</label>
+					<label class="file-input">
+						<span>Stores JSON</span>
+						<input type="file" accept=".json,application/json" on:change={(event) => onUploadFileChange('stores', event)} />
+					</label>
+					<label class="file-input">
+						<span>Cities JSON</span>
+						<input type="file" accept=".json,application/json" on:change={(event) => onUploadFileChange('cities', event)} />
+					</label>
+					<label class="file-input">
+						<span>Metadata CSV / JSON</span>
+						<input type="file" accept=".csv,.json,text/csv,application/json" on:change={(event) => onUploadFileChange('metadata', event)} />
+					</label>
+				</div>
+			</div>
+
+			<div class="rail-grid">
+				<div class="rail-block">
+					<label for="analysis-metadata-join">Metadata Join Key</label>
+					<input id="analysis-metadata-join" bind:value={metadataJoinKey} placeholder="participant_id" />
+				</div>
+				<div class="rail-block">
+					<label for="analysis-session-fallback">Session Fallback</label>
+					<input id="analysis-session-fallback" bind:value={metadataSessionKey} placeholder="Optional" />
+				</div>
+			</div>
+		{/if}
 
 		<div class="rail-grid">
 			<div class="rail-block">
@@ -868,8 +1174,8 @@
 		</div>
 
 		<div class="rail-actions">
-			<button class="primary" on:click={() => fetchAndAnalyze({ allowDatasetAutoMatch: false })} disabled={loading || computing}>
-				Reload Firestore
+			<button class="primary" on:click={() => fetchAndAnalyze({ allowDatasetAutoMatch: analysisSource === 'firestore' })} disabled={loading || computing}>
+				{analysisSource === 'firestore' ? 'Reload Firestore' : 'Load Upload'}
 			</button>
 			<button class="secondary" on:click={() => runAnalysisComputation({ allowDatasetAutoMatch: false })} disabled={loading || computing}>
 				Recompute
@@ -877,10 +1183,15 @@
 		</div>
 
 		<div class="rail-block">
-			<p class="rail-label">Exports</p>
+			<p class="rail-label">Research Dataset</p>
 			<div class="rail-action-stack">
 				<button class="ghost" on:click={exportDecisionFactCsv} disabled={!analysis}>decision_fact.csv</button>
 				<button class="ghost" on:click={exportDecisionFactJson} disabled={!analysis}>decision_fact.json</button>
+				<button class="ghost" on:click={exportAnalysisMasterCsv} disabled={!analysis}>analysis_master.csv</button>
+				<button class="ghost" on:click={exportAnalysisMasterJson} disabled={!analysis}>analysis_master.json</button>
+				<button class="ghost" on:click={exportPolicyTrainingCsv} disabled={!analysis}>policy_training.csv</button>
+				<button class="ghost" on:click={exportRecommendationWorkbenchCsv} disabled={!analysis}>recommendation_workbench.csv</button>
+				<button class="ghost" on:click={exportRecommendationSummaryCsv} disabled={!analysis}>recommendation_summary.csv</button>
 				<button class="ghost" on:click={exportKpis} disabled={!analysis}>KPI CSVs</button>
 				<button class="ghost" on:click={exportMetadata} disabled={!analysis}>metadata.json</button>
 			</div>
@@ -890,6 +1201,8 @@
 			<p class="rail-label">View</p>
 			<div class="nav-links">
 				<button class:active-view={activeView === 'compare'} on:click={() => setView('compare')}>Compare</button>
+				<button class:active-view={activeView === 'behavior'} on:click={() => setView('behavior')}>Behavior</button>
+				<button class:active-view={activeView === 'recommend'} on:click={() => setView('recommend')}>Recommend</button>
 				<button class:active-view={activeView === 'timing'} on:click={() => setView('timing')}>Timing</button>
 				<button class:active-view={activeView === 'diagnostics'} on:click={() => setView('diagnostics')}>QA</button>
 			</div>
@@ -912,6 +1225,7 @@
 		<div class="workspace-header">
 			<div>
 				<h2>{selectedDataset || 'Analysis'}</h2>
+				<p class="workspace-meta">{analysisSource === 'firestore' ? 'Live Firestore source' : 'Uploaded structured dataset source'}</p>
 			</div>
 			<div class="status-strip">
 				<span class:active={loading || computing}>RUN</span>
@@ -979,6 +1293,197 @@
 							{:else}
 								<div class="chart-empty">No scatter data</div>
 							{/if}
+						</article>
+					</div>
+				</section>
+			{:else if activeView === 'behavior'}
+				<section class="section-block">
+					<div class="chart-grid chart-grid-overview stock-grid">
+						<article class="panel chart-panel">
+							<div class="panel-header"><h4>Phase Learning Curve</h4></div>
+							{#if behaviorByPhase.length > 0}
+								<div class="chart-frame compact"><canvas bind:this={phaseBehaviorCanvas}></canvas></div>
+							{:else}
+								<div class="chart-empty">No phase behavior data</div>
+							{/if}
+						</article>
+
+						<article class="panel chart-panel">
+							<div class="panel-header"><h4>Recommendation Response</h4></div>
+							{#if behaviorByRecommendationQuality.length > 0}
+								<div class="chart-frame compact"><canvas bind:this={recommendationQualityCanvas}></canvas></div>
+							{:else}
+								<div class="chart-empty">No recommendation rows</div>
+							{/if}
+						</article>
+
+						<article class="panel chart-panel">
+							<div class="panel-header"><h4>Trajectory Segments</h4></div>
+							{#if trajectorySegments.length > 0}
+								<div class="chart-frame compact"><canvas bind:this={participantSegmentCanvas}></canvas></div>
+							{:else}
+								<div class="chart-empty">No trajectory data</div>
+							{/if}
+						</article>
+
+						<article class="panel">
+							<div class="panel-header"><h4>Transfer Summary</h4></div>
+							<div class="health-metrics">
+								<div><span>Measured Participants</span><strong>{analysis.transferSummary?.participants_with_transfer_measure || 0}</strong></div>
+								<div><span>Mean C - A</span><strong>{formatNum(analysis.transferSummary?.mean_phase_c_minus_a_score_ratio, 3)}</strong></div>
+								<div><span>Median C - A</span><strong>{formatNum(analysis.transferSummary?.median_phase_c_minus_a_score_ratio, 3)}</strong></div>
+								<div><span>Metadata Matches</span><strong>{analysis.metadata?.metadata_join?.matchedParticipants || 0}</strong></div>
+							</div>
+						</article>
+					</div>
+
+					<div class="chart-grid chart-grid-timing">
+						<article class="panel table-panel">
+							<div class="panel-header"><h4>Behavior by Phase</h4></div>
+							<div class="table-shell compact-table">
+								<table>
+									<thead>
+										<tr>
+											<th>Phase</th>
+											<th>N</th>
+											<th>Score</th>
+											<th>Failure</th>
+											<th>Bundle</th>
+											<th>Follow</th>
+											<th>Help</th>
+											<th>Harm</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#if behaviorByPhase.length === 0}
+											<tr><td colspan="8">No phase behavior rows</td></tr>
+										{:else}
+											{#each behaviorByPhase as row}
+												<tr>
+													<td>{row.phase}</td>
+													<td>{row.n_decisions}</td>
+													<td>{formatNum(row.mean_score_ratio, 3)}</td>
+													<td>{formatPct(row.failure_rate)}</td>
+													<td>{formatNum(row.mean_bundle_size, 2)}</td>
+													<td>{formatPct(row.recommendation_follow_rate)}</td>
+													<td>{formatPct(row.recommendation_help_rate)}</td>
+													<td>{formatPct(row.recommendation_harm_rate)}</td>
+												</tr>
+											{/each}
+										{/if}
+									</tbody>
+								</table>
+							</div>
+						</article>
+
+						<article class="panel table-panel">
+							<div class="panel-header"><h4>Participant Trajectories</h4></div>
+							<div class="table-shell compact-table">
+								<table>
+									<thead>
+										<tr>
+											<th>Participant</th>
+											<th>Segment</th>
+											<th>Mean Score</th>
+											<th>Slope</th>
+											<th>Failure</th>
+											<th>Bundle</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#if participantTrajectories.length === 0}
+											<tr><td colspan="6">No trajectory rows</td></tr>
+										{:else}
+											{#each participantTrajectories as row}
+												<tr>
+													<td>{row.participant_id}</td>
+													<td>{row.trajectory_segment}</td>
+													<td>{formatNum(row.mean_score_ratio, 3)}</td>
+													<td>{formatNum(row.slope_score_ratio, 4)}</td>
+													<td>{formatPct(row.mean_failure_rate)}</td>
+													<td>{formatNum(row.mean_bundle_size, 2)}</td>
+												</tr>
+											{/each}
+										{/if}
+									</tbody>
+								</table>
+							</div>
+						</article>
+					</div>
+				</section>
+			{:else if activeView === 'recommend'}
+				<section class="section-block">
+					<div class="chart-grid chart-grid-timing">
+						<article class="panel table-panel">
+							<div class="panel-header"><h4>Recommendation Summary</h4></div>
+							<div class="table-shell compact-table">
+								<table>
+									<thead>
+										<tr>
+											<th>Scope</th>
+											<th>Value</th>
+											<th>N</th>
+											<th>Adoption</th>
+											<th>Expected</th>
+											<th>Lift</th>
+											<th>Optimal</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#if recommendationSummary.length === 0}
+											<tr><td colspan="7">No recommendation summary</td></tr>
+										{:else}
+											{#each recommendationSummary as row}
+												<tr>
+													<td>{row.scope}</td>
+													<td>{row.group_value}</td>
+													<td>{row.n_states}</td>
+													<td>{formatPct(row.mean_predicted_adoption_probability)}</td>
+													<td>{formatNum(row.mean_predicted_expected_score_ratio, 3)}</td>
+													<td>{formatNum(row.mean_predicted_lift_vs_baseline, 3)}</td>
+													<td>{formatPct(row.recommended_optimal_rate)}</td>
+												</tr>
+											{/each}
+										{/if}
+									</tbody>
+								</table>
+							</div>
+						</article>
+
+						<article class="panel table-panel">
+							<div class="panel-header"><h4>Top Recommended Bundles</h4></div>
+							<div class="table-shell compact-table">
+								<table>
+									<thead>
+										<tr>
+											<th>Participant</th>
+											<th>Round</th>
+											<th>Recommended</th>
+											<th>Expected</th>
+											<th>Lift</th>
+											<th>Optimal</th>
+											<th>Why</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#if recommendationWorkbenchRows.length === 0}
+											<tr><td colspan="7">No recommendation workbench rows</td></tr>
+										{:else}
+											{#each recommendationWorkbenchRows.slice(0, 24) as row}
+												<tr>
+													<td>{row.participant_id}</td>
+													<td>R{row.round_index}</td>
+													<td>{Array.isArray(row.recommended_bundle_ids) ? row.recommended_bundle_ids.join(', ') : row.recommended_bundle_ids}</td>
+													<td>{formatNum(row.predicted_expected_score_ratio, 3)}</td>
+													<td>{formatNum(row.predicted_lift_vs_baseline, 3)}</td>
+													<td>{row.recommended_bundle_is_optimal ? 'Yes' : 'No'}</td>
+													<td>{row.why_ranked_high}</td>
+												</tr>
+											{/each}
+										{/if}
+									</tbody>
+								</table>
+							</div>
 						</article>
 					</div>
 				</section>
@@ -1230,6 +1735,36 @@
 		gap: 0.75rem;
 	}
 
+	.upload-stack {
+		display: grid;
+		gap: 0.6rem;
+	}
+
+	.file-input {
+		display: grid;
+		gap: 0.45rem;
+		padding: 0.8rem 0.85rem;
+		border-radius: 0.95rem;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: rgba(255, 255, 255, 0.04);
+	}
+
+	.file-input span {
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.72rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: rgba(226, 232, 240, 0.7);
+	}
+
+	.file-input input[type="file"] {
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: #eef2f7;
+		font-size: 0.78rem;
+	}
+
 	.rail-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
@@ -1388,6 +1923,12 @@
 	.status-strip {
 		display: flex;
 		gap: 0.5rem;
+	}
+
+	.workspace-meta {
+		margin: 0.35rem 0 0;
+		color: var(--text-muted);
+		font-size: 0.92rem;
 	}
 
 	.status-strip span {

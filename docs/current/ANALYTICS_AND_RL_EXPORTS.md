@@ -1,104 +1,167 @@
-# Analytics and RL Exports (March 2026)
+# Analytics and RL Exports
 
-## Purpose
+## Scope
 
-`/admin/analysis` provides live participant-vs-optimal analytics for experiment monitoring and RL dataset export.
+The project now has two admin-facing analytics surfaces:
 
-## Data Sources
+- `/admin/analysis` for general analytics and uploads
+- `/admin/research` for dark technical research workflows, snapshot QA, policy comparison, OPE, sandbox summaries, and job orchestration
 
-- Participants and action logs: `Users/*` and `Users/{id}/Actions`
-- Round decisions: `Actions` where `type == "round_summary"`
-- Scenario context and optimal bundles: `MasterData/datasets.{datasetRoot}`
-- Modeled-time context: `MasterData/store` and `MasterData/cities`
+The shared logic lives in:
 
-Default dataset is `centralConfig.scenario_set`, with dataset switching support in the UI.
+- `src/lib/analysis/engine.js`
+- `data analysis/analytics_v1`
 
-## Modeled-Time Semantics
+Companion runtime utilities:
 
-Analytics should interpret modeled time using the same rules documented in the runtime docs:
+- `scripts/research-data-summary.mjs`
+- `scripts/research-worker.mjs`
 
-- `estimatedTime` is the modeled base time stored on each order
-- modeled order time = `estimatedTime + cityTravelTime`
-- `cityTravelTime` comes from `MasterData/cities`
+## Supported Data Sources
 
-This is distinct from runtime delivery logging:
+- live Firestore participant data
+- uploaded structured participant JSON
+- optional scenario bundle JSON
+- optional stores/cities JSON
+- optional participant metadata CSV or JSON
 
-- runtime delivery leg = `localTravelTime + cityTravelTime`
-- per-phase timing buckets such as `cityTravelTime`, `localDeliveryTime`, and `startPickingConfirmationTime` reflect measured runtime behavior, not the modeled score estimate
+Metadata joins use `participant_id` first. Session-key fallback is only used when explicitly configured.
 
-## Classification-First Analytics
+## Canonical Research Exports
 
-Primary grouping is scenario `classification`:
+Primary exports:
 
-- `easy`
-- `medium`
-- `hard`
-- `unclassified`
+- `analysis_master.csv`
+- `analysis_master.json`
+- `policy_training.csv`
+- `dataset_snapshot.json`
+- `run_metadata.json`
 
-Phase is secondary and displayed when present.
+Recommendation and evaluation exports:
 
-## Scenario Metadata for Generated Datasets
+- `recommendation_workbench.csv`
+- `recommendation_summary.csv`
+- `policy_comparison.csv`
+- `ope_summary.csv`
+- `sandbox_summary.csv`
 
-Generated scenarios may include:
+Monitoring and QA exports:
 
-- `classification`
-- `score_gap`
-- `relative_gap`
-
-These are written into `scenarios[]` entries in grouped datasets.
-
-## Dashboard Outputs
-
-The analysis page computes and visualizes:
-
-- exact optimal, near-optimal, and failure rates
-- score ratio and regret metrics
-- duration and modeled-time summaries
-- confidence intervals
-- cohort comparisons
-- QA issue tables for missing scenario data, unknown order IDs, cross-store bundles, and missing classification
-
-## RL-Ready Export Contract
-
-`decision_fact.csv` and `decision_fact.json` use stable columns including:
-
-- `dataset_root`
-- `participant_id`
-- `round_index`
-- `scenario_id`
-- `classification`
-- `phase`
-- `current_city`
-- `chosen_orders`
-- `best_bundle_ids`
-- `bundle_size`
-- `success`
-- `is_failure`
-- `duration`
-- `participant_earnings`
-- `participant_modeled_time`
-- `participant_score`
-- `best_score`
-- `score_ratio_to_best`
-- `percent_regret`
-- `is_exact_optimal`
-- `is_near_optimal`
-
-Additional dashboard exports:
-
+- `decision_fact.csv`
+- `qa_issues.csv`
 - `kpi_overall.csv`
-- `kpi_by_classification.csv`
 - `kpi_by_round.csv`
 - `kpi_by_participant.csv`
-- `analysis_run_metadata.json`
+- `kpi_by_classification.csv`
+- `kpi_by_scenario.csv`
+- `kpi_timing_overall.csv`
+- `kpi_timing_by_round.csv`
+- `kpi_timing_by_classification.csv`
+- `behavior_by_phase.csv`
+- `behavior_by_recommendation_quality.csv`
+- `behavior_by_trajectory_segment.csv`
+- `participant_trajectories.csv`
+- `trajectory_segments.csv`
 
-## Offline Pipeline Alignment
+## Provenance Fields
 
-`data analysis/analytics_v1` mirrors the same classification-aware decision-fact logic for offline reproducible runs.
+The research exports now include explicit row provenance:
 
-## Troubleshooting Empty Charts
+- `decision_source`
+- `decision_timestamp`
+- `timestamp_available`
+- `round_coverage_status`
+- `qa_completed_game_mismatch`
+- `qa_missing_recommendation_labels`
 
-1. Verify participants have `round_summary` actions in `Users/{id}/Actions`.
-2. Confirm the selected dataset matches the one used during data collection.
-3. Check QA issues for missing scenario or optimal data.
-4. Confirm the relevant scenario orders and Cities data exist for modeled-time calculations.
+Current supported decision sources:
+
+- `round_summary`
+- `action_summary_reconstructed`
+
+## `analysis_master.csv`
+
+One row per participant decision/round, intended as the paper-facing dataset.
+
+Major field groups:
+
+- participant and run identifiers
+- scenario and phase context
+- recommendation context and recommendation quality
+- chosen bundle and oracle bundle data
+- regret, score-ratio, optimality, and failure metrics
+- measured timing buckets
+- prior-round history features
+- optional joined metadata
+
+## `policy_training.csv`
+
+One row per participant-round-candidate-bundle.
+
+Field groups:
+
+- state features
+- action/bundle features
+- observed chosen action
+- reward target
+- next-state summary
+- terminal flag
+- state provenance copied from the source decision row
+
+## `dataset_snapshot.json`
+
+Snapshot manifest for reproducible research runs.
+
+Includes:
+
+- dataset root and dataset version
+- feature version
+- participant-level split manifest
+- QA blockers and warning counts
+- row-source counts
+- timestamped vs reconstructed row counts
+
+## Policy Evaluation Outputs
+
+`policy_comparison.csv` compares:
+
+- `historical_human`
+- `behavior_clone`
+- `reward_model`
+- `contextual_bandit`
+- `oracle_optimal`
+
+`ope_summary.csv` contains:
+
+- `IPS`
+- `SNIPS`
+- `DR`
+- `FQE` (one-step approximation in the current admin-facing stack)
+
+`sandbox_summary.csv` contains simulation-only bootstrap summaries and should never be mixed into human-evidence tables without labeling.
+
+## Research Job Runtime
+
+Queued admin jobs now have a local worker path for Firestore-backed snapshots:
+
+- `npm run research:worker`
+
+The worker:
+
+- reads `ResearchJobs` and `ResearchSnapshots`
+- recomputes analysis from the referenced Firestore dataset
+- writes artifact files under `data analysis/research_jobs/<job_id>/`
+- updates job `metrics`, `artifact_uris`, and status
+
+Uploaded snapshots are still exportable, but they are marked offline-only and are not runnable by the Firestore worker.
+
+## Current Interpretation Rules
+
+- If recommendation labels are missing, treat the dataset as benchmark-only.
+- If `completedGame` mismatches round coverage, do not use that summary field as a paper metric.
+- If timestamps are missing, do not use the dataset for timestamp-based causal or temporal claims.
+
+See also:
+
+- `docs/current/RESEARCH_PLAYBOOK.md`
+- `docs/current/PAPER_ANALYSIS_WORKFLOW.md`

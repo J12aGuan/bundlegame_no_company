@@ -121,6 +121,22 @@ service cloud.firestore {
       }
     }
 
+    // Research snapshot manifests for reproducible offline analysis jobs
+    match /ResearchSnapshots/{snapshotId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    // Research training/evaluation job queue
+    match /ResearchJobs/{jobId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+
     // Block everything else
     match /{document=**} {
       allow read, write: if false;

@@ -19,6 +19,7 @@
     let startTimer = $elapsed;
     let intervalId;
     let startEarnings;
+    let roundStartCity = "";
     
     // Aisle movement countdown
     let aisleCountdown = 0;
@@ -74,6 +75,23 @@
         (1 + (config["tip"][tipIndex]/100)) : (config["tip"][config["tip"].length - 1]/100)
         curTip = Math.round(percentIncrease * 100 - 100);
         totalEarnings = Math.round(startEarnings*percentIncrease*100)/100
+    }
+
+    function normalizeBundleIds(value) {
+        if (!Array.isArray(value)) return [];
+        return value.map((entry) => String(entry ?? '').trim()).filter(Boolean);
+    }
+
+    function getShownRecommendationBundleIds(scenario, optimal) {
+        for (const key of ['recommended_order_ids', 'recommendedOrderIds', 'recommended_orders', 'recommendedOrders', 'recommended_bundle_ids', 'recommendedBundleIds']) {
+            const ids = normalizeBundleIds(scenario?.[key]);
+            if (ids.length > 0) return ids;
+        }
+        for (const key of ['recommended_bundle_ids', 'recommendedBundleIds']) {
+            const ids = normalizeBundleIds(optimal?.[key]);
+            if (ids.length > 0) return ids;
+        }
+        return [];
     }
 
     function formatCountdown(seconds) {
@@ -164,6 +182,7 @@
         
         curLocation = getEntrancePosition(config);
         currentDeliveryCity = String(get(currLocation) ?? selOrders[0]?.city ?? "");
+        roundStartCity = String(get(currLocation) ?? selOrders[0]?.city ?? "");
         
         if ($game.tip) intervalId = setInterval(updateTip, 1000);
     });
@@ -718,7 +737,9 @@
         const duration = $elapsed - startTimer; // Calculate directly
         const chosenOrderIds = $orders.map(o => o.id);
         const optimal = getOptimalForScenario(scenarioId);
+        const shownRecommendationBundleIds = getShownRecommendationBundleIds(scenario, optimal);
         const chosenSorted = [...chosenOrderIds].map((id) => String(id ?? '').trim()).sort();
+        const shownSorted = [...shownRecommendationBundleIds].map((id) => String(id ?? '').trim()).sort();
         const bestSorted = Array.isArray(optimal?.best_bundle_ids)
             ? optimal.best_bundle_ids.map((id) => String(id ?? '').trim()).sort()
             : [];
@@ -736,11 +757,23 @@
             scenarioId,
             roundIndex: $currentRound,
             chosenOrders: chosenOrderIds,
+            scenarioOrderIds: Array.isArray(scenario?.order_ids) ? scenario.order_ids : [],
+            bestBundleIds: Array.isArray(optimal?.best_bundle_ids) ? optimal.best_bundle_ids : [],
             chosenCount: chosenOrderIds.length,
             isOptimalChoice,
             success,
             duration,
+            currentCity: roundStartCity,
             finalLocation: $currLocation,
+            phase: String(scenario?.phase ?? '').trim(),
+            classification: String(scenario?.classification ?? '').trim(),
+            shownRecommendationBundleIds,
+            recommendationQuality: shownRecommendationBundleIds.length === 0
+                ? 'none'
+                : bestSorted.length > 0 && bestSorted.length === shownSorted.length
+                    && bestSorted.every((id, index) => id === shownSorted[index])
+                    ? 'optimal'
+                    : 'suboptimal',
             completedGame,
             roundsCompleted: get(uniqueSets) + (success ? 1 : 0),
             optimalChoices: get(optimalChoices),
