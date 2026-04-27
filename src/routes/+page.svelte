@@ -1,6 +1,6 @@
 <script>
     import Bundlegame from "./bundlegame.svelte";
-    import { game, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, completedOrdersCount, createNewUser, needsAuth, loadGame, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveProgressAndEndSession, resumeElapsedSeconds, completionState, recordResultCodeVerification, retryFinalResultsSave, resendRecoveryCompletionPayload, resendCompletionHandoff } from "$lib/bundle.js";
+    import { game, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, completedOrdersCount, createNewUser, needsAuth, loadGame, participantStudyState, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveParticipantStudySurveyResponse, saveProgressAndEndSession, resumeElapsedSeconds, completionState, recordResultCodeVerification, retryFinalResultsSave, resendRecoveryCompletionPayload, resendCompletionHandoff } from "$lib/bundle.js";
 	import Home from "./home.svelte";
 	import { onMount } from "svelte";
     import { queueNFixedOrders } from "$lib/config.js";
@@ -15,6 +15,10 @@
     $: completionReason = $completionState?.reason || '';
     $: resultCode = displayResultCode($participantResultUrl);
     $: copyVerificationMethod = completionPayload.copyVerificationMethod || 'none';
+    $: studyProtocolId = $participantStudyState?.protocol_id || '';
+    $: latestStudySurvey = Array.isArray($participantStudyState?.survey_responses) && $participantStudyState.survey_responses.length > 0
+        ? $participantStudyState.survey_responses[$participantStudyState.survey_responses.length - 1]
+        : null;
     $: if (!resultCode || completionPhase === 'saving') {
         copyStatus = 'idle';
         copyErrorMessage = '';
@@ -37,6 +41,23 @@
     let retryingFinalSave = false;
     let resendingBackup = false;
     let advancingSurvey = false;
+    let surveySubmitting = false;
+    let surveyMessage = '';
+    let surveyRatings = {
+        trust_rating: 4,
+        usefulness_rating: 4,
+        workload_rating: 4,
+        notes: ''
+    };
+
+    $: if (latestStudySurvey) {
+        surveyRatings = {
+            trust_rating: Number(latestStudySurvey.trust_rating) || 4,
+            usefulness_rating: Number(latestStudySurvey.usefulness_rating) || 4,
+            workload_rating: Number(latestStudySurvey.workload_rating) || 4,
+            notes: latestStudySurvey.notes || ''
+        };
+    }
 
     function focusResultCodeField() {
         resultCodeField?.focus?.();
@@ -114,6 +135,13 @@
         copyErrorMessage = '';
         copyActionMessage = '';
         try {
+            if (studyProtocolId && !latestStudySurvey) {
+                const saved = await submitStudySurvey(true);
+                if (!saved) {
+                    copyErrorMessage = 'Please save the short research survey before continuing.';
+                    return;
+                }
+            }
             if (resultCode && copyVerificationMethod === 'none' && copyStatus !== 'confirmed') {
                 await recordResultCodeVerification(copyStatus === 'copied' ? 'clipboard_success' : 'manual_confirm');
                 copyStatus = 'confirmed';
@@ -142,6 +170,14 @@
         advancingSurvey = false;
         participantResultUrl.set('');
         id.set('');
+        surveySubmitting = false;
+        surveyMessage = '';
+        surveyRatings = {
+            trust_rating: 4,
+            usefulness_rating: 4,
+            workload_rating: 4,
+            notes: ''
+        };
         completionState.set({
             phase: 'idle',
             reason: '',
@@ -168,6 +204,38 @@
             alert(`Unable to save progress: ${err?.message || 'Unknown error'}`);
         } finally {
             savingProgress = false;
+        }
+    }
+
+    async function submitStudySurvey(silent = false) {
+        if (!studyProtocolId) return true;
+        surveySubmitting = true;
+        if (!silent) {
+            surveyMessage = '';
+        }
+        try {
+            const response = await saveParticipantStudySurveyResponse({
+                response_scope: 'session_end',
+                trust_rating: Number(surveyRatings.trust_rating) || 4,
+                usefulness_rating: Number(surveyRatings.usefulness_rating) || 4,
+                workload_rating: Number(surveyRatings.workload_rating) || 4,
+                notes: String(surveyRatings.notes || '').trim()
+            });
+            if (!response) {
+                if (!silent) surveyMessage = 'Unable to save the research survey right now.';
+                return false;
+            }
+            if (!silent) {
+                surveyMessage = 'Research survey saved.';
+            }
+            return true;
+        } catch (err) {
+            if (!silent) {
+                surveyMessage = err?.message || 'Unable to save the research survey right now.';
+            }
+            return false;
+        } finally {
+            surveySubmitting = false;
         }
     }
     
@@ -323,6 +391,69 @@
                         <li><span class="font-medium">Finished Orders:</span> {$completedOrdersCount}</li>
                         </ul>
                     </div>
+
+                    {#if studyProtocolId}
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-left space-y-3">
+                        <div>
+                            <h3 class="text-lg font-semibold text-slate-900">Research Survey</h3>
+                            <p class="text-sm text-slate-600">
+                                Please rate the recommendation experience for the study before you continue.
+                            </p>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-3">
+                            <label class="text-sm font-medium text-slate-700">
+                                Trust
+                                <select bind:value={surveyRatings.trust_rating} class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+                                    {#each [1,2,3,4,5,6,7] as value}
+                                        <option value={value}>{value}</option>
+                                    {/each}
+                                </select>
+                            </label>
+                            <label class="text-sm font-medium text-slate-700">
+                                Usefulness
+                                <select bind:value={surveyRatings.usefulness_rating} class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+                                    {#each [1,2,3,4,5,6,7] as value}
+                                        <option value={value}>{value}</option>
+                                    {/each}
+                                </select>
+                            </label>
+                            <label class="text-sm font-medium text-slate-700">
+                                Workload
+                                <select bind:value={surveyRatings.workload_rating} class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+                                    {#each [1,2,3,4,5,6,7] as value}
+                                        <option value={value}>{value}</option>
+                                    {/each}
+                                </select>
+                            </label>
+                        </div>
+                        <label class="block text-sm font-medium text-slate-700">
+                            Notes
+                            <textarea
+                                bind:value={surveyRatings.notes}
+                                class="mt-1 w-full min-h-[88px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                placeholder="Optional notes about trust, usefulness, or workload"
+                            ></textarea>
+                        </label>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                class="rounded-lg bg-slate-900 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition disabled:opacity-60"
+                                on:click={() => submitStudySurvey(false)}
+                                disabled={surveySubmitting}
+                            >
+                                {surveySubmitting ? 'Saving Survey...' : (latestStudySurvey ? 'Update Research Survey' : 'Save Research Survey')}
+                            </button>
+                            {#if latestStudySurvey}
+                                <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                                    Saved {latestStudySurvey.submitted_at}
+                                </div>
+                            {/if}
+                        </div>
+                        {#if surveyMessage}
+                            <p class={`text-sm ${latestStudySurvey ? 'text-emerald-700' : 'text-amber-700'}`}>{surveyMessage}</p>
+                        {/if}
+                    </div>
+                    {/if}
 
                     <div class={`rounded-xl p-4 text-left ${statusTone(completionPhase === 'recovery' ? 'warning' : 'success')}`}>
                         <p class="text-sm font-semibold">

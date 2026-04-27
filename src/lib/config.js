@@ -120,3 +120,17 @@ export function getCityTravelInfo(fromCity, toCity) {
         missingRoute: false
     };
 }
+
+export function getActiveStoreDataset() {
+    return {
+        stores: Array.isArray(default_job?.stores) ? default_job.stores : []
+    };
+}
+
+export function getActiveCitiesDataset() {
+    return {
+        startinglocation: String(default_job?.startinglocation ?? '').trim(),
+        travelTimes: default_job?.travelTimes ?? {},
+        distances: default_job?.distances ?? {}
+    };
+}

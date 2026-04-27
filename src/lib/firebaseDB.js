@@ -1,6 +1,16 @@
 import {firestore} from './firebaseConfig';
 import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, deleteField, query, where, onSnapshot } from "firebase/firestore";
 import { generateAuthToken } from './authToken';
+import {
+    DEFAULT_ACTION_MASK_VERSION,
+    mergeResearchStudyState,
+    normalizeRankedBundles,
+    normalizeResearchModel,
+    normalizeResearchStudyProtocol,
+    normalizeResearchStudyState,
+    normalizeResearchStudySurveyResponse
+} from './researchStudy.js';
+import { normalizeQualtricsResponseDocument } from './qualtrics.js';
 
 function removeUndefinedDeep(value) {
     if (Array.isArray(value)) {
@@ -111,6 +121,38 @@ function getResearchSnapshotsCollectionRef() {
 
 function getResearchSnapshotRef(snapshotId) {
     return doc(getResearchSnapshotsCollectionRef(), String(snapshotId ?? '').trim());
+}
+
+function getResearchProtocolsCollectionRef() {
+    return collection(firestore, 'ResearchProtocols');
+}
+
+function getResearchProtocolRef(protocolId) {
+    return doc(getResearchProtocolsCollectionRef(), String(protocolId ?? '').trim());
+}
+
+function getResearchModelsCollectionRef() {
+    return collection(firestore, 'ResearchModels');
+}
+
+function getResearchModelRef(modelId) {
+    return doc(getResearchModelsCollectionRef(), String(modelId ?? '').trim());
+}
+
+function getQualtricsResponsesCollectionRef() {
+    return collection(firestore, 'QualtricsResponses');
+}
+
+function getQualtricsResponseRef(responseId) {
+    return doc(getQualtricsResponsesCollectionRef(), String(responseId ?? '').trim());
+}
+
+function getQualtricsSyncRunsCollectionRef() {
+    return collection(firestore, 'QualtricsSyncRuns');
+}
+
+function getQualtricsSyncRunRef(runId) {
+    return doc(getQualtricsSyncRunsCollectionRef(), String(runId ?? '').trim());
 }
 
 function normalizeIsoString(value = '') {
@@ -319,6 +361,12 @@ function normalizeRoundSummaryAction(existing = {}, payload = {}) {
     const outcomeSnapshot = payload?.outcome_snapshot && typeof payload.outcome_snapshot === 'object'
         ? removeUndefinedDeep(payload.outcome_snapshot)
         : undefined;
+    const preState = payload?.pre_state && typeof payload.pre_state === 'object'
+        ? removeUndefinedDeep(payload.pre_state)
+        : undefined;
+    const postState = payload?.post_state && typeof payload.post_state === 'object'
+        ? removeUndefinedDeep(payload.post_state)
+        : undefined;
     return removeUndefinedDeep({
         type: 'round_summary',
         scenarioSetVersionId: String(payload?.scenarioSetVersionId ?? existing?.scenarioSetVersionId ?? '').trim(),
@@ -326,11 +374,23 @@ function normalizeRoundSummaryAction(existing = {}, payload = {}) {
         scenario_id: String(payload?.scenario_id ?? existing?.scenario_id ?? '').trim(),
         phase: String(payload?.phase ?? existing?.phase ?? '').trim(),
         classification: String(payload?.classification ?? existing?.classification ?? '').trim(),
+        study_protocol_id: String(payload?.study_protocol_id ?? existing?.study_protocol_id ?? '').trim(),
+        policy_arm: String(payload?.policy_arm ?? existing?.policy_arm ?? '').trim(),
+        policy_name: String(payload?.policy_name ?? existing?.policy_name ?? '').trim(),
+        policy_version: String(payload?.policy_version ?? existing?.policy_version ?? '').trim(),
+        dataset_snapshot_id: String(payload?.dataset_snapshot_id ?? existing?.dataset_snapshot_id ?? '').trim(),
+        legal_action_mask_version: String(
+            payload?.legal_action_mask_version ?? existing?.legal_action_mask_version ?? DEFAULT_ACTION_MASK_VERSION
+        ).trim(),
+        recommendation_source: String(payload?.recommendation_source ?? existing?.recommendation_source ?? '').trim(),
         current_city: String(payload?.current_city ?? existing?.current_city ?? '').trim(),
         final_location: String(payload?.final_location ?? existing?.final_location ?? '').trim(),
         chosen_orders: normalizeIdList(payload?.chosen_orders ?? existing?.chosen_orders),
         shown_recommendation_bundle_ids: normalizeIdList(
             payload?.shown_recommendation_bundle_ids ?? existing?.shown_recommendation_bundle_ids
+        ),
+        shown_ranked_bundles: normalizeRankedBundles(
+            payload?.shown_ranked_bundles ?? existing?.shown_ranked_bundles
         ),
         scenario_order_ids: normalizeIdList(payload?.scenario_order_ids ?? existing?.scenario_order_ids),
         best_bundle_ids: normalizeIdList(payload?.best_bundle_ids ?? existing?.best_bundle_ids),
@@ -338,10 +398,16 @@ function normalizeRoundSummaryAction(existing = {}, payload = {}) {
         success: Boolean(payload?.success ?? existing?.success),
         duration: Math.max(0, Number(payload?.duration ?? existing?.duration) || 0),
         earnings: Math.max(0, Number(payload?.earnings ?? existing?.earnings) || 0),
+        reward: Number(payload?.reward ?? existing?.reward) || 0,
+        trust_rating: Number(payload?.trust_rating ?? existing?.trust_rating) || 0,
+        usefulness_rating: Number(payload?.usefulness_rating ?? existing?.usefulness_rating) || 0,
+        workload_rating: Number(payload?.workload_rating ?? existing?.workload_rating) || 0,
         liveSessionId: String(payload?.liveSessionId ?? existing?.liveSessionId ?? '').trim(),
         decision_timestamp: normalizeIsoString(
             payload?.decision_timestamp || existing?.decision_timestamp || new Date().toISOString()
         ),
+        pre_state: preState ?? existing?.pre_state,
+        post_state: postState ?? existing?.post_state,
         state_snapshot: stateSnapshot ?? existing?.state_snapshot,
         outcome_snapshot: outcomeSnapshot ?? existing?.outcome_snapshot
     });
@@ -397,6 +463,31 @@ function normalizeResearchSnapshot(docId = '', payload = {}) {
     });
 }
 
+function normalizeResearchProtocol(docId = '', payload = {}) {
+    const normalized = normalizeResearchStudyProtocol(payload, {
+        protocol_id: String(docId ?? '').trim()
+    });
+    return removeUndefinedDeep({
+        ...normalized,
+        protocol_id: String(normalized?.protocol_id ?? docId ?? '').trim(),
+        created_at: normalizeIsoString(normalized?.created_at || new Date().toISOString()),
+        updated_at: normalizeIsoString(normalized?.updated_at || new Date().toISOString())
+    });
+}
+
+function normalizeResearchModelDoc(docId = '', payload = {}) {
+    const normalized = normalizeResearchModel({
+        ...(payload && typeof payload === 'object' ? payload : {}),
+        model_id: String(payload?.model_id ?? docId ?? '').trim()
+    });
+    return removeUndefinedDeep({
+        ...normalized,
+        model_id: String(normalized?.model_id ?? docId ?? '').trim(),
+        created_at: normalizeIsoString(normalized?.created_at || new Date().toISOString()),
+        updated_at: normalizeIsoString(normalized?.updated_at || new Date().toISOString())
+    });
+}
+
 function resolveSummaryNumber(nextValue, existingValue) {
     if (nextValue !== undefined && nextValue !== null) {
         return Math.max(0, Number(nextValue) || 0);
@@ -405,6 +496,10 @@ function resolveSummaryNumber(nextValue, existingValue) {
 }
 
 function mergeScenarioSummaryEntry(existingEntry = {}, nextEntry = {}) {
+    const mergedResearchStudy = mergeResearchStudyState(
+        existingEntry?.researchStudy || {},
+        nextEntry?.researchStudy || {}
+    );
     return removeUndefinedDeep({
         scenarioSetName: String(nextEntry?.scenarioSetName ?? existingEntry?.scenarioSetName ?? '').trim(),
         totalRounds: resolveSummaryNumber(nextEntry?.totalRounds, existingEntry?.totalRounds),
@@ -418,7 +513,8 @@ function mergeScenarioSummaryEntry(existingEntry = {}, nextEntry = {}) {
         sessionStartedAt: normalizeIsoString(nextEntry?.sessionStartedAt || existingEntry?.sessionStartedAt || ''),
         lastActivityAt: normalizeIsoString(nextEntry?.lastActivityAt || existingEntry?.lastActivityAt || ''),
         sessionLabel: String(nextEntry?.sessionLabel ?? existingEntry?.sessionLabel ?? '').trim(),
-        completionMeta: mergeCompletionMeta(existingEntry?.completionMeta, nextEntry?.completionMeta)
+        completionMeta: mergeCompletionMeta(existingEntry?.completionMeta, nextEntry?.completionMeta),
+        researchStudy: mergedResearchStudy
     });
 }
 
@@ -601,6 +697,10 @@ export const saveScenarioSetProgress = async (id, progress = {}) => {
             ...(progress?.completedScenarios || [])
         ]);
         const nextInProgressScenario = String(progress?.inProgressScenario ?? existingEntry?.inProgressScenario ?? '').trim();
+        const mergedResearchStudy = mergeResearchStudyState(
+            existingEntry?.researchStudy || {},
+            progress?.researchStudy || {}
+        );
         const entry = removeUndefinedDeep({
             scenarioSetName: String(progress?.scenarioSetName ?? existingEntry?.scenarioSetName ?? '').trim(),
             completedScenarios,
@@ -614,7 +714,8 @@ export const saveScenarioSetProgress = async (id, progress = {}) => {
             liveSessionId: String(progress?.liveSessionId ?? existingEntry?.liveSessionId ?? '').trim(),
             sessionStartedAt: normalizeIsoString(progress?.sessionStartedAt || existingEntry?.sessionStartedAt || ''),
             lastActivityAt: normalizeIsoString(progress?.lastActivityAt || existingEntry?.lastActivityAt || ''),
-            sessionLabel: String(progress?.sessionLabel ?? existingEntry?.sessionLabel ?? '').trim()
+            sessionLabel: String(progress?.sessionLabel ?? existingEntry?.sessionLabel ?? '').trim(),
+            researchStudy: mergedResearchStudy
         });
 
         await setDoc(progressRef, {
@@ -874,6 +975,210 @@ export const subscribeToResearchJobs = (callback) => {
     );
 };
 
+export const createResearchProtocol = async (payload = {}) => {
+    try {
+        const protocolRef = doc(getResearchProtocolsCollectionRef());
+        const protocol = normalizeResearchProtocol(protocolRef.id, payload);
+        await setDoc(protocolRef, protocol);
+        return protocol;
+    } catch (error) {
+        console.error('Error creating research protocol:', error);
+        return null;
+    }
+};
+
+export const updateResearchProtocol = async (protocolId, payload = {}) => {
+    const normalizedProtocolId = String(protocolId ?? '').trim();
+    if (!normalizedProtocolId) return null;
+    try {
+        const protocolRef = getResearchProtocolRef(normalizedProtocolId);
+        const snap = await getDoc(protocolRef);
+        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const next = normalizeResearchProtocol(normalizedProtocolId, {
+            ...existing,
+            ...payload,
+            protocol_id: normalizedProtocolId,
+            created_at: existing?.created_at || payload?.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        });
+        await setDoc(protocolRef, next, { merge: true });
+        return next;
+    } catch (error) {
+        console.error('Error updating research protocol:', error);
+        return null;
+    }
+};
+
+export const listResearchProtocols = async () => {
+    try {
+        const snap = await getDocs(getResearchProtocolsCollectionRef());
+        return snap.docs
+            .map((docSnap) => normalizeResearchProtocol(docSnap.id, docSnap.data()))
+            .sort((left, right) => String(right?.updated_at ?? '').localeCompare(String(left?.updated_at ?? '')));
+    } catch (error) {
+        console.error('Error listing research protocols:', error);
+        return [];
+    }
+};
+
+export const subscribeToResearchProtocols = (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    return onSnapshot(
+        getResearchProtocolsCollectionRef(),
+        (snap) => {
+            const rows = snap.docs
+                .map((docSnap) => normalizeResearchProtocol(docSnap.id, docSnap.data()))
+                .sort((left, right) => String(right?.updated_at ?? '').localeCompare(String(left?.updated_at ?? '')));
+            callback(rows);
+        },
+        (error) => {
+            console.error('Research protocol subscription failed:', error);
+            callback([], error);
+        }
+    );
+};
+
+export const createResearchModel = async (payload = {}) => {
+    try {
+        const modelRef = doc(getResearchModelsCollectionRef());
+        const model = normalizeResearchModelDoc(modelRef.id, payload);
+        await setDoc(modelRef, model);
+        return model;
+    } catch (error) {
+        console.error('Error creating research model:', error);
+        return null;
+    }
+};
+
+export const updateResearchModel = async (modelId, payload = {}) => {
+    const normalizedModelId = String(modelId ?? '').trim();
+    if (!normalizedModelId) return null;
+    try {
+        const modelRef = getResearchModelRef(normalizedModelId);
+        const snap = await getDoc(modelRef);
+        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const next = normalizeResearchModelDoc(normalizedModelId, {
+            ...existing,
+            ...payload,
+            model_id: normalizedModelId,
+            created_at: existing?.created_at || payload?.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        });
+        await setDoc(modelRef, next, { merge: true });
+        return next;
+    } catch (error) {
+        console.error('Error updating research model:', error);
+        return null;
+    }
+};
+
+export const listResearchModels = async () => {
+    try {
+        const snap = await getDocs(getResearchModelsCollectionRef());
+        return snap.docs
+            .map((docSnap) => normalizeResearchModelDoc(docSnap.id, docSnap.data()))
+            .sort((left, right) => String(right?.updated_at ?? '').localeCompare(String(left?.updated_at ?? '')));
+    } catch (error) {
+        console.error('Error listing research models:', error);
+        return [];
+    }
+};
+
+export const subscribeToResearchModels = (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    return onSnapshot(
+        getResearchModelsCollectionRef(),
+        (snap) => {
+            const rows = snap.docs
+                .map((docSnap) => normalizeResearchModelDoc(docSnap.id, docSnap.data()))
+                .sort((left, right) => String(right?.updated_at ?? '').localeCompare(String(left?.updated_at ?? '')));
+            callback(rows);
+        },
+        (error) => {
+            console.error('Research model subscription failed:', error);
+            callback([], error);
+        }
+    );
+};
+
+export const saveParticipantResearchStudyState = async (id, scenarioSetVersionId, payload = {}) => {
+    const normalizedId = String(id ?? '').trim();
+    const normalizedVersionId = String(scenarioSetVersionId ?? '').trim();
+    if (!normalizedId || !normalizedVersionId) return null;
+
+    try {
+        const [summarySnap, progressSnap] = await Promise.all([
+            getDoc(getSummaryRef(normalizedId)),
+            getDoc(getScenarioSetProgressRef(normalizedId))
+        ]);
+        const summaryDoc = summarySnap.exists() ? (summarySnap.data() || {}) : {};
+        const progressDoc = progressSnap.exists() ? (progressSnap.data() || {}) : {};
+        const summaryMap = summaryDoc?.summaryByScenarioSetVersionId && typeof summaryDoc.summaryByScenarioSetVersionId === 'object'
+            ? summaryDoc.summaryByScenarioSetVersionId
+            : {};
+        const progressMap = progressDoc?.progressByScenarioSetVersionId && typeof progressDoc.progressByScenarioSetVersionId === 'object'
+            ? progressDoc.progressByScenarioSetVersionId
+            : {};
+        const summaryEntry = summaryMap[normalizedVersionId] && typeof summaryMap[normalizedVersionId] === 'object'
+            ? summaryMap[normalizedVersionId]
+            : {};
+        const progressEntry = progressMap[normalizedVersionId] && typeof progressMap[normalizedVersionId] === 'object'
+            ? progressMap[normalizedVersionId]
+            : {};
+        const mergedResearchStudy = mergeResearchStudyState(
+            mergeResearchStudyState(summaryEntry?.researchStudy || {}, progressEntry?.researchStudy || {}),
+            payload
+        );
+
+        await Promise.all([
+            setDoc(getSummaryRef(normalizedId), {
+                summaryByScenarioSetVersionId: {
+                    ...summaryMap,
+                    [normalizedVersionId]: mergeScenarioSummaryEntry(summaryEntry, {
+                        scenarioSetName: summaryEntry?.scenarioSetName || progressEntry?.scenarioSetName || '',
+                        totalRounds: summaryEntry?.totalRounds,
+                        roundsCompleted: summaryEntry?.roundsCompleted,
+                        optimalChoices: summaryEntry?.optimalChoices,
+                        totalGameTime: summaryEntry?.totalGameTime,
+                        completedGame: summaryEntry?.completedGame,
+                        earnings: summaryEntry?.earnings,
+                        resultAccessKey: summaryEntry?.resultAccessKey,
+                        liveSessionId: summaryEntry?.liveSessionId || progressEntry?.liveSessionId || '',
+                        sessionStartedAt: summaryEntry?.sessionStartedAt || progressEntry?.sessionStartedAt || '',
+                        lastActivityAt: new Date().toISOString(),
+                        sessionLabel: summaryEntry?.sessionLabel || progressEntry?.sessionLabel || '',
+                        researchStudy: mergedResearchStudy
+                    })
+                }
+            }, { merge: true }),
+            setDoc(getScenarioSetProgressRef(normalizedId), {
+                progressByScenarioSetVersionId: {
+                    ...progressMap,
+                    [normalizedVersionId]: removeUndefinedDeep({
+                        ...(progressEntry && typeof progressEntry === 'object' ? progressEntry : {}),
+                        scenarioSetName: String(progressEntry?.scenarioSetName ?? summaryEntry?.scenarioSetName ?? '').trim(),
+                        researchStudy: mergedResearchStudy,
+                        lastActivityAt: new Date().toISOString()
+                    })
+                }
+            }, { merge: true })
+        ]);
+        await touchUserUpdatedAt(normalizedId);
+        return mergedResearchStudy;
+    } catch (error) {
+        console.error('Error saving participant research study state:', error);
+        return null;
+    }
+};
+
+export const saveParticipantStudySurveyResponse = async (id, scenarioSetVersionId, response = {}, payload = {}) => {
+    const normalizedResponse = normalizeResearchStudySurveyResponse(response, payload);
+    return saveParticipantResearchStudyState(id, scenarioSetVersionId, {
+        ...payload,
+        survey_responses: [normalizedResponse]
+    });
+};
+
 //returns 0 on error and 1 on success
 export const authenticateUser = async (id, token) => {
     const normalizedId = String(id ?? '').trim();
@@ -972,6 +1277,77 @@ export const retrieveData = async () => {
 
     return data;
 }
+
+export const listQualtricsResponses = async () => {
+    try {
+        const snap = await getDocs(getQualtricsResponsesCollectionRef());
+        return snap.docs
+            .map((responseDoc) => normalizeQualtricsResponseDocument(responseDoc.id, responseDoc.data()))
+            .sort((left, right) => String(right?.recorded_at || right?.imported_at || '').localeCompare(String(left?.recorded_at || left?.imported_at || '')));
+    } catch (error) {
+        console.error('Error fetching Qualtrics responses:', error);
+        return [];
+    }
+};
+
+export const listQualtricsSyncRuns = async () => {
+    try {
+        const snap = await getDocs(getQualtricsSyncRunsCollectionRef());
+        return snap.docs
+            .map((runDoc) => ({ id: runDoc.id, ...(runDoc.data() || {}) }))
+            .sort((left, right) => String(right?.started_at || right?.completed_at || '').localeCompare(String(left?.started_at || left?.completed_at || '')));
+    } catch (error) {
+        console.error('Error fetching Qualtrics sync runs:', error);
+        return [];
+    }
+};
+
+export const importQualtricsResponses = async (responses = [], source = 'admin_csv') => {
+    const normalizedResponses = Array.isArray(responses)
+        ? responses.map((response) => normalizeQualtricsResponseDocument(response?.id, {
+            ...(response || {}),
+            source: response?.source || source
+        }))
+        : [];
+    const runId = `admin_import_${Date.now()}`;
+    const startedAt = new Date().toISOString();
+
+    try {
+        await Promise.all(
+            normalizedResponses.map((response) =>
+                setDoc(getQualtricsResponseRef(response.id), {
+                    ...response,
+                    imported_at: response.imported_at || startedAt,
+                    source: response.source || source
+                }, { merge: true })
+            )
+        );
+        await setDoc(getQualtricsSyncRunRef(runId), {
+            run_id: runId,
+            source,
+            status: 'completed',
+            started_at: startedAt,
+            completed_at: new Date().toISOString(),
+            response_count: normalizedResponses.length,
+            matched_response_count: normalizedResponses.filter((response) => response.match_key && response.finished !== false).length,
+            unmatched_response_count: normalizedResponses.filter((response) => !response.match_key || response.finished === false).length,
+            error_summary: ''
+        }, { merge: true });
+        return normalizedResponses;
+    } catch (error) {
+        await setDoc(getQualtricsSyncRunRef(runId), {
+            run_id: runId,
+            source,
+            status: 'failed',
+            started_at: startedAt,
+            completed_at: new Date().toISOString(),
+            response_count: normalizedResponses.length,
+            error_summary: String(error?.message || error || '').slice(0, 500)
+        }, { merge: true });
+        console.error('Error importing Qualtrics responses:', error);
+        throw error;
+    }
+};
 
 async function listActiveLiveSessions() {
     const activeQuery = query(getLiveSessionsCollectionRef(), where('status', '==', 'active'));

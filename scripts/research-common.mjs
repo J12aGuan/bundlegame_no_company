@@ -19,12 +19,15 @@ import {
   computeAnalytics,
   getAnalysisMasterExportColumns,
   getDecisionFactExportColumns,
+  getHumanPolicyEvalExportColumns,
   getOpeSummaryExportColumns,
+  getParticipantSurveyExportColumns,
   getPolicyComparisonExportColumns,
   getPolicyTrainingExportColumns,
   getRecommendationSummaryExportColumns,
   getRecommendationWorkbenchExportColumns,
   getSandboxSummaryExportColumns,
+  getStudyRandomizationExportColumns,
 } from "../src/lib/analysis/engine.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -101,6 +104,11 @@ export async function closeDb() {
 
 async function getSubcollectionDocs(db, userId, subcollection) {
   const snap = await getDocs(collection(db, "Users", userId, subcollection));
+  return snap.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() || {}) }));
+}
+
+async function getCollectionDocs(db, collectionName) {
+  const snap = await getDocs(collection(db, collectionName));
   return snap.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() || {}) }));
 }
 
@@ -309,6 +317,27 @@ export async function writeAnalysisArtifacts({
       ),
     ],
     [
+      "study_randomization.csv",
+      toCsv(
+        analysis.studyRandomizationRows,
+        getStudyRandomizationExportColumns(),
+      ),
+    ],
+    [
+      "participant_survey.csv",
+      toCsv(
+        analysis.participantSurveyRows,
+        getParticipantSurveyExportColumns(),
+      ),
+    ],
+    [
+      "human_policy_eval.csv",
+      toCsv(
+        analysis.humanPolicyEvalRows,
+        getHumanPolicyEvalExportColumns(),
+      ),
+    ],
+    [
       "recommendation_workbench.csv",
       toCsv(
         analysis.recommendationWorkbenchRows,
@@ -332,6 +361,7 @@ export async function writeAnalysisArtifacts({
       toCsv(analysis.sandboxSummary, getSandboxSummaryExportColumns()),
     ],
     ["dataset_snapshot.json", JSON.stringify(analysis.datasetSnapshot, null, 2)],
+    ["paper_manifest.json", JSON.stringify(analysis.paperManifest, null, 2)],
     ["run_metadata.json", JSON.stringify(analysis.metadata, null, 2)],
   ];
 
@@ -349,18 +379,46 @@ export async function computeFirestoreAnalysis({
   cohortField = "configuration",
   storesId = "store",
   citiesId = "cities",
+  studyProtocolId = "",
 } = {}) {
   const db = await getDb();
-  const [participants, scenarioBundle, storeDataset, citiesDataset] = await Promise.all([
+  const optionalCollection = async (collectionName) => {
+    try {
+      return await getCollectionDocs(db, collectionName);
+    } catch (error) {
+      if (String(error?.code || "") === "permission-denied") {
+        return [];
+      }
+      throw error;
+    }
+  };
+  const [participants, scenarioBundle, storeDataset, citiesDataset, protocols, models] = await Promise.all([
     retrieveParticipants(db),
     getScenarioDatasetBundle(db, datasetRoot),
     getStoresData(db, storesId),
     getCitiesData(db, citiesId),
+    optionalCollection("ResearchProtocols"),
+    optionalCollection("ResearchModels"),
   ]);
 
   if (!scenarioBundle) {
     throw new Error(`Dataset "${datasetRoot}" was not found in MasterData/datasets.`);
   }
+
+  const normalizedStudyProtocolId = String(studyProtocolId || "").trim();
+  const selectedProtocol =
+    protocols.find(
+      (entry) =>
+        String(entry?.protocol_id || entry?.id || "").trim() ===
+        normalizedStudyProtocolId,
+    ) ||
+    protocols.find(
+      (entry) =>
+        Boolean(entry?.enabled) &&
+        (!String(entry?.dataset_root || "").trim() ||
+          String(entry?.dataset_root || "").trim() === datasetRoot),
+    ) ||
+    null;
 
   return computeAnalytics({
     participants,
@@ -374,6 +432,8 @@ export async function computeFirestoreAnalysis({
       metadataJoinKey: "participant_id",
       metadataSessionKey: "",
     },
+    studyProtocol: selectedProtocol,
+    researchModels: models,
   });
 }
 

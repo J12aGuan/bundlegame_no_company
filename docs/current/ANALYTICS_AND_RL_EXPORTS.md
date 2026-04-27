@@ -34,7 +34,11 @@ Primary exports:
 - `analysis_master.csv`
 - `analysis_master.json`
 - `policy_training.csv`
+- `study_randomization.csv`
+- `participant_survey.csv`
+- `human_policy_eval.csv`
 - `dataset_snapshot.json`
+- `paper_manifest.json`
 - `run_metadata.json`
 
 Recommendation and evaluation exports:
@@ -73,6 +77,13 @@ The research exports now include explicit row provenance:
 - `round_coverage_status`
 - `qa_completed_game_mismatch`
 - `qa_missing_recommendation_labels`
+- `study_protocol_id`
+- `policy_arm`
+- `policy_name`
+- `policy_version`
+- `dataset_snapshot_id`
+- `legal_action_mask_version`
+- `recommendation_source`
 
 Current supported decision sources:
 
@@ -120,6 +131,18 @@ Includes:
 - QA blockers and warning counts
 - row-source counts
 - timestamped vs reconstructed row counts
+- study protocol summary
+- study-randomization, survey, and human-eval row counts
+
+## Study And Paper Exports
+
+`study_randomization.csv` captures participant-level study arm assignment, policy mapping, and assignment metadata.
+
+`participant_survey.csv` captures trust, usefulness, workload, and free-text notes linked back to the participant and policy arm.
+
+`human_policy_eval.csv` provides arm-level and phase-level human outcome summaries for paper tables.
+
+`paper_manifest.json` packages the frozen snapshot, protocol summary, model registry, export list, and figure checklist into one reproducibility artifact.
 
 ## Policy Evaluation Outputs
 
@@ -165,3 +188,5 @@ See also:
 
 - `docs/current/RESEARCH_PLAYBOOK.md`
 - `docs/current/PAPER_ANALYSIS_WORKFLOW.md`
+- `docs/current/CHI_CSCW_DRL_ROADMAP.md`
+- `docs/current/VENUE_POSITIONING_AND_SCORING.md`

@@ -46,12 +46,16 @@ def test_cli_json_pipeline_outputs(tmp_path: Path):
         "analysis_master.csv",
         "analysis_master.json",
         "policy_training.csv",
+        "study_randomization.csv",
+        "participant_survey.csv",
+        "human_policy_eval.csv",
         "recommendation_workbench.csv",
         "recommendation_summary.csv",
         "policy_comparison.csv",
         "ope_summary.csv",
         "sandbox_summary.csv",
         "dataset_snapshot.json",
+        "paper_manifest.json",
         "kpi_overall.csv",
         "kpi_by_round.csv",
         "kpi_by_participant.csv",
@@ -80,6 +84,11 @@ def test_cli_json_pipeline_outputs(tmp_path: Path):
         "round_coverage_status",
         "classification",
         "phase",
+        "study_protocol_id",
+        "policy_arm",
+        "policy_name",
+        "shown_ranked_bundles",
+        "logged_reward",
         "score_ratio_to_best",
         "percent_regret",
         "scenario_set_version_id",
@@ -98,6 +107,11 @@ def test_cli_json_pipeline_outputs(tmp_path: Path):
         "qa_completed_game_mismatch",
         "qa_missing_recommendation_labels",
         "shown_recommendation_status",
+        "study_protocol_id",
+        "policy_arm",
+        "policy_name",
+        "shown_ranked_bundles",
+        "logged_reward",
         "recommendation_quality",
         "prior_optimal_rate",
         "prior_failure_rate",
@@ -116,14 +130,30 @@ def test_cli_json_pipeline_outputs(tmp_path: Path):
         "state_round_coverage_status",
         "state_qa_completed_game_mismatch",
         "state_qa_missing_recommendation_labels",
+        "state_policy_arm",
+        "state_policy_name",
+        "state_dataset_snapshot_id",
         "state_prior_optimal_rate",
         "action_bundle_ids",
         "reward_target",
         "observed_reward",
+        "state_trust_rating",
         "done",
         "condition",
     ]:
         assert field in policy_header
+
+    study_randomization_header = (tmp_path / "study_randomization.csv").read_text(encoding="utf-8").splitlines()[0]
+    for field in ["study_protocol_id", "assigned_arm", "policy_name", "assignment_method"]:
+        assert field in study_randomization_header
+
+    participant_survey_header = (tmp_path / "participant_survey.csv").read_text(encoding="utf-8").splitlines()[0]
+    for field in ["response_id", "trust_rating", "usefulness_rating", "workload_rating"]:
+        assert field in participant_survey_header
+
+    human_eval_header = (tmp_path / "human_policy_eval.csv").read_text(encoding="utf-8").splitlines()[0]
+    for field in ["policy_arm", "policy_name", "mean_score_ratio", "mean_trust_rating"]:
+        assert field in human_eval_header
 
     rec_header = (tmp_path / "recommendation_workbench.csv").read_text(encoding="utf-8").splitlines()[0]
     for field in [
@@ -161,6 +191,11 @@ def test_cli_json_pipeline_outputs(tmp_path: Path):
     assert "missing_recommendation_labels" in dataset_snapshot["qa_report"]["blockers"]
     assert dataset_snapshot["analysis_outputs"]["analysis_master_rows"] == 3
     assert dataset_snapshot["analysis_outputs"]["timestamped_rows"] == 3
+    assert "study_protocol" in dataset_snapshot
+
+    paper_manifest = json.loads((tmp_path / "paper_manifest.json").read_text(encoding="utf-8"))
+    assert paper_manifest["dataset_snapshot"]["snapshot_id"] == dataset_snapshot["snapshot_id"]
+    assert "study_randomization.csv" in paper_manifest["exports"]
 
 
 def test_cli_recovers_reconstructed_action_summary_rows(tmp_path: Path):

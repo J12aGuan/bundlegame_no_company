@@ -137,6 +137,38 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Research study protocol registry
+    match /ResearchProtocols/{protocolId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    // Research model registry
+    match /ResearchModels/{modelId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    // Qualtrics completed survey responses synced by the private server script
+    match /QualtricsResponses/{responseId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    // Qualtrics sync run metadata for admin diagnostics
+    match /QualtricsSyncRuns/{runId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+
     // Block everything else
     match /{document=**} {
       allow read, write: if false;

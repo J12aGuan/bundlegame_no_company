@@ -1,6 +1,6 @@
 <script>
     import { get } from 'svelte/store';
-    import { game, orders, gameText, currLocation, orderList, thinkTime, currentRound, getCurrentScenario, roundStartTime, elapsed, gameMode, scenarios, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction, beginOrderSelectionThinking, stopOrderSelectionThinking, recordOrderSelectionAction } from "$lib/bundle.js";
+    import { game, orders, gameText, currLocation, orderList, thinkTime, currentRound, getCurrentScenario, getScenarioStudyRecommendation, participantStudyState, roundStartTime, elapsed, gameMode, scenarios, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction, beginOrderSelectionThinking, stopOrderSelectionThinking, recordOrderSelectionAction } from "$lib/bundle.js";
     import { getDistances, getCityTravelInfo, storeConfig, PENALTY_TIMEOUT } from "$lib/config.js";
     import Order from "./order.svelte";
     import { onMount, onDestroy } from "svelte";
@@ -9,6 +9,9 @@
     $: scenario = getCurrentScenario($currentRound);
     $: activeScenarioId = String(scenario?.scenario_id ?? '').trim();
     $: maxBundle = scenario.max_bundle ?? 3;
+    $: recommendationContext = getScenarioStudyRecommendation(scenario);
+    $: shownRecommendationIds = recommendationContext?.shown_bundle_ids || [];
+    $: shownRankedBundles = recommendationContext?.shown_ranked_bundles || [];
     $: isTutorialRoundOne = $gameMode === 'tutorial' && $currentRound === 1;
     $: isTutorialRoundTwo = $gameMode === 'tutorial' && $currentRound === 2;
     $: selectorPrompt = isTutorialRoundOne
@@ -512,6 +515,50 @@
         <div class="grid lg:grid-cols-[55%_45%] gap-4">
             <div class="space-y-2">
                 <h2 class="text-base font-semibold text-slate-800">Available Orders</h2>
+
+                {#if recommendationContext?.study_protocol_id}
+                    <div class={`rounded-2xl border p-4 shadow-sm ${
+                        shownRecommendationIds.length > 0
+                            ? 'border-cyan-200 bg-cyan-50'
+                            : 'border-slate-200 bg-slate-50'
+                    }`}>
+                        <div class="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Study Arm</p>
+                                <h3 class="mt-1 text-sm font-semibold text-slate-900">
+                                    {$participantStudyState?.assigned_arm || 'unassigned'} · {recommendationContext.policy_name || 'control'}
+                                </h3>
+                                <p class="mt-1 text-xs text-slate-600">
+                                    Phase {recommendationContext.phase || scenario?.phase || 'Unknown'}
+                                    {#if recommendationContext.policy_version}
+                                        · {recommendationContext.policy_version}
+                                    {/if}
+                                </p>
+                            </div>
+                            <div class="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white">
+                                {shownRecommendationIds.length > 0 ? 'Recommendation Shown' : 'No Recommendation'}
+                            </div>
+                        </div>
+
+                        {#if shownRecommendationIds.length > 0}
+                            <div class="mt-3 grid gap-2">
+                                <div class="rounded-xl bg-white px-3 py-2 border border-cyan-100">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700">Top Bundle</p>
+                                    <p class="mt-1 text-sm font-medium text-slate-900">{shownRecommendationIds.join(' + ')}</p>
+                                </div>
+                                {#if shownRankedBundles.length > 1}
+                                    <div class="text-xs text-slate-600">
+                                        Alternate bundles: {shownRankedBundles.slice(1).map((bundle) => bundle.join(' + ')).join(' | ')}
+                                    </div>
+                                {/if}
+                            </div>
+                        {:else}
+                            <p class="mt-3 text-xs text-slate-600">
+                                This round is running without a displayed recommendation for your assigned study condition.
+                            </p>
+                        {/if}
+                    </div>
+                {/if}
                 
                 <!-- Fixed height grid for 4 orders without scrolling -->
                 <div class="grid grid-cols-2 gap-2">

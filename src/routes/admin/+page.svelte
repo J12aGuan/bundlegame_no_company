@@ -1,9 +1,11 @@
 <script>
     import { onMount } from 'svelte';
-    import { retrieveData, getActiveLiveSession } from '$lib/firebaseDB.js';
+    import { retrieveData, getActiveLiveSession, listQualtricsResponses, listQualtricsSyncRuns, importQualtricsResponses } from '$lib/firebaseDB.js';
     import { generateAuthToken } from '$lib/authToken.js';
     import { deriveUserRunMetrics } from '$lib/userRunMetrics.js';
-    
+    import { buildAdminScoreSheet, getAdminScoreClassAverageExportRows, getAdminScoreExportRows } from '$lib/adminScores.js';
+    import { normalizeQualtricsResponsesFromCsv } from '$lib/qualtrics.js';
+
     let stats = {
         totalUsers: 0,
         totalOrders: 0,
@@ -17,6 +19,12 @@
     let copyMessage = '';
     let copyMessageTone = 'text-slate-600';
     let lastCopiedToken = '';
+    let users = [];
+    let qualtricsResponses = [];
+    let qualtricsSyncRuns = [];
+    let csvImporting = false;
+    let csvImportMessage = '';
+    let csvImportTone = 'text-slate-600';
 
     $: normalizedTokenUserId = tokenUserId.trim();
     $: generatedToken = normalizedTokenUserId ? generateAuthToken(normalizedTokenUserId) : '';
@@ -24,13 +32,24 @@
         copyMessage = '';
         copyMessageTone = 'text-slate-600';
     }
+    $: scoreSheet = buildAdminScoreSheet(users, qualtricsResponses);
+    $: scoreRows = scoreSheet.rows;
+    $: scoreStats = scoreSheet.stats;
+    $: classAverages = scoreSheet.classAverages || {};
+    $: scoreRoundColumns = Array.from({ length: scoreSheet.maxRound }, (_, index) => index + 1);
+    $: latestQualtricsSync = qualtricsSyncRuns[0] || null;
     
     onMount(async () => {
         try {
-            const [data, liveSession] = await Promise.all([
+            const [data, liveSession, syncedResponses, syncRuns] = await Promise.all([
                 retrieveData(),
-                getActiveLiveSession()
+                getActiveLiveSession(),
+                listQualtricsResponses(),
+                listQualtricsSyncRuns()
             ]);
+            users = data;
+            qualtricsResponses = syncedResponses;
+            qualtricsSyncRuns = syncRuns;
             stats.totalUsers = data.length;
             activeLiveSession = liveSession;
             
@@ -56,6 +75,109 @@
             loading = false;
         }
     });
+
+    function formatDateTime(value = '') {
+        const millis = Date.parse(String(value || ''));
+        if (!Number.isFinite(millis)) return '-';
+        return new Intl.DateTimeFormat(undefined, {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+        }).format(new Date(millis));
+    }
+
+    function formatPercent(value, digits = 1) {
+        if (value == null || value === '') return '-';
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return '-';
+        return `${(numeric * 100).toFixed(digits)}%`;
+    }
+
+    function formatNumber(value, digits = 2) {
+        if (value == null || value === '') return '-';
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return '-';
+        return numeric.toFixed(digits);
+    }
+
+    function formatTime(seconds = 0) {
+        const safe = Math.max(0, Math.floor(Number(seconds) || 0));
+        const mins = Math.floor(safe / 60);
+        const secs = safe % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function csvEscape(value) {
+        if (value == null) return '';
+        if (Array.isArray(value) || typeof value === 'object') return JSON.stringify(value);
+        return String(value);
+    }
+
+    function downloadCsv(filename, rows = []) {
+        const fieldnames = [...new Set(rows.flatMap((row) => Object.keys(row || {})))];
+        const csv = [
+            fieldnames.join(','),
+            ...rows.map((row) =>
+                fieldnames
+                    .map((field) => `"${csvEscape(row?.[field]).replaceAll('"', '""')}"`)
+                    .join(',')
+            )
+        ].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        window.URL.revokeObjectURL(url);
+    }
+
+    function exportScores() {
+        downloadCsv(
+            `bundlegame-scores-${new Date().toISOString().slice(0, 10)}.csv`,
+            getAdminScoreExportRows(scoreRows, scoreSheet.maxRound)
+        );
+    }
+
+    function exportClassAverages() {
+        downloadCsv(
+            `bundlegame-score-class-averages-${new Date().toISOString().slice(0, 10)}.csv`,
+            getAdminScoreClassAverageExportRows(classAverages)
+        );
+    }
+
+    function getRoundScore(row, round) {
+        return row.roundScores?.find((entry) => entry.roundIndex === round)?.scoreRatio ?? null;
+    }
+
+    async function importQualtricsCsv(event) {
+        const file = event?.currentTarget?.files?.[0] || null;
+        if (!file) return;
+        csvImporting = true;
+        csvImportMessage = '';
+        csvImportTone = 'text-slate-600';
+        try {
+            const csvText = await file.text();
+            const parsed = normalizeQualtricsResponsesFromCsv(csvText, {
+                source: 'admin_csv'
+            });
+            await importQualtricsResponses(parsed.completed, 'admin_csv');
+            const [syncedResponses, syncRuns] = await Promise.all([
+                listQualtricsResponses(),
+                listQualtricsSyncRuns()
+            ]);
+            qualtricsResponses = syncedResponses;
+            qualtricsSyncRuns = syncRuns;
+            csvImportMessage = `Imported ${parsed.completed.length} completed Qualtrics rows (${parsed.matchReady.length} ready to match).`;
+            csvImportTone = 'text-emerald-700';
+        } catch (err) {
+            console.error('Qualtrics CSV import failed:', err);
+            csvImportMessage = err?.message || 'Unable to import Qualtrics CSV.';
+            csvImportTone = 'text-red-700';
+        } finally {
+            csvImporting = false;
+            if (event?.currentTarget) event.currentTarget.value = '';
+        }
+    }
 
     async function copyGeneratedToken() {
         if (!generatedToken) return;
@@ -222,9 +344,189 @@
                 </div>
             </div>
         </div>
-    {/if}
-    
-    <!-- Quick Actions -->
+	    {/if}
+
+        <div class="overflow-hidden rounded-lg bg-white shadow">
+            <div class="border-b border-slate-200 px-4 py-5 sm:px-6">
+                <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900">Scores</h3>
+                        <p class="mt-1 text-sm text-gray-600">
+                            Completed game runs matched to completed Qualtrics responses.
+                        </p>
+                        <p class="mt-2 text-xs text-gray-500">
+                            Admin total = 70% outcome + 20% normalized optimal-rate + 10% normalized progress. Paper analyses should use decomposed research metrics.
+                        </p>
+                        <p class="mt-2 text-xs text-gray-500">
+                            Run <span class="font-mono">npm run qualtrics:sync</span> after setting private Qualtrics env vars, or import a Qualtrics CSV as a fallback.
+                        </p>
+                    </div>
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <label class="inline-flex cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                            {csvImporting ? 'Importing...' : 'Import Qualtrics CSV'}
+                            <input
+                                class="sr-only"
+                                type="file"
+                                accept=".csv,text/csv"
+                                on:change={importQualtricsCsv}
+                                disabled={csvImporting}
+                            />
+                        </label>
+                        <button
+                            type="button"
+                            class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            on:click={exportScores}
+                            disabled={scoreRows.length === 0}
+                        >
+                            Export Scores CSV
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                            on:click={exportClassAverages}
+                            disabled={scoreRows.length === 0}
+                        >
+                            Export Class Average CSV
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p class="text-xs font-medium uppercase text-slate-500">Score Rows</p>
+                        <p class="mt-1 text-2xl font-semibold text-slate-900">{scoreStats.matchedScoreCount}</p>
+                    </div>
+                    <div class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p class="text-xs font-medium uppercase text-slate-500">Completed Game</p>
+                        <p class="mt-1 text-2xl font-semibold text-slate-900">{scoreStats.completedGameCount}</p>
+                    </div>
+                    <div class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p class="text-xs font-medium uppercase text-slate-500">Missing Qualtrics</p>
+                        <p class="mt-1 text-2xl font-semibold text-slate-900">{scoreStats.missingQualtricsCount}</p>
+                    </div>
+                    <div class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p class="text-xs font-medium uppercase text-slate-500">Last Sync</p>
+                        <p class="mt-1 text-sm font-semibold text-slate-900">
+                            {latestQualtricsSync ? formatDateTime(latestQualtricsSync.completed_at || latestQualtricsSync.started_at) : '-'}
+                        </p>
+                        {#if latestQualtricsSync?.status}
+                            <p class="text-xs text-slate-500">{latestQualtricsSync.status}</p>
+                        {/if}
+                    </div>
+                </div>
+
+                {#if csvImportMessage}
+                    <p class={`mt-3 text-sm ${csvImportTone}`}>{csvImportMessage}</p>
+                {/if}
+
+                <div class="mt-5 rounded-lg border border-cyan-100 bg-cyan-50 p-4">
+                    <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h4 class="text-sm font-semibold text-cyan-950">Class Averages</h4>
+                            <p class="text-xs text-cyan-800">Separate summary across matched students only.</p>
+                        </div>
+                        <p class="text-xs font-medium text-cyan-800">
+                            {classAverages.matched_student_count || 0} matched students
+                        </p>
+                    </div>
+                    <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                            <p class="text-xs font-medium uppercase text-cyan-700">Avg Total</p>
+                            <p class="text-lg font-semibold text-cyan-950">{formatNumber(classAverages.average_total_score, 2)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium uppercase text-cyan-700">Median Total</p>
+                            <p class="text-lg font-semibold text-cyan-950">{formatNumber(classAverages.median_total_score, 2)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium uppercase text-cyan-700">Avg Earnings</p>
+                            <p class="text-lg font-semibold text-cyan-950">${formatNumber(classAverages.average_earnings, 2)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium uppercase text-cyan-700">Avg Optimal</p>
+                            <p class="text-lg font-semibold text-cyan-950">{formatPercent(classAverages.average_optimal_rate, 1)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium uppercase text-cyan-700">Avg Rounds</p>
+                            <p class="text-lg font-semibold text-cyan-950">{formatNumber(classAverages.average_rounds_completed, 2)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium uppercase text-cyan-700">Avg Outcome</p>
+                            <p class="text-lg font-semibold text-cyan-950">{formatPercent(classAverages.average_outcome_score, 1)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium uppercase text-cyan-700">Avg Progress</p>
+                            <p class="text-lg font-semibold text-cyan-950">{formatPercent(classAverages.average_progress_score, 1)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium uppercase text-cyan-700">Avg Time</p>
+                            <p class="text-lg font-semibold text-cyan-950">{formatTime(classAverages.average_total_game_time_seconds)}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Student</th>
+                            <th class="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Total</th>
+                            <th class="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Performance</th>
+                            <th class="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Outcome</th>
+                            <th class="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Avg Ratio</th>
+                            <th class="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Optimal</th>
+                            <th class="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Progress</th>
+                            <th class="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Rounds</th>
+                            <th class="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Time</th>
+                            <th class="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Earnings</th>
+                            <th class="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Qualtrics</th>
+                            {#each scoreRoundColumns as round}
+                                <th class="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">R{round}</th>
+                            {/each}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 bg-white">
+                        {#each scoreRows as row (row.participantId)}
+                            <tr class="hover:bg-slate-50">
+                                <td class="whitespace-nowrap px-4 py-3 text-sm font-medium text-slate-900">
+                                    <div>{row.displayName}</div>
+                                    <div class="text-xs font-normal text-slate-500">{row.participantId}</div>
+                                </td>
+                                <td class="whitespace-nowrap px-4 py-3 text-sm font-semibold text-slate-900">{row.totalScore}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-700">
+                                    <div>{row.performanceLabel}</div>
+                                    <div class="text-xs text-slate-500">{row.outcomeScoreBasis === 'average_score_ratio' ? 'round ratio' : 'earnings'} outcome</div>
+                                </td>
+                                <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-700">{formatPercent(row.outcomeScore, 0)}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-700">{formatNumber(row.averageScoreRatio, 3)}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-700">{formatPercent(row.optimalRate, 0)}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-700">{formatPercent(row.progressScore, 0)}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-700">{row.roundsCompleted}/{row.totalRounds || row.roundsCompleted}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-700">{formatTime(row.totalGameTime)}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-700">${formatNumber(row.earnings, 2)}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-700">
+                                    <div>{row.qualtricsResponseId}</div>
+                                    <div class="text-xs text-slate-500">{formatDateTime(row.qualtricsRecordedAt)}</div>
+                                    <div class="text-xs text-slate-500">{row.qualtricsMatchMethod === 'result_code' ? 'result code' : 'userID'} match</div>
+                                </td>
+                                {#each scoreRoundColumns as round}
+                                    {@const roundScore = getRoundScore(row, round)}
+                                    <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-700">{roundScore == null ? '-' : formatNumber(roundScore, 3)}</td>
+                                {/each}
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+            {#if !loading && scoreRows.length === 0}
+                <div class="px-4 py-10 text-center text-sm text-slate-500">
+                    No matched score rows yet. Sync or import Qualtrics responses after students complete the survey.
+                </div>
+            {/if}
+        </div>
+
+	    <!-- Quick Actions -->
     <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:px-6">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>

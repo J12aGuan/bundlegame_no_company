@@ -8,19 +8,33 @@
 		getStoresData,
 		getCitiesData,
 		createResearchJob,
+		createResearchModel,
+		createResearchProtocol,
 		createResearchSnapshot,
+		subscribeToResearchModels,
+		subscribeToResearchProtocols,
 		subscribeToResearchJobs,
-		subscribeToResearchSnapshots
+		subscribeToResearchSnapshots,
+		updateResearchModel,
+		updateResearchProtocol
 	} from '$lib/firebaseDB.js';
 	import {
 		computeAnalytics,
 		getAnalysisMasterExportColumns,
+		getHumanPolicyEvalExportColumns,
 		getPolicyTrainingExportColumns,
+		getParticipantSurveyExportColumns,
 		getPolicyComparisonExportColumns,
 		getOpeSummaryExportColumns,
-		getSandboxSummaryExportColumns
+		getSandboxSummaryExportColumns,
+		getStudyRandomizationExportColumns
 	} from '$lib/analysis/engine.js';
 	import { parseUploadedAnalysisSource } from '$lib/analysis/upload.js';
+	import {
+		DEFAULT_ACTION_MASK_VERSION,
+		normalizeResearchModel,
+		normalizeResearchStudyProtocol
+	} from '$lib/researchStudy.js';
 
 	let loading = true;
 	let computing = false;
@@ -51,13 +65,31 @@
 
 	let researchJobs = [];
 	let researchSnapshots = [];
+	let researchProtocols = [];
+	let researchModelsRegistry = [];
 	let selectedSnapshotId = '';
+	let selectedProtocolId = '';
+	let selectedModelId = '';
 	let jobType = 'train_policy';
 	let algorithm = 'contextual_bandit';
 	let jobConfigText = '{\n  "epochs": 50,\n  "seed": 42,\n  "notes": "Initial research run"\n}';
+	let protocolEditorText = JSON.stringify(normalizeResearchStudyProtocol({ enabled: true }), null, 2);
+	let modelEditorText = JSON.stringify(
+		normalizeResearchModel({
+			algorithm: 'CQL',
+			policy_name: 'CQL',
+			policy_version: 'v1',
+			is_active: false,
+			simulation_only: false
+		}),
+		null,
+		2
+	);
 
 	let jobsUnsubscribe = () => {};
 	let snapshotsUnsubscribe = () => {};
+	let protocolsUnsubscribe = () => {};
+	let modelsUnsubscribe = () => {};
 
 	const paperChecklist = [
 		'Round attrition by dataset and split',
@@ -66,6 +98,20 @@
 		'Off-policy evaluation table',
 		'Simulation-only sandbox ablation table',
 		'Threats-to-validity notes and QA exclusions'
+	];
+	const sectionOrder = [
+		'dataset',
+		'protocol',
+		'behavior',
+		'policies',
+		'ope',
+		'sandbox',
+		'studyqa',
+		'modelregistry',
+		'humanresults',
+		'jobs',
+		'artifacts',
+		'paper'
 	];
 
 	function showMessage(message, type = 'success') {
@@ -76,6 +122,96 @@
 	function clearMessages() {
 		success = null;
 		error = null;
+	}
+
+	function getSourceDatasetRoot() {
+		return analysisSource === 'upload'
+			? uploadDatasetName || 'uploaded_dataset'
+			: selectedDataset || 'mainGame';
+	}
+
+	function getScenarioSetVersionId() {
+		return String(scenarioBundle?.metadata?.scenarioSetVersionId || '').trim();
+	}
+
+	function parseJsonEditor(text, label = 'JSON payload') {
+		try {
+			return JSON.parse(text || '{}');
+		} catch (err) {
+			throw new Error(`${label} is not valid JSON: ${err?.message || 'parse error'}`);
+		}
+	}
+
+	function formatJsonEditor(payload = {}) {
+		return JSON.stringify(payload, null, 2);
+	}
+
+	function buildProtocolDraft(overrides = {}) {
+		return normalizeResearchStudyProtocol(
+			{
+				enabled: true,
+				status: 'draft',
+				target_venue: 'CHI/CSCW',
+				dataset_root: getSourceDatasetRoot(),
+				scenario_set_version_id: getScenarioSetVersionId(),
+				legal_action_mask_version: DEFAULT_ACTION_MASK_VERSION,
+				...overrides
+			},
+			{
+				dataset_root: getSourceDatasetRoot(),
+				scenario_set_version_id: getScenarioSetVersionId()
+			}
+		);
+	}
+
+	function buildModelDraft(overrides = {}) {
+		return normalizeResearchModel({
+			algorithm: 'CQL',
+			policy_name: 'CQL',
+			policy_version: 'v1',
+			dataset_root: getSourceDatasetRoot(),
+			dataset_snapshot_id: analysis?.datasetSnapshot?.snapshot_id || '',
+			action_mask_version: DEFAULT_ACTION_MASK_VERSION,
+			status: 'draft',
+			is_active: false,
+			simulation_only: false,
+			...overrides
+		});
+	}
+
+	function selectProtocol(protocol = null) {
+		selectedProtocolId = String(protocol?.protocol_id || '').trim();
+		protocolEditorText = formatJsonEditor(buildProtocolDraft(protocol || {}));
+	}
+
+	function selectModel(model = null) {
+		selectedModelId = String(model?.model_id || '').trim();
+		modelEditorText = formatJsonEditor(buildModelDraft(model || {}));
+	}
+
+	function createNewProtocolDraft() {
+		selectProtocol(null);
+	}
+
+	function createNewModelDraft() {
+		selectModel(null);
+	}
+
+	function getActiveStudyProtocol() {
+		const datasetRoot = getSourceDatasetRoot();
+		const selected =
+			researchProtocols.find((entry) => entry.protocol_id === selectedProtocolId) || null;
+		const datasetMatched =
+			researchProtocols.find(
+				(entry) =>
+					entry.enabled &&
+					(!entry.dataset_root || String(entry.dataset_root) === String(datasetRoot))
+			) || null;
+		return buildProtocolDraft(selected || datasetMatched || {});
+	}
+
+	function getAnalysisModels() {
+		return (researchModelsRegistry || []).map((entry) => buildModelDraft(entry));
 	}
 
 	function escapeCsvCell(value) {
@@ -108,6 +244,32 @@
 		link.download = filename;
 		link.click();
 		window.URL.revokeObjectURL(url);
+	}
+
+	async function saveProtocolDraft() {
+		const payload = buildProtocolDraft(parseJsonEditor(protocolEditorText, 'Protocol draft'));
+		const saved = selectedProtocolId
+			? await updateResearchProtocol(selectedProtocolId, payload)
+			: await createResearchProtocol(payload);
+		if (!saved?.protocol_id) {
+			showMessage('Unable to save research protocol.', 'error');
+			return;
+		}
+		selectProtocol(saved);
+		showMessage(`Saved protocol ${saved.protocol_id}.`);
+	}
+
+	async function saveModelDraft() {
+		const payload = buildModelDraft(parseJsonEditor(modelEditorText, 'Model draft'));
+		const saved = selectedModelId
+			? await updateResearchModel(selectedModelId, payload)
+			: await createResearchModel(payload);
+		if (!saved?.model_id) {
+			showMessage('Unable to save research model.', 'error');
+			return;
+		}
+		selectModel(saved);
+		showMessage(`Saved model ${saved.model_id}.`);
 	}
 
 	async function initializePage() {
@@ -162,6 +324,7 @@
 		computing = true;
 		try {
 			await loadSourceData();
+			const activeStudyProtocol = getActiveStudyProtocol();
 			analysis = computeAnalytics({
 				participants: rawParticipants,
 				scenarioBundle,
@@ -173,7 +336,9 @@
 				metadataJoinOptions: {
 					metadataJoinKey,
 					metadataSessionKey
-				}
+				},
+				studyProtocol: activeStudyProtocol,
+				researchModels: getAnalysisModels()
 			});
 			showMessage('Research analytics refreshed.');
 		} catch (err) {
@@ -214,10 +379,13 @@
 				cities_id: sourceType === 'firestore' ? 'cities' : '',
 				metadata_join_key: metadataJoinKey || 'participant_id',
 				metadata_session_key: metadataSessionKey || '',
-				cohort_field: 'configuration'
+				cohort_field: 'configuration',
+				study_protocol_id: analysis?.studyProtocolSummary?.protocol_id || '',
+				model_registry_total: analysis?.metadata?.model_registry?.total_models || 0
 			},
 			job_runnable: sourceType === 'firestore',
-			worker_notes: workerNotes
+			worker_notes: workerNotes,
+			paper_manifest: analysis?.paperManifest || {}
 		};
 	}
 
@@ -293,6 +461,9 @@
 	$: sourceLabel = analysisSource === 'upload' ? uploadDatasetName || 'uploaded_dataset' : selectedDataset;
 	$: masterColumns = getAnalysisMasterExportColumns('configuration', analysis?.metadataFields || []);
 	$: policyColumns = getPolicyTrainingExportColumns(['configuration', ...(analysis?.metadataFields || [])]);
+	$: studyRandomizationColumns = getStudyRandomizationExportColumns();
+	$: participantSurveyColumns = getParticipantSurveyExportColumns();
+	$: humanPolicyEvalColumns = getHumanPolicyEvalExportColumns();
 	$: rowSourceRows = Object.entries(analysis?.metadata?.data_health?.rowSourceCounts || {}).map(([source, count]) => ({
 		source,
 		count
@@ -333,6 +504,21 @@
 	)
 		.map(([issue_type, count]) => ({ issue_type, count }))
 		.sort((left, right) => right.count - left.count);
+	$: protocolPhaseRows = analysis?.studyQa?.phase_plan_rows || [];
+	$: studyArmRows = analysis?.studyQa?.arm_balance_rows || [];
+	$: surveySummary = analysis?.studyQa?.survey_summary || {};
+	$: artifactRows = [
+		{ artifact: 'analysis_master.csv', rows: analysis?.analysisMasterRows?.length || 0, format: 'csv' },
+		{ artifact: 'policy_training.csv', rows: analysis?.policyTrainingRows?.length || 0, format: 'csv' },
+		{ artifact: 'study_randomization.csv', rows: analysis?.studyRandomizationRows?.length || 0, format: 'csv' },
+		{ artifact: 'participant_survey.csv', rows: analysis?.participantSurveyRows?.length || 0, format: 'csv' },
+		{ artifact: 'human_policy_eval.csv', rows: analysis?.humanPolicyEvalRows?.length || 0, format: 'csv' },
+		{ artifact: 'policy_comparison.csv', rows: analysis?.policyComparisons?.length || 0, format: 'csv' },
+		{ artifact: 'ope_summary.csv', rows: analysis?.opeSummary?.length || 0, format: 'csv' },
+		{ artifact: 'sandbox_summary.csv', rows: analysis?.sandboxSummary?.length || 0, format: 'csv' },
+		{ artifact: 'dataset_snapshot.json', rows: 1, format: 'json' },
+		{ artifact: 'paper_manifest.json', rows: 1, format: 'json' }
+	];
 
 	onMount(async () => {
 		await initializePage();
@@ -342,12 +528,26 @@
 		snapshotsUnsubscribe = subscribeToResearchSnapshots((rows) => {
 			researchSnapshots = rows || [];
 		});
+		protocolsUnsubscribe = subscribeToResearchProtocols((rows) => {
+			researchProtocols = rows || [];
+			if (!selectedProtocolId && researchProtocols.length > 0) {
+				selectProtocol(researchProtocols[0]);
+			}
+		});
+		modelsUnsubscribe = subscribeToResearchModels((rows) => {
+			researchModelsRegistry = rows || [];
+			if (!selectedModelId && researchModelsRegistry.length > 0) {
+				selectModel(researchModelsRegistry[0]);
+			}
+		});
 	});
 
 	onDestroy(() => {
 		try {
 			jobsUnsubscribe?.();
 			snapshotsUnsubscribe?.();
+			protocolsUnsubscribe?.();
+			modelsUnsubscribe?.();
 		} catch {
 			// no-op
 		}
@@ -412,10 +612,14 @@
 			<div class="button-stack">
 				<button on:click={() => exportCsv(`analysis_master-${sourceLabel}.csv`, analysis?.analysisMasterRows || [], masterColumns)} disabled={!analysis}>analysis_master.csv</button>
 				<button on:click={() => exportCsv(`policy_training-${sourceLabel}.csv`, analysis?.policyTrainingRows || [], policyColumns)} disabled={!analysis}>policy_training.csv</button>
+				<button on:click={() => exportCsv(`study_randomization-${sourceLabel}.csv`, analysis?.studyRandomizationRows || [], studyRandomizationColumns)} disabled={!analysis}>study_randomization.csv</button>
+				<button on:click={() => exportCsv(`participant_survey-${sourceLabel}.csv`, analysis?.participantSurveyRows || [], participantSurveyColumns)} disabled={!analysis}>participant_survey.csv</button>
+				<button on:click={() => exportCsv(`human_policy_eval-${sourceLabel}.csv`, analysis?.humanPolicyEvalRows || [], humanPolicyEvalColumns)} disabled={!analysis}>human_policy_eval.csv</button>
 				<button on:click={() => exportCsv(`policy_comparison-${sourceLabel}.csv`, analysis?.policyComparisons || [], getPolicyComparisonExportColumns())} disabled={!analysis}>policy_comparison.csv</button>
 				<button on:click={() => exportCsv(`ope_summary-${sourceLabel}.csv`, analysis?.opeSummary || [], getOpeSummaryExportColumns())} disabled={!analysis}>ope_summary.csv</button>
 				<button on:click={() => exportCsv(`sandbox_summary-${sourceLabel}.csv`, analysis?.sandboxSummary || [], getSandboxSummaryExportColumns())} disabled={!analysis}>sandbox_summary.csv</button>
 				<button on:click={() => exportJson(`dataset_snapshot-${sourceLabel}.json`, analysis?.datasetSnapshot || {})} disabled={!analysis}>dataset_snapshot.json</button>
+				<button on:click={() => exportJson(`paper_manifest-${sourceLabel}.json`, analysis?.paperManifest || {})} disabled={!analysis}>paper_manifest.json</button>
 				<button on:click={() => exportJson(`research_metadata-${sourceLabel}.json`, analysis?.metadata || {})} disabled={!analysis}>research_metadata.json</button>
 				<button on:click={saveCurrentSnapshot} disabled={!analysis}>Save Snapshot</button>
 			</div>
@@ -424,7 +628,7 @@
 		<div class="rail-card">
 			<p class="rail-label">Sections</p>
 			<div class="tab-list">
-				{#each ['dataset', 'behavior', 'policies', 'ope', 'sandbox', 'jobs', 'paper'] as section}
+				{#each sectionOrder as section}
 					<button class:active={activeSection === section} on:click={() => activeSection = section}>
 						{section}
 					</button>
@@ -464,6 +668,11 @@
 					<p class="eyebrow">Paper Readiness</p>
 					<h2>{analysis.datasetSnapshot?.qa_report?.paper_ready ? 'Ready' : 'Blocked'}</h2>
 					<p>{analysis.datasetSnapshot?.qa_report?.blockers?.join(', ') || 'No blockers'}</p>
+				</div>
+				<div class="hero-card">
+					<p class="eyebrow">Protocol</p>
+					<h2>{analysis.studyProtocolSummary?.protocol_id || 'Draft'}</h2>
+					<p>{analysis.studyProtocolSummary?.target_venue || 'CHI/CSCW'}</p>
 				</div>
 				<div class="hero-card">
 					<p class="eyebrow">Jobs</p>
@@ -529,6 +738,51 @@
 								{/each}
 							</tbody>
 						</table>
+					</div>
+				</section>
+			{:else if activeSection === 'protocol'}
+				<section class="panel-grid">
+					<div class="panel">
+						<div class="panel-header"><h3>Active Protocol</h3></div>
+						<div class="kv-grid">
+							<div><span>Protocol ID</span><strong>{analysis.studyProtocolSummary?.protocol_id || '-'}</strong></div>
+							<div><span>Venue</span><strong>{analysis.studyProtocolSummary?.target_venue || 'CHI/CSCW'}</strong></div>
+							<div><span>Enabled</span><strong>{analysis.studyProtocolSummary?.enabled ? 'Yes' : 'No'}</strong></div>
+							<div><span>Survey Rows</span><strong>{analysis.participantSurveyRows?.length || 0}</strong></div>
+						</div>
+						<table>
+							<thead><tr><th>Phase</th><th>Planned</th><th>Actual</th><th>Recommendations</th></tr></thead>
+							<tbody>
+								{#each protocolPhaseRows as row}
+									<tr>
+										<td>{row.phase}</td>
+										<td>{row.planned_rounds}</td>
+										<td>{row.actual_rounds}</td>
+										<td>{row.recommendations_enabled ? 'Enabled' : 'Off'}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+
+					<div class="panel">
+						<div class="panel-header"><h3>Stored Protocols</h3></div>
+						<select bind:value={selectedProtocolId} on:change={() => selectProtocol(researchProtocols.find((entry) => entry.protocol_id === selectedProtocolId) || null)}>
+							<option value="">New draft</option>
+							{#each researchProtocols as protocol}
+								<option value={protocol.protocol_id}>{protocol.protocol_id}</option>
+							{/each}
+						</select>
+						<div class="button-row">
+							<button on:click={createNewProtocolDraft}>New Draft</button>
+							<button class="primary" on:click={saveProtocolDraft}>Save Protocol</button>
+						</div>
+						<p class="muted">Phase plan, policy arms, target venue, and action-mask version all live in this JSON draft.</p>
+					</div>
+
+					<div class="panel span-2">
+						<div class="panel-header"><h3>Protocol JSON Editor</h3></div>
+						<textarea bind:value={protocolEditorText} rows="18"></textarea>
 					</div>
 				</section>
 			{:else if activeSection === 'behavior'}
@@ -697,6 +951,124 @@
 						</table>
 					</div>
 				</section>
+			{:else if activeSection === 'studyqa'}
+				<section class="panel-grid">
+					<div class="panel">
+						<div class="panel-header"><h3>Study QA Summary</h3></div>
+						<div class="kv-grid">
+							<div><span>Responses</span><strong>{surveySummary.responses ?? 0}</strong></div>
+							<div><span>Participants With Survey</span><strong>{surveySummary.participants_with_survey ?? 0}</strong></div>
+							<div><span>Participants With Decisions</span><strong>{surveySummary.participants_with_decisions ?? 0}</strong></div>
+							<div><span>Coverage</span><strong>{formatPct(surveySummary.survey_coverage_rate)}</strong></div>
+						</div>
+					</div>
+
+					<div class="panel">
+						<div class="panel-header"><h3>Arm Balance</h3></div>
+						<table>
+							<thead><tr><th>Arm</th><th>Participants</th></tr></thead>
+							<tbody>
+								{#each studyArmRows as row}
+									<tr><td>{row.assigned_arm}</td><td>{row.participant_count}</td></tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+
+					<div class="panel span-2">
+						<div class="panel-header"><h3>Randomization Rows</h3></div>
+						<table>
+							<thead><tr><th>Participant</th><th>Arm</th><th>Policy</th><th>Assigned</th><th>Decisions</th></tr></thead>
+							<tbody>
+								{#if (analysis.studyRandomizationRows || []).length === 0}
+									<tr><td colspan="5">No study randomization rows yet</td></tr>
+								{:else}
+									{#each (analysis.studyRandomizationRows || []).slice(0, 30) as row}
+										<tr>
+											<td>{row.participant_id}</td>
+											<td>{row.assigned_arm || '-'}</td>
+											<td>{row.policy_name || '-'}</td>
+											<td>{row.assigned_at || '-'}</td>
+											<td>{row.decision_count}</td>
+										</tr>
+									{/each}
+								{/if}
+							</tbody>
+						</table>
+					</div>
+				</section>
+			{:else if activeSection === 'modelregistry'}
+				<section class="panel-grid">
+					<div class="panel">
+						<div class="panel-header"><h3>Registry Summary</h3></div>
+						<div class="kv-grid">
+							<div><span>Total Models</span><strong>{analysis.metadata?.model_registry?.total_models ?? researchModelsRegistry.length}</strong></div>
+							<div><span>Active</span><strong>{analysis.metadata?.model_registry?.active_models ?? researchModelsRegistry.filter((entry) => entry.is_active).length}</strong></div>
+							<div><span>Simulation Only</span><strong>{analysis.metadata?.model_registry?.simulation_only_models ?? researchModelsRegistry.filter((entry) => entry.simulation_only).length}</strong></div>
+							<div><span>Snapshot</span><strong>{analysis.datasetSnapshot?.snapshot_id || '-'}</strong></div>
+						</div>
+					</div>
+
+					<div class="panel">
+						<div class="panel-header"><h3>Stored Models</h3></div>
+						<select bind:value={selectedModelId} on:change={() => selectModel(researchModelsRegistry.find((entry) => entry.model_id === selectedModelId) || null)}>
+							<option value="">New draft</option>
+							{#each researchModelsRegistry as model}
+								<option value={model.model_id}>{model.model_id}</option>
+							{/each}
+						</select>
+						<div class="button-row">
+							<button on:click={createNewModelDraft}>New Draft</button>
+							<button class="primary" on:click={saveModelDraft}>Save Model</button>
+						</div>
+						<p class="muted">The registry stores CQL, IQL, contextual bandit, and simulator-only DQN recommendations by scenario.</p>
+					</div>
+
+					<div class="panel span-2">
+						<div class="panel-header"><h3>Model JSON Editor</h3></div>
+						<textarea bind:value={modelEditorText} rows="18"></textarea>
+					</div>
+				</section>
+			{:else if activeSection === 'humanresults'}
+				<section class="panel-grid">
+					<div class="panel">
+						<div class="panel-header"><h3>Human Policy Evaluation</h3></div>
+						<table>
+							<thead><tr><th>Scope</th><th>Group</th><th>Arm</th><th>N</th><th>Score Ratio</th><th>Regret</th><th>Trust</th></tr></thead>
+							<tbody>
+								{#each analysis.humanPolicyEvalRows || [] as row}
+									<tr>
+										<td>{row.scope}</td>
+										<td>{row.group_value}</td>
+										<td>{row.policy_arm || row.policy_name}</td>
+										<td>{row.n_decisions}</td>
+										<td>{formatNum(row.mean_score_ratio)}</td>
+										<td>{formatPct(row.mean_regret)}</td>
+										<td>{formatNum(row.mean_trust_rating, 2)}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+
+					<div class="panel">
+						<div class="panel-header"><h3>Participant Survey Rows</h3></div>
+						<table>
+							<thead><tr><th>Participant</th><th>Scope</th><th>Trust</th><th>Usefulness</th><th>Workload</th></tr></thead>
+							<tbody>
+								{#each (analysis.participantSurveyRows || []).slice(0, 25) as row}
+									<tr>
+										<td>{row.participant_id}</td>
+										<td>{row.response_scope}</td>
+										<td>{row.trust_rating}</td>
+										<td>{row.usefulness_rating}</td>
+										<td>{row.workload_rating}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</section>
 			{:else if activeSection === 'jobs'}
 				<section class="panel-grid">
 					<div class="panel">
@@ -751,6 +1123,42 @@
 						</table>
 					</div>
 				</section>
+			{:else if activeSection === 'artifacts'}
+				<section class="panel-grid">
+					<div class="panel">
+						<div class="panel-header"><h3>Artifact Package</h3></div>
+						<table>
+							<thead><tr><th>Artifact</th><th>Format</th><th>Rows</th></tr></thead>
+							<tbody>
+								{#each artifactRows as row}
+									<tr><td>{row.artifact}</td><td>{row.format}</td><td>{row.rows}</td></tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+
+					<div class="panel">
+						<div class="panel-header"><h3>Paper Manifest Summary</h3></div>
+						<div class="kv-grid">
+							<div><span>Snapshot ID</span><strong>{analysis.paperManifest?.dataset_snapshot?.snapshot_id || '-'}</strong></div>
+							<div><span>Feature Version</span><strong>{analysis.paperManifest?.dataset_snapshot?.feature_version || '-'}</strong></div>
+							<div><span>Paper Ready</span><strong>{analysis.paperManifest?.dataset_snapshot?.paper_ready ? 'Yes' : 'No'}</strong></div>
+							<div><span>Registered Models</span><strong>{analysis.paperManifest?.model_registry?.total_models ?? 0}</strong></div>
+						</div>
+					</div>
+
+					<div class="panel span-2">
+						<div class="panel-header"><h3>Manifest Exports</h3></div>
+						<table>
+							<thead><tr><th>Export</th><th>Included</th></tr></thead>
+							<tbody>
+								{#each analysis.paperManifest?.exports || [] as item}
+									<tr><td>{item}</td><td>Yes</td></tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</section>
 			{:else if activeSection === 'paper'}
 				<section class="panel-grid">
 					<div class="panel">
@@ -758,6 +1166,8 @@
 						<p><strong>Research Playbook</strong><br /><span class="muted">docs/current/RESEARCH_PLAYBOOK.md</span></p>
 						<p><strong>Paper Analysis Workflow</strong><br /><span class="muted">docs/current/PAPER_ANALYSIS_WORKFLOW.md</span></p>
 						<p><strong>Analytics and RL Exports</strong><br /><span class="muted">docs/current/ANALYTICS_AND_RL_EXPORTS.md</span></p>
+						<p><strong>CHI/CSCW DRL Roadmap</strong><br /><span class="muted">docs/current/CHI_CSCW_DRL_ROADMAP.md</span></p>
+						<p><strong>Venue Positioning and Scoring</strong><br /><span class="muted">docs/current/VENUE_POSITIONING_AND_SCORING.md</span></p>
 					</div>
 
 					<div class="panel">
@@ -782,6 +1192,36 @@
 								<tr><td>Blockers</td><td>{analysis.datasetSnapshot?.qa_report?.blockers?.join(', ') || 'None'}</td></tr>
 								<tr><td>Row Sources</td><td>{rowSourceRows.map((row) => `${row.source}: ${row.count}`).join(' | ')}</td></tr>
 								<tr><td>Policy Rows</td><td>{analysis.policyTrainingRows?.length || 0}</td></tr>
+							</tbody>
+						</table>
+					</div>
+
+					<div class="panel span-2">
+						<div class="panel-header"><h3>Venue Positioning</h3></div>
+						<table>
+							<thead><tr><th>Venue</th><th>Best Current Framing</th><th>Evidence To Lead With</th></tr></thead>
+							<tbody>
+								<tr><td>CHI/CSCW</td><td>Human decision-making and decision support</td><td>Learning, regret, optimality, survey completion, qualitative strategy notes</td></tr>
+								<tr><td>RecSys</td><td>Interactive recommendation benchmark</td><td>Policy baselines, OPE, held-out reward/regret, reproducible snapshots</td></tr>
+								<tr><td>FAccT/EAAMO</td><td>Sociotechnical decision support</td><td>Accountability, participant burden, labor framing, access/equity limits</td></tr>
+							</tbody>
+						</table>
+					</div>
+
+					<div class="panel span-2">
+						<div class="panel-header"><h3>Score Policy</h3></div>
+						<p class="muted">
+							Admin CSV `total_score` is a class-relative delivery score: 70% outcome, 20% normalized
+							optimal-rate, and 10% normalized progress. It is useful for class reporting, but paper claims
+							should lead with decomposed research metrics.
+						</p>
+						<table>
+							<thead><tr><th>Use</th><th>Metric</th><th>Role</th></tr></thead>
+							<tbody>
+								<tr><td>Paper primary</td><td>score_ratio_to_best / regret</td><td>Decision quality against oracle bundles</td></tr>
+								<tr><td>Paper primary</td><td>exact and near-optimal rates</td><td>Interpretable choice-quality outcomes</td></tr>
+								<tr><td>Paper secondary</td><td>earnings, rounds, timing</td><td>Task performance, productivity, and burden</td></tr>
+								<tr><td>Admin/class</td><td>total_score</td><td>Single spreadsheet score, not a standalone research claim</td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -905,6 +1345,12 @@
 		gap: 0.55rem;
 	}
 
+	.button-row {
+		display: flex;
+		gap: 0.6rem;
+		flex-wrap: wrap;
+	}
+
 	.tab-list button.active {
 		background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(8, 145, 178, 0.85));
 	}
@@ -939,7 +1385,7 @@
 	}
 
 	.hero-grid {
-		grid-template-columns: repeat(4, minmax(0, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 	}
 
 	.hero-card, .panel, .empty-panel {

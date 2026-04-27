@@ -10,10 +10,14 @@ From the admin research console or the offline CLI, generate:
 
 - `analysis_master.csv`
 - `policy_training.csv`
+- `study_randomization.csv`
+- `participant_survey.csv`
+- `human_policy_eval.csv`
 - `policy_comparison.csv`
 - `ope_summary.csv`
 - `sandbox_summary.csv`
 - `dataset_snapshot.json`
+- `paper_manifest.json`
 - `run_metadata.json`
 
 Record the dataset root, dataset version, feature version, and snapshot id in the project notes for the paper.
@@ -45,6 +49,11 @@ Suggested figures:
 - mean regret by phase
 - chosen bundle size histogram
 - trajectory segment counts
+
+For treatment-aware runs, also build:
+
+- arm-level score-ratio and regret plots from `human_policy_eval.csv`
+- survey summaries for trust, usefulness, and workload from `participant_survey.csv`
 
 ## Step 4. Build Recommendation Baselines
 

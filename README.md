@@ -187,6 +187,36 @@ Qualtrics.SurveyEngine.addOnUnload(function () {
 });
 ```
 
+### Qualtrics Response Sync
+
+The admin dashboard can join completed game runs to completed Qualtrics responses. Keep Qualtrics credentials private; never add the API token to a `VITE_` variable.
+
+1. Rotate any API token that has been pasted into chat or committed anywhere.
+2. In `.env`, set:
+   - `QUALTRICS_API_TOKEN`
+   - `QUALTRICS_DATACENTER_ID` such as `iad1`
+   - `QUALTRICS_SURVEY_ID` such as `SV_...`
+3. In the Bundlegame Qualtrics survey flow, add embedded data fields:
+   - `bundleGameUserId`
+   - `bundleGameResultCode`
+   - `bundleGameSaveStatus`
+4. In the Qualtrics question that embeds the game, use the postMessage listener above so those embedded fields are populated.
+5. After responses are recorded, run:
+
+```bash
+npm run qualtrics:sync
+```
+
+The sync script exports completed survey responses from Qualtrics, normalizes the embedded game fields, and writes rows to `QualtricsResponses` plus a run log in `QualtricsSyncRuns`. If API sync is unavailable, `/admin` also has an **Import Qualtrics CSV** fallback. The Scores table only includes students with both a completed game run and a matched completed Qualtrics response.
+
+To export the class spreadsheet and its separate class-average summary, run:
+
+```bash
+npm run scores:export
+```
+
+This writes `bundlegame-scores-YYYY-MM-DD.csv` and `bundlegame-score-class-averages-YYYY-MM-DD.csv` under `data analysis/`. The admin `total_score` is a class-facing composite, not the primary paper metric; see [docs/current/VENUE_POSITIONING_AND_SCORING.md](docs/current/VENUE_POSITIONING_AND_SCORING.md).
+
 ### Results Page Improvements
 
 - Result hydration now falls back across summary and progress data so `earnings`, `optimalChoices`, `roundsCompleted`, and `totalGameTime` do not disappear on newer records.

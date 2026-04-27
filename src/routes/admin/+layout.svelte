@@ -30,7 +30,8 @@
         { label: 'Live Class', href: '/admin/live' },
         { label: 'Master Data', href: '/admin/masterdata' },
         { label: 'Results', href: '/admin/results' },
-        { label: 'Analysis', href: '/admin/analysis' }
+        { label: 'Analysis', href: '/admin/analysis' },
+        { label: 'Research', href: '/admin/research' }
     ];
     
     function isActive(href) {

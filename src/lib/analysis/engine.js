@@ -1,4 +1,11 @@
 import { applySharedItemBundleSavings } from "../bundleTime.js";
+import {
+  mergeResearchStudyState,
+  normalizeRankedBundles,
+  normalizeResearchModel,
+  normalizeResearchStudyProtocol,
+  normalizeResearchStudyState,
+} from "../researchStudy.js";
 
 export const NEAR_OPTIMAL_THRESHOLD = 0.95;
 export const DEFAULT_BOOTSTRAP_B = 500;
@@ -26,15 +33,27 @@ export const DECISION_FACT_EXPORT_COLUMNS = [
   "scenario_id",
   "classification",
   "phase",
+  "study_protocol_id",
+  "policy_arm",
+  "policy_name",
+  "policy_version",
+  "dataset_snapshot_id",
+  "legal_action_mask_version",
+  "recommendation_source",
   "current_city",
   "chosen_orders",
   "best_bundle_ids",
   "second_best_bundle_ids",
+  "shown_ranked_bundles",
   "bundle_size",
   "success",
   "is_failure",
   "duration",
   "participant_earnings",
+  "logged_reward",
+  "trust_rating",
+  "usefulness_rating",
+  "workload_rating",
   "participant_modeled_time",
   "participant_score",
   "best_score",
@@ -82,6 +101,13 @@ export const ANALYSIS_MASTER_EXPORT_COLUMNS = [
   "phase",
   "phase_progress_index",
   "classification",
+  "study_protocol_id",
+  "policy_arm",
+  "policy_name",
+  "policy_version",
+  "dataset_snapshot_id",
+  "legal_action_mask_version",
+  "recommendation_source",
   "scenario_id",
   "current_city",
   "scenario_max_bundle",
@@ -89,6 +115,7 @@ export const ANALYSIS_MASTER_EXPORT_COLUMNS = [
   "scenario_order_ids",
   "shown_recommendation_status",
   "shown_recommendation_bundle_ids",
+  "shown_ranked_bundles",
   "recommendation_quality",
   "followed_recommendation",
   "shown_recommendation_score",
@@ -104,6 +131,10 @@ export const ANALYSIS_MASTER_EXPORT_COLUMNS = [
   "is_failure",
   "duration",
   "participant_earnings",
+  "logged_reward",
+  "trust_rating",
+  "usefulness_rating",
+  "workload_rating",
   "participant_modeled_time",
   "participant_score",
   "best_score",
@@ -155,6 +186,10 @@ export const POLICY_TRAINING_EXPORT_COLUMNS = [
   "state_qa_completed_game_mismatch",
   "state_qa_missing_recommendation_labels",
   "phase",
+  "state_policy_arm",
+  "state_policy_name",
+  "state_policy_version",
+  "state_dataset_snapshot_id",
   "classification",
   "scenario_id",
   "state_current_city",
@@ -188,6 +223,9 @@ export const POLICY_TRAINING_EXPORT_COLUMNS = [
   "next_prior_optimal_rate",
   "next_prior_failure_rate",
   "next_prior_mean_regret",
+  "state_trust_rating",
+  "state_usefulness_rating",
+  "state_workload_rating",
   "done",
 ];
 
@@ -269,6 +307,63 @@ export const SANDBOX_SUMMARY_EXPORT_COLUMNS = [
   "mean_gap_vs_historical",
 ];
 
+export const STUDY_RANDOMIZATION_EXPORT_COLUMNS = [
+  "dataset_root",
+  "scenario_set_version_id",
+  "participant_id",
+  "study_protocol_id",
+  "target_venue",
+  "assigned_arm",
+  "policy_name",
+  "policy_version",
+  "dataset_snapshot_id",
+  "assignment_method",
+  "assigned_at",
+  "decision_count",
+  "first_round_index",
+  "last_round_index",
+  "metadata_join_status",
+];
+
+export const PARTICIPANT_SURVEY_EXPORT_COLUMNS = [
+  "dataset_root",
+  "scenario_set_version_id",
+  "participant_id",
+  "study_protocol_id",
+  "policy_arm",
+  "policy_name",
+  "policy_version",
+  "response_id",
+  "response_scope",
+  "phase",
+  "decision_round",
+  "trust_rating",
+  "usefulness_rating",
+  "workload_rating",
+  "notes",
+  "submitted_at",
+];
+
+export const HUMAN_POLICY_EVAL_EXPORT_COLUMNS = [
+  "scope",
+  "group_value",
+  "policy_arm",
+  "policy_name",
+  "policy_version",
+  "phase",
+  "n_participants",
+  "n_decisions",
+  "mean_score_ratio",
+  "mean_regret",
+  "exact_optimal_rate",
+  "failure_rate",
+  "mean_duration",
+  "recommendation_follow_rate",
+  "mean_trust_rating",
+  "mean_usefulness_rating",
+  "mean_workload_rating",
+];
+
 export const RESEARCH_FEATURE_VERSION = "research_v2";
 export const DATASET_SNAPSHOT_SCHEMA_VERSION = 1;
 
@@ -320,6 +415,18 @@ export function getOpeSummaryExportColumns() {
 
 export function getSandboxSummaryExportColumns() {
   return [...SANDBOX_SUMMARY_EXPORT_COLUMNS];
+}
+
+export function getStudyRandomizationExportColumns() {
+  return [...STUDY_RANDOMIZATION_EXPORT_COLUMNS];
+}
+
+export function getParticipantSurveyExportColumns() {
+  return [...PARTICIPANT_SURVEY_EXPORT_COLUMNS];
+}
+
+export function getHumanPolicyEvalExportColumns() {
+  return [...HUMAN_POLICY_EVAL_EXPORT_COLUMNS];
 }
 
 function makeIssue({
@@ -593,7 +700,7 @@ function computeModeledBundleTime(
   return Math.max(0, Number(discounted?.discountedTotalTime) || 0);
 }
 
-function scoreBundle({
+export function scoreBundle({
   bundleIds = [],
   ordersById = {},
   currentCity = "",
@@ -719,16 +826,55 @@ function getLatestRoundSummaries(participants = []) {
         scenario_id: String(winner.scenario_id || ""),
         classification: String(winner.classification || ""),
         phase: String(winner.phase || ""),
+        study_protocol_id: String(winner.study_protocol_id || ""),
+        policy_arm: String(winner.policy_arm || winner?.pre_state?.policy_arm || ""),
+        policy_name: String(winner.policy_name || winner?.pre_state?.policy_name || ""),
+        policy_version: String(
+          winner.policy_version || winner?.pre_state?.policy_version || "",
+        ),
+        dataset_snapshot_id: String(
+          winner.dataset_snapshot_id || winner?.pre_state?.dataset_snapshot_id || "",
+        ),
+        legal_action_mask_version: String(
+          winner.legal_action_mask_version ||
+            winner?.pre_state?.legal_action_mask_version ||
+            "",
+        ),
+        recommendation_source: String(
+          winner.recommendation_source || winner?.pre_state?.recommendation_source || "",
+        ),
         shown_recommendation_bundle_ids: normalizeIdArray(
           winner.shown_recommendation_bundle_ids ||
             winner.recommended_bundle_ids ||
             winner?.state_snapshot?.shown_recommendation_bundle_ids,
+        ),
+        shown_ranked_bundles: normalizeRankedBundles(
+          winner.shown_ranked_bundles ||
+            winner?.pre_state?.shown_ranked_bundles ||
+            winner?.state_snapshot?.shown_ranked_bundles ||
+            [],
         ),
         recommendation_quality: String(
           winner.recommendation_quality ||
             winner?.state_snapshot?.recommendation_quality ||
             "",
         ),
+        logged_reward:
+          valueToFloat(winner.reward) ??
+          valueToFloat(winner?.post_state?.reward) ??
+          null,
+        trust_rating:
+          valueToFloat(winner.trust_rating) ??
+          valueToFloat(winner?.post_state?.trust_rating) ??
+          null,
+        usefulness_rating:
+          valueToFloat(winner.usefulness_rating) ??
+          valueToFloat(winner?.post_state?.usefulness_rating) ??
+          null,
+        workload_rating:
+          valueToFloat(winner.workload_rating) ??
+          valueToFloat(winner?.post_state?.workload_rating) ??
+          null,
         stamp:
           timestampToFloat(winner.updatedAt) ||
           timestampToFloat(winner.createdAt),
@@ -764,6 +910,11 @@ function getActionSummaryReconstructedDecisions({
     const versionState = getParticipantVersionState(
       participant,
       scenarioSetVersionId,
+    );
+    const storedResearchStudy = normalizeResearchStudyState(
+      versionState?.summaryEntry?.researchStudy ||
+        versionState?.progressEntry?.researchStudy ||
+        {},
     );
     const actionsByScenarioId =
       versionState?.actionsEntry?.actionsByScenarioId &&
@@ -868,10 +1019,26 @@ function getActionSummaryReconstructedDecisions({
         scenario_id: scenarioId,
         classification: String(scenario?.classification || ""),
         phase: String(scenario?.phase || ""),
+        study_protocol_id: storedResearchStudy?.protocol_id || "",
+        policy_arm: storedResearchStudy?.assigned_arm || "",
+        policy_name: storedResearchStudy?.policy_name || "",
+        policy_version: storedResearchStudy?.policy_version || "",
+        dataset_snapshot_id: storedResearchStudy?.dataset_snapshot_id || "",
+        legal_action_mask_version:
+          storedResearchStudy?.legal_action_mask_version || "",
+        recommendation_source: shownRecommendationBundleIds.length
+          ? "scenario_metadata"
+          : "none",
         shown_recommendation_bundle_ids: shownRecommendationBundleIds,
+        shown_ranked_bundles:
+          shownRecommendationBundleIds.length > 0 ? [shownRecommendationBundleIds] : [],
         recommendation_quality: shownRecommendationBundleIds.length
           ? "unknown"
           : "none",
+        logged_reward: null,
+        trust_rating: null,
+        usefulness_rating: null,
+        workload_rating: null,
         stamp: 0,
       });
 
@@ -941,13 +1108,51 @@ function mergeDecisionSources(
         decision?.classification || existing?.classification || "",
       ),
       phase: String(decision?.phase || existing?.phase || ""),
+      study_protocol_id: String(
+        decision?.study_protocol_id || existing?.study_protocol_id || "",
+      ),
+      policy_arm: String(decision?.policy_arm || existing?.policy_arm || ""),
+      policy_name: String(decision?.policy_name || existing?.policy_name || ""),
+      policy_version: String(
+        decision?.policy_version || existing?.policy_version || "",
+      ),
+      dataset_snapshot_id: String(
+        decision?.dataset_snapshot_id || existing?.dataset_snapshot_id || "",
+      ),
+      legal_action_mask_version: String(
+        decision?.legal_action_mask_version ||
+          existing?.legal_action_mask_version ||
+          "",
+      ),
+      recommendation_source: String(
+        decision?.recommendation_source || existing?.recommendation_source || "",
+      ),
       shown_recommendation_bundle_ids: normalizeIdArray(
         decision?.shown_recommendation_bundle_ids ||
           existing?.shown_recommendation_bundle_ids,
       ),
+      shown_ranked_bundles: normalizeRankedBundles(
+        decision?.shown_ranked_bundles || existing?.shown_ranked_bundles || [],
+      ),
       recommendation_quality: String(
         decision?.recommendation_quality || existing?.recommendation_quality || "",
       ),
+      logged_reward:
+        valueToFloat(decision?.logged_reward) ??
+        valueToFloat(existing?.logged_reward) ??
+        null,
+      trust_rating:
+        valueToFloat(decision?.trust_rating) ??
+        valueToFloat(existing?.trust_rating) ??
+        null,
+      usefulness_rating:
+        valueToFloat(decision?.usefulness_rating) ??
+        valueToFloat(existing?.usefulness_rating) ??
+        null,
+      workload_rating:
+        valueToFloat(decision?.workload_rating) ??
+        valueToFloat(existing?.workload_rating) ??
+        null,
     });
   }
 
@@ -1507,7 +1712,7 @@ export function buildDecisionFacts({
       return false;
     },
   );
-  const datasetHasRecommendationLabels = Object.values(scenarioByRound).some(
+  const scenarioHasRecommendationLabels = Object.values(scenarioByRound).some(
     (scenario) =>
       getScenarioRecommendationBundleIds(
         scenario,
@@ -1544,6 +1749,14 @@ export function buildDecisionFacts({
     reconstructedDecisions,
   );
   qaIssues.push(...mergeIssues);
+  const datasetHasRecommendationLabels =
+    scenarioHasRecommendationLabels ||
+    decisions.some(
+      (decision) =>
+        normalizeIdArray(decision?.shown_recommendation_bundle_ids).length > 0 ||
+        normalizeRankedBundles(decision?.shown_ranked_bundles).length > 0 ||
+        String(decision?.policy_arm || "").trim().length > 0,
+    );
 
   function pushIssueOnce(key, issue) {
     if (issueKeys.has(key)) return;
@@ -1935,15 +2148,31 @@ export function buildDecisionFacts({
       scenario_id: scenarioId,
       classification,
       phase: String(decision.phase || scenario?.phase || ""),
+      study_protocol_id: String(decision?.study_protocol_id || ""),
+      policy_arm: String(decision?.policy_arm || ""),
+      policy_name: String(decision?.policy_name || ""),
+      policy_version: String(decision?.policy_version || ""),
+      dataset_snapshot_id: String(decision?.dataset_snapshot_id || ""),
+      legal_action_mask_version: String(
+        decision?.legal_action_mask_version || "",
+      ),
+      recommendation_source: String(decision?.recommendation_source || ""),
       current_city: currentCity,
       chosen_orders: chosenOrders,
       best_bundle_ids: bestBundleIds,
       second_best_bundle_ids: secondBestBundleIds,
+      shown_ranked_bundles: normalizeRankedBundles(
+        decision?.shown_ranked_bundles || [],
+      ),
       bundle_size: chosenOrders.length,
       success: Number(success),
       is_failure: Number(!success),
       duration: Number(decision.duration) || 0,
       participant_earnings: reportedParticipantEarnings,
+      logged_reward: valueToFloat(decision?.logged_reward),
+      trust_rating: valueToFloat(decision?.trust_rating),
+      usefulness_rating: valueToFloat(decision?.usefulness_rating),
+      workload_rating: valueToFloat(decision?.workload_rating),
       participant_modeled_time: participantModeledTime,
       participant_score: participantScoreFinal,
       best_score: bestScore,
@@ -2753,10 +2982,22 @@ function buildAnalysisMasterRows({
       {};
     const optimal = optimalByScenario[String(row?.scenario_id || "")] || {};
     const scenarioOrderIds = normalizeIdArray(scenario?.order_ids);
-    const shownRecommendationBundleIds = getScenarioRecommendationBundleIds(
-      scenario,
-      ordersById,
-      optimal,
+    const loggedShownBundles = normalizeIdArray(
+      row?.shown_recommendation_bundle_ids || [],
+    );
+    const shownRecommendationBundleIds =
+      loggedShownBundles.length > 0
+        ? loggedShownBundles
+        : getScenarioRecommendationBundleIds(
+            scenario,
+            ordersById,
+            optimal,
+          );
+    const shownRankedBundles = normalizeRankedBundles(
+      row?.shown_ranked_bundles ||
+        (shownRecommendationBundleIds.length > 0
+          ? [shownRecommendationBundleIds]
+          : []),
     );
     const shownRecommendationEval = shownRecommendationBundleIds.length
       ? scoreBundle({
@@ -2829,9 +3070,19 @@ function buildAnalysisMasterRows({
       ),
       scenario_order_count: scenarioOrderIds.length,
       scenario_order_ids: scenarioOrderIds,
+      study_protocol_id: String(row?.study_protocol_id || ""),
+      policy_arm: String(row?.policy_arm || ""),
+      policy_name: String(row?.policy_name || ""),
+      policy_version: String(row?.policy_version || ""),
+      dataset_snapshot_id: String(row?.dataset_snapshot_id || ""),
+      legal_action_mask_version: String(
+        row?.legal_action_mask_version || "",
+      ),
+      recommendation_source: String(row?.recommendation_source || ""),
       shown_recommendation_status:
         shownRecommendationBundleIds.length > 0 ? "shown" : "none",
       shown_recommendation_bundle_ids: shownRecommendationBundleIds,
+      shown_ranked_bundles: shownRankedBundles,
       recommendation_quality: recommendationQuality,
       followed_recommendation: followedRecommendation,
       shown_recommendation_score: shownRecommendationEval?.score ?? null,
@@ -2839,6 +3090,10 @@ function buildAnalysisMasterRows({
       shown_recommendation_percent_regret: shownPercentRegret,
       recommendation_helpful: recommendationHelpful,
       recommendation_harmful: recommendationHarmful,
+      logged_reward: valueToFloat(row?.logged_reward),
+      trust_rating: valueToFloat(row?.trust_rating),
+      usefulness_rating: valueToFloat(row?.usefulness_rating),
+      workload_rating: valueToFloat(row?.workload_rating),
       metadata_join_status: participant?.__metadataJoinStatus || "none",
     };
   });
@@ -2966,6 +3221,10 @@ function buildPolicyTrainingRows({
         state_qa_missing_recommendation_labels:
           row?.qa_missing_recommendation_labels,
         phase: row?.phase,
+        state_policy_arm: row?.policy_arm,
+        state_policy_name: row?.policy_name,
+        state_policy_version: row?.policy_version,
+        state_dataset_snapshot_id: row?.dataset_snapshot_id,
         classification: row?.classification,
         scenario_id: row?.scenario_id,
         state_current_city: row?.current_city,
@@ -3006,6 +3265,9 @@ function buildPolicyTrainingRows({
         next_prior_optimal_rate: nextRow?.prior_optimal_rate ?? null,
         next_prior_failure_rate: nextRow?.prior_failure_rate ?? null,
         next_prior_mean_regret: nextRow?.prior_mean_regret ?? null,
+        state_trust_rating: row?.trust_rating ?? null,
+        state_usefulness_rating: row?.usefulness_rating ?? null,
+        state_workload_rating: row?.workload_rating ?? null,
         done: Number(!nextRow),
       };
       for (const field of extraFields) {
@@ -3323,6 +3585,444 @@ function buildSplitManifest(masterRows = []) {
     test: {
       participant_count: splits.test.participant_ids.size,
       row_count: splits.test.row_count,
+    },
+  };
+}
+
+function groupBy(rows = [], keyFn = () => "") {
+  const grouped = new Map();
+  for (const row of rows) {
+    const key = keyFn(row);
+    const bucket = grouped.get(key) || [];
+    bucket.push(row);
+    grouped.set(key, bucket);
+  }
+  return grouped;
+}
+
+function buildStudyRandomizationRows({
+  participants = [],
+  masterRows = [],
+  scenarioBundle = {},
+  studyProtocol = {},
+} = {}) {
+  const scenarioSetVersionId = getScenarioSetVersionId(scenarioBundle);
+  const protocol = normalizeResearchStudyProtocol(studyProtocol, {
+    dataset_root: "",
+    scenario_set_version_id: scenarioSetVersionId,
+  });
+  const rowsByParticipant = groupBy(
+    masterRows,
+    (row) => String(row?.participant_id || ""),
+  );
+
+  return participants
+    .map((participant) => {
+      const participantId = String(participant?.id || "");
+      if (!participantId) return null;
+      const versionState = getParticipantVersionState(
+        participant,
+        scenarioSetVersionId,
+      );
+      const studyState = normalizeResearchStudyState(
+        mergeResearchStudyState(
+          versionState?.summaryEntry?.researchStudy || {},
+          versionState?.progressEntry?.researchStudy || {},
+        ),
+        {
+          protocol_id: protocol.protocol_id,
+          dataset_root: protocol.dataset_root,
+          scenario_set_version_id: protocol.scenario_set_version_id,
+          dataset_snapshot_id: protocol.dataset_snapshot_id,
+          target_venue: protocol.target_venue,
+        },
+      );
+      const participantRows = rowsByParticipant.get(participantId) || [];
+      if (
+        participantRows.length === 0 &&
+        !studyState.protocol_id &&
+        !studyState.assigned_arm &&
+        (!studyState.survey_responses || studyState.survey_responses.length === 0)
+      ) {
+        return null;
+      }
+      return {
+        dataset_root: String(
+          masterRows?.[0]?.dataset_root || protocol.dataset_root || "",
+        ),
+        scenario_set_version_id: scenarioSetVersionId || null,
+        participant_id: participantId,
+        study_protocol_id: studyState.protocol_id || protocol.protocol_id || "",
+        target_venue: studyState.target_venue || protocol.target_venue || "",
+        assigned_arm: studyState.assigned_arm || "",
+        policy_name: studyState.policy_name || "",
+        policy_version: studyState.policy_version || "",
+        dataset_snapshot_id:
+          studyState.dataset_snapshot_id || protocol.dataset_snapshot_id || "",
+        assignment_method: studyState.assignment_method || "",
+        assigned_at: studyState.assigned_at || "",
+        decision_count: participantRows.length,
+        first_round_index:
+          participantRows.length > 0
+            ? Math.min(...participantRows.map((row) => Number(row?.round_index) || 0))
+            : null,
+        last_round_index:
+          participantRows.length > 0
+            ? Math.max(...participantRows.map((row) => Number(row?.round_index) || 0))
+            : null,
+        metadata_join_status: participant?.__metadataJoinStatus || "none",
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.participant_id.localeCompare(right.participant_id));
+}
+
+function buildParticipantSurveyRows({
+  participants = [],
+  scenarioBundle = {},
+  studyRandomizationRows = [],
+} = {}) {
+  const scenarioSetVersionId = getScenarioSetVersionId(scenarioBundle);
+  const studyMap = rowsToMap(studyRandomizationRows, "participant_id");
+  const rows = [];
+
+  for (const participant of participants) {
+    const participantId = String(participant?.id || "");
+    if (!participantId) continue;
+    const versionState = getParticipantVersionState(
+      participant,
+      scenarioSetVersionId,
+    );
+    const studyState = normalizeResearchStudyState(
+      mergeResearchStudyState(
+        versionState?.summaryEntry?.researchStudy || {},
+        versionState?.progressEntry?.researchStudy || {},
+      ),
+    );
+    for (const response of studyState.survey_responses || []) {
+      const normalizedResponse = response || {};
+      rows.push({
+        dataset_root: studyMap?.[participantId]?.dataset_root || "",
+        scenario_set_version_id: scenarioSetVersionId || null,
+        participant_id: participantId,
+        study_protocol_id:
+          studyMap?.[participantId]?.study_protocol_id ||
+          studyState.protocol_id ||
+          "",
+        policy_arm:
+          studyMap?.[participantId]?.assigned_arm || studyState.assigned_arm || "",
+        policy_name:
+          studyMap?.[participantId]?.policy_name || studyState.policy_name || "",
+        policy_version:
+          studyMap?.[participantId]?.policy_version ||
+          studyState.policy_version ||
+          "",
+        response_id: normalizedResponse?.response_id || "",
+        response_scope: normalizedResponse?.response_scope || "",
+        phase: normalizedResponse?.phase || "",
+        decision_round: normalizedResponse?.decision_round ?? null,
+        trust_rating: normalizedResponse?.trust_rating ?? null,
+        usefulness_rating: normalizedResponse?.usefulness_rating ?? null,
+        workload_rating: normalizedResponse?.workload_rating ?? null,
+        notes: normalizedResponse?.notes || "",
+        submitted_at: normalizedResponse?.submitted_at || "",
+      });
+    }
+  }
+
+  return rows.sort((left, right) => {
+    if (left.participant_id !== right.participant_id) {
+      return left.participant_id.localeCompare(right.participant_id);
+    }
+    return String(left.submitted_at || "").localeCompare(
+      String(right.submitted_at || ""),
+    );
+  });
+}
+
+function buildHumanPolicyEvalRows(
+  masterRows = [],
+  studyRandomizationRows = [],
+  participantSurveyRows = [],
+) {
+  const studyMap = rowsToMap(studyRandomizationRows, "participant_id");
+  const surveyByParticipant = Object.fromEntries(
+    Object.entries(
+      participantSurveyRows.reduce((acc, row) => {
+        const key = String(row?.participant_id || "");
+        const bucket = acc[key] || [];
+        bucket.push(row);
+        acc[key] = bucket;
+        return acc;
+      }, {}),
+    ).map(([participantId, rows]) => {
+      const sorted = [...rows].sort((left, right) =>
+        String(right?.submitted_at || "").localeCompare(
+          String(left?.submitted_at || ""),
+        ),
+      );
+      return [participantId, sorted[0] || null];
+    }),
+  );
+
+  const enrichedRows = masterRows
+    .map((row) => {
+      const studyRow = studyMap[String(row?.participant_id || "")] || {};
+      const surveyRow = surveyByParticipant[String(row?.participant_id || "")] || {};
+      const policyArm = String(
+        row?.policy_arm || studyRow?.assigned_arm || "",
+      ).trim();
+      const policyName = String(
+        row?.policy_name || studyRow?.policy_name || "",
+      ).trim();
+      if (!policyArm && !policyName) return null;
+      return {
+        ...row,
+        policy_arm: policyArm,
+        policy_name: policyName,
+        policy_version: String(
+          row?.policy_version || studyRow?.policy_version || "",
+        ).trim(),
+        survey_trust_rating: valueToFloat(surveyRow?.trust_rating),
+        survey_usefulness_rating: valueToFloat(surveyRow?.usefulness_rating),
+        survey_workload_rating: valueToFloat(surveyRow?.workload_rating),
+      };
+    })
+    .filter(Boolean);
+
+  function summarize(bucket = [], scope = "overall", groupValue = "overall") {
+    const participants = new Set(
+      bucket.map((row) => String(row?.participant_id || "")).filter(Boolean),
+    );
+    return {
+      scope,
+      group_value: groupValue,
+      policy_arm: String(bucket?.[0]?.policy_arm || ""),
+      policy_name: String(bucket?.[0]?.policy_name || ""),
+      policy_version: String(bucket?.[0]?.policy_version || ""),
+      phase: scope === "phase" ? String(bucket?.[0]?.phase || "") : "",
+      n_participants: participants.size,
+      n_decisions: bucket.length,
+      mean_score_ratio: mean(
+        bucket
+          .map((row) => valueToFloat(row?.score_ratio_to_best))
+          .filter((value) => value != null),
+      ),
+      mean_regret: mean(
+        bucket
+          .map((row) => valueToFloat(row?.percent_regret))
+          .filter((value) => value != null),
+      ),
+      exact_optimal_rate: mean(
+        bucket.map((row) => Number(row?.is_exact_optimal) || 0),
+      ),
+      failure_rate: mean(bucket.map((row) => Number(row?.is_failure) || 0)),
+      mean_duration: mean(
+        bucket.map((row) => valueToFloat(row?.duration)).filter((value) => value != null),
+      ),
+      recommendation_follow_rate: mean(
+        bucket
+          .map((row) => valueToFloat(row?.followed_recommendation))
+          .filter((value) => value != null),
+      ),
+      mean_trust_rating: mean(
+        bucket
+          .map((row) => valueToFloat(row?.survey_trust_rating))
+          .filter((value) => value != null),
+      ),
+      mean_usefulness_rating: mean(
+        bucket
+          .map((row) => valueToFloat(row?.survey_usefulness_rating))
+          .filter((value) => value != null),
+      ),
+      mean_workload_rating: mean(
+        bucket
+          .map((row) => valueToFloat(row?.survey_workload_rating))
+          .filter((value) => value != null),
+      ),
+    };
+  }
+
+  const overallBuckets = groupBy(
+    enrichedRows,
+    (row) => `${String(row?.policy_arm || "")}::${String(row?.policy_name || "")}`,
+  );
+  const phaseBuckets = groupBy(
+    enrichedRows,
+    (row) =>
+      `${String(row?.policy_arm || "")}::${String(row?.policy_name || "")}::${String(
+        row?.phase || "",
+      )}`,
+  );
+
+  return [
+    ...[...overallBuckets.entries()].map(([, bucket]) =>
+      summarize(
+        bucket,
+        "overall",
+        `${String(bucket?.[0]?.policy_arm || "")}::${String(
+          bucket?.[0]?.policy_name || "",
+        )}`,
+      ),
+    ),
+    ...[...phaseBuckets.entries()].map(([, bucket]) =>
+      summarize(
+        bucket,
+        "phase",
+        `${String(bucket?.[0]?.policy_arm || "")}::${String(
+          bucket?.[0]?.phase || "",
+        )}`,
+      ),
+    ),
+  ];
+}
+
+function buildStudyQa({
+  masterRows = [],
+  scenarioBundle = {},
+  studyProtocol = {},
+  studyRandomizationRows = [],
+  participantSurveyRows = [],
+} = {}) {
+  const protocol = normalizeResearchStudyProtocol(studyProtocol);
+  const phaseCounts = Array.isArray(scenarioBundle?.scenarios)
+    ? scenarioBundle.scenarios.reduce((acc, scenario) => {
+        const key = String(scenario?.phase || "Unknown");
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {})
+    : {};
+  const armCounts = studyRandomizationRows.reduce((acc, row) => {
+    const key = String(row?.assigned_arm || "unassigned");
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const participantsWithSurvey = new Set(
+    participantSurveyRows
+      .map((row) => String(row?.participant_id || ""))
+      .filter(Boolean),
+  );
+  const participantsWithDecisions = new Set(
+    masterRows.map((row) => String(row?.participant_id || "")).filter(Boolean),
+  );
+
+  return {
+    protocol_summary: {
+      protocol_id: protocol.protocol_id,
+      title: protocol.title,
+      target_venue: protocol.target_venue,
+      enabled: protocol.enabled,
+      pilot_target_n: protocol.pilot_target_n,
+      main_target_n: protocol.main_target_n,
+      policy_arms: protocol.policy_arms.map((arm) => ({
+        id: arm.id,
+        policy_name: arm.policy_name,
+        policy_version: arm.policy_version,
+        show_recommendations: arm.show_recommendations,
+      })),
+    },
+    phase_plan_rows: protocol.phase_plan.map((phase) => ({
+      phase: phase.id,
+      label: phase.label,
+      planned_rounds: phase.rounds,
+      actual_rounds: Number(phaseCounts?.[phase.id] || 0),
+      recommendations_enabled: phase.recommendations_enabled,
+    })),
+    arm_balance_rows: Object.entries(armCounts)
+      .map(([assigned_arm, participant_count]) => ({
+        assigned_arm,
+        participant_count,
+      }))
+      .sort((left, right) => right.participant_count - left.participant_count),
+    survey_summary: {
+      responses: participantSurveyRows.length,
+      participants_with_survey: participantsWithSurvey.size,
+      participants_with_decisions: participantsWithDecisions.size,
+      survey_coverage_rate:
+        participantsWithDecisions.size > 0
+          ? participantsWithSurvey.size / participantsWithDecisions.size
+          : null,
+    },
+  };
+}
+
+function buildPaperManifest({
+  datasetSnapshot = {},
+  metadata = {},
+  studyProtocol = {},
+  researchModels = [],
+  studyQa = {},
+  humanPolicyEvalRows = [],
+} = {}) {
+  const protocol = normalizeResearchStudyProtocol(studyProtocol);
+  const models = Array.isArray(researchModels)
+    ? researchModels.map((entry) => normalizeResearchModel(entry))
+    : [];
+  return {
+    schema_version: 1,
+    generated_at: new Date().toISOString(),
+    dataset_snapshot: {
+      snapshot_id: datasetSnapshot?.snapshot_id || "",
+      dataset_root: datasetSnapshot?.dataset_root || "",
+      dataset_version: datasetSnapshot?.dataset_version || "",
+      feature_version: datasetSnapshot?.feature_version || "",
+      benchmark_only_dataset: Boolean(datasetSnapshot?.benchmark_only_dataset),
+      paper_ready: Boolean(datasetSnapshot?.qa_report?.paper_ready),
+      blockers: datasetSnapshot?.qa_report?.blockers || [],
+    },
+    study_protocol: studyQa?.protocol_summary || {
+      protocol_id: protocol.protocol_id,
+      title: protocol.title,
+      target_venue: protocol.target_venue,
+      enabled: protocol.enabled,
+    },
+    model_registry: {
+      total_models: models.length,
+      active_models: models.filter((entry) => entry.is_active).length,
+      simulation_only_models: models.filter((entry) => entry.simulation_only).length,
+      models: models.map((entry) => ({
+        model_id: entry.model_id,
+        algorithm: entry.algorithm,
+        policy_name: entry.policy_name,
+        policy_version: entry.policy_version,
+        is_active: entry.is_active,
+        simulation_only: entry.simulation_only,
+      })),
+    },
+    exports: [
+      "analysis_master.csv",
+      "policy_training.csv",
+      "study_randomization.csv",
+      "participant_survey.csv",
+      "human_policy_eval.csv",
+      "policy_comparison.csv",
+      "ope_summary.csv",
+      "sandbox_summary.csv",
+      "dataset_snapshot.json",
+      "paper_manifest.json",
+    ],
+    docs: [
+      "docs/current/RESEARCH_PLAYBOOK.md",
+      "docs/current/PAPER_ANALYSIS_WORKFLOW.md",
+      "docs/current/ANALYTICS_AND_RL_EXPORTS.md",
+      "docs/current/CHI_CSCW_DRL_ROADMAP.md",
+    ],
+    figure_checklist: [
+      "Round attrition by dataset and split",
+      "Optimal-rate curve and over-bundling evidence",
+      "Policy lift and regret summary table",
+      "Off-policy evaluation table",
+      "Simulation-only sandbox ablation table",
+      "Threats-to-validity notes and QA exclusions",
+    ],
+    human_policy_eval_summary: {
+      rows: humanPolicyEvalRows.length,
+      policy_arms: [...new Set(humanPolicyEvalRows.map((row) => row.policy_arm).filter(Boolean))],
+    },
+    metadata: {
+      snapshot_id: metadata?.snapshot_id || "",
+      generated_at: metadata?.generated_at || "",
+      feature_version: metadata?.feature_version || "",
     },
   };
 }
@@ -3769,11 +4469,13 @@ export function buildDatasetSnapshot({
   analysis = {},
   datasetRoot = "",
   scenarioBundle = {},
+  studyProtocol = {},
 } = {}) {
   const masterRows = Array.isArray(analysis?.analysisMasterRows)
     ? analysis.analysisMasterRows
     : [];
   const qaIssues = Array.isArray(analysis?.qaIssues) ? analysis.qaIssues : [];
+  const protocol = normalizeResearchStudyProtocol(studyProtocol);
   const issueTypeCounts = {};
   for (const issue of qaIssues) {
     const issueType = String(issue?.issue_type || "unknown");
@@ -3815,11 +4517,25 @@ export function buildDatasetSnapshot({
       policy_training_rows: Array.isArray(analysis?.policyTrainingRows)
         ? analysis.policyTrainingRows.length
         : 0,
+      study_randomization_rows: Array.isArray(analysis?.studyRandomizationRows)
+        ? analysis.studyRandomizationRows.length
+        : 0,
+      participant_survey_rows: Array.isArray(analysis?.participantSurveyRows)
+        ? analysis.participantSurveyRows.length
+        : 0,
+      human_policy_eval_rows: Array.isArray(analysis?.humanPolicyEvalRows)
+        ? analysis.humanPolicyEvalRows.length
+        : 0,
       row_source_counts: analysis?.metadata?.data_health?.rowSourceCounts || {},
       timestamped_rows:
         analysis?.metadata?.data_health?.timestampedDecisionRows || 0,
       reconstructed_rows:
         analysis?.metadata?.data_health?.reconstructedDecisionRows || 0,
+    },
+    study_protocol: {
+      protocol_id: protocol.protocol_id,
+      target_venue: protocol.target_venue,
+      enabled: protocol.enabled,
     },
   };
 }
@@ -3833,9 +4549,24 @@ export function computeAnalytics({
   cohortField = "configuration",
   metadataRows = [],
   metadataJoinOptions = {},
+  studyProtocol = null,
+  researchModels = [],
   bootstrapB = DEFAULT_BOOTSTRAP_B,
   seed = DEFAULT_RANDOM_SEED,
 } = {}) {
+  const normalizedStudyProtocol = normalizeResearchStudyProtocol(
+    studyProtocol ||
+      scenarioBundle?.metadata?.study_protocol ||
+      scenarioBundle?.metadata?.research_protocol ||
+      {},
+    {
+      dataset_root: datasetRoot,
+      scenario_set_version_id: getScenarioSetVersionId(scenarioBundle),
+    },
+  );
+  const normalizedResearchModels = Array.isArray(researchModels)
+    ? researchModels.map((entry) => normalizeResearchModel(entry))
+    : [];
   const metadataMerge = mergeParticipantMetadata(
     participants,
     metadataRows,
@@ -3910,6 +4641,29 @@ export function computeAnalytics({
     "trajectory_segment",
   );
   const transferSummary = buildTransferSummary(analysisMasterRows);
+  const studyRandomizationRows = buildStudyRandomizationRows({
+    participants: mergedParticipants,
+    masterRows: analysisMasterRows,
+    scenarioBundle,
+    studyProtocol: normalizedStudyProtocol,
+  });
+  const participantSurveyRows = buildParticipantSurveyRows({
+    participants: mergedParticipants,
+    scenarioBundle,
+    studyRandomizationRows,
+  });
+  const humanPolicyEvalRows = buildHumanPolicyEvalRows(
+    analysisMasterRows,
+    studyRandomizationRows,
+    participantSurveyRows,
+  );
+  const studyQa = buildStudyQa({
+    masterRows: analysisMasterRows,
+    scenarioBundle,
+    studyProtocol: normalizedStudyProtocol,
+    studyRandomizationRows,
+    participantSurveyRows,
+  });
 
   const qaIssues = [
     ...baseQaIssues,
@@ -3967,6 +4721,9 @@ export function computeAnalytics({
       decisions: decisionFacts.length,
       analysis_master_rows: analysisMasterRows.length,
       policy_training_rows: policyTrainingRows.length,
+      study_randomization_rows: studyRandomizationRows.length,
+      participant_survey_rows: participantSurveyRows.length,
+      human_policy_eval_rows: humanPolicyEvalRows.length,
       recommendation_workbench_rows:
         recommendationWorkbench.workbenchRows.length,
       qa_issues: qaIssues.length,
@@ -3987,20 +4744,47 @@ export function computeAnalytics({
       reward_policy_training_rows:
         policyEvaluation.rewardModel?.trainingRows || 0,
     },
+    study_protocol: {
+      protocol_id: normalizedStudyProtocol.protocol_id,
+      target_venue: normalizedStudyProtocol.target_venue,
+      enabled: normalizedStudyProtocol.enabled,
+      phase_count: normalizedStudyProtocol.phase_plan.length,
+      policy_arm_count: normalizedStudyProtocol.policy_arms.length,
+    },
+    model_registry: {
+      total_models: normalizedResearchModels.length,
+      active_models: normalizedResearchModels.filter((entry) => entry.is_active)
+        .length,
+      simulation_only_models: normalizedResearchModels.filter(
+        (entry) => entry.simulation_only,
+      ).length,
+    },
     generated_at: new Date().toISOString(),
   };
   const datasetSnapshot = buildDatasetSnapshot({
     analysis: {
       analysisMasterRows,
       policyTrainingRows,
+      studyRandomizationRows,
+      participantSurveyRows,
+      humanPolicyEvalRows,
       qaIssues,
       metadata,
     },
     datasetRoot,
     scenarioBundle,
+    studyProtocol: normalizedStudyProtocol,
   });
   metadata.snapshot_id = datasetSnapshot.snapshot_id;
   metadata.paper_ready = datasetSnapshot.qa_report.paper_ready;
+  const paperManifest = buildPaperManifest({
+    datasetSnapshot,
+    metadata,
+    studyProtocol: normalizedStudyProtocol,
+    researchModels: normalizedResearchModels,
+    studyQa,
+    humanPolicyEvalRows,
+  });
 
   return {
     decisionFacts,
@@ -4014,6 +4798,18 @@ export function computeAnalytics({
     participantTrajectories,
     trajectorySegments,
     transferSummary,
+    studyProtocolSummary: studyQa?.protocol_summary || {
+      protocol_id: normalizedStudyProtocol.protocol_id,
+      title: normalizedStudyProtocol.title,
+      target_venue: normalizedStudyProtocol.target_venue,
+      enabled: normalizedStudyProtocol.enabled,
+    },
+    studyQa,
+    studyRandomizationRows,
+    participantSurveyRows,
+    humanPolicyEvalRows,
+    paperManifest,
+    researchModels: normalizedResearchModels,
     policyStateRows: policyEvaluation.policyStateRows,
     policyComparisons: policyEvaluation.policyComparisons,
     opeSummary: policyEvaluation.opeSummary,

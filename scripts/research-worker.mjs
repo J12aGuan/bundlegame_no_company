@@ -122,12 +122,15 @@ async function processJob(db, job) {
       String(descriptor?.cohort_field || "").trim() || "configuration";
     const storesId = String(descriptor?.stores_id || "").trim() || "store";
     const citiesId = String(descriptor?.cities_id || "").trim() || "cities";
+    const studyProtocolId =
+      String(descriptor?.study_protocol_id || "").trim() || "";
 
     const analysis = await computeFirestoreAnalysis({
       datasetRoot,
       cohortField,
       storesId,
       citiesId,
+      studyProtocolId,
     });
     const outputDir = path.join(
       repoRoot,

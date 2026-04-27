@@ -40,6 +40,20 @@ def _normalize_id_array(value: Any) -> list[str]:
     return []
 
 
+def _normalize_ranked_bundles(value: Any) -> list[list[str]]:
+    if isinstance(value, list):
+        if all(isinstance(entry, str) for entry in value):
+            normalized = _normalize_id_array(value)
+            return [normalized] if normalized else []
+        bundles = []
+        for entry in value:
+            normalized = _normalize_id_array(entry)
+            if normalized:
+                bundles.append(normalized)
+        return bundles
+    return []
+
+
 def get_latest_round_summaries(
     participants: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -128,16 +142,31 @@ def get_latest_round_summaries(
                     "scenario_id": str(action.get("scenario_id", "") or ""),
                     "classification": str(action.get("classification", "") or ""),
                     "phase": action.get("phase", ""),
+                    "study_protocol_id": str(action.get("study_protocol_id", "") or ""),
+                    "policy_arm": str(action.get("policy_arm", "") or ""),
+                    "policy_name": str(action.get("policy_name", "") or ""),
+                    "policy_version": str(action.get("policy_version", "") or ""),
+                    "dataset_snapshot_id": str(action.get("dataset_snapshot_id", "") or ""),
+                    "legal_action_mask_version": str(action.get("legal_action_mask_version", "") or ""),
+                    "recommendation_source": str(action.get("recommendation_source", "") or ""),
                     "shown_recommendation_bundle_ids": _normalize_id_array(
                         action.get("shown_recommendation_bundle_ids")
                         or action.get("recommended_bundle_ids")
                         or ((action.get("state_snapshot") or {}).get("shown_recommendation_bundle_ids") if isinstance(action.get("state_snapshot"), dict) else [])
+                    ),
+                    "shown_ranked_bundles": _normalize_ranked_bundles(
+                        action.get("shown_ranked_bundles")
+                        or ((action.get("state_snapshot") or {}).get("shown_ranked_bundles") if isinstance(action.get("state_snapshot"), dict) else [])
                     ),
                     "recommendation_quality": str(
                         action.get("recommendation_quality")
                         or ((action.get("state_snapshot") or {}).get("recommendation_quality") if isinstance(action.get("state_snapshot"), dict) else "")
                         or ""
                     ),
+                    "logged_reward": action.get("reward"),
+                    "trust_rating": action.get("trust_rating"),
+                    "usefulness_rating": action.get("usefulness_rating"),
+                    "workload_rating": action.get("workload_rating"),
                 }
             )
 
@@ -218,6 +247,11 @@ def get_action_summary_reconstructed_decisions(
         summary_entry = summary_map.get(scenario_set_version_id, {}) if scenario_set_version_id else {}
         progress_entry = progress_map.get(scenario_set_version_id, {}) if scenario_set_version_id else {}
         actions_entry = actions_map.get(scenario_set_version_id, {}) if scenario_set_version_id else {}
+        study_state = {}
+        if isinstance(summary_entry.get("researchStudy"), dict):
+            study_state.update(summary_entry.get("researchStudy") or {})
+        if isinstance(progress_entry.get("researchStudy"), dict):
+            study_state.update(progress_entry.get("researchStudy") or {})
         actions_by_scenario = actions_entry.get("actionsByScenarioId", {}) if isinstance(actions_entry, dict) else {}
         completed = {
             str(entry).strip()
@@ -280,8 +314,20 @@ def get_action_summary_reconstructed_decisions(
                     "scenario_id": scenario_id,
                     "classification": str(scenario.get("classification", "") or ""),
                     "phase": str(scenario.get("phase", "") or ""),
+                    "study_protocol_id": str(study_state.get("protocol_id", "") or ""),
+                    "policy_arm": str(study_state.get("assigned_arm", "") or ""),
+                    "policy_name": str(study_state.get("policy_name", "") or ""),
+                    "policy_version": str(study_state.get("policy_version", "") or ""),
+                    "dataset_snapshot_id": str(study_state.get("dataset_snapshot_id", "") or ""),
+                    "legal_action_mask_version": str(study_state.get("legal_action_mask_version", "") or ""),
+                    "recommendation_source": "none",
                     "shown_recommendation_bundle_ids": [],
+                    "shown_ranked_bundles": [],
                     "recommendation_quality": "none",
+                    "logged_reward": None,
+                    "trust_rating": None,
+                    "usefulness_rating": None,
+                    "workload_rating": None,
                 }
             )
             current_city = final_location
@@ -327,9 +373,30 @@ def merge_decision_sources(
             "scenario_id": str(decision.get("scenario_id") or (existing or {}).get("scenario_id", "")),
             "classification": str(decision.get("classification") or (existing or {}).get("classification", "")),
             "phase": str(decision.get("phase") or (existing or {}).get("phase", "")),
+            "study_protocol_id": str(decision.get("study_protocol_id") or (existing or {}).get("study_protocol_id", "")),
+            "policy_arm": str(decision.get("policy_arm") or (existing or {}).get("policy_arm", "")),
+            "policy_name": str(decision.get("policy_name") or (existing or {}).get("policy_name", "")),
+            "policy_version": str(decision.get("policy_version") or (existing or {}).get("policy_version", "")),
+            "dataset_snapshot_id": str(decision.get("dataset_snapshot_id") or (existing or {}).get("dataset_snapshot_id", "")),
+            "legal_action_mask_version": str(decision.get("legal_action_mask_version") or (existing or {}).get("legal_action_mask_version", "")),
+            "recommendation_source": str(decision.get("recommendation_source") or (existing or {}).get("recommendation_source", "")),
             "shown_recommendation_bundle_ids": decision.get("shown_recommendation_bundle_ids")
             or (existing or {}).get("shown_recommendation_bundle_ids", []),
+            "shown_ranked_bundles": decision.get("shown_ranked_bundles")
+            or (existing or {}).get("shown_ranked_bundles", []),
             "recommendation_quality": str(decision.get("recommendation_quality") or (existing or {}).get("recommendation_quality", "")),
+            "logged_reward": decision.get("logged_reward")
+            if decision.get("logged_reward") is not None
+            else (existing or {}).get("logged_reward"),
+            "trust_rating": decision.get("trust_rating")
+            if decision.get("trust_rating") is not None
+            else (existing or {}).get("trust_rating"),
+            "usefulness_rating": decision.get("usefulness_rating")
+            if decision.get("usefulness_rating") is not None
+            else (existing or {}).get("usefulness_rating"),
+            "workload_rating": decision.get("workload_rating")
+            if decision.get("workload_rating") is not None
+            else (existing or {}).get("workload_rating"),
         }
 
     decisions = sorted(merged.values(), key=lambda row: (str(row.get("participant_id", "")), int(row.get("round_index", 0) or 0)))

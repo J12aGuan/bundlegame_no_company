@@ -1,8 +1,9 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, notifyTutorialRoundProgress, finalizeMainGameSession, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction } from "$lib/bundle.js"
-    import { storeConfig, getCityTravelInfo } from "$lib/config.js";
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, getScenarioStudyRecommendation, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, notifyTutorialRoundProgress, finalizeMainGameSession, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction } from "$lib/bundle.js"
+    import { scoreBundle } from "$lib/analysis/engine.js";
+    import { storeConfig, getActiveCitiesDataset, getActiveStoreDataset, getCityTravelInfo } from "$lib/config.js";
     
     let config = {}; // Will be set properly in onMount()
     let GameState = 0; // 0:Start, 1:Picking, 2:Moving, 3:Success, 4:Error, 5:Delivery
@@ -82,16 +83,62 @@
         return value.map((entry) => String(entry ?? '').trim()).filter(Boolean);
     }
 
-    function getShownRecommendationBundleIds(scenario, optimal) {
-        for (const key of ['recommended_order_ids', 'recommendedOrderIds', 'recommended_orders', 'recommendedOrders', 'recommended_bundle_ids', 'recommendedBundleIds']) {
-            const ids = normalizeBundleIds(scenario?.[key]);
-            if (ids.length > 0) return ids;
-        }
-        for (const key of ['recommended_bundle_ids', 'recommendedBundleIds']) {
-            const ids = normalizeBundleIds(optimal?.[key]);
-            if (ids.length > 0) return ids;
-        }
-        return [];
+    function buildOrdersById(scenario) {
+        const entries = Array.isArray(scenario?.orders) ? scenario.orders : [];
+        return Object.fromEntries(
+            entries
+                .map((order) => [String(order?.id ?? '').trim(), order])
+                .filter(([id]) => id.length > 0)
+        );
+    }
+
+    function computeDecisionOutcomeMetrics({
+        scenario,
+        optimal,
+        currentCity,
+        chosenOrderIds
+    }) {
+        const ordersById = buildOrdersById(scenario);
+        const storeDataset = getActiveStoreDataset();
+        const citiesDataset = getActiveCitiesDataset();
+        const chosenEval = scoreBundle({
+            bundleIds: chosenOrderIds,
+            ordersById,
+            currentCity,
+            citiesDataset,
+            storeDataset
+        });
+        const bestBundleIds = Array.isArray(optimal?.best_bundle_ids) ? optimal.best_bundle_ids : [];
+        const bestEval = bestBundleIds.length > 0
+            ? scoreBundle({
+                bundleIds: bestBundleIds,
+                ordersById,
+                currentCity,
+                citiesDataset,
+                storeDataset
+            })
+            : null;
+        const bestScore = Number(bestEval?.score) || 0;
+        const chosenScore = Number(chosenEval?.score) || 0;
+        const scoreRatioToBest = bestScore > 0 ? chosenScore / bestScore : null;
+        const percentRegret = scoreRatioToBest == null ? null : Math.max(0, 1 - scoreRatioToBest);
+        const chosenSorted = [...chosenOrderIds].map((id) => String(id ?? '').trim()).sort();
+        const bestSorted = [...bestBundleIds].map((id) => String(id ?? '').trim()).sort();
+        const secondBestSorted = Array.isArray(optimal?.second_best_bundle_ids)
+            ? optimal.second_best_bundle_ids.map((id) => String(id ?? '').trim()).sort()
+            : [];
+        return {
+            reward: scoreRatioToBest ?? 0,
+            scoreRatioToBest,
+            percentRegret,
+            participantScore: chosenEval?.score ?? null,
+            bestScore: bestEval?.score ?? null,
+            isExactOptimal: bestSorted.length > 0
+                && bestSorted.length === chosenSorted.length
+                && bestSorted.every((id, index) => id === chosenSorted[index]),
+            isNearOptimal: scoreRatioToBest != null && scoreRatioToBest >= 0.95,
+            secondBestBundleIds: secondBestSorted
+        };
     }
 
     function formatCountdown(seconds) {
@@ -737,16 +784,23 @@
         const duration = $elapsed - startTimer; // Calculate directly
         const chosenOrderIds = $orders.map(o => o.id);
         const optimal = getOptimalForScenario(scenarioId);
-        const shownRecommendationBundleIds = getShownRecommendationBundleIds(scenario, optimal);
+        const recommendationContext = getScenarioStudyRecommendation(scenario);
+        const shownRecommendationBundleIds = normalizeBundleIds(recommendationContext?.shown_bundle_ids || []);
+        const shownRankedBundles = Array.isArray(recommendationContext?.shown_ranked_bundles)
+            ? recommendationContext.shown_ranked_bundles
+            : [];
         const chosenSorted = [...chosenOrderIds].map((id) => String(id ?? '').trim()).sort();
         const shownSorted = [...shownRecommendationBundleIds].map((id) => String(id ?? '').trim()).sort();
         const bestSorted = Array.isArray(optimal?.best_bundle_ids)
             ? optimal.best_bundle_ids.map((id) => String(id ?? '').trim()).sort()
             : [];
-        const isOptimalChoice = success
-            && bestSorted.length > 0
-            && bestSorted.length === chosenSorted.length
-            && bestSorted.every((id, index) => id === chosenSorted[index]);
+        const outcomeMetrics = computeDecisionOutcomeMetrics({
+            scenario,
+            optimal,
+            currentCity: roundStartCity,
+            chosenOrderIds
+        });
+        const isOptimalChoice = success && outcomeMetrics.isExactOptimal;
         if (isOptimalChoice) {
             incrementOptimalChoices();
         }
@@ -768,16 +822,24 @@
             phase: String(scenario?.phase ?? '').trim(),
             classification: String(scenario?.classification ?? '').trim(),
             shownRecommendationBundleIds,
+            shownRankedBundles,
+            recommendationContext,
             recommendationQuality: shownRecommendationBundleIds.length === 0
                 ? 'none'
                 : bestSorted.length > 0 && bestSorted.length === shownSorted.length
                     && bestSorted.every((id, index) => id === shownSorted[index])
                     ? 'optimal'
                     : 'suboptimal',
+            maxBundle: Number(scenario?.max_bundle) || 0,
             completedGame,
             roundsCompleted: get(uniqueSets) + (success ? 1 : 0),
             optimalChoices: get(optimalChoices),
-            earnings: get(earned) + (success ? totalEarnings : 0)
+            earnings: get(earned) + (success ? totalEarnings : 0),
+            reward: success ? (outcomeMetrics.reward ?? 0) : 0,
+            scoreRatioToBest: success ? outcomeMetrics.scoreRatioToBest : 0,
+            percentRegret: success ? outcomeMetrics.percentRegret : null,
+            isExactOptimal: success ? outcomeMetrics.isExactOptimal : 0,
+            isNearOptimal: success ? outcomeMetrics.isNearOptimal : 0
         });
 
         if (success && !completedGame) currentRound.update(r => r + 1);

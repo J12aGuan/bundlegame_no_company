@@ -5,8 +5,17 @@ import {
     getCentralConfig, getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getCitiesData, getEmojisData,
     getScenarioDatasetBundle, initializeUserProgress, saveUserProgressSummary,
     getScenarioSetProgress, saveScenarioSetProgress, getActionSummaries, saveActionSummaries, getDetailedActionSummaries, saveDetailedActionSummaries, getUserSummary,
-    getActiveLiveSession, upsertLiveSessionParticipant, saveRoundSummaryAction
+    getActiveLiveSession, listResearchModels, listResearchProtocols, saveParticipantStudySurveyResponse as persistParticipantStudySurveyResponse, upsertLiveSessionParticipant, saveRoundSummaryAction
 } from './firebaseDB';
+import {
+    DEFAULT_ACTION_MASK_VERSION,
+    assignStudyArm,
+    mergeResearchStudyState,
+    normalizeResearchModel,
+    normalizeResearchStudyProtocol,
+    normalizeResearchStudyState,
+    resolveRecommendationSlate
+} from './researchStudy.js';
 
 import { switchJob, setPenaltyTimeout } from './config';
 
@@ -171,6 +180,9 @@ export const scenarioSetProgress = writable({
 });
 export const scenarioActions = writable({});
 export const detailedScenarioActions = writable({});
+export const studyProtocol = writable(normalizeResearchStudyProtocol({ enabled: false }));
+export const participantStudyState = writable(normalizeResearchStudyState({}));
+export const researchModels = writable([]);
 
 export const needsAuth = writable(config["auth"])
 
@@ -190,6 +202,120 @@ export function getOptimalForScenario(scenarioId) {
 	const id = String(scenarioId ?? '').trim();
 	if (!id) return null;
 	return optimalByScenarioId.get(id) ?? null;
+}
+
+function getDatasetRoot() {
+	return String(config.scenario_set || 'experiment').trim() || 'experiment';
+}
+
+function getMatchingResearchProtocol(protocols = [], datasetBundle = {}) {
+	const datasetRoot = getDatasetRoot();
+	const versionId = String(datasetBundle?.metadata?.scenarioSetVersionId || '').trim();
+	const normalizedProtocols = (Array.isArray(protocols) ? protocols : [])
+		.map((entry) => normalizeResearchStudyProtocol(entry))
+		.filter((entry) => entry.protocol_id);
+	const matching = normalizedProtocols.filter((entry) => {
+		const protocolDatasetRoot = String(entry?.dataset_root || '').trim();
+		const protocolVersionId = String(entry?.scenario_set_version_id || '').trim();
+		return (
+			(!protocolDatasetRoot || protocolDatasetRoot === datasetRoot) &&
+			(!protocolVersionId || protocolVersionId === versionId)
+		);
+	});
+	return matching
+		.sort((left, right) => String(right?.updated_at || '').localeCompare(String(left?.updated_at || '')))[0]
+		|| null;
+}
+
+function buildDefaultStudyState(userId = '') {
+	const protocol = normalizeResearchStudyProtocol(get(studyProtocol), {
+		dataset_root: getDatasetRoot(),
+		scenario_set_version_id: get(scenarioSetVersionId),
+		legal_action_mask_version: DEFAULT_ACTION_MASK_VERSION
+	});
+	const assignedArm = userId && protocol.enabled ? assignStudyArm(userId, protocol) : null;
+	return normalizeResearchStudyState({
+		protocol_id: protocol.protocol_id,
+		dataset_root: protocol.dataset_root || getDatasetRoot(),
+		scenario_set_version_id: protocol.scenario_set_version_id || get(scenarioSetVersionId),
+		dataset_snapshot_id: protocol.dataset_snapshot_id || '',
+		assigned_arm: assignedArm?.id || '',
+		assignment_method: assignedArm ? 'stable_hash' : '',
+		assigned_at: assignedArm ? new Date().toISOString() : '',
+		policy_name: assignedArm?.policy_name || '',
+		policy_version: assignedArm?.policy_version || '',
+		legal_action_mask_version: protocol.legal_action_mask_version || DEFAULT_ACTION_MASK_VERSION,
+		target_venue: protocol.target_venue || ''
+	});
+}
+
+function resolveStoredParticipantStudyState(userId = '', summaryEntry = {}, progressEntry = {}) {
+	const stored = mergeResearchStudyState(
+		summaryEntry?.researchStudy || {},
+		progressEntry?.researchStudy || {}
+	);
+	const fallback = buildDefaultStudyState(userId);
+	const resolved = normalizeResearchStudyState(stored, fallback);
+	if (!resolved.assigned_arm && fallback.assigned_arm) {
+		return normalizeResearchStudyState({
+			...resolved,
+			assigned_arm: fallback.assigned_arm,
+			assignment_method: fallback.assignment_method,
+			assigned_at: fallback.assigned_at,
+			policy_name: fallback.policy_name,
+			policy_version: fallback.policy_version,
+			legal_action_mask_version: fallback.legal_action_mask_version,
+			protocol_id: fallback.protocol_id,
+			dataset_root: fallback.dataset_root,
+			scenario_set_version_id: fallback.scenario_set_version_id,
+			dataset_snapshot_id: fallback.dataset_snapshot_id,
+			target_venue: fallback.target_venue
+		});
+	}
+	return resolved;
+}
+
+async function loadResearchRuntime(datasetBundle = {}) {
+	const metadataProtocol = normalizeResearchStudyProtocol(datasetBundle?.metadata?.researchStudy || {}, {
+		dataset_root: getDatasetRoot(),
+		scenario_set_version_id: String(datasetBundle?.metadata?.scenarioSetVersionId || '').trim(),
+		legal_action_mask_version: DEFAULT_ACTION_MASK_VERSION
+	});
+	let protocol = metadataProtocol;
+	let models = [];
+	try {
+		const [protocols, rawModels] = await Promise.all([
+			listResearchProtocols(),
+			listResearchModels()
+		]);
+		protocol = getMatchingResearchProtocol(protocols, datasetBundle) || metadataProtocol;
+		models = (Array.isArray(rawModels) ? rawModels : [])
+			.map((entry) => normalizeResearchModel(entry))
+			.filter((entry) => {
+				const modelDatasetRoot = String(entry?.dataset_root || '').trim();
+				return !modelDatasetRoot || modelDatasetRoot === getDatasetRoot();
+			});
+	} catch (error) {
+		console.warn('Unable to load research runtime metadata:', error);
+		protocol = metadataProtocol;
+		models = [];
+	}
+	studyProtocol.set(protocol);
+	researchModels.set(models);
+	return { protocol, models };
+}
+
+export function getScenarioStudyRecommendation(scenario = null) {
+	const targetScenario = scenario && typeof scenario === 'object'
+		? scenario
+		: getCurrentScenario(get(currentRound));
+	return resolveRecommendationSlate({
+		scenario: targetScenario || {},
+		optimal: getOptimalForScenario(targetScenario?.scenario_id),
+		studyProtocol: get(studyProtocol),
+		studyState: get(participantStudyState),
+		researchModels: get(researchModels)
+	});
 }
 
 function hydrateScenariosWithOrders(rawScenarios = [], orders = []) {
@@ -897,6 +1023,7 @@ function buildProgressPayload(overrides = {}) {
 	}
 	const userId = get(id);
 	const versionId = get(scenarioSetVersionId);
+	const researchStudy = normalizeResearchStudyState(get(participantStudyState), buildDefaultStudyState(userId));
 	const summaryPayload = {
 		scenarioSetVersionId: versionId,
 		scenarioSetName: activeScenarioSetName || config.scenario_set,
@@ -906,6 +1033,7 @@ function buildProgressPayload(overrides = {}) {
 		totalGameTime,
 		completedGame: overrides?.completedGame ?? false,
 		earnings: overrides?.earnings ?? get(earned),
+		researchStudy,
 		...liveSessionMetadata
 	};
 	const progressSnapshot = overrides?.scenarioProgress || get(scenarioSetProgress);
@@ -920,6 +1048,7 @@ function buildProgressPayload(overrides = {}) {
 		optimalChoices: summaryPayload.optimalChoices,
 		totalGameTime: summaryPayload.totalGameTime,
 		earnings: summaryPayload.earnings,
+		researchStudy,
 		...liveSessionMetadata
 	};
 	let actionSnapshot = {
@@ -1112,6 +1241,7 @@ export const stopScenarioPhase = (scenarioId = '', key = '') => {
 async function loadSavedScenarioState(userId) {
 	if (!userId || !get(scenarioSetVersionId)) {
 		setCurrentLiveSessionParticipation(null);
+		participantStudyState.set(buildDefaultStudyState(String(userId || '')));
 		scenarioSetProgress.set({
 			completedScenarios: [],
 			inProgressScenario: '',
@@ -1170,6 +1300,8 @@ async function loadSavedScenarioState(userId) {
 	const resolvedOptimalChoices = resolveResumeNumber(summaryEntry?.optimalChoices, progressEntry?.optimalChoices);
 	const resolvedTotalGameTime = resolveResumeNumber(summaryEntry?.totalGameTime, progressEntry?.totalGameTime);
 	const resolvedEarnings = resolveResumeNumber(summaryEntry?.earnings, progressEntry?.earnings);
+	const resolvedResearchStudy = resolveStoredParticipantStudyState(userId, summaryEntry, progressEntry);
+	participantStudyState.set(resolvedResearchStudy);
 	const liveSessionId = String(summaryEntry?.liveSessionId ?? progressEntry?.liveSessionId ?? '').trim();
 	if (liveSessionId) {
 		setCurrentLiveSessionParticipation({
@@ -1261,6 +1393,37 @@ export const saveProgressAndEndSession = async () => {
 	}
 	endGameSession();
 };
+
+export async function saveParticipantStudySurveyResponse(response = {}) {
+	const userId = String(get(id) ?? '').trim();
+	const versionId = String(get(scenarioSetVersionId) ?? '').trim();
+	if (get(gameMode) === 'tutorial' || !userId || !versionId) return null;
+
+	const currentState = normalizeResearchStudyState(get(participantStudyState), buildDefaultStudyState(userId));
+	const phase = String(response?.phase ?? '').trim() || '';
+	const enrichedState = mergeResearchStudyState(currentState, {
+		protocol_id: currentState.protocol_id,
+		dataset_root: currentState.dataset_root || getDatasetRoot(),
+		scenario_set_version_id: currentState.scenario_set_version_id || versionId,
+		dataset_snapshot_id: currentState.dataset_snapshot_id || '',
+		assigned_arm: currentState.assigned_arm || '',
+		policy_name: currentState.policy_name || '',
+		policy_version: currentState.policy_version || '',
+		legal_action_mask_version: currentState.legal_action_mask_version || DEFAULT_ACTION_MASK_VERSION,
+		survey_responses: [{
+			...response,
+			phase
+		}]
+	});
+	participantStudyState.set(enrichedState);
+
+	try {
+		return await persistParticipantStudySurveyResponse(userId, versionId, response, enrichedState);
+	} catch (error) {
+		console.warn('Unable to persist participant study survey response:', error);
+		return null;
+	}
+}
 
 function getSummaryFieldsFromCompletionPayload(payload = {}) {
 	if (!payload || typeof payload !== 'object') return {};
@@ -1772,6 +1935,7 @@ function resetRuntimeState() {
 	});
 	scenarioActions.set({});
 	detailedScenarioActions.set({});
+	participantStudyState.set(buildDefaultStudyState(''));
 	clearOrderSelectionThinkingState();
 	resumeElapsedSeconds.set(0);
 	currentRound.set(1);
@@ -1837,6 +2001,13 @@ export const authUser = (id, pass) => {
 export const saveScenarioProgress = (progress) => {
 	const scenarioId = String(progress?.scenarioId ?? '').trim();
 	const chosenOrders = normalizeOrderSummary(progress?.chosenOrders);
+	const researchStudy = normalizeResearchStudyState(
+		get(participantStudyState),
+		buildDefaultStudyState(String(get(id) ?? '').trim())
+	);
+	const recommendationContext = progress?.recommendationContext && typeof progress.recommendationContext === 'object'
+		? progress.recommendationContext
+		: getScenarioStudyRecommendation(getCurrentScenario(Math.max(1, Number(progress?.roundIndex) || 1)));
 	if (scenarioId) {
 		scenarioActions.update((value) => ({
 			...(value || {}),
@@ -1860,12 +2031,38 @@ export const saveScenarioProgress = (progress) => {
 			scenario_id: scenarioId,
 			phase: String(progress?.phase ?? '').trim(),
 			classification: String(progress?.classification ?? '').trim(),
+			study_protocol_id: String(
+				progress?.studyProtocolId ?? recommendationContext?.study_protocol_id ?? researchStudy?.protocol_id ?? ''
+			).trim(),
+			policy_arm: String(
+				progress?.policyArm ?? recommendationContext?.policy_arm ?? researchStudy?.assigned_arm ?? ''
+			).trim(),
+			policy_name: String(
+				progress?.policyName ?? recommendationContext?.policy_name ?? researchStudy?.policy_name ?? ''
+			).trim(),
+			policy_version: String(
+				progress?.policyVersion ?? recommendationContext?.policy_version ?? researchStudy?.policy_version ?? ''
+			).trim(),
+			dataset_snapshot_id: String(
+				progress?.datasetSnapshotId ?? recommendationContext?.dataset_snapshot_id ?? researchStudy?.dataset_snapshot_id ?? ''
+			).trim(),
+			legal_action_mask_version: String(
+				progress?.legalActionMaskVersion ?? recommendationContext?.legal_action_mask_version ?? researchStudy?.legal_action_mask_version ?? DEFAULT_ACTION_MASK_VERSION
+			).trim(),
+			recommendation_source: String(
+				progress?.recommendationSource ?? recommendationContext?.recommendation_source ?? ''
+			).trim(),
 			current_city: String(progress?.currentCity ?? '').trim(),
 			final_location: String(progress?.finalLocation ?? '').trim(),
 			chosen_orders: chosenOrders,
 			shown_recommendation_bundle_ids: Array.isArray(progress?.shownRecommendationBundleIds)
 				? progress.shownRecommendationBundleIds
 				: [],
+			shown_ranked_bundles: Array.isArray(progress?.shownRankedBundles)
+				? progress.shownRankedBundles
+				: Array.isArray(recommendationContext?.shown_ranked_bundles)
+					? recommendationContext.shown_ranked_bundles
+					: [],
 			scenario_order_ids: Array.isArray(progress?.scenarioOrderIds)
 				? progress.scenarioOrderIds
 				: [],
@@ -1876,8 +2073,52 @@ export const saveScenarioProgress = (progress) => {
 			success: Boolean(progress?.success),
 			duration: Math.max(0, Number(progress?.duration) || 0),
 			earnings: Math.max(0, Number(progress?.earnings) || 0),
+			reward: Number(progress?.reward) || 0,
+			trust_rating: Number(progress?.trustRating) || 0,
+			usefulness_rating: Number(progress?.usefulnessRating) || 0,
+			workload_rating: Number(progress?.workloadRating) || 0,
 			decision_timestamp: new Date().toISOString(),
 			liveSessionId: String(liveSessionMetadata?.liveSessionId ?? '').trim(),
+			pre_state: removeUndefinedDeep({
+				round_index: Math.max(1, Number(progress?.roundIndex) || 1),
+				scenario_id: scenarioId,
+				phase: String(progress?.phase ?? '').trim(),
+				classification: String(progress?.classification ?? '').trim(),
+				current_city: String(progress?.currentCity ?? '').trim(),
+				policy_arm: String(
+					progress?.policyArm ?? recommendationContext?.policy_arm ?? researchStudy?.assigned_arm ?? ''
+				).trim(),
+				policy_name: String(
+					progress?.policyName ?? recommendationContext?.policy_name ?? researchStudy?.policy_name ?? ''
+				).trim(),
+				policy_version: String(
+					progress?.policyVersion ?? recommendationContext?.policy_version ?? researchStudy?.policy_version ?? ''
+				).trim(),
+				shown_ranked_bundles: Array.isArray(progress?.shownRankedBundles)
+					? progress.shownRankedBundles
+					: Array.isArray(recommendationContext?.shown_ranked_bundles)
+						? recommendationContext.shown_ranked_bundles
+						: [],
+				shown_recommendation_bundle_ids: Array.isArray(progress?.shownRecommendationBundleIds)
+					? progress.shownRecommendationBundleIds
+					: [],
+				scenario_order_ids: Array.isArray(progress?.scenarioOrderIds)
+					? progress.scenarioOrderIds
+					: [],
+				max_bundle: Math.max(1, Number(progress?.maxBundle) || 1)
+			}),
+			post_state: removeUndefinedDeep({
+				success: Boolean(progress?.success),
+				duration: Math.max(0, Number(progress?.duration) || 0),
+				earnings: Math.max(0, Number(progress?.earnings) || 0),
+				reward: Number(progress?.reward) || 0,
+				final_location: String(progress?.finalLocation ?? '').trim(),
+				chosen_orders: chosenOrders,
+				score_ratio_to_best: progress?.scoreRatioToBest ?? null,
+				percent_regret: progress?.percentRegret ?? null,
+				is_exact_optimal: progress?.isExactOptimal ?? null,
+				is_near_optimal: progress?.isNearOptimal ?? null
+			}),
 			state_snapshot: removeUndefinedDeep({
 				current_city: String(progress?.currentCity ?? '').trim(),
 				phase: String(progress?.phase ?? '').trim(),
@@ -1887,13 +2128,32 @@ export const saveScenarioProgress = (progress) => {
 					: [],
 				scenario_order_ids: Array.isArray(progress?.scenarioOrderIds)
 					? progress.scenarioOrderIds
-					: []
+					: [],
+				policy_arm: String(
+					progress?.policyArm ?? recommendationContext?.policy_arm ?? researchStudy?.assigned_arm ?? ''
+				).trim(),
+				policy_name: String(
+					progress?.policyName ?? recommendationContext?.policy_name ?? researchStudy?.policy_name ?? ''
+				).trim(),
+				policy_version: String(
+					progress?.policyVersion ?? recommendationContext?.policy_version ?? researchStudy?.policy_version ?? ''
+				).trim(),
+				shown_ranked_bundles: Array.isArray(progress?.shownRankedBundles)
+					? progress.shownRankedBundles
+					: Array.isArray(recommendationContext?.shown_ranked_bundles)
+						? recommendationContext.shown_ranked_bundles
+						: []
 			}),
 			outcome_snapshot: removeUndefinedDeep({
 				success: Boolean(progress?.success),
 				duration: Math.max(0, Number(progress?.duration) || 0),
 				earnings: Math.max(0, Number(progress?.earnings) || 0),
-				final_location: String(progress?.finalLocation ?? '').trim()
+				final_location: String(progress?.finalLocation ?? '').trim(),
+				reward: Number(progress?.reward) || 0,
+				score_ratio_to_best: progress?.scoreRatioToBest ?? null,
+				percent_regret: progress?.percentRegret ?? null,
+				is_exact_optimal: progress?.isExactOptimal ?? null,
+				is_near_optimal: progress?.isNearOptimal ?? null
 			})
 		});
 	}
@@ -1950,6 +2210,7 @@ export async function loadGame(mode = 'main') {
 		activeScenarioSetName = String(datasetBundle?.metadata?.datasetName || datasetId || '').trim() || String(datasetId || '');
 		activeScenarioSetVersionId = String(datasetBundle?.metadata?.scenarioSetVersionId || '').trim();
 		scenarioSetVersionId.set(activeScenarioSetVersionId);
+		await loadResearchRuntime(datasetBundle || {});
 		let orderFile = Array.isArray(datasetBundle?.orders) ? datasetBundle.orders : await getOrdersData(datasetId)
 		let storeFile = await loadConfigByName(MAIN_STORE_FILE)
 		let cityFile = await loadConfigByName(MAIN_CITIES_FILE)
@@ -2000,10 +2261,13 @@ export async function createNewUser(id, mode = 'main') {
 				}
 				: null
 		);
+		const initialResearchStudy = buildDefaultStudyState(id);
+		participantStudyState.set(initialResearchStudy);
 		const summary = await initializeUserProgress(id, {
 			scenarioSetVersionId: get(scenarioSetVersionId),
 			scenarioSetName: activeScenarioSetName || config.scenario_set,
 			totalRounds: get(scenarios).length,
+			researchStudy: initialResearchStudy,
 			...getLiveSessionMetadata(new Date().toISOString())
 		});
 		if (browser && summary?.resultAccessKey) {

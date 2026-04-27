@@ -18,6 +18,7 @@ These files describe the live app and should stay aligned with the current codeb
 | [current/ARCHITECTURE.md](current/ARCHITECTURE.md) | Runtime structure, round flow, and timing model |
 | [current/CONFIG_AND_DATASETS.md](current/CONFIG_AND_DATASETS.md) | Firestore source of truth, dataset shape, Cities matrix, and admin behavior |
 | [current/ANALYTICS_AND_RL_EXPORTS.md](current/ANALYTICS_AND_RL_EXPORTS.md) | Admin analytics dashboard, modeled-time interpretation, and RL export contract |
+| [current/VENUE_POSITIONING_AND_SCORING.md](current/VENUE_POSITIONING_AND_SCORING.md) | CHI/CSCW-first research framing and admin/class score interpretation |
 | [experiment/EXPERIMENT_DESIGN.md](experiment/EXPERIMENT_DESIGN.md) | Experiment structure and research context |
 
 ## Setup Docs

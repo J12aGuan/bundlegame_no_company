@@ -46,14 +46,13 @@ def _read_optional_json(path: str | None) -> dict[str, Any]:
 
 def _write_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str] | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    if not rows:
-        path.write_text("", encoding="utf-8")
-        return
     ordered = fieldnames or sorted({k for row in rows for k in row.keys()})
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=ordered, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(rows)
+        if ordered:
+            writer.writeheader()
+        if rows:
+            writer.writerows(rows)
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -76,6 +75,13 @@ ANALYSIS_MASTER_EXPORT_COLUMNS = [
     "phase",
     "phase_progress_index",
     "classification",
+    "study_protocol_id",
+    "policy_arm",
+    "policy_name",
+    "policy_version",
+    "dataset_snapshot_id",
+    "legal_action_mask_version",
+    "recommendation_source",
     "scenario_id",
     "current_city",
     "scenario_max_bundle",
@@ -83,6 +89,7 @@ ANALYSIS_MASTER_EXPORT_COLUMNS = [
     "scenario_order_ids",
     "shown_recommendation_status",
     "shown_recommendation_bundle_ids",
+    "shown_ranked_bundles",
     "recommendation_quality",
     "followed_recommendation",
     "shown_recommendation_score",
@@ -98,6 +105,10 @@ ANALYSIS_MASTER_EXPORT_COLUMNS = [
     "is_failure",
     "duration",
     "participant_earnings",
+    "logged_reward",
+    "trust_rating",
+    "usefulness_rating",
+    "workload_rating",
     "participant_modeled_time",
     "participant_score",
     "best_score",
@@ -149,6 +160,10 @@ POLICY_TRAINING_EXPORT_COLUMNS = [
     "state_qa_completed_game_mismatch",
     "state_qa_missing_recommendation_labels",
     "phase",
+    "state_policy_arm",
+    "state_policy_name",
+    "state_policy_version",
+    "state_dataset_snapshot_id",
     "classification",
     "scenario_id",
     "state_current_city",
@@ -182,6 +197,9 @@ POLICY_TRAINING_EXPORT_COLUMNS = [
     "next_prior_optimal_rate",
     "next_prior_failure_rate",
     "next_prior_mean_regret",
+    "state_trust_rating",
+    "state_usefulness_rating",
+    "state_workload_rating",
     "done",
 ]
 
@@ -261,6 +279,63 @@ SANDBOX_SUMMARY_EXPORT_COLUMNS = [
     "simulated_reward_ci_low",
     "simulated_reward_ci_high",
     "mean_gap_vs_historical",
+]
+
+STUDY_RANDOMIZATION_EXPORT_COLUMNS = [
+    "dataset_root",
+    "scenario_set_version_id",
+    "participant_id",
+    "study_protocol_id",
+    "target_venue",
+    "assigned_arm",
+    "policy_name",
+    "policy_version",
+    "dataset_snapshot_id",
+    "assignment_method",
+    "assigned_at",
+    "decision_count",
+    "first_round_index",
+    "last_round_index",
+    "metadata_join_status",
+]
+
+PARTICIPANT_SURVEY_EXPORT_COLUMNS = [
+    "dataset_root",
+    "scenario_set_version_id",
+    "participant_id",
+    "study_protocol_id",
+    "policy_arm",
+    "policy_name",
+    "policy_version",
+    "response_id",
+    "response_scope",
+    "phase",
+    "decision_round",
+    "trust_rating",
+    "usefulness_rating",
+    "workload_rating",
+    "notes",
+    "submitted_at",
+]
+
+HUMAN_POLICY_EVAL_EXPORT_COLUMNS = [
+    "scope",
+    "group_value",
+    "policy_arm",
+    "policy_name",
+    "policy_version",
+    "phase",
+    "n_participants",
+    "n_decisions",
+    "mean_score_ratio",
+    "mean_regret",
+    "exact_optimal_rate",
+    "failure_rate",
+    "mean_duration",
+    "recommendation_follow_rate",
+    "mean_trust_rating",
+    "mean_usefulness_rating",
+    "mean_workload_rating",
 ]
 
 RESERVED_METADATA_FIELDS = {
@@ -450,6 +525,215 @@ def _merge_participant_metadata(
         },
         issues,
     )
+
+
+DEFAULT_POLICY_ARMS = [
+    {
+        "id": "control",
+        "label": "Control",
+        "policy_name": "control",
+        "policy_version": "v1",
+        "show_recommendations": False,
+        "active_phases": ["B"],
+        "assignment_weight": 1,
+        "simulation_only": False,
+    },
+    {
+        "id": "contextual_bandit",
+        "label": "Contextual Bandit",
+        "policy_name": "contextual_bandit",
+        "policy_version": "v1",
+        "show_recommendations": True,
+        "active_phases": ["B"],
+        "assignment_weight": 1,
+        "simulation_only": False,
+    },
+    {
+        "id": "rl_cql",
+        "label": "Offline RL (CQL)",
+        "policy_name": "CQL",
+        "policy_version": "v1",
+        "show_recommendations": True,
+        "active_phases": ["B"],
+        "assignment_weight": 1,
+        "simulation_only": False,
+    },
+]
+
+DEFAULT_PHASE_PLAN = [
+    {
+        "id": "A",
+        "label": "Phase A",
+        "rounds": 6,
+        "recommendations_enabled": False,
+    },
+    {
+        "id": "B",
+        "label": "Phase B",
+        "rounds": 12,
+        "recommendations_enabled": True,
+    },
+    {
+        "id": "C",
+        "label": "Phase C",
+        "rounds": 6,
+        "recommendations_enabled": False,
+    },
+]
+
+
+def _normalize_text(value: Any, fallback: str = "") -> str:
+    normalized = str(value or "").strip()
+    return normalized or str(fallback or "").strip()
+
+
+def _normalize_bool(value: Any, fallback: bool = False) -> bool:
+    if value is None:
+        return bool(fallback)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    normalized = str(value).strip().lower()
+    if normalized in {"true", "1", "yes", "y"}:
+        return True
+    if normalized in {"false", "0", "no", "n"}:
+        return False
+    return bool(fallback)
+
+
+def _normalize_study_protocol(
+    protocol: dict[str, Any] | None,
+    *,
+    dataset_root: str = "",
+    scenario_set_version_id: str = "",
+) -> dict[str, Any]:
+    source = protocol if isinstance(protocol, dict) else {}
+    phase_plan = source.get("phase_plan") if isinstance(source.get("phase_plan"), list) else DEFAULT_PHASE_PLAN
+    policy_arms = source.get("policy_arms") if isinstance(source.get("policy_arms"), list) else DEFAULT_POLICY_ARMS
+    return {
+        "protocol_id": _normalize_text(source.get("protocol_id") or source.get("id"), "bundlegame_chi_cscw_protocol"),
+        "title": _normalize_text(source.get("title"), "BundleGame Human Decision Study"),
+        "target_venue": _normalize_text(source.get("target_venue"), "CHI/CSCW"),
+        "dataset_root": _normalize_text(source.get("dataset_root"), dataset_root),
+        "scenario_set_version_id": _normalize_text(source.get("scenario_set_version_id"), scenario_set_version_id),
+        "dataset_snapshot_id": _normalize_text(source.get("dataset_snapshot_id")),
+        "status": _normalize_text(source.get("status"), "draft"),
+        "enabled": _normalize_bool(source.get("enabled"), False),
+        "legal_action_mask_version": _normalize_text(source.get("legal_action_mask_version"), "legal_bundle_mask_v1"),
+        "pilot_target_n": max(0, int(source.get("pilot_target_n", 24) or 24)),
+        "main_target_n": max(0, int(source.get("main_target_n", 240) or 240)),
+        "notes": _normalize_text(source.get("notes")),
+        "phase_plan": [
+            {
+                "id": _normalize_text(entry.get("id") or entry.get("phase"), DEFAULT_PHASE_PLAN[index]["id"] if index < len(DEFAULT_PHASE_PLAN) else f"phase_{index + 1}"),
+                "label": _normalize_text(entry.get("label"), DEFAULT_PHASE_PLAN[index]["label"] if index < len(DEFAULT_PHASE_PLAN) else f"Phase {index + 1}"),
+                "rounds": max(0, int(entry.get("rounds", DEFAULT_PHASE_PLAN[index]["rounds"] if index < len(DEFAULT_PHASE_PLAN) else 0) or 0)),
+                "recommendations_enabled": _normalize_bool(
+                    entry.get("recommendations_enabled"),
+                    DEFAULT_PHASE_PLAN[index]["recommendations_enabled"] if index < len(DEFAULT_PHASE_PLAN) else False,
+                ),
+            }
+            for index, entry in enumerate(phase_plan)
+            if isinstance(entry, dict)
+        ],
+        "policy_arms": [
+            {
+                "id": _normalize_text(entry.get("id") or entry.get("policy_arm") or entry.get("policy_name"), DEFAULT_POLICY_ARMS[index]["id"] if index < len(DEFAULT_POLICY_ARMS) else f"arm_{index + 1}"),
+                "label": _normalize_text(entry.get("label"), DEFAULT_POLICY_ARMS[index]["label"] if index < len(DEFAULT_POLICY_ARMS) else f"Arm {index + 1}"),
+                "policy_name": _normalize_text(entry.get("policy_name") or entry.get("algorithm"), DEFAULT_POLICY_ARMS[index]["policy_name"] if index < len(DEFAULT_POLICY_ARMS) else ""),
+                "policy_version": _normalize_text(entry.get("policy_version") or entry.get("version"), DEFAULT_POLICY_ARMS[index]["policy_version"] if index < len(DEFAULT_POLICY_ARMS) else "v1"),
+                "show_recommendations": _normalize_bool(entry.get("show_recommendations"), DEFAULT_POLICY_ARMS[index]["show_recommendations"] if index < len(DEFAULT_POLICY_ARMS) else False),
+                "active_phases": _normalize_id_array(entry.get("active_phases") or DEFAULT_POLICY_ARMS[index]["active_phases"] if index < len(DEFAULT_POLICY_ARMS) else ["B"]),
+                "assignment_weight": max(0.0, float(entry.get("assignment_weight", DEFAULT_POLICY_ARMS[index]["assignment_weight"] if index < len(DEFAULT_POLICY_ARMS) else 1) or 0)),
+                "simulation_only": _normalize_bool(entry.get("simulation_only"), DEFAULT_POLICY_ARMS[index]["simulation_only"] if index < len(DEFAULT_POLICY_ARMS) else False),
+                "notes": _normalize_text(entry.get("notes")),
+            }
+            for index, entry in enumerate(policy_arms)
+            if isinstance(entry, dict)
+        ],
+    }
+
+
+def _normalize_research_model(model: dict[str, Any] | None, *, dataset_root: str = "") -> dict[str, Any]:
+    source = model if isinstance(model, dict) else {}
+    return {
+        "model_id": _normalize_text(source.get("model_id") or source.get("id")),
+        "dataset_root": _normalize_text(source.get("dataset_root"), dataset_root),
+        "dataset_snapshot_id": _normalize_text(source.get("dataset_snapshot_id")),
+        "algorithm": _normalize_text(source.get("algorithm")),
+        "policy_name": _normalize_text(source.get("policy_name"), source.get("algorithm") or source.get("model_id") or ""),
+        "policy_version": _normalize_text(source.get("policy_version"), "v1"),
+        "status": _normalize_text(source.get("status"), "draft"),
+        "is_active": _normalize_bool(source.get("is_active"), False),
+        "simulation_only": _normalize_bool(source.get("simulation_only"), False),
+        "action_mask_version": _normalize_text(source.get("action_mask_version"), "legal_bundle_mask_v1"),
+        "notes": _normalize_text(source.get("notes")),
+    }
+
+
+def _merge_study_state(*states: Any) -> dict[str, Any]:
+    merged: dict[str, Any] = {}
+    responses_by_id: dict[str, dict[str, Any]] = {}
+    for state in states:
+        if not isinstance(state, dict):
+            continue
+        merged.update({key: value for key, value in state.items() if key != "survey_responses"})
+        for response in state.get("survey_responses", []) if isinstance(state.get("survey_responses"), list) else []:
+            if not isinstance(response, dict):
+                continue
+            response_id = _normalize_text(
+                response.get("response_id") or response.get("id"),
+                f'{_normalize_text(response.get("response_scope"), "session_end")}::{_normalize_text(response.get("submitted_at"))}',
+            )
+            responses_by_id[response_id] = {
+                "response_id": response_id,
+                "response_scope": _normalize_text(response.get("response_scope"), "session_end"),
+                "phase": _normalize_text(response.get("phase")),
+                "decision_round": int(response.get("decision_round", 0) or 0),
+                "trust_rating": float(response.get("trust_rating")) if response.get("trust_rating") is not None else None,
+                "usefulness_rating": float(response.get("usefulness_rating")) if response.get("usefulness_rating") is not None else None,
+                "workload_rating": float(response.get("workload_rating")) if response.get("workload_rating") is not None else None,
+                "notes": _normalize_text(response.get("notes")),
+                "submitted_at": _normalize_text(response.get("submitted_at")),
+            }
+    merged["survey_responses"] = sorted(
+        responses_by_id.values(),
+        key=lambda row: str(row.get("submitted_at", "")),
+    )
+    return merged
+
+
+def _get_participant_study_state(participant: dict[str, Any], scenario_set_version_id: str) -> dict[str, Any]:
+    summary_map = (
+        (participant.get("summaryDoc") or participant.get("progressSummary") or {}).get("summaryByScenarioSetVersionId", {})
+        if isinstance(participant, dict)
+        else {}
+    )
+    progress_map = (
+        (participant.get("scenarioSetProgressDoc") or {}).get("progressByScenarioSetVersionId", {})
+        if isinstance(participant, dict)
+        else {}
+    )
+    summary_entry = summary_map.get(scenario_set_version_id, {}) if scenario_set_version_id else {}
+    progress_entry = progress_map.get(scenario_set_version_id, {}) if scenario_set_version_id else {}
+    return _merge_study_state(summary_entry.get("researchStudy"), progress_entry.get("researchStudy"))
+
+
+def _assign_study_arm(participant_id: str, protocol: dict[str, Any]) -> dict[str, Any] | None:
+    arms = [entry for entry in protocol.get("policy_arms", []) if float(entry.get("assignment_weight", 0) or 0) > 0]
+    if not arms:
+        return None
+    total_weight = sum(float(entry.get("assignment_weight", 0) or 0) for entry in arms)
+    if not total_weight:
+        return arms[0]
+    bucket = (_stable_hash_string(f"{participant_id}::{protocol.get('protocol_id', '')}") % 100000) / 100000.0
+    cumulative = 0.0
+    for arm in arms:
+        cumulative += float(arm.get("assignment_weight", 0) or 0) / total_weight
+        if bucket <= cumulative + 1e-12:
+            return arm
+    return arms[-1]
 
 
 def _collect_continuous(rows: list[dict[str, Any]], key: str, *, exclude_failures: bool = True) -> list[float]:
@@ -747,6 +1031,306 @@ def _build_data_health(
         "decisionRowsMissingTiming": sum(
             1 for row in rows if row.get("scenario_total_time_seconds") is None
         ),
+    }
+
+
+def _group_by(rows: list[dict[str, Any]], key_fn) -> dict[str, list[dict[str, Any]]]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        grouped[str(key_fn(row))].append(row)
+    return grouped
+
+
+def _build_study_randomization_rows(
+    participants: list[dict[str, Any]],
+    master_rows: list[dict[str, Any]],
+    scenario_bundle: dict[str, Any],
+    study_protocol: dict[str, Any],
+    dataset_root: str,
+) -> list[dict[str, Any]]:
+    scenario_set_version_id = str((scenario_bundle.get("metadata", {}) or {}).get("scenarioSetVersionId") or "").strip()
+    protocol = _normalize_study_protocol(
+        study_protocol,
+        dataset_root=dataset_root,
+        scenario_set_version_id=scenario_set_version_id,
+    )
+    rows_by_participant = _group_by(master_rows, lambda row: row.get("participant_id", ""))
+    output = []
+    for participant in participants:
+        participant_id = str(participant.get("id", "")).strip()
+        if not participant_id:
+            continue
+        study_state = _get_participant_study_state(participant, scenario_set_version_id)
+        assigned_arm = _normalize_text(study_state.get("assigned_arm"))
+        arm = next((entry for entry in protocol.get("policy_arms", []) if entry.get("id") == assigned_arm), None)
+        if arm is None and protocol.get("enabled"):
+            arm = _assign_study_arm(participant_id, protocol)
+        participant_rows = rows_by_participant.get(participant_id, [])
+        if not participant_rows and not study_state and arm is None:
+            continue
+        output.append(
+            {
+                "dataset_root": dataset_root,
+                "scenario_set_version_id": scenario_set_version_id or None,
+                "participant_id": participant_id,
+                "study_protocol_id": _normalize_text(study_state.get("protocol_id"), protocol.get("protocol_id", "")),
+                "target_venue": _normalize_text(study_state.get("target_venue"), protocol.get("target_venue", "")),
+                "assigned_arm": _normalize_text(study_state.get("assigned_arm"), arm.get("id", "") if arm else ""),
+                "policy_name": _normalize_text(study_state.get("policy_name"), arm.get("policy_name", "") if arm else ""),
+                "policy_version": _normalize_text(study_state.get("policy_version"), arm.get("policy_version", "") if arm else ""),
+                "dataset_snapshot_id": _normalize_text(study_state.get("dataset_snapshot_id"), protocol.get("dataset_snapshot_id", "")),
+                "assignment_method": _normalize_text(study_state.get("assignment_method"), "stable_hash" if arm else ""),
+                "assigned_at": _normalize_text(study_state.get("assigned_at")),
+                "decision_count": len(participant_rows),
+                "first_round_index": min([int(row.get("round_index", 0) or 0) for row in participant_rows], default=None),
+                "last_round_index": max([int(row.get("round_index", 0) or 0) for row in participant_rows], default=None),
+                "metadata_join_status": participant.get("__metadataJoinStatus", "none"),
+            }
+        )
+    output.sort(key=lambda row: row["participant_id"])
+    return output
+
+
+def _build_participant_survey_rows(
+    participants: list[dict[str, Any]],
+    scenario_bundle: dict[str, Any],
+    study_randomization_rows: list[dict[str, Any]],
+    dataset_root: str,
+) -> list[dict[str, Any]]:
+    scenario_set_version_id = str((scenario_bundle.get("metadata", {}) or {}).get("scenarioSetVersionId") or "").strip()
+    study_map = {str(row.get("participant_id", "")): row for row in study_randomization_rows}
+    output = []
+    for participant in participants:
+        participant_id = str(participant.get("id", "")).strip()
+        if not participant_id:
+            continue
+        study_state = _get_participant_study_state(participant, scenario_set_version_id)
+        for response in study_state.get("survey_responses", []) if isinstance(study_state.get("survey_responses"), list) else []:
+            output.append(
+                {
+                    "dataset_root": dataset_root,
+                    "scenario_set_version_id": scenario_set_version_id or None,
+                    "participant_id": participant_id,
+                    "study_protocol_id": _normalize_text(study_map.get(participant_id, {}).get("study_protocol_id"), study_state.get("protocol_id", "")),
+                    "policy_arm": _normalize_text(study_map.get(participant_id, {}).get("assigned_arm"), study_state.get("assigned_arm", "")),
+                    "policy_name": _normalize_text(study_map.get(participant_id, {}).get("policy_name"), study_state.get("policy_name", "")),
+                    "policy_version": _normalize_text(study_map.get(participant_id, {}).get("policy_version"), study_state.get("policy_version", "")),
+                    "response_id": _normalize_text(response.get("response_id")),
+                    "response_scope": _normalize_text(response.get("response_scope")),
+                    "phase": _normalize_text(response.get("phase")),
+                    "decision_round": response.get("decision_round"),
+                    "trust_rating": response.get("trust_rating"),
+                    "usefulness_rating": response.get("usefulness_rating"),
+                    "workload_rating": response.get("workload_rating"),
+                    "notes": _normalize_text(response.get("notes")),
+                    "submitted_at": _normalize_text(response.get("submitted_at")),
+                }
+            )
+    output.sort(key=lambda row: (row["participant_id"], row["submitted_at"]))
+    return output
+
+
+def _build_human_policy_eval_rows(
+    master_rows: list[dict[str, Any]],
+    study_randomization_rows: list[dict[str, Any]],
+    participant_survey_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    study_map = {str(row.get("participant_id", "")): row for row in study_randomization_rows}
+    latest_survey = {}
+    for row in sorted(participant_survey_rows, key=lambda entry: str(entry.get("submitted_at", ""))):
+        latest_survey[str(row.get("participant_id", ""))] = row
+
+    enriched = []
+    for row in master_rows:
+        participant_id = str(row.get("participant_id", ""))
+        study_row = study_map.get(participant_id, {})
+        policy_arm = _normalize_text(row.get("policy_arm"), study_row.get("assigned_arm", ""))
+        policy_name = _normalize_text(row.get("policy_name"), study_row.get("policy_name", ""))
+        if not policy_arm and not policy_name:
+            continue
+        survey_row = latest_survey.get(participant_id, {})
+        enriched.append(
+            {
+                **row,
+                "policy_arm": policy_arm,
+                "policy_name": policy_name,
+                "policy_version": _normalize_text(row.get("policy_version"), study_row.get("policy_version", "")),
+                "survey_trust_rating": survey_row.get("trust_rating"),
+                "survey_usefulness_rating": survey_row.get("usefulness_rating"),
+                "survey_workload_rating": survey_row.get("workload_rating"),
+            }
+        )
+
+    def _summarize(bucket: list[dict[str, Any]], scope: str, group_value: str) -> dict[str, Any]:
+        participants = {str(row.get("participant_id", "")) for row in bucket if str(row.get("participant_id", ""))}
+        return {
+            "scope": scope,
+            "group_value": group_value,
+            "policy_arm": _normalize_text(bucket[0].get("policy_arm") if bucket else ""),
+            "policy_name": _normalize_text(bucket[0].get("policy_name") if bucket else ""),
+            "policy_version": _normalize_text(bucket[0].get("policy_version") if bucket else ""),
+            "phase": _normalize_text(bucket[0].get("phase") if scope == "phase" and bucket else ""),
+            "n_participants": len(participants),
+            "n_decisions": len(bucket),
+            "mean_score_ratio": _mean([float(row["score_ratio_to_best"]) for row in bucket if row.get("score_ratio_to_best") is not None]),
+            "mean_regret": _mean([float(row["percent_regret"]) for row in bucket if row.get("percent_regret") is not None]),
+            "exact_optimal_rate": _mean([float(row.get("is_exact_optimal") or 0) for row in bucket]),
+            "failure_rate": _mean([float(row.get("is_failure") or 0) for row in bucket]),
+            "mean_duration": _mean([float(row["duration"]) for row in bucket if row.get("duration") is not None]),
+            "recommendation_follow_rate": _mean([float(row.get("followed_recommendation") or 0) for row in bucket if row.get("followed_recommendation") is not None]),
+            "mean_trust_rating": _mean([float(row["survey_trust_rating"]) for row in bucket if row.get("survey_trust_rating") is not None]),
+            "mean_usefulness_rating": _mean([float(row["survey_usefulness_rating"]) for row in bucket if row.get("survey_usefulness_rating") is not None]),
+            "mean_workload_rating": _mean([float(row["survey_workload_rating"]) for row in bucket if row.get("survey_workload_rating") is not None]),
+        }
+
+    overall_buckets = _group_by(enriched, lambda row: f'{row.get("policy_arm", "")}::{row.get("policy_name", "")}')
+    phase_buckets = _group_by(enriched, lambda row: f'{row.get("policy_arm", "")}::{row.get("phase", "")}')
+    return [
+        *[_summarize(bucket, "overall", key) for key, bucket in overall_buckets.items()],
+        *[_summarize(bucket, "phase", key) for key, bucket in phase_buckets.items()],
+    ]
+
+
+def _build_study_qa(
+    master_rows: list[dict[str, Any]],
+    scenario_bundle: dict[str, Any],
+    study_protocol: dict[str, Any],
+    study_randomization_rows: list[dict[str, Any]],
+    participant_survey_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    protocol = _normalize_study_protocol(
+        study_protocol,
+        dataset_root=str((master_rows[0].get("dataset_root") if master_rows else "")),
+        scenario_set_version_id=str((scenario_bundle.get("metadata", {}) or {}).get("scenarioSetVersionId") or ""),
+    )
+    phase_counts: dict[str, int] = defaultdict(int)
+    for scenario in scenario_bundle.get("scenarios", []) if isinstance(scenario_bundle, dict) else []:
+        phase_counts[_normalize_text((scenario or {}).get("phase"), "Unknown")] += 1
+    arm_counts: dict[str, int] = defaultdict(int)
+    for row in study_randomization_rows:
+        arm_counts[_normalize_text(row.get("assigned_arm"), "unassigned")] += 1
+    participants_with_survey = {str(row.get("participant_id", "")) for row in participant_survey_rows if str(row.get("participant_id", ""))}
+    participants_with_decisions = {str(row.get("participant_id", "")) for row in master_rows if str(row.get("participant_id", ""))}
+    return {
+        "protocol_summary": {
+            "protocol_id": protocol.get("protocol_id", ""),
+            "title": protocol.get("title", ""),
+            "target_venue": protocol.get("target_venue", ""),
+            "enabled": protocol.get("enabled", False),
+            "pilot_target_n": protocol.get("pilot_target_n", 0),
+            "main_target_n": protocol.get("main_target_n", 0),
+            "policy_arms": [
+                {
+                    "id": arm.get("id", ""),
+                    "policy_name": arm.get("policy_name", ""),
+                    "policy_version": arm.get("policy_version", ""),
+                    "show_recommendations": arm.get("show_recommendations", False),
+                }
+                for arm in protocol.get("policy_arms", [])
+            ],
+        },
+        "phase_plan_rows": [
+            {
+                "phase": phase.get("id", ""),
+                "label": phase.get("label", ""),
+                "planned_rounds": phase.get("rounds", 0),
+                "actual_rounds": int(phase_counts.get(phase.get("id", ""), 0)),
+                "recommendations_enabled": phase.get("recommendations_enabled", False),
+            }
+            for phase in protocol.get("phase_plan", [])
+        ],
+        "arm_balance_rows": [
+            {"assigned_arm": arm, "participant_count": count}
+            for arm, count in sorted(arm_counts.items(), key=lambda item: (-item[1], item[0]))
+        ],
+        "survey_summary": {
+            "responses": len(participant_survey_rows),
+            "participants_with_survey": len(participants_with_survey),
+            "participants_with_decisions": len(participants_with_decisions),
+            "survey_coverage_rate": len(participants_with_survey) / len(participants_with_decisions) if participants_with_decisions else None,
+        },
+    }
+
+
+def _build_paper_manifest(
+    dataset_snapshot: dict[str, Any],
+    metadata: dict[str, Any],
+    study_protocol: dict[str, Any],
+    research_models: list[dict[str, Any]],
+    study_qa: dict[str, Any],
+    human_policy_eval_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    protocol = _normalize_study_protocol(study_protocol)
+    models = [_normalize_research_model(model) for model in research_models]
+    return {
+        "schema_version": 1,
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "dataset_snapshot": {
+            "snapshot_id": dataset_snapshot.get("snapshot_id", ""),
+            "dataset_root": dataset_snapshot.get("dataset_root", ""),
+            "dataset_version": dataset_snapshot.get("dataset_version", ""),
+            "feature_version": dataset_snapshot.get("feature_version", ""),
+            "benchmark_only_dataset": bool(dataset_snapshot.get("benchmark_only_dataset")),
+            "paper_ready": bool((dataset_snapshot.get("qa_report") or {}).get("paper_ready")),
+            "blockers": (dataset_snapshot.get("qa_report") or {}).get("blockers", []),
+        },
+        "study_protocol": study_qa.get("protocol_summary") or {
+            "protocol_id": protocol.get("protocol_id", ""),
+            "title": protocol.get("title", ""),
+            "target_venue": protocol.get("target_venue", ""),
+            "enabled": protocol.get("enabled", False),
+        },
+        "model_registry": {
+            "total_models": len(models),
+            "active_models": len([model for model in models if model.get("is_active")]),
+            "simulation_only_models": len([model for model in models if model.get("simulation_only")]),
+            "models": [
+                {
+                    "model_id": model.get("model_id", ""),
+                    "algorithm": model.get("algorithm", ""),
+                    "policy_name": model.get("policy_name", ""),
+                    "policy_version": model.get("policy_version", ""),
+                    "is_active": model.get("is_active", False),
+                    "simulation_only": model.get("simulation_only", False),
+                }
+                for model in models
+            ],
+        },
+        "exports": [
+            "analysis_master.csv",
+            "policy_training.csv",
+            "study_randomization.csv",
+            "participant_survey.csv",
+            "human_policy_eval.csv",
+            "policy_comparison.csv",
+            "ope_summary.csv",
+            "sandbox_summary.csv",
+            "dataset_snapshot.json",
+            "paper_manifest.json",
+        ],
+        "docs": [
+            "docs/current/RESEARCH_PLAYBOOK.md",
+            "docs/current/PAPER_ANALYSIS_WORKFLOW.md",
+            "docs/current/ANALYTICS_AND_RL_EXPORTS.md",
+            "docs/current/CHI_CSCW_DRL_ROADMAP.md",
+        ],
+        "figure_checklist": [
+            "Round attrition by dataset and split",
+            "Optimal-rate curve and over-bundling evidence",
+            "Policy lift and regret summary table",
+            "Off-policy evaluation table",
+            "Simulation-only sandbox ablation table",
+            "Threats-to-validity notes and QA exclusions",
+        ],
+        "human_policy_eval_summary": {
+            "rows": len(human_policy_eval_rows),
+            "policy_arms": sorted({str(row.get("policy_arm", "")) for row in human_policy_eval_rows if str(row.get("policy_arm", ""))}),
+        },
+        "metadata": {
+            "snapshot_id": metadata.get("snapshot_id", ""),
+            "generated_at": metadata.get("generated_at", ""),
+            "feature_version": metadata.get("feature_version", ""),
+        },
     }
 
 
@@ -1175,7 +1759,8 @@ def _build_analysis_master_rows(
         scenario = scenario_by_id.get(str(row.get("scenario_id", ""))) or scenario_by_round.get(int(row.get("round_index", 0) or 0), {})
         optimal = optimal_by_scenario.get(str(row.get("scenario_id", "")), {})
         scenario_order_ids = _normalize_id_array(scenario.get("order_ids"))
-        shown_bundle_ids = _get_recommendation_bundle_ids(scenario, orders_by_id, optimal)
+        logged_shown_bundle_ids = _normalize_id_array(row.get("shown_recommendation_bundle_ids"))
+        shown_bundle_ids = logged_shown_bundle_ids or _get_recommendation_bundle_ids(scenario, orders_by_id, optimal)
         shown_eval = (
             score_bundle(
                 bundle_ids=shown_bundle_ids,
@@ -1201,11 +1786,19 @@ def _build_analysis_master_rows(
         master_row = dict(row)
         master_row["phase"] = phase
         master_row["phase_progress_index"] = phase_progress_index
+        master_row["study_protocol_id"] = row.get("study_protocol_id")
+        master_row["policy_arm"] = row.get("policy_arm")
+        master_row["policy_name"] = row.get("policy_name")
+        master_row["policy_version"] = row.get("policy_version")
+        master_row["dataset_snapshot_id"] = row.get("dataset_snapshot_id")
+        master_row["legal_action_mask_version"] = row.get("legal_action_mask_version")
+        master_row["recommendation_source"] = row.get("recommendation_source")
         master_row["scenario_max_bundle"] = max(1, int(scenario.get("max_bundle", 0) or len(scenario_order_ids) or 1))
         master_row["scenario_order_count"] = len(scenario_order_ids)
         master_row["scenario_order_ids"] = json.dumps(scenario_order_ids)
         master_row["shown_recommendation_status"] = "shown" if shown_bundle_ids else "none"
         master_row["shown_recommendation_bundle_ids"] = json.dumps(shown_bundle_ids)
+        master_row["shown_ranked_bundles"] = json.dumps(row.get("shown_ranked_bundles", []) or [])
         master_row["recommendation_quality"] = (
             "none"
             if not shown_bundle_ids
@@ -1231,6 +1824,10 @@ def _build_analysis_master_rows(
             if shown_ratio is not None and row.get("score_ratio_to_best") is not None
             else None
         )
+        master_row["logged_reward"] = row.get("logged_reward")
+        master_row["trust_rating"] = row.get("trust_rating")
+        master_row["usefulness_rating"] = row.get("usefulness_rating")
+        master_row["workload_rating"] = row.get("workload_rating")
         master_row["metadata_join_status"] = str(participant.get("__metadataJoinStatus", "none"))
         for field in extra_fields:
             if field and field in participant:
@@ -1324,6 +1921,10 @@ def _build_policy_training_rows(
                 "state_qa_completed_game_mismatch": row.get("qa_completed_game_mismatch"),
                 "state_qa_missing_recommendation_labels": row.get("qa_missing_recommendation_labels"),
                 "phase": row.get("phase"),
+                "state_policy_arm": row.get("policy_arm"),
+                "state_policy_name": row.get("policy_name"),
+                "state_policy_version": row.get("policy_version"),
+                "state_dataset_snapshot_id": row.get("dataset_snapshot_id"),
                 "classification": row.get("classification"),
                 "scenario_id": row.get("scenario_id"),
                 "state_current_city": row.get("current_city"),
@@ -1357,6 +1958,9 @@ def _build_policy_training_rows(
                 "next_prior_optimal_rate": next_row.get("prior_optimal_rate") if next_row else None,
                 "next_prior_failure_rate": next_row.get("prior_failure_rate") if next_row else None,
                 "next_prior_mean_regret": next_row.get("prior_mean_regret") if next_row else None,
+                "state_trust_rating": row.get("trust_rating"),
+                "state_usefulness_rating": row.get("usefulness_rating"),
+                "state_workload_rating": row.get("workload_rating"),
                 "done": int(next_row is None),
             }
             for field in extra_fields:
@@ -1985,6 +2589,10 @@ def _build_dataset_snapshot(
     data_health: dict[str, Any],
     dataset_root: str,
     scenario_bundle: dict[str, Any],
+    study_protocol: dict[str, Any] | None = None,
+    study_randomization_rows: list[dict[str, Any]] | None = None,
+    participant_survey_rows: list[dict[str, Any]] | None = None,
+    human_policy_eval_rows: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     issue_type_counts: dict[str, int] = defaultdict(int)
     for issue in qa_issues:
@@ -2000,6 +2608,11 @@ def _build_dataset_snapshot(
 
     version_id = str((scenario_bundle.get("metadata", {}) or {}).get("scenarioSetVersionId") or "").strip() or None
     snapshot_core = f"{dataset_root}:{version_id or 'no_version'}:{RESEARCH_FEATURE_VERSION}"
+    protocol = _normalize_study_protocol(
+        study_protocol,
+        dataset_root=dataset_root,
+        scenario_set_version_id=version_id or "",
+    )
 
     return {
         "schema_version": DATASET_SNAPSHOT_SCHEMA_VERSION,
@@ -2020,9 +2633,17 @@ def _build_dataset_snapshot(
         "analysis_outputs": {
             "analysis_master_rows": len(analysis_master_rows),
             "policy_training_rows": len(policy_training_rows),
+            "study_randomization_rows": len(study_randomization_rows or []),
+            "participant_survey_rows": len(participant_survey_rows or []),
+            "human_policy_eval_rows": len(human_policy_eval_rows or []),
             "row_source_counts": data_health.get("rowSourceCounts", {}),
             "timestamped_rows": data_health.get("timestampedDecisionRows", 0),
             "reconstructed_rows": data_health.get("reconstructedDecisionRows", 0),
+        },
+        "study_protocol": {
+            "protocol_id": protocol.get("protocol_id", ""),
+            "target_venue": protocol.get("target_venue", ""),
+            "enabled": protocol.get("enabled", False),
         },
     }
 
@@ -2037,6 +2658,15 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
     cities_dataset = _read_optional_json(args.cities_json)
     store_dataset = _read_optional_json(args.stores_json)
     metadata_rows = _read_optional_rows(args.metadata_file)
+    study_protocol = _normalize_study_protocol(
+        _read_optional_json(args.study_protocol_json),
+        dataset_root=args.dataset_root,
+        scenario_set_version_id=str((scenario_bundle.get("metadata", {}) or {}).get("scenarioSetVersionId") or ""),
+    )
+    research_models = [
+        _normalize_research_model(model, dataset_root=args.dataset_root)
+        for model in _read_optional_rows(args.research_models_file)
+    ]
     (
         merged_participants,
         metadata_fields,
@@ -2107,6 +2737,31 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         "trajectory_segment",
     )
     transfer_summary = _build_transfer_summary(analysis_master_rows)
+    study_randomization_rows = _build_study_randomization_rows(
+        merged_participants,
+        analysis_master_rows,
+        scenario_bundle,
+        study_protocol,
+        args.dataset_root,
+    )
+    participant_survey_rows = _build_participant_survey_rows(
+        merged_participants,
+        scenario_bundle,
+        study_randomization_rows,
+        args.dataset_root,
+    )
+    human_policy_eval_rows = _build_human_policy_eval_rows(
+        analysis_master_rows,
+        study_randomization_rows,
+        participant_survey_rows,
+    )
+    study_qa = _build_study_qa(
+        analysis_master_rows,
+        scenario_bundle,
+        study_protocol,
+        study_randomization_rows,
+        participant_survey_rows,
+    )
 
     overall = _build_kpi_rows(analysis_master_rows, None, args.bootstrap_b, args.seed)
     by_round = _build_kpi_rows(analysis_master_rows, "round_index", args.bootstrap_b, args.seed)
@@ -2124,6 +2779,10 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         data_health,
         args.dataset_root,
         scenario_bundle,
+        study_protocol=study_protocol,
+        study_randomization_rows=study_randomization_rows,
+        participant_survey_rows=participant_survey_rows,
+        human_policy_eval_rows=human_policy_eval_rows,
     )
 
     cohort_comparisons = []
@@ -2151,6 +2810,21 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         out_dir / "policy_training.csv",
         policy_training_rows,
         fieldnames=_append_unique_columns(POLICY_TRAINING_EXPORT_COLUMNS, extra_fields),
+    )
+    _write_csv(
+        out_dir / "study_randomization.csv",
+        study_randomization_rows,
+        fieldnames=STUDY_RANDOMIZATION_EXPORT_COLUMNS,
+    )
+    _write_csv(
+        out_dir / "participant_survey.csv",
+        participant_survey_rows,
+        fieldnames=PARTICIPANT_SURVEY_EXPORT_COLUMNS,
+    )
+    _write_csv(
+        out_dir / "human_policy_eval.csv",
+        human_policy_eval_rows,
+        fieldnames=HUMAN_POLICY_EVAL_EXPORT_COLUMNS,
     )
     _write_csv(
         out_dir / "recommendation_workbench.csv",
@@ -2222,12 +2896,35 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
             "decisions": len(fact_rows),
             "analysis_master_rows": len(analysis_master_rows),
             "policy_training_rows": len(policy_training_rows),
+            "study_randomization_rows": len(study_randomization_rows),
+            "participant_survey_rows": len(participant_survey_rows),
+            "human_policy_eval_rows": len(human_policy_eval_rows),
             "recommendation_workbench_rows": len(recommendation_rows),
             "qa_issues": len(qa_issues),
         },
+        "study_protocol": {
+            "protocol_id": study_protocol.get("protocol_id", ""),
+            "target_venue": study_protocol.get("target_venue", ""),
+            "enabled": study_protocol.get("enabled", False),
+        },
+        "model_registry": {
+            "total_models": len(research_models),
+            "active_models": len([model for model in research_models if model.get("is_active")]),
+            "simulation_only_models": len([model for model in research_models if model.get("simulation_only")]),
+        },
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "snapshot_id": dataset_snapshot["snapshot_id"],
         "paper_ready": dataset_snapshot["qa_report"]["paper_ready"],
     }
+    paper_manifest = _build_paper_manifest(
+        dataset_snapshot,
+        metadata,
+        study_protocol,
+        research_models,
+        study_qa,
+        human_policy_eval_rows,
+    )
+    _write_json(out_dir / "paper_manifest.json", paper_manifest)
     _write_json(out_dir / "run_metadata.json", metadata)
 
     return metadata
@@ -2246,6 +2943,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--stores-json", help="Optional store dataset JSON for modeled-time parity")
     run.add_argument("--cities-json", help="Optional cities dataset JSON for modeled-time parity")
     run.add_argument("--metadata-file", help="Optional metadata CSV/JSON joined onto participants")
+    run.add_argument("--study-protocol-json", help="Optional study protocol JSON used for paper exports and randomization summaries")
+    run.add_argument("--research-models-file", help="Optional model registry CSV/JSON used for paper manifest exports")
     run.add_argument("--metadata-join-key", default="participant_id", help="Metadata field matched to participant id")
     run.add_argument("--participant-join-key", default="id", help="Participant field matched to metadata join key")
     run.add_argument("--metadata-session-key", help="Optional metadata fallback field used only when explicitly provided")
