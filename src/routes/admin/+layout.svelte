@@ -31,12 +31,14 @@
         { label: 'Master Data', href: '/admin/masterdata' },
         { label: 'Results', href: '/admin/results' },
         { label: 'Analysis', href: '/admin/analysis' },
-        { label: 'Research', href: '/admin/research' }
+        { label: 'DRL Research', href: '/admin/research' }
     ];
     
     function isActive(href) {
         return $page.url.pathname === href;
     }
+
+    $: isResearchRoute = $page.url.pathname === '/admin/research';
 </script>
 
 {#if loading}
@@ -85,7 +87,7 @@
         </nav>
         
         <!-- Page Content -->
-        <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <main class={isResearchRoute ? 'w-full' : 'max-w-7xl mx-auto py-6 sm:px-6 lg:px-8'}>
             <slot />
         </main>
     </div>

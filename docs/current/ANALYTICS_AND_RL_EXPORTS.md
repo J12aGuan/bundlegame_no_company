@@ -188,5 +188,6 @@ See also:
 
 - `docs/current/RESEARCH_PLAYBOOK.md`
 - `docs/current/PAPER_ANALYSIS_WORKFLOW.md`
+- `docs/current/FULL_PAPER_READY_STUDY_ROADMAP.md`
 - `docs/current/CHI_CSCW_DRL_ROADMAP.md`
 - `docs/current/VENUE_POSITIONING_AND_SCORING.md`

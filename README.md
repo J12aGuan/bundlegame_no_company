@@ -41,6 +41,7 @@ Start with [docs/README.md](docs/README.md) for the documentation index.
 | Runtime architecture | [docs/current/ARCHITECTURE.md](docs/current/ARCHITECTURE.md) |
 | Firestore config, datasets, and timing model | [docs/current/CONFIG_AND_DATASETS.md](docs/current/CONFIG_AND_DATASETS.md) |
 | Analytics and RL exports | [docs/current/ANALYTICS_AND_RL_EXPORTS.md](docs/current/ANALYTICS_AND_RL_EXPORTS.md) |
+| Full study readiness roadmap | [docs/current/FULL_PAPER_READY_STUDY_ROADMAP.md](docs/current/FULL_PAPER_READY_STUDY_ROADMAP.md) |
 | Experiment design | [docs/experiment/EXPERIMENT_DESIGN.md](docs/experiment/EXPERIMENT_DESIGN.md) |
 | Legacy material | [docs/archive/README.md](docs/archive/README.md) |
 
