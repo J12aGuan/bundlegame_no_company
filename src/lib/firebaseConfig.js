@@ -1,5 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { browser } from '$app/environment';
 
@@ -21,10 +22,16 @@ const firebaseConfig = {
 // Initialize Firebase only in the browser
 let app;
 let firestore;
+let auth;
 
 if (browser && !getApps().length) {
   app = initializeApp(firebaseConfig);
   firestore = getFirestore(app);
+  auth = getAuth(app);
+} else if (browser) {
+  app = getApps()[0];
+  firestore = getFirestore(app);
+  auth = getAuth(app);
 }
 
-export { firestore, app };
+export { firestore, auth, app };

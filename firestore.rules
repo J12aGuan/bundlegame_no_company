@@ -2,174 +2,253 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Global counter - anyone can read, increment only
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    function hasOnly(keys) {
+      return request.resource.data.keys().hasOnly(keys);
+    }
+
+    function participantRootWrite() {
+      return hasOnly([
+        'createdAt',
+        'updatedAt',
+        'researchStudy',
+        'lastActivityAt'
+      ]);
+    }
+
+    function participantSummaryWrite() {
+      return hasOnly(['summaryByScenarioSetVersionId']);
+    }
+
+    function participantProgressWrite() {
+      return hasOnly(['progressByScenarioSetVersionId']);
+    }
+
+    function participantActionWrite() {
+      return hasOnly(['actionsByScenarioSetVersionId']);
+    }
+
+    function participantDetailedActionWrite() {
+      return hasOnly(['detailedActionsByScenarioSetVersionId']);
+    }
+
+    function participantRoundActionWrite() {
+      return hasOnly([
+        'type',
+        'scenarioSetVersionId',
+        'round_index',
+        'scenario_id',
+        'phase',
+        'classification',
+        'study_protocol_id',
+        'policy_arm',
+        'policy_name',
+        'policy_version',
+        'dataset_snapshot_id',
+        'legal_action_mask_version',
+        'recommendation_source',
+        'current_city',
+        'final_location',
+        'chosen_orders',
+        'shown_recommendation_bundle_ids',
+        'shown_ranked_bundles',
+        'scenario_order_ids',
+        'best_bundle_ids',
+        'recommendation_quality',
+        'success',
+        'duration',
+        'earnings',
+        'reward',
+        'trust_rating',
+        'usefulness_rating',
+        'workload_rating',
+        'liveSessionId',
+        'decision_timestamp',
+        'pre_state',
+        'post_state',
+        'state_snapshot',
+        'outcome_snapshot',
+        'createdAt',
+        'updatedAt'
+      ]);
+    }
+
+    function liveParticipantWrite(participantId) {
+      return request.resource.data.participantId == participantId
+        && hasOnly([
+          'participantId',
+          'displayName',
+          'earnings',
+          'roundsCompleted',
+          'optimalChoices',
+          'totalGameTime',
+          'completedGame',
+          'status',
+          'joinedAt',
+          'lastActivityAt',
+          'finalizedAt'
+        ]);
+    }
+
+    function publicResultWrite(resultId) {
+      return request.resource.data.userId is string
+        && request.resource.data.resultAccessKey is string
+        && resultId == (request.resource.data.userId + '__' + request.resource.data.resultAccessKey)
+        && hasOnly([
+          'userId',
+          'scenarioSetVersionId',
+          'scenarioSetName',
+          'resultAccessKey',
+          'earnings',
+          'roundsCompleted',
+          'optimalChoices',
+          'totalGameTime',
+          'completedGame',
+          'updatedAt'
+        ]);
+    }
+
+    function authTokenWrite() {
+      return hasOnly(['userid', 'status'])
+        && request.resource.data.userid is string
+        && request.resource.data.status == 1;
+    }
+
+    // Public counter used by the participant entry flow. Public writes are limited
+    // to creating the counter or incrementing count by exactly one.
     match /Global/totalusers {
-      allow read: if true;
-      allow update: if request.resource.data.count == resource.data.count + 1;
-      allow create: if true;
+      allow get: if true;
+      allow list: if false;
+      allow create: if hasOnly(['count']) && request.resource.data.count is int;
+      allow update: if hasOnly(['count'])
+        && request.resource.data.count == resource.data.count + 1;
+      allow delete: if false;
     }
 
-    // Auth collection - allow authentication flow
+    // Participant token lookup is intentionally get-only for the browser login
+    // flow. Listing and administrative changes require a Firebase admin claim.
     match /Auth/{docId} {
-      // Allow creating auth records (for initial authentication)
-      allow create: if true;
-      // Allow reading auth records (for checking authentication status)
-      allow read: if true;
-      // Allow updates for status changes
-      allow update: if true;
-      // No deletions
-      allow delete: if false;
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isAdmin() || authTokenWrite();
+      allow update: if isAdmin() || (authTokenWrite() && resource.data.status == 1);
+      allow delete: if isAdmin();
     }
 
-    // Users collection - allow user creation and access
+    // Human-subject participant data is never listable/readable by the public.
+    // The unauthenticated game can only append/update the narrow documents it
+    // needs during play; full reads/exports require Firebase Auth with admin=true.
     match /Users/{userId} {
-      // Allow user creation (during registration)
-      allow create: if true;
-      // Allow reading own user data
-      allow read: if true;
-      // Allow updates (for game progress)
-      allow update: if true;
-      // No deletions
-      allow delete: if false;
+      allow get, list: if isAdmin();
+      allow create, update: if isAdmin() || participantRootWrite();
+      allow delete: if isAdmin();
 
-      // Actions subcollection
       match /Actions/{actionId} {
-        allow create: if true;  // Allow logging actions
-        allow read: if true;    // Allow reading actions
-        allow update: if true;  // Allow updating actions
-        allow delete: if false;
+        allow get, list: if isAdmin();
+        allow create, update: if isAdmin() || participantRoundActionWrite();
+        allow delete: if isAdmin();
       }
 
-      // Orders subcollection
       match /Orders/{orderId} {
-        allow create: if true;  // Allow creating orders
-        allow read: if true;    // Allow reading orders
-        allow update: if true;  // Allow updating order status
-        allow delete: if false;
+        allow get, list: if isAdmin();
+        allow create, update, delete: if isAdmin();
       }
 
-      // Summary subcollection
       match /Summary/{summaryId} {
-        allow create: if true;
-        allow read: if true;
-        allow update: if true;
-        allow delete: if false;
+        allow get, list: if isAdmin();
+        allow create, update: if isAdmin() || participantSummaryWrite();
+        allow delete: if isAdmin();
       }
 
-      // Progress subcollection
       match /Progress/{docId} {
-        allow create: if true;
-        allow read: if true;
-        allow update: if true;
-        allow delete: if false;
+        allow get, list: if isAdmin();
+        allow create, update: if isAdmin() || participantProgressWrite();
+        allow delete: if isAdmin();
       }
 
-      // Legacy ScenarioSet progress subcollection
       match /ScenarioSet/{docId} {
-        allow create: if true;
-        allow read: if true;
-        allow update: if true;
-        allow delete: if false;
+        allow get, list: if isAdmin();
+        allow create, update: if isAdmin() || participantProgressWrite();
+        allow delete: if isAdmin();
       }
 
-      // Structured action summary subcollection
       match /Action/{docId} {
-        allow create: if true;
-        allow read: if true;
-        allow update: if true;
-        allow delete: if false;
+        allow get, list: if isAdmin();
+        allow create, update: if isAdmin() || participantActionWrite();
+        allow delete: if isAdmin();
       }
 
-      // Detailed structured action timeline subcollection
       match /DetailedAction/{docId} {
-        allow create: if true;
-        allow read: if true;
-        allow update: if true;
-        allow delete: if false;
+        allow get, list: if isAdmin();
+        allow create, update: if isAdmin() || participantDetailedActionWrite();
+        allow delete: if isAdmin();
       }
     }
 
-    // Configs collection - for experiment configurations
+    // Runtime configuration and scenario datasets must remain public so the
+    // static game can load. Writes are admin-only.
     match /Configs/{configId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if true;
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
     }
 
-    // MasterData collection - for game data (centralConfig, orders, stores, experiments, etc.)
     match /MasterData/{docId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if true;
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
     }
 
-    // Live classroom leaderboard sessions
+    // Participants may discover the active classroom session and update only
+    // their own leaderboard row shape. Session control and reads of participant
+    // rows are admin-only.
     match /LiveSessions/{sessionId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
 
-      // Per-session leaderboard participant rows
       match /participants/{participantId} {
-        allow read: if true;
-        allow create: if true;
-        allow update: if true;
-        allow delete: if false;
+        allow get, list: if isAdmin();
+        allow create, update: if isAdmin() || liveParticipantWrite(participantId);
+        allow delete: if isAdmin();
       }
     }
 
-    // Research snapshot manifests for reproducible offline analysis jobs
+    // Minimal result summaries are public only by unguessable result-code doc ID.
+    // Full participant records remain admin-only under /Users.
+    match /PublicResults/{resultId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() || publicResultWrite(resultId);
+      allow delete: if isAdmin();
+    }
+
+    // Research artifacts, models, survey responses, and sync logs are sensitive
+    // study data. They are only available to Firebase users with admin=true.
     match /ResearchSnapshots/{snapshotId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if false;
+      allow get, list, create, update, delete: if isAdmin();
     }
 
-    // Research training/evaluation job queue
     match /ResearchJobs/{jobId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if false;
+      allow get, list, create, update, delete: if isAdmin();
     }
 
-    // Research study protocol registry
     match /ResearchProtocols/{protocolId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if false;
+      allow get, list, create, update, delete: if isAdmin();
     }
 
-    // Research model registry
     match /ResearchModels/{modelId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if false;
+      allow get, list, create, update, delete: if isAdmin();
     }
 
-    // Qualtrics completed survey responses synced by the private server script
     match /QualtricsResponses/{responseId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if false;
+      allow get, list, create, update, delete: if isAdmin();
     }
 
-    // Qualtrics sync run metadata for admin diagnostics
     match /QualtricsSyncRuns/{runId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if false;
+      allow get, list, create, update, delete: if isAdmin();
     }
 
-    // Block everything else
     match /{document=**} {
       allow read, write: if false;
     }

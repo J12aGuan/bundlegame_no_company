@@ -1,42 +1,66 @@
 # Dependencies
-node_modules
+/node_modules/
 
-# Build outputs
-/build
-/.svelte-kit
-/.vercel
-/package
+# SvelteKit/Vite build outputs
+/build/
+/.svelte-kit/
+/.vercel/
+/package/
+/dist/
+/coverage/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
 
-# Environment variables
+# Environment variables and local secrets
 .env
 .env.*
 !.env.example
 
-# IDE and editor files
+# Logs and debug output
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+firebase-debug*.log
+firestore-debug*.log
+
+# IDE, OS, and local history folders
 .DS_Store
-.history
+.history/
+.claude/
+.sixth/
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
-
-# Vite
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
 
 # Temporary experiment files
 phase1_orders.json
 storesTemplate.json
 phase1_optimal.json
 phase1_possibilities.json
-firebase-debug*.log
 
-# Data analysis outputs (keep scripts, ignore data)
-data analysis/data/*.json
-data analysis/*.csv
-data analysis/.ipynb_checkpoints/
-data analysis/analytics_v1/out*/
+# Data analysis outputs (keep scripts and fixtures, ignore generated data)
+/data analysis/data/*.json
+/data analysis/*.csv
+/data analysis/.ipynb_checkpoints/
+/data analysis/research_jobs/
+/data analysis/raw_research_export-*/
+/data analysis/publication_export-*/
+/data analysis/analytics_v1/out*/
 
-# Python cache/artifacts (analytics package)
+# Python cache/artifacts
+__pycache__/
 **/__pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+*.egg-info/
+**/*.egg-info/

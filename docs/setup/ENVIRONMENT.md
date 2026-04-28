@@ -9,7 +9,7 @@ Detailed guide to setting up environment variables for local development and pro
 Bundle Game requires environment variables for:
 - **Firebase** - Database and authentication
 - **MapTiler** - Interactive maps
-- **Downloader** - Password-protected data export
+- **Private sync scripts** - Optional admin Firebase Auth and Qualtrics credentials
 
 These are stored in `.env` locally and in Vercel for production.
 
@@ -43,8 +43,15 @@ VITE_FIREBASE_MEASUREMENT_ID=G-ABCDEFGH
 # MapTiler API Key
 VITE_MAPTILER_API_KEY=your_maptiler_key_here
 
-# Downloader Page Password
-VITE_DOWNLOADER_PASSWORD=your_secure_password_here
+# Server/local script admin access
+FIREBASE_ADMIN_EMAIL=researcher@example.edu
+FIREBASE_ADMIN_PASSWORD=private_password_here
+PUBLICATION_PSEUDONYM_SALT=private_stable_export_salt
+
+# Qualtrics sync, server/local scripts only
+QUALTRICS_API_TOKEN=private_token_here
+QUALTRICS_DATACENTER_ID=yul1
+QUALTRICS_SURVEY_ID=SV_...
 ```
 
 ### 3. Verify
@@ -89,16 +96,15 @@ npm run dev
 
 **Free tier**: 100,000 requests/month (sufficient for development)
 
-### Downloader Variable
+### Admin And Downloader Access
 
 | Variable | Purpose | Usage |
 |----------|---------|-------|
-| `VITE_DOWNLOADER_PASSWORD` | Protect data export | Used at `/downloader` page |
+| `FIREBASE_ADMIN_EMAIL` | Admin account for local/server scripts | Used by `npm run qualtrics:sync`, score export, and research scripts |
+| `FIREBASE_ADMIN_PASSWORD` | Admin password for local/server scripts | Keep private; never prefix with `VITE_` |
+| `PUBLICATION_PSEUDONYM_SALT` | Stable publication pseudonym salt | Optional, private, never prefix with `VITE_` |
 
-**Set a strong password**:
-- Minimum 12 characters
-- Mix of letters, numbers, symbols
-- Don't share publicly
+The browser admin dashboard and `/downloader` do not read an admin password from env. Sign in interactively with a Firebase Auth user that has the `admin: true` custom claim.
 
 ---
 
@@ -106,9 +112,9 @@ npm run dev
 
 ### DO ✅
 - Keep `.env` file local only
-- Use strong passwords
+- Use Firebase Auth admin claims for researcher/admin access
 - Rotate credentials if exposed
-- Use different passwords for dev/prod
+- Keep server-only credentials unprefixed; never use `VITE_` for secrets
 - Restrict Firebase API keys to specific domains
 
 ### DON'T ❌
@@ -117,6 +123,7 @@ npm run dev
 - Don't use simple passwords like "password123"
 - Don't reuse passwords across projects
 - Don't commit credentials in code comments
+- Don't store downloader/admin passwords in `VITE_` variables
 
 ---
 
@@ -191,15 +198,15 @@ node -e "console.log(process.env.VITE_FIREBASE_API_KEY)"
 console.log(import.meta.env.VITE_MAPTILER_API_KEY)
 ```
 
-### Downloader Password Not Working
+### Downloader/Admin Sign-In Not Working
 
-**Symptoms**: Can't access `/downloader` page
+**Symptoms**: Can't access `/admin` or `/downloader`
 
 **Solutions**:
-1. Check `VITE_DOWNLOADER_PASSWORD` is in `.env`
-2. Verify no typos when entering password
-3. Password is case-sensitive
-4. Restart dev server
+1. Confirm Firebase Email/Password sign-in is enabled
+2. Confirm the researcher account exists in Firebase Auth
+3. Confirm the account has a custom claim of `admin: true`
+4. Sign out and sign back in so the browser receives a fresh token
 
 ### Changes Not Reflecting
 
@@ -218,7 +225,7 @@ npm run dev
 
 **Solutions**:
 1. Check all variables are added in Vercel dashboard
-2. Verify spelling matches exactly (including `VITE_` prefix)
+2. Verify spelling matches exactly
 3. Redeploy after adding variables
 4. Check deployment logs for errors
 
@@ -242,11 +249,11 @@ If credentials are exposed:
 4. Update `.env` and Vercel env vars
 5. Redeploy
 
-### Downloader Password
-1. Choose new strong password
-2. Update `.env` and Vercel env vars
-3. Redeploy
-4. Inform team members
+### Admin Accounts
+1. Disable or rotate the affected Firebase Auth account
+2. Remove the `admin` custom claim if access should be revoked
+3. Rotate `FIREBASE_ADMIN_PASSWORD` if it was used by local/server scripts
+4. Ask researchers to sign out and back in after claim changes
 
 ---
 
@@ -257,11 +264,11 @@ If credentials are exposed:
 - [ ] `.env` file created (from `.env.example`)
 - [ ] All Firebase variables filled in
 - [ ] MapTiler API key added
-- [ ] Downloader password set
+- [ ] Firebase researcher account has `admin: true` custom claim
 - [ ] Dev server runs without errors
 - [ ] Login page works
 - [ ] Map loads correctly
-- [ ] `/downloader` page accessible with password
+- [ ] `/downloader` page accessible after Firebase admin sign-in
 
 ### For Production (Vercel)
 
@@ -272,6 +279,7 @@ If credentials are exposed:
 - [ ] Tested production site
 - [ ] Firebase security rules deployed
 - [ ] API keys restricted to production domain
+- [ ] No `VITE_` variables contain secrets
 
 ---
 
@@ -291,8 +299,7 @@ const required = [
   'VITE_FIREBASE_MESSAGING_SENDER_ID',
   'VITE_FIREBASE_APP_ID',
   'VITE_FIREBASE_MEASUREMENT_ID',
-  'VITE_MAPTILER_API_KEY',
-  'VITE_DOWNLOADER_PASSWORD'
+  'VITE_MAPTILER_API_KEY'
 ];
 
 let missing = [];

@@ -15,18 +15,54 @@ Quick links: [Quick Setup](#quick-setup) | [Docs Hub](docs/README.md) | [Current
 ```bash
 git clone https://github.com/nnicholas-c/bundlegame_no_company.git
 cd bundlegame_no_company
-npm install
+npm ci
 cp .env.example .env
 npm run dev
 ```
 
-Fill in Firebase, MapTiler, and downloader credentials in `.env` before running locally.
+Fill in Firebase and MapTiler values in `.env` before running locally.
 
 Detailed setup: [docs/setup/QUICKSTART.md](docs/setup/QUICKSTART.md)
+
+## Reproducible Build
+
+Clean-room setup uses the lockfile and does not require checked-in dependencies or build artifacts.
+
+Prerequisites:
+
+- Node.js 18 or newer
+- Python 3.10 or newer for analytics tests
+
+```bash
+npm ci
+npm run build
+npm run test:python
+```
+
+You can also run the same workflow from the root Makefile:
+
+```bash
+make ci
+```
+
+If your machine has multiple Python versions, point the analytics test target at a supported one:
+
+```bash
+make PYTHON=python3.11 test-python
+```
 
 ## Security
 
 Before collecting real participant data, publish the Firestore rules from [`firestore.rules`](firestore.rules).
+
+Admin pages and `/downloader` use Firebase Auth, not a client-side password. Create a Firebase user for each researcher, set a custom claim of `admin: true`, and keep script credentials in non-`VITE_` variables such as `FIREBASE_ADMIN_EMAIL` and `FIREBASE_ADMIN_PASSWORD`. Do not put downloader passwords or API tokens in `VITE_` variables because those are bundled into browser code.
+
+Security migration note:
+
+1. Enable Firebase Email/Password sign-in for researcher accounts.
+2. Set `admin: true` as a custom claim on approved researcher users.
+3. Remove `VITE_DOWNLOADER_PASSWORD` from local `.env` and Vercel.
+4. Publish [`firestore.rules`](firestore.rules), then redeploy the app.
 
 Full guidance: [SECURITY.md](SECURITY.md)
 
@@ -55,6 +91,15 @@ Primary documents and grouped data:
 - `MasterData/tutorialConfig`
 - `MasterData/cities`
 - `MasterData/datasets`
+
+The main research protocol has one code-level source of truth in `src/lib/researchStudy.js`:
+
+- protocol version `bundlegame_abc_50_round_v1`
+- 50 rounds total
+- Phase A rounds 1-15, Phase B rounds 16-35, Phase C rounds 36-50
+- recommendation exposure is allowed only in Phase B and only for treatment arms
+
+Runtime loading, Firestore scenario saves, research protocol saves, and analytics now reject mismatched protocol snapshots.
 
 Timing semantics:
 
@@ -218,6 +263,15 @@ npm run scores:export
 
 This writes `bundlegame-scores-YYYY-MM-DD.csv` and `bundlegame-score-class-averages-YYYY-MM-DD.csv` under `data analysis/`. The admin `total_score` is a class-facing composite, not the primary paper metric; see [docs/current/VENUE_POSITIONING_AND_SCORING.md](docs/current/VENUE_POSITIONING_AND_SCORING.md).
 
+Research exports are available as explicit modes:
+
+```bash
+npm run scores:export -- --mode raw_research_export
+npm run scores:export -- --mode publication_export
+```
+
+`raw_research_export` keeps operational IDs for internal QA. `publication_export` writes pseudonymous participant IDs and excludes names, result codes, Qualtrics IDs, and raw survey fields. Set private `PUBLICATION_PSEUDONYM_SALT` to keep publication pseudonyms stable across exports.
+
 ### Results Page Improvements
 
 - Result hydration now falls back across summary and progress data so `earnings`, `optimalChoices`, `roundsCompleted`, and `totalGameTime` do not disappear on newer records.
@@ -263,7 +317,7 @@ Use a feature, fix, or docs branch instead of pushing ad hoc changes directly.
 
 Before opening a PR:
 
-- Run `npm run build`
+- Run `npm run verify` or `make ci`
 - Check that Firebase-backed pages still load
 - Update the relevant file in `docs/current/` when behavior changes
 - Add or refresh the README `Recent Feature History` row when a meaningful feature ships
@@ -282,7 +336,7 @@ Pushes to `main` deploy through Vercel.
 
 For participant export:
 
-- `/downloader` exports participant data
+- `/downloader` exports participant data for Firebase users with the `admin` custom claim
 - `/admin/live` provides the classroom leaderboard and live class-session controls
 - `/admin/analysis` provides live analytics and RL-ready exports
 

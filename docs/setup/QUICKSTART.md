@@ -5,6 +5,7 @@ Use this guide to get the project running locally with the current Firestore-bac
 ## Prerequisites
 
 - Node.js 18 or newer
+- Python 3.10 or newer for analytics tests
 - Access to this repository
 - Firebase credentials
 - MapTiler API key
@@ -14,7 +15,7 @@ Use this guide to get the project running locally with the current Firestore-bac
 ```bash
 git clone https://github.com/nnicholas-c/bundlegame_no_company.git
 cd bundlegame_no_company
-npm install
+npm ci
 cp .env.example .env
 ```
 
@@ -22,7 +23,7 @@ Fill in the values for:
 
 - Firebase client configuration
 - MapTiler key
-- downloader password
+- Firebase researcher accounts with the `admin` custom claim for admin/downloader access
 
 Detailed environment reference: [ENVIRONMENT.md](ENVIRONMENT.md)
 
@@ -37,7 +38,13 @@ Then open `http://localhost:5173`.
 Recommended verification:
 
 ```bash
-npm run build
+npm run verify
+```
+
+If your default `python3` is older than 3.10, run the analytics tests with a supported interpreter:
+
+```bash
+make PYTHON=python3.11 test-python
 ```
 
 ## Useful Follow-Up Docs

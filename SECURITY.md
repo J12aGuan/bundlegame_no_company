@@ -24,7 +24,8 @@ Bundle Game uses Firebase for backend data storage and authentication. Proper se
 ### Environment Variables
 - **Never commit `.env` files** - They contain sensitive credentials
 - **Rotate credentials** if accidentally exposed
-- **Use strong passwords** for downloader page and admin access
+- **Use Firebase Auth accounts with `admin: true` custom claims** for admin and downloader access
+- **Never put secrets in `VITE_` variables** - `VITE_` values are shipped to the browser
 - **Restrict API keys** in Google Cloud Console to authorized domains
 
 ### Firebase Security
@@ -64,7 +65,8 @@ Before deploying to production:
 - [ ] Firebase security rules deployed (go to Firebase Console → Firestore Rules and publish `firestore.rules`)
 - [ ] `.env` file is in `.gitignore` and not committed
 - [ ] API keys restricted in Google Cloud Console
-- [ ] Downloader page password is strong (`VITE_DOWNLOADER_PASSWORD`)
+- [ ] Firebase researcher accounts have the `admin: true` custom claim
+- [ ] No downloader password or API token uses a `VITE_` variable
 - [ ] Environment variables set in Vercel dashboard
 - [ ] Security rules tested with Firebase emulator
 - [ ] Regular `npm audit` run and issues resolved
@@ -78,17 +80,20 @@ Before deploying to production:
 - Simple token-based authentication for participants
 - Tokens stored in Firebase `Auth/` collection
 - No passwords - designed for research participants with unique IDs
+- Researcher/admin access uses Firebase Auth plus an `admin: true` custom claim
 
 ### Authorization
 - Firestore security rules control data access
-- Users can only read/write their own data
-- Global counters accessible to all (by design)
-- Admin functions (data export) password-protected
+- Participant data is writable by the game in narrow document shapes but readable/listable only by admin-claimed Firebase users
+- Minimal `/result` summaries are public only through an unguessable result-code document ID
+- Runtime configuration is public-read so the static game can load
+- Research models, snapshots, survey responses, and sync logs require the admin claim
+- Global counters are publicly readable and increment-only
 
 ### Data Privacy
 - Participant IDs should be anonymized
 - No personally identifiable information (PII) collected by default
-- Data export page requires password
+- Data export requires Firebase admin authentication
 - Researcher responsible for ethical data handling
 
 ---
@@ -101,12 +106,22 @@ Before deploying to production:
 - **Console**: https://console.firebase.google.com/project/bundling-63c10
 
 ### Environment Variables (Sensitive)
-- `VITE_FIREBASE_API_KEY` - Firebase API key (domain-restricted)
-- `VITE_FIREBASE_AUTH_DOMAIN` - Firebase auth domain
-- `VITE_FIREBASE_PROJECT_ID` - Firebase project ID
-- `VITE_DOWNLOADER_PASSWORD` - Data export password
+- `FIREBASE_ADMIN_EMAIL` - Local/server script admin account
+- `FIREBASE_ADMIN_PASSWORD` - Local/server script admin password
+- `QUALTRICS_API_TOKEN` - Private Qualtrics sync token
+- `PUBLICATION_PSEUDONYM_SALT` - Private salt for stable publication pseudonyms
+
+Firebase browser config values use `VITE_FIREBASE_*` because Firebase client apps need them at runtime; they are identifiers, not database authorization. Do not use `VITE_` for downloader passwords, admin passwords, Qualtrics tokens, or service credentials.
 
 **Never commit these** - they're in `.env` (gitignored).
+
+## Migration Note
+
+1. Enable Firebase Email/Password sign-in.
+2. Create researcher users in Firebase Auth.
+3. Set a custom claim of `admin: true` on approved researcher users with the Firebase Admin SDK or console tooling.
+4. Delete `VITE_DOWNLOADER_PASSWORD` from `.env` and hosting provider settings.
+5. Publish [`firestore.rules`](firestore.rules) before collecting human-subjects data.
 
 ---
 
