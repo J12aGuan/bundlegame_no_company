@@ -11,6 +11,15 @@ Primary runtime documents:
 - `MasterData/cities`
 - grouped dataset entries under `MasterData/datasets`
 
+The 50-round research protocol is defined in code, not separately in Firestore:
+
+- source of truth: `src/lib/researchStudy.js`
+- protocol id: `bundlegame_abc_recommendation_v1`
+- protocol version: `bundlegame_abc_50_round_v1`
+- total rounds: `50`
+- phases: A rounds 1-15, B rounds 16-35, C rounds 36-50
+- recommendation exposure: only Phase B can show recommendations, and only treatment arms show them
+
 ## MasterData Documents
 
 ### `centralConfig`
@@ -26,6 +35,12 @@ Important fields:
 - `game.ordersShown`
 - `game.gridSize`
 - `scenario_set`
+- `research_protocol.protocol_version`
+- `research_protocol.expected_total_rounds`
+- `research_protocol.phase_plan`
+- `research_protocol.recommendation_exposure`
+
+`getCentralConfig()` injects the canonical `research_protocol` block when an older Firestore document does not contain it. `saveCentralConfig()` rejects a mismatched protocol version or total-round count.
 
 ### `tutorialConfig`
 
@@ -74,6 +89,16 @@ Generated `scenarios[]` may also include:
 - `classification`
 - `score_gap`
 - `relative_gap`
+
+For non-tutorial research datasets, scenario management validates the dataset against the canonical protocol before saving:
+
+- exactly 50 scenarios
+- one scenario for each round 1 through 50
+- Phase A on rounds 1-15, Phase B on rounds 16-35, Phase C on rounds 36-50
+- no recommendation flags outside the recommendation phase
+- dataset protocol metadata, when present, must use `bundlegame_abc_50_round_v1`
+
+The runtime loader and research analysis engine also reject inconsistent snapshots. This prevents a run where docs say 50 rounds but Firestore, dataset metadata, or a saved research protocol says something else.
 
 ## Order Timing Fields
 

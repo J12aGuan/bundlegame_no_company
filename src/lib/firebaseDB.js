@@ -2,6 +2,8 @@ import {firestore} from './firebaseConfig';
 import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, deleteField, query, where, onSnapshot } from "firebase/firestore";
 import { generateAuthToken } from './authToken';
 import {
+    assertValidResearchProtocolDefinition,
+    assertValidResearchProtocolSnapshot,
     DEFAULT_ACTION_MASK_VERSION,
     mergeResearchStudyState,
     normalizeRankedBundles,
@@ -11,6 +13,8 @@ import {
     normalizeResearchStudySurveyResponse
 } from './researchStudy.js';
 import { normalizeQualtricsResponseDocument } from './qualtrics.js';
+import { buildResearchExport, validatePublicationExport } from './adminScores.js';
+import { normalizeCentralConfigForRuntime } from './config.js';
 
 function removeUndefinedDeep(value) {
     if (Array.isArray(value)) {
@@ -33,26 +37,29 @@ export const createUser = async (id, n) => {
     const now = Timestamp.fromDate(new Date());
 
     try {
-        const existingUser = await getDoc(userDocRef);
-        if (existingUser.exists()) {
-            const existingData = existingUser.data() || {};
-            await setDoc(userDocRef, {
-                configuration: deleteField(),
-                createdAt: existingData.createdAt || now,
-                updatedAt: now
-            }, { merge: true });
-        } else {
-            await setDoc(userDocRef, {
-                createdAt: now,
-                updatedAt: now
-            }, { merge: true });
-        }
+        await setDoc(userDocRef, {
+            createdAt: now,
+            updatedAt: now
+        }, { merge: true });
         console.log("Document written with ID: ", id);
     } catch (error) {
         console.error("Error adding document: ", error);
     }
 
     return id
+}
+
+async function getDocDataForMerge(docRef, label = 'document') {
+    try {
+        const snap = await getDoc(docRef);
+        return snap.exists() ? (snap.data() || {}) : {};
+    } catch (error) {
+        if (error?.code === 'permission-denied') {
+            console.warn(`Read blocked while preparing ${label}; continuing with a write-only payload.`);
+            return {};
+        }
+        throw error;
+    }
 }
 
 async function touchUserUpdatedAt(id) {
@@ -153,6 +160,42 @@ function getQualtricsSyncRunsCollectionRef() {
 
 function getQualtricsSyncRunRef(runId) {
     return doc(getQualtricsSyncRunsCollectionRef(), String(runId ?? '').trim());
+}
+
+function buildPublicResultId(userId = '', accessKey = '') {
+    const normalizedUserId = String(userId ?? '').trim();
+    const normalizedAccessKey = String(accessKey ?? '').trim();
+    return `${normalizedUserId || 'participant'}__${normalizedAccessKey || 'result'}`;
+}
+
+function getPublicResultRef(userId = '', accessKey = '') {
+    return doc(collection(firestore, 'PublicResults'), buildPublicResultId(userId, accessKey));
+}
+
+function buildPublicResultPayload(userId = '', scenarioSetVersionId = '', entry = {}) {
+    return removeUndefinedDeep({
+        userId: String(userId ?? '').trim(),
+        scenarioSetVersionId: String(scenarioSetVersionId ?? '').trim(),
+        scenarioSetName: String(entry?.scenarioSetName ?? '').trim(),
+        resultAccessKey: String(entry?.resultAccessKey ?? '').trim(),
+        earnings: Number(entry?.earnings) || 0,
+        roundsCompleted: Number(entry?.roundsCompleted) || 0,
+        optimalChoices: Number(entry?.optimalChoices) || 0,
+        totalGameTime: Number(entry?.totalGameTime) || 0,
+        completedGame: Boolean(entry?.completedGame),
+        updatedAt: Timestamp.fromDate(new Date())
+    });
+}
+
+async function publishPublicResultSummary(userId = '', scenarioSetVersionId = '', entry = {}) {
+    const normalizedUserId = String(userId ?? '').trim();
+    const resultAccessKey = String(entry?.resultAccessKey ?? '').trim();
+    if (!normalizedUserId || !resultAccessKey) return;
+    await setDoc(
+        getPublicResultRef(normalizedUserId, resultAccessKey),
+        buildPublicResultPayload(normalizedUserId, scenarioSetVersionId, entry),
+        { merge: true }
+    );
 }
 
 function normalizeIsoString(value = '') {
@@ -546,8 +589,7 @@ export const initializeUserProgress = async (id, progress = {}) => {
 
     try {
         const summaryRef = getSummaryRef(id);
-        const snap = await getDoc(summaryRef);
-        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const existing = await getDocDataForMerge(summaryRef, 'initial user summary');
         const existingMap = existing?.summaryByScenarioSetVersionId && typeof existing.summaryByScenarioSetVersionId === 'object'
             ? existing.summaryByScenarioSetVersionId
             : {};
@@ -575,7 +617,8 @@ export const initializeUserProgress = async (id, progress = {}) => {
                 ...existingMap,
                 [scenarioSetVersionId]: entry
             }
-        });
+        }, { merge: true });
+        await publishPublicResultSummary(id, scenarioSetVersionId, entry);
         console.log("Summary initialized for ", id);
         return entry;
     } catch (error) {
@@ -591,8 +634,7 @@ export const saveUserProgressSummary = async (id, progress = {}) => {
 
     try {
         const summaryRef = getSummaryRef(id);
-        const snap = await getDoc(summaryRef);
-        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const existing = await getDocDataForMerge(summaryRef, 'user progress summary');
         const existingMap = existing?.summaryByScenarioSetVersionId && typeof existing.summaryByScenarioSetVersionId === 'object'
             ? existing.summaryByScenarioSetVersionId
             : {};
@@ -621,7 +663,8 @@ export const saveUserProgressSummary = async (id, progress = {}) => {
                 ...existingMap,
                 [scenarioSetVersionId]: entry
             }
-        });
+        }, { merge: true });
+        await publishPublicResultSummary(id, scenarioSetVersionId, entry);
         await touchUserUpdatedAt(id);
         console.log("Summary updated for ", id);
         return entry;
@@ -644,6 +687,18 @@ export const getUserSummary = async (id) => {
 };
 
 export const getParticipantResultSummary = async (userId, accessKey) => {
+    try {
+        const publicSnap = await getDoc(getPublicResultRef(userId, accessKey));
+        if (publicSnap.exists()) {
+            const publicResult = publicSnap.data() || {};
+            if (String(publicResult?.resultAccessKey ?? '').trim() === String(accessKey ?? '').trim()) {
+                return publicResult;
+            }
+        }
+    } catch (error) {
+        console.error("Error fetching public result summary: ", error);
+    }
+
     const summary = await getUserSummary(userId);
     if (!summary) return null;
     const entries = summary?.summaryByScenarioSetVersionId && typeof summary.summaryByScenarioSetVersionId === 'object'
@@ -684,8 +739,7 @@ export const saveScenarioSetProgress = async (id, progress = {}) => {
 
     try {
         const progressRef = getScenarioSetProgressRef(id);
-        const snap = await getDoc(progressRef);
-        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const existing = await getDocDataForMerge(progressRef, 'scenario progress');
         const existingMap = existing?.progressByScenarioSetVersionId && typeof existing.progressByScenarioSetVersionId === 'object'
             ? existing.progressByScenarioSetVersionId
             : {};
@@ -723,7 +777,7 @@ export const saveScenarioSetProgress = async (id, progress = {}) => {
                 ...existingMap,
                 [scenarioSetVersionId]: entry
             }
-        });
+        }, { merge: true });
         return entry;
     } catch (error) {
         console.error("Error saving scenario set progress: ", error);
@@ -762,8 +816,7 @@ export const saveActionSummaries = async (id, payload = {}) => {
 
     try {
         const actionsRef = getActionSummaryRef(id);
-        const snap = await getDoc(actionsRef);
-        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const existing = await getDocDataForMerge(actionsRef, 'action summaries');
         const existingMap = existing?.actionsByScenarioSetVersionId && typeof existing.actionsByScenarioSetVersionId === 'object'
             ? existing.actionsByScenarioSetVersionId
             : {};
@@ -785,7 +838,7 @@ export const saveActionSummaries = async (id, payload = {}) => {
                     actionsByScenarioId: mergedActions
                 }
             }
-        });
+        }, { merge: true });
         return {
             actionsByScenarioId: mergedActions
         };
@@ -802,8 +855,7 @@ export const saveDetailedActionSummaries = async (id, payload = {}) => {
 
     try {
         const actionsRef = getDetailedActionSummaryRef(id);
-        const snap = await getDoc(actionsRef);
-        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const existing = await getDocDataForMerge(actionsRef, 'detailed action summaries');
         const existingMap = existing?.detailedActionsByScenarioSetVersionId && typeof existing.detailedActionsByScenarioSetVersionId === 'object'
             ? existing.detailedActionsByScenarioSetVersionId
             : {};
@@ -824,7 +876,7 @@ export const saveDetailedActionSummaries = async (id, payload = {}) => {
                     actionsByScenarioId: mergedActions
                 }
             }
-        });
+        }, { merge: true });
         return {
             actionsByScenarioId: mergedActions
         };
@@ -845,8 +897,7 @@ export const saveRoundSummaryAction = async (id, payload = {}) => {
             getRoundActionsCollectionRef(normalizedId),
             buildRoundSummaryActionId(scenarioSetVersionId, roundIndex)
         );
-        const snap = await getDoc(actionRef);
-        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const existing = await getDocDataForMerge(actionRef, 'round summary action');
         const now = Timestamp.fromDate(new Date());
         const normalized = normalizeRoundSummaryAction(existing, payload);
 
@@ -979,6 +1030,7 @@ export const createResearchProtocol = async (payload = {}) => {
     try {
         const protocolRef = doc(getResearchProtocolsCollectionRef());
         const protocol = normalizeResearchProtocol(protocolRef.id, payload);
+        assertValidResearchProtocolDefinition(protocol);
         await setDoc(protocolRef, protocol);
         return protocol;
     } catch (error) {
@@ -1001,6 +1053,7 @@ export const updateResearchProtocol = async (protocolId, payload = {}) => {
             created_at: existing?.created_at || payload?.created_at || new Date().toISOString(),
             updated_at: new Date().toISOString()
         });
+        assertValidResearchProtocolDefinition(next);
         await setDoc(protocolRef, next, { merge: true });
         return next;
     } catch (error) {
@@ -1107,12 +1160,10 @@ export const saveParticipantResearchStudyState = async (id, scenarioSetVersionId
     if (!normalizedId || !normalizedVersionId) return null;
 
     try {
-        const [summarySnap, progressSnap] = await Promise.all([
-            getDoc(getSummaryRef(normalizedId)),
-            getDoc(getScenarioSetProgressRef(normalizedId))
+        const [summaryDoc, progressDoc] = await Promise.all([
+            getDocDataForMerge(getSummaryRef(normalizedId), 'participant research summary'),
+            getDocDataForMerge(getScenarioSetProgressRef(normalizedId), 'participant research progress')
         ]);
-        const summaryDoc = summarySnap.exists() ? (summarySnap.data() || {}) : {};
-        const progressDoc = progressSnap.exists() ? (progressSnap.data() || {}) : {};
         const summaryMap = summaryDoc?.summaryByScenarioSetVersionId && typeof summaryDoc.summaryByScenarioSetVersionId === 'object'
             ? summaryDoc.summaryByScenarioSetVersionId
             : {};
@@ -1349,6 +1400,21 @@ export const importQualtricsResponses = async (responses = [], source = 'admin_c
     }
 };
 
+export const buildResearchExportFromFirestore = async (options = {}) => {
+    const [participants, qualtricsResponses] = await Promise.all([
+        retrieveData(),
+        listQualtricsResponses()
+    ]);
+    const exportData = buildResearchExport(participants, qualtricsResponses, options);
+    if (exportData.export_mode === 'publication_export') {
+        const validation = validatePublicationExport(exportData);
+        if (!validation.ok) {
+            throw new Error(`Publication export validation failed: ${validation.errors.join('; ')}`);
+        }
+    }
+    return exportData;
+};
+
 async function listActiveLiveSessions() {
     const activeQuery = query(getLiveSessionsCollectionRef(), where('status', '==', 'active'));
     const snap = await getDocs(activeQuery);
@@ -1483,8 +1549,7 @@ export const upsertLiveSessionParticipant = async (sessionId, participantId, pay
 
     try {
         const participantRef = getLiveSessionParticipantRef(normalizedSessionId, normalizedParticipantId);
-        const snap = await getDoc(participantRef);
-        const existing = snap.exists() ? (snap.data() || {}) : {};
+        const existing = await getDocDataForMerge(participantRef, 'live session participant');
         const nowIso = new Date().toISOString();
         const entry = normalizeLiveSessionParticipant(normalizedParticipantId, {
             ...existing,
@@ -1588,13 +1653,35 @@ const writeDatasetEntry = async (datasetId = '', entry = {}) => {
     return root;
 };
 
+function shouldValidateResearchScenarioDataset(datasetRoot = '', entry = {}) {
+    const normalizedRoot = resolveDatasetRootFromId(datasetRoot);
+    if (!normalizedRoot || /tutorial/i.test(normalizedRoot)) return false;
+    const metadata = entry?.metadata && typeof entry.metadata === 'object' ? entry.metadata : {};
+    if (metadata.skip_protocol_validation === true) return false;
+    return entry?.type === 'scenario_dataset' || Array.isArray(entry?.scenarios);
+}
+
+function assertValidScenarioDatasetForResearch(datasetRoot = '', entry = {}, centralConfig = null) {
+    if (!shouldValidateResearchScenarioDataset(datasetRoot, entry)) return;
+    assertValidResearchProtocolSnapshot({
+        centralConfig,
+        scenarioBundle: entry,
+        studyProtocol:
+            entry?.metadata?.researchStudy ||
+            entry?.metadata?.study_protocol ||
+            entry?.metadata?.research_protocol ||
+            {},
+        datasetRoot: resolveDatasetRootFromId(datasetRoot)
+    });
+}
+
 // Central Game Configuration
 export const getCentralConfig = async () => {
     try {
         const docSnap = await getDoc(doc(firestore, 'MasterData', 'centralConfig'));
         if (docSnap.exists()) {
             console.log('Central config fetched');
-            return docSnap.data();
+            return normalizeCentralConfigForRuntime(docSnap.data());
         } else {
             console.log('Central config not found');
             return null;
@@ -1608,8 +1695,14 @@ export const getCentralConfig = async () => {
 export const saveCentralConfig = async (configData) => {
     try {
         const docRef = doc(firestore, 'MasterData', 'centralConfig');
+        const payload = normalizeCentralConfigForRuntime(configData);
+        assertValidResearchProtocolSnapshot({
+            centralConfig: payload,
+            studyProtocol: payload.research_protocol || {},
+            datasetRoot: String(payload?.scenario_set ?? '').trim()
+        });
         await setDoc(docRef, {
-            ...configData,
+            ...payload,
             updatedAt: Timestamp.fromDate(new Date())
         });
         console.log('Central config saved');
@@ -1664,6 +1757,7 @@ export const saveExperimentScenarios = async (scenariosData, scenariosId = 'expe
             ...(entry && typeof entry === 'object' ? entry : {}),
             scenarios: sanitizedScenarios
         };
+        assertValidScenarioDatasetForResearch(root, next);
         await writeDatasetEntry(root, next);
         console.log(`Experiment scenarios saved: ${root}`);
         return true;
@@ -1763,14 +1857,16 @@ export const saveScenarioDatasetBundle = async (
     const metadata = payload?.metadata && typeof payload.metadata === 'object' ? payload.metadata : {};
 
     try {
-        await writeDatasetEntry(id, {
+        const entry = {
             type: 'scenario_dataset',
             version: 1,
             scenarios,
             orders,
             optimal,
             metadata
-        });
+        };
+        assertValidScenarioDatasetForResearch(id, entry);
+        await writeDatasetEntry(id, entry);
         console.log(`Grouped scenario dataset saved: ${id}`);
         return true;
     } catch (error) {
@@ -1783,13 +1879,28 @@ export const getScenarioDatasetBundle = async (datasetRoot = 'experiment') => {
     try {
         const { root: id, entry: data } = await readDatasetEntry(datasetRoot);
         if (!data) return null;
-        return {
+        const bundle = {
             scenarios: Array.isArray(data.scenarios) ? data.scenarios : [],
             orders: Array.isArray(data.orders) ? data.orders : [],
             optimal: Array.isArray(data.optimal) ? data.optimal : [],
             metadata: data.metadata && typeof data.metadata === 'object' ? data.metadata : {},
             type: data.type ?? '',
             version: data.version ?? 1
+        };
+        if (shouldValidateResearchScenarioDataset(id, data)) {
+            try {
+                assertValidScenarioDatasetForResearch(id, bundle);
+                bundle.protocolValidation = { ok: true, errors: [], warnings: [] };
+            } catch (validationError) {
+                bundle.protocolValidation = {
+                    ok: false,
+                    errors: [String(validationError?.message || validationError)],
+                    warnings: []
+                };
+            }
+        }
+        return {
+            ...bundle
         };
     } catch (error) {
         console.error(`Error fetching grouped scenario dataset (${datasetRoot}):`, error);

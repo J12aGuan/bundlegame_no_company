@@ -13,6 +13,20 @@ Use two datasets with different claims:
 
 Treat the current `mainGame` benchmark as useful for descriptive behavior analysis, action-space recovery, contextual ranking baselines, simulator fitting, and offline benchmark comparisons. Do not use it alone to claim recommendation-treatment effects.
 
+## Canonical Protocol
+
+The intended study protocol is versioned in `src/lib/researchStudy.js` as `bundlegame_abc_50_round_v1`.
+
+Runtime, Firestore saves, analytics exports, and documentation should all use that same structure:
+
+- Phase A: rounds 1-15, no recommendations
+- Phase B: rounds 16-35, recommendation exposure is allowed by arm
+- Phase C: rounds 36-50, no recommendations
+- Arms: `control`, `contextual_bandit`, `rl_cql`
+- Legal-action mask: `legal_bundle_mask_v1`
+
+Snapshots with different phase lengths, missing rounds, duplicate rounds, or recommendation flags outside the recommendation phase are rejected by the validation layer before runtime collection or analysis.
+
 ## Row Provenance
 
 The analytics stack now supports two decision sources:

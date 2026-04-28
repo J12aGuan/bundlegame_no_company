@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { initializeApp, getApps } from "firebase/app";
+import { getAuth, getIdTokenResult, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import {
   collection,
   doc,
@@ -35,6 +36,7 @@ const __dirname = path.dirname(__filename);
 export const repoRoot = path.resolve(__dirname, "..");
 
 let firestoreDb = null;
+let firebaseAuth = null;
 
 function parseEnvText(text = "") {
   const values = {};
@@ -82,24 +84,51 @@ function requireFirebaseConfig() {
   return config;
 }
 
+async function signInServerAdmin(app) {
+  const email = String(process.env.FIREBASE_ADMIN_EMAIL || "").trim();
+  const password = String(process.env.FIREBASE_ADMIN_PASSWORD || "").trim();
+  if (!email || !password) {
+    throw new Error("Both FIREBASE_ADMIN_EMAIL and FIREBASE_ADMIN_PASSWORD are required for server-side Firestore access.");
+  }
+
+  firebaseAuth = getAuth(app);
+  const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+  const token = await getIdTokenResult(credential.user, true);
+  if (token?.claims?.admin !== true) {
+    await signOut(firebaseAuth);
+    throw new Error("FIREBASE_ADMIN_EMAIL signed in, but the account does not have the admin custom claim.");
+  }
+  return credential.user;
+}
+
 export async function getDb() {
   if (firestoreDb) return firestoreDb;
   await loadDotEnv();
   const firebaseConfig = requireFirebaseConfig();
   const app = getApps()[0] || initializeApp(firebaseConfig);
+  await signInServerAdmin(app);
   firestoreDb = getFirestore(app);
   return firestoreDb;
 }
 
 export async function closeDb() {
-  if (!firestoreDb) return;
-  try {
-    await terminate(firestoreDb);
-  } catch {
-    // no-op
-  } finally {
-    firestoreDb = null;
+  if (firestoreDb) {
+    try {
+      await terminate(firestoreDb);
+    } catch {
+      // no-op
+    } finally {
+      firestoreDb = null;
+    }
   }
+  if (firebaseAuth?.currentUser) {
+    try {
+      await signOut(firebaseAuth);
+    } catch {
+      // no-op
+    }
+  }
+  firebaseAuth = null;
 }
 
 async function getSubcollectionDocs(db, userId, subcollection) {

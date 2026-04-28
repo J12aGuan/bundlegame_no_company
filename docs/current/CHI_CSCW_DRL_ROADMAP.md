@@ -26,9 +26,11 @@ It does not yet support strong causal claims about recommendation treatments on 
 
 Recommended per-participant structure:
 
-- Phase A: no recommendations
-- Phase B: assisted play with randomized arm assignment
-- Phase C: no recommendations for transfer measurement
+- Phase A: rounds 1-15, no recommendations
+- Phase B: rounds 16-35, assisted play with randomized arm assignment
+- Phase C: rounds 36-50, no recommendations for transfer measurement
+
+The canonical protocol is `bundlegame_abc_50_round_v1` in `src/lib/researchStudy.js`. Runtime collection and analytics reject datasets or protocol rows that drift from that structure.
 
 Recommended arms:
 

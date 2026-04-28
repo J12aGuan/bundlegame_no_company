@@ -16,6 +16,7 @@ Companion runtime utilities:
 
 - `scripts/research-data-summary.mjs`
 - `scripts/research-worker.mjs`
+- `scripts/export-admin-scores.mjs`
 
 ## Supported Data Sources
 
@@ -49,6 +50,17 @@ Recommendation and evaluation exports:
 - `ope_summary.csv`
 - `sandbox_summary.csv`
 
+## Protocol Validation
+
+Analytics uses the same protocol definition as runtime collection:
+
+- source: `src/lib/researchStudy.js`
+- version: `bundlegame_abc_50_round_v1`
+- rounds: Phase A 1-15, Phase B 16-35, Phase C 36-50
+- recommendation exposure: Phase B only, with display controlled by participant arm
+
+`computeAnalytics()` rejects snapshots whose dataset, enabled protocol, or metadata drifts from this definition. This keeps `analysis_master.csv`, `policy_training.csv`, and the paper-facing exports aligned with the runtime experiment.
+
 Monitoring and QA exports:
 
 - `decision_fact.csv`
@@ -66,6 +78,64 @@ Monitoring and QA exports:
 - `behavior_by_trajectory_segment.csv`
 - `participant_trajectories.csv`
 - `trajectory_segments.csv`
+
+## Versioned Raw And Publication Exports
+
+The score export script now supports two research-table modes in addition to the class score sheet:
+
+```bash
+npm run scores:export -- --mode raw_research_export
+npm run scores:export -- --mode publication_export
+```
+
+By default, each mode writes a dated folder under `data analysis/` containing:
+
+- `<mode>.json`
+- `schema.json`
+- `participant_summary.csv`
+- `per_round_decisions.csv`
+- `actions.csv`
+- `recommendation_exposure.csv`
+- `survey_linkage.csv`
+
+Both modes use schema version `bundlegame_research_export_v1`.
+
+### `raw_research_export`
+
+Internal QA export with operational identifiers retained.
+
+Tables:
+
+- `participant_summary`: `participant_id`, display label, scenario-set version, completion state, rounds, earnings, optimal choices, timing, live-session fields, result access key.
+- `per_round_decisions`: one row per logged `round_summary` decision with participant ID, phase, arm, scenario, recommendation fields, chosen bundle, oracle bundle, reward, legal-action-mask version, timing, optimality, and missing-field flags.
+- `actions`: reconstructed action-summary and detailed-action timing rows by participant, scenario-set version, scenario, source, and timing payload.
+- `recommendation_exposure`: one row per decision exposure with shown recommendation bundle/ranking, chosen bundle, oracle bundle, policy metadata, and mask version.
+- `survey_linkage`: participant-to-Qualtrics linkage with response IDs, result code, match key, save status, completion state, timing, and raw fields.
+
+### `publication_export`
+
+Publication-safe derived export for sharing or paper artifacts.
+
+Redaction rules:
+
+- Replaces direct participant IDs with stable `publication_participant_id` values.
+- Uses `PUBLICATION_PSEUDONYM_SALT` when present so pseudonyms remain stable across exports while being harder to reverse.
+- Excludes direct names, game result access keys, Qualtrics response IDs, Qualtrics user IDs, Qualtrics result codes, match keys, live-session labels, and raw survey fields.
+
+The publication decision and recommendation tables always include columns for:
+
+- `phase`
+- `policy_arm`
+- `scenario_id`
+- `recommendation_source`
+- `shown_recommendation_bundle_ids_json`
+- `shown_ranked_bundles_json`
+- `chosen_orders_json`
+- `best_bundle_ids_json`
+- `reward`
+- `legal_action_mask_version`
+
+Rows with missing values keep the columns and record missing required fields in `missing_required_fields_json`.
 
 ## Provenance Fields
 

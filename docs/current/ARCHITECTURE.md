@@ -11,6 +11,7 @@ This document describes the current runtime architecture used by the app.
 ## Core Runtime Surfaces
 
 - `src/lib/bundle.js`: main game state, scenario progress, and persistence orchestration
+- `src/lib/researchStudy.js`: canonical 50-round protocol definition, arm defaults, and protocol validation
 - `src/lib/tutorial.js`: tutorial-specific state and progression
 - `src/lib/firebaseDB.js`: Firestore reads and writes for users, actions, and `MasterData`
 - `src/lib/config.js`: runtime config helpers, including cross-city travel lookup
@@ -35,6 +36,8 @@ Grouped dataset entries hold:
 - `orders[]`
 - `optimal[]`
 - `metadata`
+
+The main research protocol is `bundlegame_abc_50_round_v1`: Phase A rounds 1-15, Phase B rounds 16-35, and Phase C rounds 36-50. Runtime loading, scenario dataset saves, research protocol saves, and analytics computation validate against this definition so Firestore cannot silently drift from the documented experiment.
 
 ## Round Flow
 

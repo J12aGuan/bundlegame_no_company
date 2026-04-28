@@ -1,6 +1,45 @@
 export const DEFAULT_ACTION_MASK_VERSION = "legal_bundle_mask_v1";
 
-export const DEFAULT_POLICY_ARMS = [
+export const BUNDLEGAME_STUDY_PROTOCOL_VERSION = "bundlegame_abc_50_round_v1";
+export const BUNDLEGAME_STUDY_PROTOCOL_ID = "bundlegame_abc_recommendation_v1";
+export const BUNDLEGAME_STUDY_TOTAL_ROUNDS = 50;
+
+export const BUNDLEGAME_STUDY_PHASES = [
+  {
+    id: "A",
+    label: "Phase A",
+    round_start: 1,
+    round_end: 15,
+    rounds: 15,
+    recommendations_enabled: false,
+  },
+  {
+    id: "B",
+    label: "Phase B",
+    round_start: 16,
+    round_end: 35,
+    rounds: 20,
+    recommendations_enabled: true,
+  },
+  {
+    id: "C",
+    label: "Phase C",
+    round_start: 36,
+    round_end: 50,
+    rounds: 15,
+    recommendations_enabled: false,
+  },
+];
+
+export const BUNDLEGAME_RECOMMENDATION_EXPOSURE = {
+  active_phase_ids: ["B"],
+  treatment_arm_ids: ["contextual_bandit", "rl_cql"],
+  control_arm_ids: ["control"],
+  default_ranked_bundles_shown: 1,
+  expected_shown_bundle_size: 2,
+};
+
+export const BUNDLEGAME_POLICY_ARMS = [
   {
     id: "control",
     label: "Control",
@@ -30,26 +69,27 @@ export const DEFAULT_POLICY_ARMS = [
   },
 ];
 
-export const DEFAULT_PROTOCOL_PHASES = [
-  {
-    id: "A",
-    label: "Phase A",
-    rounds: 6,
-    recommendations_enabled: false,
+export const BUNDLEGAME_STUDY_PROTOCOL = {
+  protocol_id: BUNDLEGAME_STUDY_PROTOCOL_ID,
+  protocol_version: BUNDLEGAME_STUDY_PROTOCOL_VERSION,
+  title: "BundleGame 50-round decision study",
+  target_venue: "",
+  expected_total_rounds: BUNDLEGAME_STUDY_TOTAL_ROUNDS,
+  phase_plan: BUNDLEGAME_STUDY_PHASES.map((phase) => ({ ...phase })),
+  policy_arms: BUNDLEGAME_POLICY_ARMS.map((arm) => ({ ...arm })),
+  recommendation_exposure: {
+    ...BUNDLEGAME_RECOMMENDATION_EXPOSURE,
+    active_phase_ids: [...BUNDLEGAME_RECOMMENDATION_EXPOSURE.active_phase_ids],
+    treatment_arm_ids: [...BUNDLEGAME_RECOMMENDATION_EXPOSURE.treatment_arm_ids],
+    control_arm_ids: [...BUNDLEGAME_RECOMMENDATION_EXPOSURE.control_arm_ids],
   },
-  {
-    id: "B",
-    label: "Phase B",
-    rounds: 12,
-    recommendations_enabled: true,
-  },
-  {
-    id: "C",
-    label: "Phase C",
-    rounds: 6,
-    recommendations_enabled: false,
-  },
-];
+  legal_action_mask_version: DEFAULT_ACTION_MASK_VERSION,
+};
+
+export const DEFAULT_POLICY_ARMS = BUNDLEGAME_POLICY_ARMS.map((arm) => ({ ...arm }));
+export const DEFAULT_PROTOCOL_PHASES = BUNDLEGAME_STUDY_PHASES.map((phase) => ({
+  ...phase,
+}));
 
 export const DEFAULT_SURVEY_QUESTIONS = [
   {
@@ -150,17 +190,57 @@ function buildDefaultSurveyQuestions() {
 
 function normalizeProtocolPhase(phase = {}, index = 0) {
   const fallback = DEFAULT_PROTOCOL_PHASES[index] || {};
+  const rounds = Math.max(0, Number(phase?.rounds ?? fallback.rounds) || 0);
+  const roundStart = Math.max(
+    0,
+    Number(
+      phase?.round_start ??
+        phase?.start_round ??
+        phase?.first_round ??
+        fallback.round_start,
+    ) || 0,
+  );
+  const roundEnd = Math.max(
+    0,
+    Number(
+      phase?.round_end ??
+        phase?.end_round ??
+        phase?.last_round ??
+        fallback.round_end,
+    ) || 0,
+  );
   return {
     id: normalizeText(
       phase?.id ?? phase?.phase ?? fallback.id ?? `phase_${index + 1}`,
     ),
     label: normalizeText(phase?.label, fallback.label || `Phase ${index + 1}`),
-    rounds: Math.max(0, Number(phase?.rounds ?? fallback.rounds) || 0),
+    round_start: roundStart,
+    round_end: roundEnd,
+    rounds,
     recommendations_enabled: normalizeBoolean(
       phase?.recommendations_enabled,
       fallback.recommendations_enabled,
     ),
   };
+}
+
+function applyPhaseRoundRanges(phases = []) {
+  let cursor = 1;
+  return phases.map((phase = {}) => {
+    const rounds = Math.max(0, Number(phase?.rounds) || 0);
+    const roundStart = Math.max(1, Number(phase?.round_start) || cursor);
+    const roundEnd = Math.max(
+      roundStart,
+      Number(phase?.round_end) || roundStart + Math.max(0, rounds - 1),
+    );
+    cursor = roundEnd + 1;
+    return {
+      ...phase,
+      round_start: roundStart,
+      round_end: roundEnd,
+      rounds: rounds || Math.max(0, roundEnd - roundStart + 1),
+    };
+  });
 }
 
 export function normalizeStudyPolicyArm(arm = {}, index = 0) {
@@ -200,6 +280,47 @@ export function normalizeStudyPolicyArm(arm = {}, index = 0) {
   };
 }
 
+function normalizeRecommendationExposure(value = {}, fallback = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  const fallbackSource = fallback && typeof fallback === "object" ? fallback : {};
+  return removeUndefinedDeep({
+    active_phase_ids: normalizeIdArray(
+      source?.active_phase_ids ??
+        source?.activePhaseIds ??
+        fallbackSource.active_phase_ids ??
+        BUNDLEGAME_RECOMMENDATION_EXPOSURE.active_phase_ids,
+    ),
+    treatment_arm_ids: normalizeIdArray(
+      source?.treatment_arm_ids ??
+        source?.treatmentArmIds ??
+        fallbackSource.treatment_arm_ids ??
+        BUNDLEGAME_RECOMMENDATION_EXPOSURE.treatment_arm_ids,
+    ),
+    control_arm_ids: normalizeIdArray(
+      source?.control_arm_ids ??
+        source?.controlArmIds ??
+        fallbackSource.control_arm_ids ??
+        BUNDLEGAME_RECOMMENDATION_EXPOSURE.control_arm_ids,
+    ),
+    default_ranked_bundles_shown: Math.max(
+      0,
+      Number(
+        source?.default_ranked_bundles_shown ??
+          fallbackSource.default_ranked_bundles_shown ??
+          BUNDLEGAME_RECOMMENDATION_EXPOSURE.default_ranked_bundles_shown,
+      ) || 0,
+    ),
+    expected_shown_bundle_size: Math.max(
+      0,
+      Number(
+        source?.expected_shown_bundle_size ??
+          fallbackSource.expected_shown_bundle_size ??
+          BUNDLEGAME_RECOMMENDATION_EXPOSURE.expected_shown_bundle_size,
+      ) || 0,
+    ),
+  });
+}
+
 function normalizeSurveyQuestion(question = {}, index = 0) {
   const fallback = DEFAULT_SURVEY_QUESTIONS[index] || {};
   return {
@@ -236,20 +357,37 @@ export function normalizeResearchStudyProtocol(protocol = {}, fallback = {}) {
     : Array.isArray(fallbackSource?.survey_questions)
       ? fallbackSource.survey_questions
       : buildDefaultSurveyQuestions();
+  const phasePlan = applyPhaseRoundRanges(
+    phasePlanInput.map((phase, index) => normalizeProtocolPhase(phase, index)),
+  );
+  const expectedTotalRounds = Math.max(
+    0,
+    Number(
+      source?.expected_total_rounds ??
+        source?.total_rounds ??
+        fallbackSource.expected_total_rounds ??
+        BUNDLEGAME_STUDY_TOTAL_ROUNDS,
+    ) || 0,
+  );
 
   return removeUndefinedDeep({
     protocol_id: normalizeText(
       source?.protocol_id ?? source?.id,
-      fallbackSource.protocol_id || "bundlegame_chi_cscw_protocol",
+      fallbackSource.protocol_id || BUNDLEGAME_STUDY_PROTOCOL_ID,
+    ),
+    protocol_version: normalizeText(
+      source?.protocol_version ?? source?.version,
+      fallbackSource.protocol_version || BUNDLEGAME_STUDY_PROTOCOL_VERSION,
     ),
     title: normalizeText(
       source?.title,
-      fallbackSource.title || "BundleGame Human Decision Study",
+      fallbackSource.title || BUNDLEGAME_STUDY_PROTOCOL.title,
     ),
     target_venue: normalizeText(
       source?.target_venue,
-      fallbackSource.target_venue || "CHI/CSCW",
+      fallbackSource.target_venue || BUNDLEGAME_STUDY_PROTOCOL.target_venue,
     ),
+    expected_total_rounds: expectedTotalRounds,
     dataset_root: normalizeText(
       source?.dataset_root,
       fallbackSource.dataset_root || "",
@@ -277,11 +415,13 @@ export function normalizeResearchStudyProtocol(protocol = {}, fallback = {}) {
       Number(source?.main_target_n ?? fallbackSource.main_target_n ?? 240) || 0,
     ),
     notes: normalizeText(source?.notes, fallbackSource.notes || ""),
-    phase_plan: phasePlanInput.map((phase, index) =>
-      normalizeProtocolPhase(phase, index),
-    ),
+    phase_plan: phasePlan,
     policy_arms: policyArmInput.map((arm, index) =>
       normalizeStudyPolicyArm(arm, index),
+    ),
+    recommendation_exposure: normalizeRecommendationExposure(
+      source?.recommendation_exposure ?? source?.recommendationExposure,
+      fallbackSource.recommendation_exposure,
     ),
     survey_questions: surveyQuestionsInput.map((question, index) =>
       normalizeSurveyQuestion(question, index),
@@ -293,6 +433,317 @@ export function normalizeResearchStudyProtocol(protocol = {}, fallback = {}) {
       source?.updated_at || fallbackSource.updated_at || "",
     ),
   });
+}
+
+function sameArray(left = [], right = []) {
+  const normalizedLeft = normalizeIdArray(left);
+  const normalizedRight = normalizeIdArray(right);
+  if (normalizedLeft.length !== normalizedRight.length) return false;
+  return normalizedLeft.every((entry, index) => entry === normalizedRight[index]);
+}
+
+function getScenarioRoundIndex(scenario = {}, fallbackIndex = 0) {
+  return Math.max(
+    1,
+    Number(
+      scenario?.round ??
+        scenario?.round_index ??
+        scenario?.roundIndex ??
+        fallbackIndex + 1,
+    ) || fallbackIndex + 1,
+  );
+}
+
+function scenarioHasRecommendedFlag(scenario = {}) {
+  const orders = Array.isArray(scenario?.orders) ? scenario.orders : [];
+  return orders.some((order) => Boolean(order?.recommended));
+}
+
+function getProtocolValidationMessage(errors = []) {
+  return errors.length > 0
+    ? `BundleGame protocol snapshot is inconsistent: ${errors.join("; ")}`
+    : "";
+}
+
+export function getCanonicalResearchStudyProtocol(overrides = {}) {
+  return normalizeResearchStudyProtocol(
+    {
+      ...BUNDLEGAME_STUDY_PROTOCOL,
+      ...(overrides && typeof overrides === "object" ? overrides : {}),
+    },
+    BUNDLEGAME_STUDY_PROTOCOL,
+  );
+}
+
+export function resolveProtocolPhaseForRound(roundIndex = 1, protocol = {}) {
+  const normalized = normalizeResearchStudyProtocol(protocol);
+  const round = Math.max(1, Number(roundIndex) || 1);
+  return (
+    normalized.phase_plan.find(
+      (phase) => round >= phase.round_start && round <= phase.round_end,
+    ) || null
+  );
+}
+
+export function validateResearchProtocolDefinition(protocol = {}) {
+  const normalized = normalizeResearchStudyProtocol(protocol);
+  const canonical = getCanonicalResearchStudyProtocol();
+  const errors = [];
+  const warnings = [];
+
+  if (normalized.protocol_version !== canonical.protocol_version) {
+    errors.push(
+      `protocol_version must be ${canonical.protocol_version}, got ${normalized.protocol_version || "blank"}`,
+    );
+  }
+  if (normalized.expected_total_rounds !== BUNDLEGAME_STUDY_TOTAL_ROUNDS) {
+    errors.push(
+      `expected_total_rounds must be ${BUNDLEGAME_STUDY_TOTAL_ROUNDS}, got ${normalized.expected_total_rounds}`,
+    );
+  }
+
+  const plannedTotal = normalized.phase_plan.reduce(
+    (sum, phase) => sum + Math.max(0, Number(phase.rounds) || 0),
+    0,
+  );
+  if (plannedTotal !== BUNDLEGAME_STUDY_TOTAL_ROUNDS) {
+    errors.push(
+      `phase_plan totals ${plannedTotal} rounds; expected ${BUNDLEGAME_STUDY_TOTAL_ROUNDS}`,
+    );
+  }
+
+  canonical.phase_plan.forEach((expectedPhase, index) => {
+    const actualPhase = normalized.phase_plan[index];
+    if (!actualPhase) {
+      errors.push(`missing phase ${expectedPhase.id}`);
+      return;
+    }
+    if (actualPhase.id !== expectedPhase.id) {
+      errors.push(
+        `phase ${index + 1} id must be ${expectedPhase.id}, got ${actualPhase.id}`,
+      );
+    }
+    if (actualPhase.rounds !== expectedPhase.rounds) {
+      errors.push(
+        `phase ${expectedPhase.id} must have ${expectedPhase.rounds} rounds, got ${actualPhase.rounds}`,
+      );
+    }
+    if (
+      actualPhase.round_start !== expectedPhase.round_start ||
+      actualPhase.round_end !== expectedPhase.round_end
+    ) {
+      errors.push(
+        `phase ${expectedPhase.id} must cover rounds ${expectedPhase.round_start}-${expectedPhase.round_end}, got ${actualPhase.round_start}-${actualPhase.round_end}`,
+      );
+    }
+    if (
+      Boolean(actualPhase.recommendations_enabled) !==
+      Boolean(expectedPhase.recommendations_enabled)
+    ) {
+      errors.push(
+        `phase ${expectedPhase.id} recommendations_enabled must be ${expectedPhase.recommendations_enabled}`,
+      );
+    }
+  });
+
+  const armMap = new Map(normalized.policy_arms.map((arm) => [arm.id, arm]));
+  for (const expectedArm of canonical.policy_arms) {
+    const actualArm = armMap.get(expectedArm.id);
+    if (!actualArm) {
+      errors.push(`missing policy arm ${expectedArm.id}`);
+      continue;
+    }
+    if (Boolean(actualArm.show_recommendations) !== Boolean(expectedArm.show_recommendations)) {
+      errors.push(
+        `policy arm ${expectedArm.id} show_recommendations must be ${expectedArm.show_recommendations}`,
+      );
+    }
+    if (!sameArray(actualArm.active_phases, expectedArm.active_phases)) {
+      errors.push(
+        `policy arm ${expectedArm.id} active_phases must be ${expectedArm.active_phases.join(",")}`,
+      );
+    }
+  }
+
+  const exposure = normalized.recommendation_exposure || {};
+  if (!sameArray(exposure.active_phase_ids, canonical.recommendation_exposure.active_phase_ids)) {
+    errors.push(
+      `recommendation_exposure.active_phase_ids must be ${canonical.recommendation_exposure.active_phase_ids.join(",")}`,
+    );
+  }
+  if (
+    Number(exposure.expected_shown_bundle_size) !==
+    Number(canonical.recommendation_exposure.expected_shown_bundle_size)
+  ) {
+    warnings.push(
+      `expected_shown_bundle_size is ${exposure.expected_shown_bundle_size}; canonical value is ${canonical.recommendation_exposure.expected_shown_bundle_size}`,
+    );
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings,
+    protocol: normalized,
+  };
+}
+
+export function validateResearchProtocolSnapshot({
+  centralConfig = null,
+  scenarioBundle = null,
+  studyProtocol = null,
+  datasetRoot = "",
+} = {}) {
+  const protocol = normalizeResearchStudyProtocol(
+    studyProtocol ||
+      scenarioBundle?.metadata?.researchStudy ||
+      scenarioBundle?.metadata?.study_protocol ||
+      scenarioBundle?.metadata?.research_protocol ||
+      {},
+    {
+      dataset_root: datasetRoot,
+      scenario_set_version_id: normalizeText(
+        scenarioBundle?.metadata?.scenarioSetVersionId,
+      ),
+    },
+  );
+  const definitionValidation = validateResearchProtocolDefinition(protocol);
+  const errors = [...definitionValidation.errors];
+  const warnings = [...definitionValidation.warnings];
+  const normalizedDatasetRoot = normalizeText(datasetRoot);
+
+  const centralProtocol =
+    centralConfig?.research_protocol ??
+    centralConfig?.researchProtocol ??
+    centralConfig?.study_protocol ??
+    null;
+  if (centralProtocol && typeof centralProtocol === "object") {
+    const centralValidation = validateResearchProtocolDefinition(centralProtocol);
+    errors.push(
+      ...centralValidation.errors.map((error) => `centralConfig ${error}`),
+    );
+    warnings.push(
+      ...centralValidation.warnings.map((warning) => `centralConfig ${warning}`),
+    );
+    const centralProtocolVersion = normalizeText(
+      centralProtocol?.protocol_version ?? centralProtocol?.version,
+      BUNDLEGAME_STUDY_PROTOCOL_VERSION,
+    );
+    const centralTotalRounds = Math.max(
+      0,
+      Number(
+        centralProtocol?.expected_total_rounds ??
+          centralProtocol?.total_rounds ??
+          BUNDLEGAME_STUDY_TOTAL_ROUNDS,
+      ) || 0,
+    );
+    if (centralProtocolVersion !== BUNDLEGAME_STUDY_PROTOCOL_VERSION) {
+      errors.push(
+        `centralConfig research_protocol version must be ${BUNDLEGAME_STUDY_PROTOCOL_VERSION}, got ${centralProtocolVersion}`,
+      );
+    }
+    if (centralTotalRounds !== BUNDLEGAME_STUDY_TOTAL_ROUNDS) {
+      errors.push(
+        `centralConfig research_protocol expected_total_rounds must be ${BUNDLEGAME_STUDY_TOTAL_ROUNDS}, got ${centralTotalRounds}`,
+      );
+    }
+  }
+
+  const centralDataset = normalizeText(centralConfig?.scenario_set);
+  if (centralDataset && normalizedDatasetRoot && centralDataset !== normalizedDatasetRoot) {
+    errors.push(
+      `centralConfig scenario_set ${centralDataset} does not match datasetRoot ${normalizedDatasetRoot}`,
+    );
+  }
+
+  const metadata = scenarioBundle?.metadata && typeof scenarioBundle.metadata === "object"
+    ? scenarioBundle.metadata
+    : {};
+  const metadataProtocolVersion = normalizeText(
+    metadata?.protocol_version ??
+      metadata?.research_protocol_version ??
+      metadata?.study_protocol_version,
+  );
+  if (
+    metadataProtocolVersion &&
+    metadataProtocolVersion !== BUNDLEGAME_STUDY_PROTOCOL_VERSION
+  ) {
+    errors.push(
+      `dataset metadata protocol version must be ${BUNDLEGAME_STUDY_PROTOCOL_VERSION}, got ${metadataProtocolVersion}`,
+    );
+  }
+  const metadataTotalRounds = Number(
+    metadata?.expected_total_rounds ?? metadata?.totalRounds ?? metadata?.total_rounds,
+  );
+  if (Number.isFinite(metadataTotalRounds) && metadataTotalRounds !== BUNDLEGAME_STUDY_TOTAL_ROUNDS) {
+    errors.push(
+      `dataset metadata expected_total_rounds must be ${BUNDLEGAME_STUDY_TOTAL_ROUNDS}, got ${metadataTotalRounds}`,
+    );
+  }
+
+  const scenarios = Array.isArray(scenarioBundle?.scenarios)
+    ? scenarioBundle.scenarios
+    : null;
+  if (scenarios) {
+    if (scenarios.length !== BUNDLEGAME_STUDY_TOTAL_ROUNDS) {
+      errors.push(
+        `scenario dataset must contain ${BUNDLEGAME_STUDY_TOTAL_ROUNDS} scenarios, got ${scenarios.length}`,
+      );
+    }
+    const seenRounds = new Set();
+    scenarios.forEach((scenario, index) => {
+      const roundIndex = getScenarioRoundIndex(scenario, index);
+      if (seenRounds.has(roundIndex)) {
+        errors.push(`duplicate scenario round ${roundIndex}`);
+      }
+      seenRounds.add(roundIndex);
+      const expectedPhase = resolveProtocolPhaseForRound(roundIndex, protocol);
+      const actualPhase = normalizeText(scenario?.phase);
+      if (!expectedPhase) {
+        errors.push(`round ${roundIndex} is outside the protocol phase plan`);
+        return;
+      }
+      if (actualPhase && actualPhase !== expectedPhase.id) {
+        errors.push(
+          `round ${roundIndex} phase must be ${expectedPhase.id}, got ${actualPhase}`,
+        );
+      }
+      if (!expectedPhase.recommendations_enabled && scenarioHasRecommendedFlag(scenario)) {
+        errors.push(
+          `round ${roundIndex} has recommendation flags outside the recommendation phase`,
+        );
+      }
+    });
+    for (let round = 1; round <= BUNDLEGAME_STUDY_TOTAL_ROUNDS; round += 1) {
+      if (!seenRounds.has(round)) {
+        errors.push(`missing scenario round ${round}`);
+      }
+    }
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings,
+    protocol,
+    message: getProtocolValidationMessage(errors),
+  };
+}
+
+export function assertValidResearchProtocolDefinition(protocol = {}) {
+  const validation = validateResearchProtocolDefinition(protocol);
+  if (!validation.ok) {
+    throw new Error(getProtocolValidationMessage(validation.errors));
+  }
+  return validation.protocol;
+}
+
+export function assertValidResearchProtocolSnapshot(options = {}) {
+  const validation = validateResearchProtocolSnapshot(options);
+  if (!validation.ok) {
+    throw new Error(validation.message);
+  }
+  return validation;
 }
 
 export function normalizeResearchStudySurveyResponse(response = {}, fallback = {}) {

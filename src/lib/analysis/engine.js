@@ -5,6 +5,7 @@ import {
   normalizeResearchModel,
   normalizeResearchStudyProtocol,
   normalizeResearchStudyState,
+  validateResearchProtocolSnapshot,
 } from "../researchStudy.js";
 
 export const NEAR_OPTIMAL_THRESHOLD = 0.95;
@@ -3883,6 +3884,7 @@ function buildStudyQa({
   studyProtocol = {},
   studyRandomizationRows = [],
   participantSurveyRows = [],
+  protocolValidation = null,
 } = {}) {
   const protocol = normalizeResearchStudyProtocol(studyProtocol);
   const phaseCounts = Array.isArray(scenarioBundle?.scenarios)
@@ -3920,10 +3922,18 @@ function buildStudyQa({
         policy_version: arm.policy_version,
         show_recommendations: arm.show_recommendations,
       })),
+      protocol_version: protocol.protocol_version,
+      expected_total_rounds: protocol.expected_total_rounds,
     },
+    protocol_validation: protocolValidation || validateResearchProtocolSnapshot({
+      scenarioBundle,
+      studyProtocol: protocol,
+    }),
     phase_plan_rows: protocol.phase_plan.map((phase) => ({
       phase: phase.id,
       label: phase.label,
+      round_start: phase.round_start,
+      round_end: phase.round_end,
       planned_rounds: phase.rounds,
       actual_rounds: Number(phaseCounts?.[phase.id] || 0),
       recommendations_enabled: phase.recommendations_enabled,
@@ -4564,6 +4574,14 @@ export function computeAnalytics({
       scenario_set_version_id: getScenarioSetVersionId(scenarioBundle),
     },
   );
+  const protocolValidation = validateResearchProtocolSnapshot({
+    scenarioBundle,
+    studyProtocol: normalizedStudyProtocol,
+    datasetRoot,
+  });
+  if (!protocolValidation.ok) {
+    throw new Error(protocolValidation.message);
+  }
   const normalizedResearchModels = Array.isArray(researchModels)
     ? researchModels.map((entry) => normalizeResearchModel(entry))
     : [];
@@ -4663,6 +4681,7 @@ export function computeAnalytics({
     studyProtocol: normalizedStudyProtocol,
     studyRandomizationRows,
     participantSurveyRows,
+    protocolValidation,
   });
 
   const qaIssues = [

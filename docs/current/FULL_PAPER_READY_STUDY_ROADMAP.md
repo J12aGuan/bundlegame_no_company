@@ -20,10 +20,10 @@ Before collecting main-study data:
 
 - Prepare consent, IRB, or course-study approval as appropriate.
 - Lock one enabled `ResearchProtocols` row.
-- Use a fixed A/B/C structure:
-  - Phase A: no recommendations.
-  - Phase B: randomized treatment/control arm.
-  - Phase C: no recommendations for transfer or retention measurement.
+- Use the canonical 50-round A/B/C structure from `src/lib/researchStudy.js`:
+  - Phase A: rounds 1-15, no recommendations.
+  - Phase B: rounds 16-35, randomized treatment/control arm.
+  - Phase C: rounds 36-50, no recommendations for transfer or retention measurement.
 - Use participant-level assignment only; never switch arms mid-session.
 - Use default arms:
   - `control`
@@ -46,6 +46,7 @@ Use `/admin/research` after each test run. The main study is not ready for stron
 - Survey coverage is at least 80% of included participants, or missingness is explicitly reported.
 - Train/validation/test splits are participant-level only.
 - Firestore-backed snapshots can be saved and queued for the research worker.
+- The protocol validator reports no mismatch across `MasterData/centralConfig`, the grouped scenario dataset metadata, and the enabled `ResearchProtocols` row.
 
 Claim policy:
 

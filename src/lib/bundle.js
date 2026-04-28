@@ -9,6 +9,7 @@ import {
 } from './firebaseDB';
 import {
     DEFAULT_ACTION_MASK_VERSION,
+    assertValidResearchProtocolSnapshot,
     assignStudyArm,
     mergeResearchStudyState,
     normalizeResearchModel,
@@ -35,7 +36,8 @@ let config = {
 	ordersShown: 4,
 	roundTimeLimit: 300,
 	penaltyTimeout: 30,
-	scenario_set: 'experiment'
+	scenario_set: 'experiment',
+	research_protocol: null
 };
 
 let experimentScenarios = [];
@@ -101,7 +103,8 @@ export async function initializeFromFirebase(mode = 'main') {
 					ordersShown: centralConfigData.game?.ordersShown ?? config.ordersShown,
 					roundTimeLimit: centralConfigData.game?.roundTimeLimit ?? config.roundTimeLimit,
 					penaltyTimeout: centralConfigData.game?.penaltyTimeout ?? config.penaltyTimeout,
-					scenario_set: centralConfigData.scenario_set ?? config.scenario_set
+					scenario_set: centralConfigData.scenario_set ?? config.scenario_set,
+					research_protocol: centralConfigData.research_protocol ?? config.research_protocol
 				};
 				console.log('Central config loaded from Firebase:', config);
 			}
@@ -2210,7 +2213,18 @@ export async function loadGame(mode = 'main') {
 		activeScenarioSetName = String(datasetBundle?.metadata?.datasetName || datasetId || '').trim() || String(datasetId || '');
 		activeScenarioSetVersionId = String(datasetBundle?.metadata?.scenarioSetVersionId || '').trim();
 		scenarioSetVersionId.set(activeScenarioSetVersionId);
-		await loadResearchRuntime(datasetBundle || {});
+		const researchRuntime = await loadResearchRuntime(datasetBundle || {});
+		if (mode !== 'tutorial') {
+			assertValidResearchProtocolSnapshot({
+				centralConfig: {
+					scenario_set: datasetId,
+					research_protocol: config.research_protocol
+				},
+				scenarioBundle: datasetBundle || {},
+				studyProtocol: researchRuntime?.protocol || {},
+				datasetRoot: datasetId
+			});
+		}
 		let orderFile = Array.isArray(datasetBundle?.orders) ? datasetBundle.orders : await getOrdersData(datasetId)
 		let storeFile = await loadConfigByName(MAIN_STORE_FILE)
 		let cityFile = await loadConfigByName(MAIN_CITIES_FILE)

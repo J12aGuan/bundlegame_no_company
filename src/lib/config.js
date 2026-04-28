@@ -1,3 +1,11 @@
+import {
+    BUNDLEGAME_RECOMMENDATION_EXPOSURE,
+    BUNDLEGAME_STUDY_PHASES,
+    BUNDLEGAME_STUDY_PROTOCOL_ID,
+    BUNDLEGAME_STUDY_PROTOCOL_VERSION,
+    BUNDLEGAME_STUDY_TOTAL_ROUNDS
+} from './researchStudy.js';
+
 let default_job = {}
 let order_list = []
 
@@ -6,6 +14,43 @@ let orderid = 0;
 
 // Penalty timeout in seconds (updated at runtime from Firebase central config).
 export let PENALTY_TIMEOUT = 30;
+
+export function buildRuntimeProtocolConfig(overrides = {}) {
+    const source = overrides && typeof overrides === 'object' ? overrides : {};
+    return {
+        protocol_id: String(source.protocol_id ?? BUNDLEGAME_STUDY_PROTOCOL_ID).trim(),
+        protocol_version: String(source.protocol_version ?? source.version ?? BUNDLEGAME_STUDY_PROTOCOL_VERSION).trim(),
+        expected_total_rounds: Number(source.expected_total_rounds ?? source.total_rounds ?? BUNDLEGAME_STUDY_TOTAL_ROUNDS) || 0,
+        phase_plan: Array.isArray(source.phase_plan)
+            ? source.phase_plan.map((phase) => ({ ...(phase || {}) }))
+            : BUNDLEGAME_STUDY_PHASES.map((phase) => ({ ...phase })),
+        recommendation_exposure: {
+            ...BUNDLEGAME_RECOMMENDATION_EXPOSURE,
+            ...(source.recommendation_exposure && typeof source.recommendation_exposure === 'object'
+                ? source.recommendation_exposure
+                : {}),
+            active_phase_ids: Array.isArray(source.recommendation_exposure?.active_phase_ids)
+                ? [...source.recommendation_exposure.active_phase_ids]
+                : [...BUNDLEGAME_RECOMMENDATION_EXPOSURE.active_phase_ids],
+            treatment_arm_ids: Array.isArray(source.recommendation_exposure?.treatment_arm_ids)
+                ? [...source.recommendation_exposure.treatment_arm_ids]
+                : [...BUNDLEGAME_RECOMMENDATION_EXPOSURE.treatment_arm_ids],
+            control_arm_ids: Array.isArray(source.recommendation_exposure?.control_arm_ids)
+                ? [...source.recommendation_exposure.control_arm_ids]
+                : [...BUNDLEGAME_RECOMMENDATION_EXPOSURE.control_arm_ids]
+        }
+    };
+}
+
+export function normalizeCentralConfigForRuntime(configData = {}) {
+    const source = configData && typeof configData === 'object' ? configData : {};
+    return {
+        ...source,
+        research_protocol: buildRuntimeProtocolConfig(
+            source.research_protocol ?? source.researchProtocol ?? source.study_protocol ?? {}
+        )
+    };
+}
 
 export function setPenaltyTimeout(timeoutSeconds) {
     if (typeof timeoutSeconds === "number" && Number.isFinite(timeoutSeconds) && timeoutSeconds > 0) {
