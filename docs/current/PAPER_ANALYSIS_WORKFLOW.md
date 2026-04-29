@@ -66,9 +66,10 @@ Use:
 Recommended table:
 
 - historical human
-- behavior clone
-- reward model
-- contextual bandit
+- heuristic route-score baseline
+- linear behaviour-cloning baseline
+- linear reward-model baseline
+- linear contextual-bandit baseline
 - oracle optimal
 
 Report:
@@ -87,13 +88,13 @@ Core metrics:
 - `IPS`
 - `SNIPS`
 - `DR`
-- `FQE`
+- `FQE proxy`
 
 Recommended framing:
 
 - `IPS` and `SNIPS` for propensity-weighted evidence
 - `DR` as the main robust estimator
-- `FQE` for offline-RL comparison tables
+- FQE-style rows for trained offline-RL comparison tables; current admin exports use a one-step linear proxy
 
 ## Step 6. Keep Simulator Results Separate
 
@@ -102,7 +103,7 @@ Use `sandbox_summary.csv` only for:
 - stress testing
 - ablations
 - simulator-only policy comparisons
-- DQN prototype reporting
+- simulator-only prototype reporting
 
 Label every simulator plot or table with `Simulation Only`.
 

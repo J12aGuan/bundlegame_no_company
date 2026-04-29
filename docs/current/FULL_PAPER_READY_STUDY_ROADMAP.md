@@ -11,7 +11,7 @@ The full-paper target requires a new treatment-aware study run with stable rando
 - Human decision quality over rounds: score ratio, regret, exact-optimal rate, near-optimal rate, rounds completed, failure rate, and timing/burden.
 - Recommendation effects: arm-level comparison between control and recommendation policies during the assisted phase.
 - Participant experience: trust, usefulness, workload, and completion-linked survey responses.
-- Policy evaluation: human choices compared with historical-human, oracle, heuristic, behavior-clone, reward-model, contextual-bandit, CQL, and IQL baselines.
+- Policy evaluation: human choices compared with historical-human, oracle, heuristic, behaviour-cloning, reward-model, contextual-bandit, CQL, and IQL baselines, with model type and implementation status reported explicitly.
 - Simulator-only stress tests: clearly labeled and never mixed into human-evidence tables.
 
 ## Required Study Setup
@@ -82,8 +82,8 @@ Run models in this order:
 4. Behavior cloning.
 5. Direct reward model.
 6. Contextual bandit or slate ranker.
-7. Conservative offline RL: CQL primary, IQL ablation.
-8. DQN only for simulator-only experiments unless later real data volume is high enough.
+7. Conservative offline RL: CQL primary, IQL ablation, only after trained artifacts and provenance exist.
+8. Simulator-only prototypes stay clearly labeled unless later real data volume is high enough.
 
 Report model outputs separately from human-study results:
 

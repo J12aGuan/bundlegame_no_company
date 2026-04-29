@@ -32,6 +32,7 @@
 	import { parseUploadedAnalysisSource } from '$lib/analysis/upload.js';
 	import {
 		DEFAULT_ACTION_MASK_VERSION,
+		getBaselineModelRegistry,
 		normalizeResearchModel,
 		normalizeResearchStudyProtocol
 	} from '$lib/researchStudy.js';
@@ -124,7 +125,7 @@
 		},
 		{
 			id: 'pipeline',
-			label: 'DRL Pipeline',
+			label: 'Model Baselines',
 			kicker: 'Models'
 		},
 		{
@@ -137,7 +138,7 @@
 		'Collect Gameplay',
 		'Freeze Snapshot',
 		'Measure Human Decisions',
-		'Train/Evaluate DRL',
+		'Train/Evaluate Models',
 		'Package Research Outputs'
 	];
 	const analysisProgressSteps = [
@@ -195,7 +196,7 @@
 			{
 				enabled: true,
 				status: 'draft',
-				target_venue: 'CHI/CSCW',
+				target_venue: '',
 				dataset_root: getSourceDatasetRoot(),
 				scenario_set_version_id: getScenarioSetVersionId(),
 				legal_action_mask_version: DEFAULT_ACTION_MASK_VERSION,
@@ -568,6 +569,13 @@
 		return 'caution';
 	}
 
+	function modelStatusTone(status = '') {
+		const normalized = String(status || '').toLowerCase();
+		if (normalized.includes('unsupported') || normalized.includes('not_implemented')) return 'blocked';
+		if (normalized.includes('trained') || normalized.includes('implemented')) return 'ready';
+		return 'caution';
+	}
+
 	$: sourceLabel = analysisSource === 'upload' ? uploadDatasetName || 'uploaded_dataset' : selectedDataset;
 	$: masterColumns = getAnalysisMasterExportColumns('configuration', analysis?.metadataFields || []);
 	$: policyColumns = getPolicyTrainingExportColumns(['configuration', ...(analysis?.metadataFields || [])]);
@@ -647,6 +655,11 @@
 	$: hasMissingTimestamps = qaBlockers.includes('missing_timestamps') || !allRowsTimestamped;
 	$: surveyCoverageRate = Number(surveySummary.survey_coverage_rate || 0);
 	$: activeModelCount = Number(analysis?.metadata?.model_registry?.active_models ?? researchModelsRegistry.filter((entry) => entry.is_active).length);
+	$: baselineLadderRows = (analysis?.metadata?.model_registry?.baseline_ladder?.length
+		? analysis.metadata.model_registry.baseline_ladder
+		: getBaselineModelRegistry())
+		.slice()
+		.sort((left, right) => Number(left?.baseline_ladder_rank ?? 999) - Number(right?.baseline_ladder_rank ?? 999));
 	$: randomizationArms = [...new Set((analysis?.studyRandomizationRows || []).map((row) => String(row?.assigned_arm || '').trim()).filter(Boolean))];
 	$: hasRandomization = randomizationArms.length > 1 || studyArmRows.filter((row) => Number(row?.participant_count || 0) > 0).length > 1;
 	$: studyReadinessRows = [
@@ -722,14 +735,14 @@
 			evidence: 'requires labeled treatment/control assignment and timestamp-complete rounds'
 		},
 		{
-			claim: 'DRL policy evaluation',
+			claim: 'Model and policy evaluation',
 			status: analysis
 				? activeModelCount > 0 && ((analysis.policyComparisons || []).length > 0 || (analysis.opeSummary || []).length > 0)
 					? 'Ready'
 					: 'Needs model outputs'
 				: 'Waiting',
 			tone: analysis && activeModelCount > 0 && ((analysis.policyComparisons || []).length > 0 || (analysis.opeSummary || []).length > 0) ? 'ready' : 'caution',
-			evidence: 'policy comparison, OPE, sandbox summaries, frozen manifest'
+			evidence: 'baseline ladder, policy comparison, OPE proxy summaries, frozen manifest'
 		},
 		{
 			claim: 'Completion as a headline metric',
@@ -774,17 +787,17 @@
 </script>
 
 <svelte:head>
-	<title>DRL Research Workflow</title>
+	<title>Model Research Workflow</title>
 </svelte:head>
 
 <div class="research-workflow">
 	<section class="wf-hero">
 		<div class="wf-hero-copy">
 			<p class="wf-eyebrow">Research Workflow</p>
-			<h1>DRL Research Workflow</h1>
+			<h1>Model Research Workflow</h1>
 			<p class="wf-lede">
 				Turn BundleGame sessions into a frozen evidence package for human decision-making,
-				deep reinforcement learning evaluation, and clear research outputs.
+				recommendation baselines, and clear research outputs.
 			</p>
 			<div class="wf-workflow-strip" aria-label="Research workflow">
 				{#each workflowSteps as step, index}
@@ -882,7 +895,7 @@
 		<div class="wf-notice error">{error}</div>
 	{/if}
 
-	<nav class="wf-tabs" aria-label="DRL research workflow tabs">
+	<nav class="wf-tabs" aria-label="Research workflow tabs">
 		{#each sectionOrder as tab}
 			<button
 				class:active={activeSection === tab.id}
@@ -907,7 +920,7 @@
 				<h2>Run The Research Analysis</h2>
 				<p>
 					Choose a Firestore dataset or upload a frozen dataset package, then compute the
-					workflow evidence used across study design, DRL evaluation, and outputs.
+					workflow evidence used across study design, model evaluation, and outputs.
 				</p>
 			</section>
 		{:else if activeSection === 'overview'}
@@ -916,7 +929,7 @@
 				<div class="wf-kpi"><span>Decision Rows</span><strong>{analysis.analysisMasterRows?.length || 0}</strong><p>{participantCount} participants</p></div>
 				<div class="wf-kpi"><span>Data Readiness</span><strong>{analysis.datasetSnapshot?.qa_report?.paper_ready ? 'Ready' : 'Blocked'}</strong><p>{qaBlockers.length} blockers</p></div>
 				<div class="wf-kpi"><span>Protocol</span><strong>{analysis.studyProtocolSummary?.protocol_id || 'Draft'}</strong><p>{analysis.studyProtocolSummary?.enabled ? 'Enabled' : 'Draft mode'}</p></div>
-				<div class="wf-kpi"><span>DRL Jobs</span><strong>{researchJobs.length}</strong><p>{jobStatusSummary.queued} queued / {jobStatusSummary.running} running</p></div>
+				<div class="wf-kpi"><span>Model Jobs</span><strong>{researchJobs.length}</strong><p>{jobStatusSummary.queued} queued / {jobStatusSummary.running} running</p></div>
 			</section>
 
 			<section class="wf-grid">
@@ -1188,24 +1201,48 @@
 		{:else if activeSection === 'pipeline'}
 			<section class="wf-grid">
 				<div class="wf-panel span-2">
-					<div class="wf-panel-heading"><h2>Policy Comparison</h2></div>
+					<div class="wf-panel-heading">
+						<div>
+							<p class="wf-eyebrow">Baseline Ladder</p>
+							<h2>Model Maturity</h2>
+						</div>
+					</div>
 					<table>
-						<thead><tr><th>Policy</th><th>Scope</th><th>Group</th><th>N</th><th>Reward</th><th>Regret</th><th>Optimal</th><th>Lift vs Human</th></tr></thead>
+						<thead><tr><th>Rank</th><th>Policy</th><th>Type</th><th>Status</th><th>Training Source</th><th>Notes</th></tr></thead>
 						<tbody>
-							{#each analysis.policyComparisons || [] as row}
-								<tr><td>{row.policy_name}</td><td>{row.scope}</td><td>{row.group_value}</td><td>{row.n_states}</td><td>{formatNum(row.mean_reward)}</td><td>{formatPct(row.mean_regret)}</td><td>{formatPct(row.optimal_rate)}</td><td>{formatNum(row.mean_lift_vs_historical)}</td></tr>
+							{#each baselineLadderRows as model}
+								<tr>
+									<td>{model.baseline_ladder_rank ?? '-'}</td>
+									<td>{model.policy_name || model.model_id}</td>
+									<td>{model.model_type_label || model.model_type || '-'}</td>
+									<td><span class={`claim-status ${modelStatusTone(model.implementation_status)}`}>{model.implementation_status || model.status || '-'}</span></td>
+									<td>{model.training_data_source || model.training_provenance?.training_data_source || '-'}</td>
+									<td>{model.notes || '-'}</td>
+								</tr>
 							{/each}
 						</tbody>
 					</table>
 				</div>
 
 				<div class="wf-panel span-2">
-					<div class="wf-panel-heading"><h2>Off-Policy Evaluation</h2></div>
+					<div class="wf-panel-heading"><h2>Policy Comparison</h2></div>
 					<table>
-						<thead><tr><th>Policy</th><th>Scope</th><th>Group</th><th>IPS</th><th>SNIPS</th><th>DM</th><th>DR</th><th>FQE</th><th>Match</th></tr></thead>
+						<thead><tr><th>Policy</th><th>Type</th><th>Status</th><th>Scope</th><th>Group</th><th>N</th><th>Reward</th><th>Regret</th><th>Optimal</th><th>Lift vs Human</th></tr></thead>
+						<tbody>
+							{#each analysis.policyComparisons || [] as row}
+								<tr><td>{row.policy_name}</td><td>{row.model_type || '-'}</td><td>{row.implementation_status || '-'}</td><td>{row.scope}</td><td>{row.group_value}</td><td>{row.n_states}</td><td>{formatNum(row.mean_reward)}</td><td>{formatPct(row.mean_regret)}</td><td>{formatPct(row.optimal_rate)}</td><td>{formatNum(row.mean_lift_vs_historical)}</td></tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+
+				<div class="wf-panel span-2">
+					<div class="wf-panel-heading"><h2>Off-Policy Evaluation Proxies</h2></div>
+					<table>
+						<thead><tr><th>Policy</th><th>Type</th><th>Estimator</th><th>Scope</th><th>Group</th><th>IPS</th><th>SNIPS</th><th>DM</th><th>DR</th><th>FQE Proxy</th><th>Match</th></tr></thead>
 						<tbody>
 							{#each analysis.opeSummary || [] as row}
-								<tr><td>{row.policy_name}</td><td>{row.scope}</td><td>{row.group_value}</td><td>{formatNum(row.ips)}</td><td>{formatNum(row.snips)}</td><td>{formatNum(row.direct_method)}</td><td>{formatNum(row.doubly_robust)}</td><td>{formatNum(row.fqe_one_step)}</td><td>{formatPct(row.match_rate)}</td></tr>
+								<tr><td>{row.policy_name}</td><td>{row.model_type || '-'}</td><td>{row.ope_estimator_family || '-'}</td><td>{row.scope}</td><td>{row.group_value}</td><td>{formatNum(row.ips)}</td><td>{formatNum(row.snips)}</td><td>{formatNum(row.direct_method)}</td><td>{formatNum(row.doubly_robust)}</td><td>{formatNum(row.fqe_one_step)}</td><td>{formatPct(row.match_rate)}</td></tr>
 							{/each}
 						</tbody>
 					</table>
@@ -1251,9 +1288,9 @@
 						<option value="behavior_clone">behavior_clone</option>
 						<option value="reward_model">reward_model</option>
 						<option value="contextual_bandit">contextual_bandit</option>
-						<option value="CQL">CQL</option>
-						<option value="IQL">IQL</option>
-						<option value="DQN_simulator_only">DQN_simulator_only</option>
+						<option value="CQL">CQL_planned</option>
+						<option value="IQL">IQL_planned</option>
+						<option value="DQN_simulator_only">DQN_simulator_only_planned</option>
 					</select>
 					<label for="research-job-config-new">Config JSON</label>
 					<textarea id="research-job-config-new" bind:value={jobConfigText} rows="10"></textarea>
@@ -1280,10 +1317,10 @@
 				<div class="wf-panel">
 					<div class="wf-panel-heading"><h2>Simulation Summary</h2></div>
 					<table>
-						<thead><tr><th>Policy</th><th>Reward</th><th>CI Low</th><th>CI High</th><th>Gap</th></tr></thead>
+						<thead><tr><th>Policy</th><th>Type</th><th>Status</th><th>Reward</th><th>CI Low</th><th>CI High</th><th>Gap</th></tr></thead>
 						<tbody>
 							{#each analysis.sandboxSummary || [] as row}
-								<tr><td>{row.policy_name}</td><td>{formatNum(row.mean_simulated_reward)}</td><td>{formatNum(row.simulated_reward_ci_low)}</td><td>{formatNum(row.simulated_reward_ci_high)}</td><td>{formatNum(row.mean_gap_vs_historical)}</td></tr>
+								<tr><td>{row.policy_name}</td><td>{row.model_type || '-'}</td><td>{row.implementation_status || '-'}</td><td>{formatNum(row.mean_simulated_reward)}</td><td>{formatNum(row.simulated_reward_ci_low)}</td><td>{formatNum(row.simulated_reward_ci_high)}</td><td>{formatNum(row.mean_gap_vs_historical)}</td></tr>
 							{/each}
 						</tbody>
 					</table>
@@ -1357,8 +1394,8 @@
 					<div class="wf-panel-heading"><h2>Workflow Docs</h2></div>
 					<p><strong>Research Playbook</strong><br /><span class="wf-muted">Internal workflow notes</span></p>
 					<p><strong>Analysis Workflow</strong><br /><span class="wf-muted">Internal workflow notes</span></p>
-					<p><strong>Analytics and RL Exports</strong><br /><span class="wf-muted">docs/current/ANALYTICS_AND_RL_EXPORTS.md</span></p>
-					<p><strong>DRL Roadmap</strong><br /><span class="wf-muted">Internal workflow notes</span></p>
+					<p><strong>Analytics and Model Exports</strong><br /><span class="wf-muted">docs/current/ANALYTICS_AND_RL_EXPORTS.md</span></p>
+					<p><strong>Model Roadmap</strong><br /><span class="wf-muted">Internal workflow notes</span></p>
 					<p><strong>Scoring Notes</strong><br /><span class="wf-muted">Internal workflow notes</span></p>
 				</div>
 
@@ -1379,7 +1416,7 @@
 							<tr><td>Human decisions</td><td>score_ratio_to_best / regret</td><td>Decision quality against oracle bundles</td></tr>
 							<tr><td>Human decisions</td><td>exact and near-optimal rates</td><td>Interpretable choice-quality outcomes</td></tr>
 							<tr><td>Task behavior</td><td>earnings, rounds, timing</td><td>Performance, progress, and burden signals</td></tr>
-							<tr><td>Model evaluation</td><td>policy comparison / OPE / sandbox summaries</td><td>DRL and recommendation-policy evidence</td></tr>
+							<tr><td>Model evaluation</td><td>policy comparison / OPE proxy / sandbox summaries</td><td>Baseline and recommendation-policy evidence</td></tr>
 							<tr><td>Admin/class</td><td>total_score</td><td>Single spreadsheet score, not a standalone research result</td></tr>
 						</tbody>
 					</table>
@@ -1504,7 +1541,7 @@
 				<div class="hero-card">
 					<p class="eyebrow">Protocol</p>
 					<h2>{analysis.studyProtocolSummary?.protocol_id || 'Draft'}</h2>
-					<p>{analysis.studyProtocolSummary?.target_venue || 'CHI/CSCW'}</p>
+					<p>{analysis.studyProtocolSummary?.target_venue || 'Not set'}</p>
 				</div>
 				<div class="hero-card">
 					<p class="eyebrow">Jobs</p>
@@ -1578,7 +1615,7 @@
 						<div class="panel-header"><h3>Active Protocol</h3></div>
 						<div class="kv-grid">
 							<div><span>Protocol ID</span><strong>{analysis.studyProtocolSummary?.protocol_id || '-'}</strong></div>
-							<div><span>Venue</span><strong>{analysis.studyProtocolSummary?.target_venue || 'CHI/CSCW'}</strong></div>
+							<div><span>Scope</span><strong>{analysis.studyProtocolSummary?.target_venue || 'Not set'}</strong></div>
 							<div><span>Enabled</span><strong>{analysis.studyProtocolSummary?.enabled ? 'Yes' : 'No'}</strong></div>
 							<div><span>Survey Rows</span><strong>{analysis.participantSurveyRows?.length || 0}</strong></div>
 						</div>
@@ -1609,7 +1646,7 @@
 							<button on:click={createNewProtocolDraft}>New Draft</button>
 							<button class="primary" on:click={saveProtocolDraft}>Save Protocol</button>
 						</div>
-						<p class="muted">Phase plan, policy arms, target venue, and action-mask version all live in this JSON draft.</p>
+						<p class="muted">Phase plan, policy arms, study scope, and action-mask version all live in this JSON draft.</p>
 					</div>
 
 					<div class="panel span-2">
@@ -1680,13 +1717,15 @@
 						<table>
 							<thead>
 								<tr>
-									<th>Policy</th><th>Scope</th><th>Group</th><th>N</th><th>Reward</th><th>Regret</th><th>Optimal</th><th>Lift vs Human</th>
+									<th>Policy</th><th>Type</th><th>Status</th><th>Scope</th><th>Group</th><th>N</th><th>Reward</th><th>Regret</th><th>Optimal</th><th>Lift vs Human</th>
 								</tr>
 							</thead>
 							<tbody>
 								{#each analysis.policyComparisons || [] as row}
 									<tr>
 										<td>{row.policy_name}</td>
+										<td>{row.model_type || '-'}</td>
+										<td>{row.implementation_status || '-'}</td>
 										<td>{row.scope}</td>
 										<td>{row.group_value}</td>
 										<td>{row.n_states}</td>
@@ -1720,17 +1759,19 @@
 			{:else if activeSection === 'ope'}
 				<section class="panel-grid">
 					<div class="panel span-2">
-						<div class="panel-header"><h3>Off-Policy Evaluation</h3></div>
+						<div class="panel-header"><h3>Off-Policy Evaluation Proxies</h3></div>
 						<table>
 							<thead>
 								<tr>
-									<th>Policy</th><th>Scope</th><th>Group</th><th>IPS</th><th>SNIPS</th><th>DM</th><th>DR</th><th>FQE</th><th>Match</th>
+									<th>Policy</th><th>Type</th><th>Estimator</th><th>Scope</th><th>Group</th><th>IPS</th><th>SNIPS</th><th>DM</th><th>DR</th><th>FQE Proxy</th><th>Match</th>
 								</tr>
 							</thead>
 							<tbody>
 								{#each analysis.opeSummary || [] as row}
 									<tr>
 										<td>{row.policy_name}</td>
+										<td>{row.model_type || '-'}</td>
+										<td>{row.ope_estimator_family || '-'}</td>
 										<td>{row.scope}</td>
 										<td>{row.group_value}</td>
 										<td>{formatNum(row.ips)}</td>
@@ -1750,11 +1791,13 @@
 					<div class="panel">
 						<div class="panel-header"><h3>Simulation-Only Summary</h3></div>
 						<table>
-							<thead><tr><th>Policy</th><th>Mean Reward</th><th>CI Low</th><th>CI High</th><th>Gap vs Human</th></tr></thead>
+							<thead><tr><th>Policy</th><th>Type</th><th>Status</th><th>Mean Reward</th><th>CI Low</th><th>CI High</th><th>Gap vs Human</th></tr></thead>
 							<tbody>
 								{#each analysis.sandboxSummary || [] as row}
 									<tr>
 										<td>{row.policy_name}</td>
+										<td>{row.model_type || '-'}</td>
+										<td>{row.implementation_status || '-'}</td>
 										<td>{formatNum(row.mean_simulated_reward)}</td>
 										<td>{formatNum(row.simulated_reward_ci_low)}</td>
 										<td>{formatNum(row.simulated_reward_ci_high)}</td>
@@ -1853,7 +1896,7 @@
 							<button on:click={createNewModelDraft}>New Draft</button>
 							<button class="primary" on:click={saveModelDraft}>Save Model</button>
 						</div>
-						<p class="muted">The registry stores CQL, IQL, contextual bandit, and simulator-only DQN recommendations by scenario.</p>
+						<p class="muted">The registry stores model type, implementation status, training provenance, and scenario-level recommendation maps.</p>
 					</div>
 
 					<div class="panel span-2">
@@ -1923,9 +1966,9 @@
 							<option value="behavior_clone">behavior_clone</option>
 							<option value="reward_model">reward_model</option>
 							<option value="contextual_bandit">contextual_bandit</option>
-							<option value="CQL">CQL</option>
-							<option value="IQL">IQL</option>
-							<option value="DQN_simulator_only">DQN_simulator_only</option>
+							<option value="CQL">CQL_planned</option>
+							<option value="IQL">IQL_planned</option>
+							<option value="DQN_simulator_only">DQN_simulator_only_planned</option>
 						</select>
 						<label for="research-job-config">Config JSON</label>
 						<textarea id="research-job-config" bind:value={jobConfigText} rows="10"></textarea>
@@ -1997,9 +2040,9 @@
 						<div class="panel-header"><h3>Workflow Docs</h3></div>
 						<p><strong>Research Playbook</strong><br /><span class="muted">docs/current/RESEARCH_PLAYBOOK.md</span></p>
 						<p><strong>Paper Analysis Workflow</strong><br /><span class="muted">docs/current/PAPER_ANALYSIS_WORKFLOW.md</span></p>
-						<p><strong>Analytics and RL Exports</strong><br /><span class="muted">docs/current/ANALYTICS_AND_RL_EXPORTS.md</span></p>
-						<p><strong>CHI/CSCW DRL Roadmap</strong><br /><span class="muted">docs/current/CHI_CSCW_DRL_ROADMAP.md</span></p>
-						<p><strong>Venue Positioning and Scoring</strong><br /><span class="muted">docs/current/VENUE_POSITIONING_AND_SCORING.md</span></p>
+						<p><strong>Analytics and Model Exports</strong><br /><span class="muted">docs/current/ANALYTICS_AND_RL_EXPORTS.md</span></p>
+						<p><strong>Study Roadmap</strong><br /><span class="muted">docs/current/FULL_PAPER_READY_STUDY_ROADMAP.md</span></p>
+						<p><strong>Positioning and Scoring</strong><br /><span class="muted">docs/current/VENUE_POSITIONING_AND_SCORING.md</span></p>
 					</div>
 
 					<div class="panel">
@@ -2014,8 +2057,8 @@
 					<div class="panel span-2">
 						<div class="panel-header"><h3>Current Paper Notes</h3></div>
 						<p class="muted">
-							Use `mainGame` as an offline benchmark dataset now. Do not make recommendation-treatment or Deep Q
-							claims from it until the new labeled experiment dataset is live and timestamp complete.
+							Use `mainGame` as an offline benchmark dataset now. Do not make recommendation-treatment or trained policy
+							claims from it until the new labeled experiment dataset is live, timestamp complete, and model artifacts are registered.
 						</p>
 						<table>
 							<thead><tr><th>Signal</th><th>Value</th></tr></thead>
@@ -2029,13 +2072,13 @@
 					</div>
 
 					<div class="panel span-2">
-						<div class="panel-header"><h3>Venue Positioning</h3></div>
+						<div class="panel-header"><h3>Research Positioning</h3></div>
 						<table>
-							<thead><tr><th>Venue</th><th>Best Current Framing</th><th>Evidence To Lead With</th></tr></thead>
+							<thead><tr><th>Track</th><th>Best Current Framing</th><th>Evidence To Lead With</th></tr></thead>
 							<tbody>
-								<tr><td>CHI/CSCW</td><td>Human decision-making and decision support</td><td>Learning, regret, optimality, survey completion, qualitative strategy notes</td></tr>
-								<tr><td>RecSys</td><td>Interactive recommendation benchmark</td><td>Policy baselines, OPE, held-out reward/regret, reproducible snapshots</td></tr>
-								<tr><td>FAccT/EAAMO</td><td>Sociotechnical decision support</td><td>Accountability, participant burden, labor framing, access/equity limits</td></tr>
+								<tr><td>Human study</td><td>Decision-making and decision support</td><td>Learning, regret, optimality, survey completion, qualitative strategy notes</td></tr>
+								<tr><td>Recommender study</td><td>Interactive recommendation benchmark</td><td>Policy baselines, OPE proxies, held-out reward/regret, reproducible snapshots</td></tr>
+								<tr><td>Sociotechnical study</td><td>Decision support under constraints</td><td>Accountability, participant burden, labor framing, access/equity limits</td></tr>
 							</tbody>
 						</table>
 					</div>

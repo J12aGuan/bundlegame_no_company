@@ -64,10 +64,13 @@ Interpretation:
 
 Start with:
 
-1. Behavior cloning / human-choice model
-2. Direct reward model
-3. Contextual bandit or slate ranker
-4. Conservative offline RL (`CQL` or `IQL`) only after enough labeled experiment trajectories exist
+1. Historical human and heuristic route-score baselines
+2. Behaviour cloning / human-choice baseline
+3. Direct reward-model baseline
+4. Contextual bandit or slate ranker baseline
+5. Conservative offline RL (`CQL` or `IQL`) only after enough labeled experiment trajectories exist and a trained artifact is registered
+
+Current admin exports use analysis-time linear baselines for behaviour cloning, reward modelling, contextual ranking, and OPE proxies. They are useful benchmark rows, but they are not trained DRL policies. `CQL` and `IQL` should remain `planned` / `not_implemented` until the training job writes model provenance, dataset snapshot id, metrics, and artifact URIs.
 
 Use `DQN` only in simulator experiments until the new recommendation dataset has:
 
@@ -122,7 +125,7 @@ Recommendation evaluation:
 - `IPS`
 - `SNIPS`
 - `DR`
-- `FQE` for offline-RL runs
+- FQE-style estimates only for trained offline-RL runs; current admin `fqe_one_step` is a linear proxy
 
 Simulator evaluation:
 
@@ -142,7 +145,7 @@ Use simulator outputs for:
 
 - ablations
 - hyperparameter search
-- DQN prototyping
+- simulator-only prototyping
 - stress testing policies before field deployment
 
 Never merge simulator outcomes into the same evidence table as human decisions without explicit labeling.

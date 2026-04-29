@@ -1,5 +1,7 @@
 import { applySharedItemBundleSavings } from "../bundleTime.js";
 import {
+  getBaselineModelRegistry,
+  getPolicyModelMetadata,
   mergeResearchStudyState,
   normalizeRankedBundles,
   normalizeResearchModel,
@@ -276,6 +278,11 @@ export const RECOMMENDATION_SUMMARY_EXPORT_COLUMNS = [
 
 export const POLICY_COMPARISON_EXPORT_COLUMNS = [
   "policy_name",
+  "model_type",
+  "implementation_status",
+  "training_mode",
+  "training_data_source",
+  "training_rows",
   "scope",
   "group_value",
   "n_states",
@@ -288,6 +295,12 @@ export const POLICY_COMPARISON_EXPORT_COLUMNS = [
 
 export const OPE_SUMMARY_EXPORT_COLUMNS = [
   "policy_name",
+  "model_type",
+  "implementation_status",
+  "training_mode",
+  "training_data_source",
+  "training_rows",
+  "ope_estimator_family",
   "scope",
   "group_value",
   "n_states",
@@ -302,6 +315,11 @@ export const OPE_SUMMARY_EXPORT_COLUMNS = [
 
 export const SANDBOX_SUMMARY_EXPORT_COLUMNS = [
   "policy_name",
+  "model_type",
+  "implementation_status",
+  "training_mode",
+  "training_data_source",
+  "training_rows",
   "simulation_label",
   "n_states",
   "iterations",
@@ -4000,6 +4018,8 @@ function buildStudyQa({
         id: arm.id,
         policy_name: arm.policy_name,
         policy_version: arm.policy_version,
+        model_type: arm.model_type,
+        implementation_status: arm.implementation_status,
         show_recommendations: arm.show_recommendations,
       })),
       protocol_version: protocol.protocol_version,
@@ -4045,6 +4065,7 @@ function buildPaperManifest({
   humanPolicyEvalRows = [],
 } = {}) {
   const protocol = normalizeResearchStudyProtocol(studyProtocol);
+  const baselineRegistry = getBaselineModelRegistry();
   const models = Array.isArray(researchModels)
     ? researchModels.map((entry) => normalizeResearchModel(entry))
     : [];
@@ -4070,11 +4091,27 @@ function buildPaperManifest({
       total_models: models.length,
       active_models: models.filter((entry) => entry.is_active).length,
       simulation_only_models: models.filter((entry) => entry.simulation_only).length,
+      baseline_ladder: baselineRegistry.map((entry) => ({
+        model_id: entry.model_id,
+        policy_name: entry.policy_name,
+        model_type: entry.model_type,
+        implementation_status: entry.implementation_status,
+        baseline_ladder_rank: entry.baseline_ladder_rank,
+        training_mode: entry.training_provenance?.training_mode || "",
+        training_data_source:
+          entry.training_provenance?.training_data_source || "",
+      })),
       models: models.map((entry) => ({
         model_id: entry.model_id,
         algorithm: entry.algorithm,
         policy_name: entry.policy_name,
         policy_version: entry.policy_version,
+        model_type: entry.model_type,
+        implementation_status: entry.implementation_status,
+        training_mode: entry.training_provenance?.training_mode || "",
+        training_data_source:
+          entry.training_provenance?.training_data_source || "",
+        training_rows: entry.training_provenance?.training_rows ?? null,
         is_active: entry.is_active,
         simulation_only: entry.simulation_only,
       })),
@@ -4095,7 +4132,7 @@ function buildPaperManifest({
       "docs/current/RESEARCH_PLAYBOOK.md",
       "docs/current/PAPER_ANALYSIS_WORKFLOW.md",
       "docs/current/ANALYTICS_AND_RL_EXPORTS.md",
-      "docs/current/CHI_CSCW_DRL_ROADMAP.md",
+      "docs/current/FULL_PAPER_READY_STUDY_ROADMAP.md",
     ],
     figure_checklist: [
       "Round attrition by dataset and split",
@@ -4189,6 +4226,31 @@ function chooseTopCandidate(candidates = [], scoreAccessor = () => null) {
   );
 }
 
+function buildPolicyMetadata(policyName = "", overrides = {}) {
+  return getPolicyModelMetadata(policyName, overrides);
+}
+
+function addPolicyMetadata(row = {}, policyName = "") {
+  const metadata = buildPolicyMetadata(policyName || row?.policy_name, row);
+  return {
+    ...row,
+    policy_name: policyName || row?.policy_name || metadata.policy_name,
+    model_id: row?.model_id || metadata.model_id || "",
+    model_type: row?.model_type || metadata.model_type || "",
+    model_type_label: row?.model_type_label || metadata.model_type_label || "",
+    implementation_status:
+      row?.implementation_status || metadata.implementation_status || "",
+    baseline_ladder_rank:
+      row?.baseline_ladder_rank ?? metadata.baseline_ladder_rank ?? null,
+    simulation_only: Boolean(row?.simulation_only || metadata.simulation_only),
+    training_mode: row?.training_mode || metadata.training_mode || "",
+    training_data_source:
+      row?.training_data_source || metadata.training_data_source || "",
+    training_rows: row?.training_rows ?? metadata.training_rows ?? null,
+    artifact_status: row?.artifact_status || metadata.artifact_status || "",
+  };
+}
+
 function summarizePolicyRows(rows = [], groupKey = null) {
   const grouped = new Map();
   for (const row of rows) {
@@ -4204,8 +4266,14 @@ function summarizePolicyRows(rows = [], groupKey = null) {
 
   return [...grouped.entries()].map(([key, bucket]) => {
     const [policyName, groupValue = "overall"] = String(key).split("::");
+    const metadata = buildPolicyMetadata(policyName, bucket?.[0] || {});
     return {
       policy_name: policyName,
+      model_type: metadata.model_type,
+      implementation_status: metadata.implementation_status,
+      training_mode: metadata.training_mode,
+      training_data_source: metadata.training_data_source,
+      training_rows: metadata.training_rows,
       scope: groupKey || "overall",
       group_value: groupValue,
       n_states: bucket.length,
@@ -4252,6 +4320,7 @@ function summarizeOpeRows(rows = [], groupKey = null) {
   return [...grouped.entries()].map(([key, bucket]) => {
     const [policyName, groupValue = "overall"] = String(key).split("::");
     const nStates = bucket.length;
+    const metadata = buildPolicyMetadata(policyName, bucket?.[0] || {});
     const weightedRewards = bucket.map((row) => {
       const propensity = Math.max(
         1e-6,
@@ -4292,6 +4361,12 @@ function summarizeOpeRows(rows = [], groupKey = null) {
 
     return {
       policy_name: policyName,
+      model_type: metadata.model_type,
+      implementation_status: metadata.implementation_status,
+      training_mode: metadata.training_mode,
+      training_data_source: metadata.training_data_source,
+      training_rows: metadata.training_rows,
+      ope_estimator_family: "analysis_time_linear_proxy",
       scope: groupKey || "overall",
       group_value: groupValue,
       n_states: nStates,
@@ -4327,6 +4402,7 @@ function buildSandboxSummaryRows(
   }
 
   return [...grouped.entries()].map(([policyName, bucket], index) => {
+    const metadata = buildPolicyMetadata(policyName, bucket?.[0] || {});
     const rewards = bucket
       .map((row) => valueToFloat(row?.policy_expected_reward))
       .filter((value) => value != null);
@@ -4341,6 +4417,11 @@ function buildSandboxSummaryRows(
     );
     return {
       policy_name: policyName,
+      model_type: metadata.model_type,
+      implementation_status: metadata.implementation_status,
+      training_mode: metadata.training_mode,
+      training_data_source: metadata.training_data_source,
+      training_rows: metadata.training_rows,
       simulation_label: "bootstrap_expected_reward",
       n_states: bucket.length,
       iterations: Math.max(50, Number(iterations) || 300),
@@ -4465,6 +4546,13 @@ function buildPolicyEvaluationSuite({
       enriched,
       (row) => row?.action_score_ratio_to_best,
     );
+    const heuristicPolicy = chooseTopCandidate(
+      enriched,
+      (row) =>
+        valueToFloat(row?.action_score) ??
+        valueToFloat(row?.reward_target) ??
+        valueToFloat(row?.action_score_ratio_to_best),
+    );
     const rewardPolicy = chooseTopCandidate(enriched, (row) => row?.__rewardScore);
     const behaviorClone = chooseTopCandidate(
       enriched,
@@ -4479,16 +4567,46 @@ function buildPolicyEvaluationSuite({
       ) || rewardPolicy;
 
     const policyChoices = [
-      ["historical_human", historical, valueToFloat(historical?.observed_reward) ?? valueToFloat(historical?.reward_target)],
-      ["behavior_clone", behaviorClone, valueToFloat(behaviorClone?.reward_target)],
-      ["reward_model", rewardPolicy, valueToFloat(rewardPolicy?.reward_target)],
-      [
-        "contextual_bandit",
-        contextualBandit,
-        valueToFloat(workbenchRow?.predicted_expected_score_ratio) ??
+      {
+        policyName: "historical_human",
+        selectedRow: historical,
+        expectedReward:
+          valueToFloat(historical?.observed_reward) ??
+          valueToFloat(historical?.reward_target),
+        trainingRows: null,
+      },
+      {
+        policyName: "heuristic_route_score",
+        selectedRow: heuristicPolicy,
+        expectedReward: valueToFloat(heuristicPolicy?.reward_target),
+        trainingRows: null,
+      },
+      {
+        policyName: "behavior_cloning_linear",
+        selectedRow: behaviorClone,
+        expectedReward: valueToFloat(behaviorClone?.reward_target),
+        trainingRows: behaviorTrainingRows.length,
+      },
+      {
+        policyName: "reward_model_linear",
+        selectedRow: rewardPolicy,
+        expectedReward: valueToFloat(rewardPolicy?.reward_target),
+        trainingRows: rewardTrainingRows.length,
+      },
+      {
+        policyName: "contextual_bandit_linear",
+        selectedRow: contextualBandit,
+        expectedReward:
+          valueToFloat(workbenchRow?.predicted_expected_score_ratio) ??
           valueToFloat(contextualBandit?.reward_target),
-      ],
-      ["oracle_optimal", oracle, valueToFloat(oracle?.reward_target)],
+        trainingRows: recommendationWorkbenchRows.length,
+      },
+      {
+        policyName: "oracle_optimal",
+        selectedRow: oracle,
+        expectedReward: valueToFloat(oracle?.reward_target),
+        trainingRows: null,
+      },
     ];
 
     const historicalReward =
@@ -4498,9 +4616,9 @@ function buildPolicyEvaluationSuite({
       ? predictLinearModel(rewardModel, historical.__featureRow)
       : null;
 
-    for (const [policyName, selectedRow, expectedReward] of policyChoices) {
+    for (const { policyName, selectedRow, expectedReward, trainingRows } of policyChoices) {
       if (!selectedRow) continue;
-      policyStateRows.push({
+      policyStateRows.push(addPolicyMetadata({
         policy_name: policyName,
         participant_id: selectedRow?.participant_id,
         round_index: selectedRow?.round_index,
@@ -4526,11 +4644,12 @@ function buildPolicyEvaluationSuite({
         ),
         target_behavior_propensity:
           selectedRow?.estimated_behavior_probability ?? null,
+        training_rows: trainingRows,
         match_logged_action: Number(
           bundleSignature(selectedRow?.action_bundle_ids) ===
             bundleSignature(historical?.action_bundle_ids),
         ),
-      });
+      }, policyName));
     }
   }
 
@@ -4755,6 +4874,7 @@ export function computeAnalytics({
     studyRandomizationRows,
     participantSurveyRows,
   );
+  const baselineModelRegistry = getBaselineModelRegistry();
   const studyQa = buildStudyQa({
     masterRows: analysisMasterRows,
     scenarioBundle,
@@ -4857,6 +4977,21 @@ export function computeAnalytics({
       simulation_only_models: normalizedResearchModels.filter(
         (entry) => entry.simulation_only,
       ).length,
+      baseline_ladder: baselineModelRegistry.map((entry) => ({
+        model_id: entry.model_id,
+        label: entry.label,
+        policy_name: entry.policy_name,
+        algorithm: entry.algorithm,
+        model_type: entry.model_type,
+        model_type_label: entry.model_type_label,
+        implementation_status: entry.implementation_status,
+        baseline_ladder_rank: entry.baseline_ladder_rank,
+        training_mode: entry.training_provenance?.training_mode || "",
+        training_data_source:
+          entry.training_provenance?.training_data_source || "",
+        artifact_status: entry.training_provenance?.artifact_status || "",
+        notes: entry.notes || "",
+      })),
     },
     generated_at: new Date().toISOString(),
   };

@@ -33,6 +33,7 @@ jobs:
           npm run test:scores
           npm run test:protocol
           npm run test:generator
+          npm run test:models
 
   python-analytics:
     name: Python analytics tests

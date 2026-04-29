@@ -1,11 +1,11 @@
-# Analytics and RL Exports
+# Analytics and Model Exports
 
 ## Scope
 
 The project now has two admin-facing analytics surfaces:
 
 - `/admin/analysis` for general analytics and uploads
-- `/admin/research` for dark technical research workflows, snapshot QA, policy comparison, OPE, sandbox summaries, and job orchestration
+- `/admin/research` for technical research workflows, snapshot QA, policy comparison, OPE proxy summaries, sandbox summaries, and job orchestration
 
 The shared logic lives in:
 
@@ -218,12 +218,28 @@ Includes:
 
 ## Policy Evaluation Outputs
 
+Model maturity is explicit in the registry and exports. Linear analysis-time models are labelled as baselines, not DRL policies.
+
+Baseline ladder:
+
+| Rank | Policy | Model type | Status | Provenance |
+| --- | --- | --- | --- | --- |
+| 0 | `historical_human` | `reference_baseline` | `implemented` | observed participant choices |
+| 1 | `heuristic_route_score` | `heuristic` | `implemented` | rule-based candidate-bundle metadata |
+| 2 | `behavior_cloning_linear` | `behavior_cloning` | `analysis_baseline` | linear fit on observed choices |
+| 3 | `reward_model_linear` | `reward_model` | `analysis_baseline` | linear fit on reward targets |
+| 4 | `contextual_bandit_linear` | `contextual_bandit` | `analysis_baseline` | linear adoption/outcome workbench |
+| 5 | `CQL` | `offline_rl` | `not_implemented` | planned future artifact |
+| 6 | `IQL` | `offline_rl` | `not_implemented` | planned future artifact |
+| 7 | `oracle_optimal` | `reference_baseline` | `implemented` | legal candidate-bundle optimum |
+
 `policy_comparison.csv` compares:
 
 - `historical_human`
-- `behavior_clone`
-- `reward_model`
-- `contextual_bandit`
+- `heuristic_route_score`
+- `behavior_cloning_linear`
+- `reward_model_linear`
+- `contextual_bandit_linear`
 - `oracle_optimal`
 
 `ope_summary.csv` contains:
@@ -231,7 +247,9 @@ Includes:
 - `IPS`
 - `SNIPS`
 - `DR`
-- `FQE` (one-step approximation in the current admin-facing stack)
+- `FQE proxy` (one-step linear approximation in the current admin-facing stack)
+
+Each policy/OPE/sandbox export includes `model_type`, `implementation_status`, `training_mode`, `training_data_source`, and `training_rows`. Rows with `model_type=offline_rl` should only be treated as trained offline RL when `implementation_status=trained` and a registered model artifact/provenance is present.
 
 `sandbox_summary.csv` contains simulation-only bootstrap summaries and should never be mixed into human-evidence tables without labeling.
 

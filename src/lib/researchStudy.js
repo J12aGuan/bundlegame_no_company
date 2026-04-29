@@ -4,6 +4,194 @@ export const BUNDLEGAME_STUDY_PROTOCOL_VERSION = "bundlegame_abc_50_round_v1";
 export const BUNDLEGAME_STUDY_PROTOCOL_ID = "bundlegame_abc_recommendation_v1";
 export const BUNDLEGAME_STUDY_TOTAL_ROUNDS = 50;
 
+export const RESEARCH_MODEL_TYPES = {
+  REFERENCE: "reference_baseline",
+  HEURISTIC: "heuristic",
+  BEHAVIOR_CLONING: "behavior_cloning",
+  REWARD_MODEL: "reward_model",
+  CONTEXTUAL_BANDIT: "contextual_bandit",
+  OFFLINE_RL: "offline_rl",
+  SIMULATOR_ONLY: "simulator_only",
+  UNSUPPORTED: "unsupported",
+};
+
+export const RESEARCH_MODEL_TYPE_LABELS = {
+  [RESEARCH_MODEL_TYPES.REFERENCE]: "Reference Baseline",
+  [RESEARCH_MODEL_TYPES.HEURISTIC]: "Heuristic",
+  [RESEARCH_MODEL_TYPES.BEHAVIOR_CLONING]: "Behaviour Cloning",
+  [RESEARCH_MODEL_TYPES.REWARD_MODEL]: "Reward Model",
+  [RESEARCH_MODEL_TYPES.CONTEXTUAL_BANDIT]: "Contextual Bandit",
+  [RESEARCH_MODEL_TYPES.OFFLINE_RL]: "Offline RL",
+  [RESEARCH_MODEL_TYPES.SIMULATOR_ONLY]: "Simulator Only",
+  [RESEARCH_MODEL_TYPES.UNSUPPORTED]: "Unsupported",
+};
+
+export const RESEARCH_MODEL_STATUSES = {
+  IMPLEMENTED: "implemented",
+  ANALYSIS_BASELINE: "analysis_baseline",
+  TRAINED: "trained",
+  PLANNED: "planned",
+  NOT_IMPLEMENTED: "not_implemented",
+  UNSUPPORTED: "unsupported",
+};
+
+export const BUNDLEGAME_BASELINE_MODEL_REGISTRY = [
+  {
+    model_id: "historical_human_logged_v1",
+    label: "Historical Human",
+    algorithm: "logged_human_choice",
+    policy_name: "historical_human",
+    policy_version: "v1",
+    model_type: RESEARCH_MODEL_TYPES.REFERENCE,
+    implementation_status: RESEARCH_MODEL_STATUSES.IMPLEMENTED,
+    baseline_ladder_rank: 0,
+    is_active: false,
+    simulation_only: false,
+    training_provenance: {
+      trained: false,
+      training_mode: "logged_data_reference",
+      training_data_source: "observed participant choices",
+      artifact_status: "analysis_generated",
+    },
+    notes: "Reference row for observed human choices; not a trained model.",
+  },
+  {
+    model_id: "heuristic_route_score_v1",
+    label: "Heuristic Route Score",
+    algorithm: "route_score_heuristic",
+    policy_name: "heuristic_route_score",
+    policy_version: "v1",
+    model_type: RESEARCH_MODEL_TYPES.HEURISTIC,
+    implementation_status: RESEARCH_MODEL_STATUSES.IMPLEMENTED,
+    baseline_ladder_rank: 1,
+    is_active: false,
+    simulation_only: false,
+    training_provenance: {
+      trained: false,
+      training_mode: "rule_based",
+      training_data_source: "candidate bundle metadata",
+      artifact_status: "code_baseline",
+    },
+    notes: "Deterministic route/reward scoring baseline.",
+  },
+  {
+    model_id: "oracle_optimal_v1",
+    label: "Oracle Optimal",
+    algorithm: "oracle_best_candidate",
+    policy_name: "oracle_optimal",
+    policy_version: "v1",
+    model_type: RESEARCH_MODEL_TYPES.REFERENCE,
+    implementation_status: RESEARCH_MODEL_STATUSES.IMPLEMENTED,
+    baseline_ladder_rank: 7,
+    is_active: false,
+    simulation_only: false,
+    training_provenance: {
+      trained: false,
+      training_mode: "oracle_reference",
+      training_data_source: "candidate bundle optimum",
+      artifact_status: "analysis_generated",
+    },
+    notes: "Upper-bound reference computed from legal candidate bundles; not a trained model.",
+  },
+  {
+    model_id: "linear_behavior_cloning_v1",
+    label: "Behaviour Cloning Linear Baseline",
+    algorithm: "linear_behavior_cloning",
+    policy_name: "behavior_cloning_linear",
+    policy_version: "v1",
+    model_type: RESEARCH_MODEL_TYPES.BEHAVIOR_CLONING,
+    implementation_status: RESEARCH_MODEL_STATUSES.ANALYSIS_BASELINE,
+    baseline_ladder_rank: 2,
+    is_active: false,
+    simulation_only: false,
+    training_provenance: {
+      trained: true,
+      training_mode: "analysis_time_linear_fit",
+      training_data_source: "policy_training.csv observed choices",
+      artifact_status: "not_persisted",
+    },
+    notes: "Linear choice model fit during analysis; not a DRL policy.",
+  },
+  {
+    model_id: "linear_reward_model_v1",
+    label: "Reward Model Linear Baseline",
+    algorithm: "linear_reward_model",
+    policy_name: "reward_model_linear",
+    policy_version: "v1",
+    model_type: RESEARCH_MODEL_TYPES.REWARD_MODEL,
+    implementation_status: RESEARCH_MODEL_STATUSES.ANALYSIS_BASELINE,
+    baseline_ladder_rank: 3,
+    is_active: false,
+    simulation_only: false,
+    training_provenance: {
+      trained: true,
+      training_mode: "analysis_time_linear_fit",
+      training_data_source: "policy_training.csv reward targets",
+      artifact_status: "not_persisted",
+    },
+    notes: "Linear reward proxy fit during analysis; not a DRL policy.",
+  },
+  {
+    model_id: "linear_contextual_bandit_v1",
+    label: "Contextual Bandit Linear Baseline",
+    algorithm: "linear_contextual_bandit",
+    policy_name: "contextual_bandit_linear",
+    policy_version: "v1",
+    model_type: RESEARCH_MODEL_TYPES.CONTEXTUAL_BANDIT,
+    implementation_status: RESEARCH_MODEL_STATUSES.ANALYSIS_BASELINE,
+    baseline_ladder_rank: 4,
+    is_active: false,
+    simulation_only: false,
+    training_provenance: {
+      trained: true,
+      training_mode: "analysis_time_linear_ranker",
+      training_data_source: "recommendation workbench linear adoption/outcome models",
+      artifact_status: "not_persisted",
+    },
+    notes: "Analysis-time contextual ranking baseline; not a DRL policy.",
+  },
+  {
+    model_id: "cql_offline_rl_v1",
+    label: "CQL Offline RL",
+    algorithm: "CQL",
+    policy_name: "CQL",
+    policy_version: "v1",
+    model_type: RESEARCH_MODEL_TYPES.OFFLINE_RL,
+    implementation_status: RESEARCH_MODEL_STATUSES.NOT_IMPLEMENTED,
+    status: RESEARCH_MODEL_STATUSES.PLANNED,
+    baseline_ladder_rank: 5,
+    is_active: false,
+    simulation_only: false,
+    training_provenance: {
+      trained: false,
+      training_mode: "planned_offline_rl",
+      training_data_source: "future labeled treatment trajectories",
+      artifact_status: "missing",
+    },
+    notes: "Planned offline-RL model; do not treat as trained until an artifact is registered.",
+  },
+  {
+    model_id: "iql_offline_rl_v1",
+    label: "IQL Offline RL",
+    algorithm: "IQL",
+    policy_name: "IQL",
+    policy_version: "v1",
+    model_type: RESEARCH_MODEL_TYPES.OFFLINE_RL,
+    implementation_status: RESEARCH_MODEL_STATUSES.NOT_IMPLEMENTED,
+    status: RESEARCH_MODEL_STATUSES.PLANNED,
+    baseline_ladder_rank: 6,
+    is_active: false,
+    simulation_only: false,
+    training_provenance: {
+      trained: false,
+      training_mode: "planned_offline_rl",
+      training_data_source: "future labeled treatment trajectories",
+      artifact_status: "missing",
+    },
+    notes: "Planned offline-RL ablation; do not treat as trained until an artifact is registered.",
+  },
+];
+
 export const BUNDLEGAME_STUDY_PHASES = [
   {
     id: "A",
@@ -45,24 +233,30 @@ export const BUNDLEGAME_POLICY_ARMS = [
     label: "Control",
     policy_name: "control",
     policy_version: "v1",
+    model_type: RESEARCH_MODEL_TYPES.REFERENCE,
+    implementation_status: RESEARCH_MODEL_STATUSES.IMPLEMENTED,
     show_recommendations: false,
     active_phases: ["B"],
     assignment_weight: 1,
   },
   {
     id: "contextual_bandit",
-    label: "Contextual Bandit",
-    policy_name: "contextual_bandit",
+    label: "Contextual Bandit Baseline",
+    policy_name: "contextual_bandit_linear",
     policy_version: "v1",
+    model_type: RESEARCH_MODEL_TYPES.CONTEXTUAL_BANDIT,
+    implementation_status: RESEARCH_MODEL_STATUSES.ANALYSIS_BASELINE,
     show_recommendations: true,
     active_phases: ["B"],
     assignment_weight: 1,
   },
   {
     id: "rl_cql",
-    label: "Offline RL (CQL)",
+    label: "CQL Offline RL (planned)",
     policy_name: "CQL",
     policy_version: "v1",
+    model_type: RESEARCH_MODEL_TYPES.OFFLINE_RL,
+    implementation_status: RESEARCH_MODEL_STATUSES.NOT_IMPLEMENTED,
     show_recommendations: true,
     active_phases: ["B"],
     assignment_weight: 1,
@@ -159,11 +353,223 @@ function normalizeBoolean(value, fallback = false) {
   return Boolean(value);
 }
 
+function normalizeInteger(value, fallback = null) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.trunc(numeric) : fallback;
+}
+
 function normalizeIsoString(value = "") {
   const normalized = String(value ?? "").trim();
   if (!normalized) return "";
   const millis = Date.parse(normalized);
   return Number.isFinite(millis) ? new Date(millis).toISOString() : "";
+}
+
+function normalizeModelType(value = "", fallback = "") {
+  const normalized = normalizeText(value || fallback).toLowerCase();
+  const compact = normalized.replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_");
+  const aliases = {
+    baseline: RESEARCH_MODEL_TYPES.REFERENCE,
+    reference: RESEARCH_MODEL_TYPES.REFERENCE,
+    reference_baseline: RESEARCH_MODEL_TYPES.REFERENCE,
+    human: RESEARCH_MODEL_TYPES.REFERENCE,
+    logged_human: RESEARCH_MODEL_TYPES.REFERENCE,
+    heuristic: RESEARCH_MODEL_TYPES.HEURISTIC,
+    rule_based: RESEARCH_MODEL_TYPES.HEURISTIC,
+    behavior_clone: RESEARCH_MODEL_TYPES.BEHAVIOR_CLONING,
+    behaviour_clone: RESEARCH_MODEL_TYPES.BEHAVIOR_CLONING,
+    behavior_cloning: RESEARCH_MODEL_TYPES.BEHAVIOR_CLONING,
+    behaviour_cloning: RESEARCH_MODEL_TYPES.BEHAVIOR_CLONING,
+    bc: RESEARCH_MODEL_TYPES.BEHAVIOR_CLONING,
+    reward: RESEARCH_MODEL_TYPES.REWARD_MODEL,
+    reward_model: RESEARCH_MODEL_TYPES.REWARD_MODEL,
+    contextual_bandit: RESEARCH_MODEL_TYPES.CONTEXTUAL_BANDIT,
+    bandit: RESEARCH_MODEL_TYPES.CONTEXTUAL_BANDIT,
+    offline_rl: RESEARCH_MODEL_TYPES.OFFLINE_RL,
+    offline_reinforcement_learning: RESEARCH_MODEL_TYPES.OFFLINE_RL,
+    cql: RESEARCH_MODEL_TYPES.OFFLINE_RL,
+    iql: RESEARCH_MODEL_TYPES.OFFLINE_RL,
+    simulator: RESEARCH_MODEL_TYPES.SIMULATOR_ONLY,
+    simulator_only: RESEARCH_MODEL_TYPES.SIMULATOR_ONLY,
+    dqn_simulator_only: RESEARCH_MODEL_TYPES.SIMULATOR_ONLY,
+    unsupported: RESEARCH_MODEL_TYPES.UNSUPPORTED,
+  };
+  return aliases[compact] || Object.values(RESEARCH_MODEL_TYPES).includes(compact)
+    ? (aliases[compact] || compact)
+    : "";
+}
+
+function inferModelType(source = {}) {
+  const explicit = normalizeModelType(
+    source?.model_type ?? source?.modelType ?? source?.type,
+  );
+  if (explicit) return explicit;
+  const haystack = [
+    source?.algorithm,
+    source?.policy_name,
+    source?.model_id,
+    source?.id,
+    source?.label,
+  ]
+    .map((entry) => String(entry ?? "").toLowerCase())
+    .join(" ");
+  if (!haystack.trim()) return RESEARCH_MODEL_TYPES.UNSUPPORTED;
+  if (haystack.includes("cql") || haystack.includes("iql")) {
+    return RESEARCH_MODEL_TYPES.OFFLINE_RL;
+  }
+  if (haystack.includes("dqn")) return RESEARCH_MODEL_TYPES.SIMULATOR_ONLY;
+  if (haystack.includes("contextual") || haystack.includes("bandit")) {
+    return RESEARCH_MODEL_TYPES.CONTEXTUAL_BANDIT;
+  }
+  if (haystack.includes("reward")) return RESEARCH_MODEL_TYPES.REWARD_MODEL;
+  if (haystack.includes("behavior") || haystack.includes("behaviour")) {
+    return RESEARCH_MODEL_TYPES.BEHAVIOR_CLONING;
+  }
+  if (haystack.includes("heuristic") || haystack.includes("route_score")) {
+    return RESEARCH_MODEL_TYPES.HEURISTIC;
+  }
+  if (
+    haystack.includes("historical") ||
+    haystack.includes("human") ||
+    haystack.includes("control") ||
+    haystack.includes("oracle")
+  ) {
+    return RESEARCH_MODEL_TYPES.REFERENCE;
+  }
+  return RESEARCH_MODEL_TYPES.UNSUPPORTED;
+}
+
+function normalizeImplementationStatus(value = "", modelType = "", fallback = "") {
+  const normalized = normalizeText(value || fallback).toLowerCase();
+  const compact = normalized.replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_");
+  const aliases = {
+    active: RESEARCH_MODEL_STATUSES.TRAINED,
+    complete: RESEARCH_MODEL_STATUSES.TRAINED,
+    completed: RESEARCH_MODEL_STATUSES.TRAINED,
+    ready: RESEARCH_MODEL_STATUSES.TRAINED,
+    trained: RESEARCH_MODEL_STATUSES.TRAINED,
+    implemented: RESEARCH_MODEL_STATUSES.IMPLEMENTED,
+    production: RESEARCH_MODEL_STATUSES.IMPLEMENTED,
+    analysis: RESEARCH_MODEL_STATUSES.ANALYSIS_BASELINE,
+    analysis_baseline: RESEARCH_MODEL_STATUSES.ANALYSIS_BASELINE,
+    prototype: RESEARCH_MODEL_STATUSES.ANALYSIS_BASELINE,
+    draft: RESEARCH_MODEL_STATUSES.PLANNED,
+    planned: RESEARCH_MODEL_STATUSES.PLANNED,
+    missing: RESEARCH_MODEL_STATUSES.NOT_IMPLEMENTED,
+    not_implemented: RESEARCH_MODEL_STATUSES.NOT_IMPLEMENTED,
+    unsupported: RESEARCH_MODEL_STATUSES.UNSUPPORTED,
+  };
+  if (
+    modelType === RESEARCH_MODEL_TYPES.OFFLINE_RL &&
+    (!compact || compact === "draft" || compact === "planned")
+  ) {
+    return RESEARCH_MODEL_STATUSES.NOT_IMPLEMENTED;
+  }
+  if (
+    !compact &&
+    (modelType === RESEARCH_MODEL_TYPES.REFERENCE ||
+      modelType === RESEARCH_MODEL_TYPES.HEURISTIC)
+  ) {
+    return RESEARCH_MODEL_STATUSES.IMPLEMENTED;
+  }
+  if (aliases[compact]) return aliases[compact];
+  if (modelType === RESEARCH_MODEL_TYPES.UNSUPPORTED) {
+    return RESEARCH_MODEL_STATUSES.UNSUPPORTED;
+  }
+  if (modelType === RESEARCH_MODEL_TYPES.OFFLINE_RL) {
+    return RESEARCH_MODEL_STATUSES.NOT_IMPLEMENTED;
+  }
+  return fallback || RESEARCH_MODEL_STATUSES.PLANNED;
+}
+
+function normalizeTrainingProvenance(value = {}, source = {}) {
+  const provenance = value && typeof value === "object" ? value : {};
+  const trainingRows = normalizeInteger(
+    provenance?.training_rows ??
+      provenance?.rows ??
+      source?.training_rows ??
+      source?.trainingRows,
+  );
+  return removeUndefinedDeep({
+    trained: normalizeBoolean(
+      provenance?.trained,
+      source?.status === RESEARCH_MODEL_STATUSES.TRAINED ||
+        source?.implementation_status === RESEARCH_MODEL_STATUSES.TRAINED,
+    ),
+    training_mode: normalizeText(
+      provenance?.training_mode ?? provenance?.mode ?? source?.training_mode,
+    ),
+    training_data_source: normalizeText(
+      provenance?.training_data_source ??
+        provenance?.data_source ??
+        source?.training_data_source,
+    ),
+    dataset_snapshot_id: normalizeText(
+      provenance?.dataset_snapshot_id ?? source?.dataset_snapshot_id,
+    ),
+    training_rows: trainingRows,
+    trained_at: normalizeIsoString(provenance?.trained_at ?? source?.trained_at),
+    code_version: normalizeText(
+      provenance?.code_version ?? source?.code_version,
+    ),
+    artifact_status: normalizeText(
+      provenance?.artifact_status ?? source?.artifact_status,
+    ),
+    notes: normalizeText(provenance?.notes ?? source?.training_notes),
+  });
+}
+
+export function getModelTypeLabel(modelType = "") {
+  const normalized = normalizeModelType(modelType, RESEARCH_MODEL_TYPES.UNSUPPORTED);
+  return RESEARCH_MODEL_TYPE_LABELS[normalized] || RESEARCH_MODEL_TYPE_LABELS.unsupported;
+}
+
+export function getBaselineModelRegistry() {
+  return BUNDLEGAME_BASELINE_MODEL_REGISTRY.map((entry) => normalizeResearchModel(entry));
+}
+
+export function findBaselineModelDefinition(policyName = "") {
+  const normalizedPolicy = normalizeText(policyName).toLowerCase();
+  if (!normalizedPolicy) return null;
+  return (
+    BUNDLEGAME_BASELINE_MODEL_REGISTRY.find((entry) => {
+      const candidates = [
+        entry.model_id,
+        entry.policy_name,
+        entry.algorithm,
+        entry.label,
+      ].map((value) => normalizeText(value).toLowerCase());
+      return candidates.includes(normalizedPolicy);
+    }) || null
+  );
+}
+
+export function getPolicyModelMetadata(policyName = "", overrides = {}) {
+  const baseline = findBaselineModelDefinition(policyName) || {};
+  const normalized = normalizeResearchModel({
+    ...baseline,
+    ...(overrides && typeof overrides === "object" ? overrides : {}),
+    policy_name: normalizeText(
+      overrides?.policy_name,
+      baseline?.policy_name || policyName,
+    ),
+  });
+  return {
+    model_id: normalized.model_id,
+    policy_name: normalized.policy_name || normalizeText(policyName),
+    policy_version: normalized.policy_version,
+    model_type: normalized.model_type,
+    model_type_label: normalized.model_type_label,
+    implementation_status: normalized.implementation_status,
+    baseline_ladder_rank: normalized.baseline_ladder_rank,
+    simulation_only: normalized.simulation_only,
+    training_mode: normalized.training_provenance?.training_mode || "",
+    training_data_source:
+      normalized.training_provenance?.training_data_source || "",
+    training_rows: normalized.training_provenance?.training_rows ?? null,
+    artifact_status: normalized.training_provenance?.artifact_status || "",
+    unsupported: normalized.unsupported,
+  };
 }
 
 function stableHashString(value = "") {
@@ -253,6 +659,11 @@ export function normalizeStudyPolicyArm(arm = {}, index = 0) {
     arm?.policy_name ?? arm?.algorithm ?? id,
     fallback.policy_name || id,
   );
+  const modelType = inferModelType({
+    ...fallback,
+    ...arm,
+    policy_name: policyName,
+  });
   return {
     id,
     label: normalizeText(arm?.label, fallback.label || id),
@@ -260,6 +671,13 @@ export function normalizeStudyPolicyArm(arm = {}, index = 0) {
     policy_version: normalizeText(
       arm?.policy_version ?? arm?.version,
       fallback.policy_version || "v1",
+    ),
+    model_type: modelType,
+    model_type_label: getModelTypeLabel(modelType),
+    implementation_status: normalizeImplementationStatus(
+      arm?.implementation_status ?? arm?.status,
+      modelType,
+      fallback.implementation_status,
     ),
     show_recommendations: normalizeBoolean(
       arm?.show_recommendations,
@@ -275,6 +693,10 @@ export function normalizeStudyPolicyArm(arm = {}, index = 0) {
     simulation_only: normalizeBoolean(
       arm?.simulation_only,
       fallback.simulation_only,
+    ),
+    training_provenance: normalizeTrainingProvenance(
+      arm?.training_provenance ?? arm?.trainingProvenance,
+      { ...fallback, ...arm },
     ),
     notes: normalizeText(arm?.notes),
   };
@@ -956,12 +1378,20 @@ function normalizeRecommendationEntry(entry = {}) {
 
 export function normalizeResearchModel(model = {}) {
   const source = model && typeof model === "object" ? model : {};
+  const modelType = inferModelType(source);
+  const implementationStatus = normalizeImplementationStatus(
+    source?.implementation_status ?? source?.implementationStatus ?? source?.status,
+    modelType,
+    source?.implementation_status,
+  );
+  const unsupported = modelType === RESEARCH_MODEL_TYPES.UNSUPPORTED;
   const recommendationMap =
     source?.recommendation_map && typeof source.recommendation_map === "object"
       ? source.recommendation_map
       : {};
   return removeUndefinedDeep({
     model_id: normalizeText(source?.model_id ?? source?.id),
+    label: normalizeText(source?.label),
     dataset_root: normalizeText(source?.dataset_root),
     dataset_snapshot_id: normalizeText(source?.dataset_snapshot_id),
     algorithm: normalizeText(source?.algorithm),
@@ -970,12 +1400,37 @@ export function normalizeResearchModel(model = {}) {
       source?.algorithm || source?.model_id || "",
     ),
     policy_version: normalizeText(source?.policy_version, "v1"),
-    status: normalizeText(source?.status, "draft"),
-    is_active: normalizeBoolean(source?.is_active),
+    model_type: modelType,
+    model_type_label: getModelTypeLabel(modelType),
+    implementation_status: unsupported
+      ? RESEARCH_MODEL_STATUSES.UNSUPPORTED
+      : implementationStatus,
+    status: normalizeText(
+      source?.status,
+      unsupported
+        ? RESEARCH_MODEL_STATUSES.UNSUPPORTED
+        : modelType === RESEARCH_MODEL_TYPES.OFFLINE_RL &&
+            implementationStatus === RESEARCH_MODEL_STATUSES.NOT_IMPLEMENTED
+          ? RESEARCH_MODEL_STATUSES.PLANNED
+          : "draft",
+    ),
+    baseline_ladder_rank: normalizeInteger(source?.baseline_ladder_rank),
+    is_active:
+      unsupported ||
+      implementationStatus === RESEARCH_MODEL_STATUSES.NOT_IMPLEMENTED
+        ? false
+        : normalizeBoolean(source?.is_active),
     simulation_only: normalizeBoolean(source?.simulation_only),
     action_mask_version: normalizeText(
       source?.action_mask_version,
       DEFAULT_ACTION_MASK_VERSION,
+    ),
+    training_provenance: normalizeTrainingProvenance(
+      source?.training_provenance ?? source?.trainingProvenance,
+      {
+        ...source,
+        implementation_status: implementationStatus,
+      },
     ),
     metrics:
       source?.metrics && typeof source.metrics === "object"
@@ -992,6 +1447,10 @@ export function normalizeResearchModel(model = {}) {
         ])
         .filter(([scenarioId]) => Boolean(scenarioId)),
     ),
+    unsupported,
+    unsupported_reason: unsupported
+      ? `Unsupported model type for algorithm ${normalizeText(source?.algorithm ?? source?.policy_name ?? source?.model_id, "unknown")}`
+      : "",
     notes: normalizeText(source?.notes),
     created_at: normalizeIsoString(source?.created_at),
     updated_at: normalizeIsoString(source?.updated_at),

@@ -44,7 +44,7 @@
         { label: 'Master Data', href: '/admin/masterdata' },
         { label: 'Results', href: '/admin/results' },
         { label: 'Analysis', href: '/admin/analysis' },
-        { label: 'DRL Research', href: '/admin/research' }
+        { label: 'Model Research', href: '/admin/research' }
     ];
     
     function isActive(href) {
