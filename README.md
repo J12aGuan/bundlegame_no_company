@@ -30,12 +30,13 @@ Clean-room setup uses the lockfile and does not require checked-in dependencies 
 
 Prerequisites:
 
-- Node.js 18 or newer
+- Node.js 18 or newer for the app build; Node.js 20 or newer is recommended for JS coverage tests
 - Python 3.10 or newer for analytics tests
 
 ```bash
 npm ci
 npm run build
+npm run test:js
 npm run test:python
 ```
 
@@ -51,7 +52,7 @@ If your machine has multiple Python versions, point the analytics test target at
 make PYTHON=python3.11 test-python
 ```
 
-`test-python` covers both the analytics package and the standalone masked discrete-action offline-RL package under [`offline_rl/`](offline_rl/README.md).
+`test:js` runs the Node regression suite with coverage for experiment logic, exports, recommendation resolution, and scenario generation. `test-python` covers both the analytics package and the standalone masked discrete-action offline-RL package under [`offline_rl/`](offline_rl/README.md).
 
 ## Security
 

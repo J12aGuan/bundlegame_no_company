@@ -588,7 +588,7 @@ function createOrderModel(context = {}) {
   return order;
 }
 
-function getBundleLegality(bundle = []) {
+export function getBundleLegality(bundle = []) {
   if (!Array.isArray(bundle) || bundle.length === 0) {
     return { legal: false, reason: "empty_bundle" };
   }
@@ -602,7 +602,7 @@ function getBundleLegality(bundle = []) {
 }
 
 // Enumerates all legal order bundles of size 1..kMax without scoring them.
-function enumerateLegalBundles(orders = [], kMax = 3) {
+export function enumerateLegalBundles(orders = [], kMax = 3) {
   const source = Array.isArray(orders) ? orders : [];
   const n = source.length;
 

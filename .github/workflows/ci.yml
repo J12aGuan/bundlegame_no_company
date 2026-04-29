@@ -28,12 +28,8 @@ jobs:
       - name: Build SvelteKit app
         run: npm run build
 
-      - name: Run JS regression tests
-        run: |
-          npm run test:scores
-          npm run test:protocol
-          npm run test:generator
-          npm run test:models
+      - name: Run JS tests with coverage
+        run: npm run test:js
 
   python-analytics:
     name: Python analytics and offline RL tests

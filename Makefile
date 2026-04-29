@@ -1,4 +1,4 @@
-.PHONY: install build check-python prepare-python-venv test-python test-python-analytics test-offline-rl verify ci clean distclean
+.PHONY: install build check-python prepare-python-venv test-js test-python test-python-analytics test-offline-rl verify ci clean distclean
 
 PY_ANALYTICS_DIR := data analysis/analytics_v1
 PY_OFFLINE_RL_DIR := offline_rl
@@ -16,6 +16,9 @@ install:
 
 build:
 	npm run build
+
+test-js:
+	npm run test:js
 
 check-python:
 	@test -n "$(PYTHON)" || (echo "Python 3.10+ is required. Install python3.10+ or run 'make PYTHON=/path/to/python3.11 test-python'."; exit 1)
@@ -36,7 +39,7 @@ test-python-analytics: prepare-python-venv
 test-offline-rl: prepare-python-venv
 	cd "$(PY_OFFLINE_RL_DIR)" && "../$(PY_BIN)" -m pip install -e ".[dev]" && "../$(PY_BIN)" -m pytest
 
-verify: build test-python
+verify: build test-js test-python
 
 ci: install verify
 
