@@ -36,7 +36,7 @@ jobs:
           npm run test:models
 
   python-analytics:
-    name: Python analytics tests
+    name: Python analytics and offline RL tests
     runs-on: ubuntu-latest
 
     steps:

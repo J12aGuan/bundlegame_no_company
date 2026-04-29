@@ -152,6 +152,7 @@ ANALYSIS_MASTER_EXPORT_COLUMNS = [
 POLICY_TRAINING_EXPORT_COLUMNS = [
     "dataset_root",
     "participant_id",
+    "state_id",
     "round_index",
     "state_decision_source",
     "state_decision_timestamp",
@@ -164,6 +165,7 @@ POLICY_TRAINING_EXPORT_COLUMNS = [
     "state_policy_name",
     "state_policy_version",
     "state_dataset_snapshot_id",
+    "state_legal_action_mask_version",
     "classification",
     "scenario_id",
     "state_current_city",
@@ -176,7 +178,9 @@ POLICY_TRAINING_EXPORT_COLUMNS = [
     "state_prior_mean_regret",
     "state_prior_mean_score_ratio",
     "state_prior_phase_score_ratio",
+    "action_id",
     "action_bundle_ids",
+    "action_legal",
     "action_bundle_size",
     "action_score_ratio_to_best",
     "action_percent_regret",
@@ -192,6 +196,7 @@ POLICY_TRAINING_EXPORT_COLUMNS = [
     "reward_target",
     "observed_reward",
     "next_round_index",
+    "next_state_id",
     "next_phase",
     "next_current_city",
     "next_prior_optimal_rate",
@@ -389,6 +394,25 @@ def _normalize_id_array(value: Any) -> list[str]:
 
 def _bundle_signature(bundle_ids: Any) -> str:
     return "|".join(sorted(_normalize_id_array(bundle_ids)))
+
+
+def _offline_rl_state_id(row: dict[str, Any]) -> str:
+    key = "::".join(
+        str(row.get(field, "") or "").strip()
+        for field in ["dataset_root", "participant_id", "round_index", "scenario_id", "phase"]
+    )
+    return f"state_{_stable_hash_string(key):x}"
+
+
+def _offline_rl_action_id(row: dict[str, Any], candidate: dict[str, Any]) -> str:
+    key = "::".join(
+        [
+            str(row.get("dataset_root", "") or "").strip(),
+            str(row.get("scenario_id", "") or "").strip(),
+            str(candidate.get("bundleSignature") or _bundle_signature(candidate.get("bundleIds"))),
+        ]
+    )
+    return f"action_{_stable_hash_string(key):x}"
 
 
 def _read_optional_rows(path: str | None) -> list[dict[str, Any]]:
@@ -1909,10 +1933,13 @@ def _build_policy_training_rows(
         current_index = participant_rows.index(row)
         next_row = participant_rows[current_index + 1] if current_index + 1 < len(participant_rows) else None
         chosen_signature = _bundle_signature(row.get("chosen_orders"))
+        state_id = _offline_rl_state_id(row)
+        next_state_id = _offline_rl_state_id(next_row) if next_row else ""
         for candidate in candidates:
             policy_row = {
                 "dataset_root": row.get("dataset_root"),
                 "participant_id": row.get("participant_id"),
+                "state_id": state_id,
                 "round_index": row.get("round_index"),
                 "state_decision_source": row.get("decision_source"),
                 "state_decision_timestamp": row.get("decision_timestamp"),
@@ -1925,6 +1952,7 @@ def _build_policy_training_rows(
                 "state_policy_name": row.get("policy_name"),
                 "state_policy_version": row.get("policy_version"),
                 "state_dataset_snapshot_id": row.get("dataset_snapshot_id"),
+                "state_legal_action_mask_version": row.get("legal_action_mask_version"),
                 "classification": row.get("classification"),
                 "scenario_id": row.get("scenario_id"),
                 "state_current_city": row.get("current_city"),
@@ -1937,7 +1965,9 @@ def _build_policy_training_rows(
                 "state_prior_mean_regret": row.get("prior_mean_regret"),
                 "state_prior_mean_score_ratio": row.get("prior_mean_score_ratio"),
                 "state_prior_phase_score_ratio": row.get("prior_phase_score_ratio"),
+                "action_id": _offline_rl_action_id(row, candidate),
                 "action_bundle_ids": json.dumps(candidate["bundleIds"]),
+                "action_legal": 1,
                 "action_bundle_size": candidate["bundleSize"],
                 "action_score_ratio_to_best": candidate["scoreRatioToBest"],
                 "action_percent_regret": candidate["percentRegret"],
@@ -1953,6 +1983,7 @@ def _build_policy_training_rows(
                 "reward_target": candidate["scoreRatioToBest"],
                 "observed_reward": row.get("score_ratio_to_best") if candidate["bundleSignature"] == chosen_signature else None,
                 "next_round_index": next_row.get("round_index") if next_row else None,
+                "next_state_id": next_state_id,
                 "next_phase": next_row.get("phase") if next_row else None,
                 "next_current_city": next_row.get("current_city") if next_row else None,
                 "next_prior_optimal_rate": next_row.get("prior_optimal_rate") if next_row else None,

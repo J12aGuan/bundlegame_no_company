@@ -1,0 +1,11 @@
+{
+  "algorithm": "iql",
+  "policy_name": "iql_masked_discrete",
+  "policy_version": "v1",
+  "seed": 43,
+  "gamma": 0.0,
+  "epochs": 30,
+  "learning_rate": 0.35,
+  "expectile": 0.7,
+  "notes": "Masked discrete-action IQL baseline for frozen BundleGame policy_training.csv. Uses participant-level stable-hash splits and never mixes simulator-only evidence into human tables."
+}

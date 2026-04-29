@@ -51,6 +51,8 @@ If your machine has multiple Python versions, point the analytics test target at
 make PYTHON=python3.11 test-python
 ```
 
+`test-python` covers both the analytics package and the standalone masked discrete-action offline-RL package under [`offline_rl/`](offline_rl/README.md).
+
 ## Security
 
 Before collecting real participant data, publish the Firestore rules from [`firestore.rules`](firestore.rules).
@@ -338,6 +340,6 @@ For participant export:
 
 - `/downloader` exports participant data for Firebase users with the `admin` custom claim
 - `/admin/live` provides the classroom leaderboard and live class-session controls
-- `/admin/analysis` provides live analytics and RL-ready exports
+- `/admin/analysis` provides live analytics and model-ready exports
 
 See [docs/current/ANALYTICS_AND_RL_EXPORTS.md](docs/current/ANALYTICS_AND_RL_EXPORTS.md) for export details.

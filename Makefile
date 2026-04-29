@@ -1,6 +1,7 @@
-.PHONY: install build check-python prepare-python-venv test-python verify ci clean distclean
+.PHONY: install build check-python prepare-python-venv test-python test-python-analytics test-offline-rl verify ci clean distclean
 
 PY_ANALYTICS_DIR := data analysis/analytics_v1
+PY_OFFLINE_RL_DIR := offline_rl
 PYTHON ?= $(shell for python in python3.12 python3.11 python3.10 python3; do \
 	if command -v $$python >/dev/null 2>&1 && $$python -c 'import sys; raise SystemExit(sys.version_info < (3, 10))' >/dev/null 2>&1; then \
 		echo $$python; \
@@ -27,8 +28,13 @@ prepare-python-venv: check-python
 	@if [ ! -x "$(PY_BIN)" ]; then $(PYTHON) -m venv "$(PY_VENV)"; fi
 	"$(PY_BIN)" -m pip install --upgrade pip setuptools wheel
 
-test-python: prepare-python-venv
+test-python: test-python-analytics test-offline-rl
+
+test-python-analytics: prepare-python-venv
 	cd "$(PY_ANALYTICS_DIR)" && "../../$(PY_BIN)" -m pip install -e ".[dev]" && "../../$(PY_BIN)" -m pytest
+
+test-offline-rl: prepare-python-venv
+	cd "$(PY_OFFLINE_RL_DIR)" && "../$(PY_BIN)" -m pip install -e ".[dev]" && "../$(PY_BIN)" -m pytest
 
 verify: build test-python
 

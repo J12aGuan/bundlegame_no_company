@@ -181,8 +181,10 @@ One row per participant-round-candidate-bundle.
 
 Field groups:
 
+- reproducible tuple IDs: `state_id`, `action_id`, `next_state_id`, and `done`
 - state features
 - action/bundle features
+- legal-action-mask fields: `state_legal_action_mask_version` and `action_legal`
 - observed chosen action
 - reward target
 - next-state summary
@@ -252,6 +254,23 @@ Baseline ladder:
 Each policy/OPE/sandbox export includes `model_type`, `implementation_status`, `training_mode`, `training_data_source`, and `training_rows`. Rows with `model_type=offline_rl` should only be treated as trained offline RL when `implementation_status=trained` and a registered model artifact/provenance is present.
 
 `sandbox_summary.csv` contains simulation-only bootstrap summaries and should never be mixed into human-evidence tables without labeling.
+
+## Offline RL Training Package
+
+The standalone `offline_rl/` Python package trains masked discrete-action CQL and IQL baselines from frozen snapshots. It validates `policy_training.csv` before training and refuses to run unless full state-action-reward tuples, legal-action masks, candidate bundle actions, and participant-level split inputs are present.
+
+Outputs are kept separate from human-evidence exports:
+
+- `checkpoint.json`
+- `config.json`
+- `schema_validation.json`
+- `evaluation_summary.json`
+- `policy_comparison.csv`
+- `ope_summary.csv`
+- `recommendation_map.json`
+- `scenario_recommendation_map.json`
+
+Registry import rows can be generated with `python -m offline_rl.export_artifacts`; trained rows use `model_type=offline_rl`, `implementation_status=trained`, and `simulator_only=false`.
 
 ## Research Job Runtime
 

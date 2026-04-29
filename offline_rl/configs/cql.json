@@ -1,0 +1,12 @@
+{
+  "algorithm": "cql",
+  "policy_name": "cql_masked_discrete",
+  "policy_version": "v1",
+  "seed": 42,
+  "gamma": 0.0,
+  "epochs": 30,
+  "learning_rate": 0.35,
+  "temperature": 1.0,
+  "cql_alpha": 0.15,
+  "notes": "Masked discrete-action CQL baseline for frozen BundleGame policy_training.csv. Uses participant-level stable-hash splits and never mixes simulator-only evidence into human tables."
+}

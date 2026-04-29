@@ -181,6 +181,7 @@ export const ANALYSIS_MASTER_EXPORT_COLUMNS = [
 export const POLICY_TRAINING_EXPORT_COLUMNS = [
   "dataset_root",
   "participant_id",
+  "state_id",
   "round_index",
   "state_decision_source",
   "state_decision_timestamp",
@@ -193,6 +194,7 @@ export const POLICY_TRAINING_EXPORT_COLUMNS = [
   "state_policy_name",
   "state_policy_version",
   "state_dataset_snapshot_id",
+  "state_legal_action_mask_version",
   "classification",
   "scenario_id",
   "state_current_city",
@@ -205,8 +207,10 @@ export const POLICY_TRAINING_EXPORT_COLUMNS = [
   "state_prior_mean_regret",
   "state_prior_mean_score_ratio",
   "state_prior_phase_score_ratio",
+  "action_id",
   "action_bundle_ids",
   "action_delivery_sequence_ids",
+  "action_legal",
   "action_bundle_size",
   "action_score_ratio_to_best",
   "action_percent_regret",
@@ -225,6 +229,7 @@ export const POLICY_TRAINING_EXPORT_COLUMNS = [
   "reward_target",
   "observed_reward",
   "next_round_index",
+  "next_state_id",
   "next_phase",
   "next_current_city",
   "next_prior_optimal_rate",
@@ -2304,6 +2309,30 @@ function bundleSignature(bundleIds = []) {
     .join("|");
 }
 
+function buildOfflineRlStateId(row = {}) {
+  const key = [
+    row?.dataset_root,
+    row?.participant_id,
+    row?.round_index,
+    row?.scenario_id,
+    row?.phase,
+  ]
+    .map((entry) => String(entry ?? "").trim())
+    .join("::");
+  return `state_${stableHashString(key).toString(36)}`;
+}
+
+function buildOfflineRlActionId(row = {}, candidate = {}) {
+  const key = [
+    row?.dataset_root,
+    row?.scenario_id,
+    candidate?.bundleSignature || bundleSignature(candidate?.bundleIds),
+  ]
+    .map((entry) => String(entry ?? "").trim())
+    .join("::");
+  return `action_${stableHashString(key).toString(36)}`;
+}
+
 function parseNumeric(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -3300,11 +3329,14 @@ function buildPolicyTrainingRows({
     const nextRow =
       currentIndex >= 0 ? participantRows[currentIndex + 1] || null : null;
     const chosenSignature = bundleSignature(row?.chosen_orders);
+    const stateId = buildOfflineRlStateId(row);
+    const nextStateId = nextRow ? buildOfflineRlStateId(nextRow) : "";
 
     for (const candidate of candidates) {
       const policyRow = {
         dataset_root: row?.dataset_root,
         participant_id: row?.participant_id,
+        state_id: stateId,
         round_index: row?.round_index,
         state_decision_source: row?.decision_source,
         state_decision_timestamp: row?.decision_timestamp,
@@ -3318,6 +3350,7 @@ function buildPolicyTrainingRows({
         state_policy_name: row?.policy_name,
         state_policy_version: row?.policy_version,
         state_dataset_snapshot_id: row?.dataset_snapshot_id,
+        state_legal_action_mask_version: row?.legal_action_mask_version,
         classification: row?.classification,
         scenario_id: row?.scenario_id,
         state_current_city: row?.current_city,
@@ -3331,8 +3364,10 @@ function buildPolicyTrainingRows({
         state_prior_mean_regret: row?.prior_mean_regret,
         state_prior_mean_score_ratio: row?.prior_mean_score_ratio,
         state_prior_phase_score_ratio: row?.prior_phase_score_ratio,
+        action_id: buildOfflineRlActionId(row, candidate),
         action_bundle_ids: candidate.bundleIds,
         action_delivery_sequence_ids: candidate.deliverySequenceIds || candidate.bundleIds,
+        action_legal: 1,
         action_bundle_size: candidate.bundleSize,
         action_score_ratio_to_best: candidate.scoreRatioToBest,
         action_percent_regret: candidate.percentRegret,
@@ -3359,6 +3394,7 @@ function buildPolicyTrainingRows({
             ? (row?.score_ratio_to_best ?? 0)
             : null,
         next_round_index: nextRow?.round_index ?? null,
+        next_state_id: nextStateId,
         next_phase: nextRow?.phase ?? null,
         next_current_city: nextRow?.current_city ?? null,
         next_prior_optimal_rate: nextRow?.prior_optimal_rate ?? null,
