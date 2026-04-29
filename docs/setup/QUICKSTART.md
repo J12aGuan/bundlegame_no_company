@@ -4,7 +4,7 @@ Use this guide to get the project running locally with the current Firestore-bac
 
 ## Prerequisites
 
-- Node.js 18 or newer
+- Node.js 18 or newer; Node.js 20 or newer is recommended for JS coverage output
 - Python 3.10 or newer for analytics tests
 - Access to this repository
 - Firebase credentials
@@ -38,7 +38,9 @@ Then open `http://localhost:5173`.
 Recommended verification:
 
 ```bash
-npm run verify
+npm run build
+npm run test:js
+make PYTHON=python3.11 test-python
 ```
 
 If your default `python3` is older than 3.10, run the analytics tests with a supported interpreter:
@@ -53,6 +55,8 @@ make PYTHON=python3.11 test-python
 - Runtime architecture: [../current/ARCHITECTURE.md](../current/ARCHITECTURE.md)
 - Firestore config and timing rules: [../current/CONFIG_AND_DATASETS.md](../current/CONFIG_AND_DATASETS.md)
 - Analytics and exports: [../current/ANALYTICS_AND_RL_EXPORTS.md](../current/ANALYTICS_AND_RL_EXPORTS.md)
+- Reproducible artifacts: [../../ARTIFACTS.md](../../ARTIFACTS.md)
+- Data schema: [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md)
 
 ## Common Issues
 
@@ -62,4 +66,4 @@ make PYTHON=python3.11 test-python
 
 ## Working Rule
 
-When a behavior change ships, update the relevant file in `docs/current/` and refresh the README `Recent Feature History` table if the change is meaningful enough to track there.
+When a behavior change ships, update the relevant file in `docs/current/`, [../../ARTIFACTS.md](../../ARTIFACTS.md), or [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md) if the change affects reproducibility or schemas.

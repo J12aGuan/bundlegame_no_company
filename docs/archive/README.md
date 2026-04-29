@@ -7,6 +7,7 @@ Use [../README.md](../README.md) for the project overview and [../current/](../c
 ## What Is Archived Here
 
 - `legacy-2026-03/`: pre-`MasterData` architecture and configuration notes
+- `planning-2026-04/`: venue-positioning and roadmap planning notes superseded by current protocol, model, artifact, and schema docs
 - older reference material that depends on removed static-config assumptions
 
 ## How To Use The Archive

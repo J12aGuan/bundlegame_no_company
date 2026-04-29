@@ -4,6 +4,8 @@
 
 This playbook defines how to use BundleGame data for recommendation-algorithm research without overstating what the current dataset can support.
 
+Use [EXPERIMENT_PROTOCOL.md](EXPERIMENT_PROTOCOL.md) for the canonical protocol, [MODELS.md](MODELS.md) for model maturity rules, [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md) for table schemas, and [../../ARTIFACTS.md](../../ARTIFACTS.md) for exact artifact regeneration commands.
+
 ## Dual-Track Strategy
 
 Use two datasets with different claims:

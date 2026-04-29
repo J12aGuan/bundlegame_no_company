@@ -1,4 +1,4 @@
-# Current Architecture (March 2026)
+# Current Architecture
 
 This document describes the current runtime architecture used by the app.
 
@@ -20,6 +20,7 @@ This document describes the current runtime architecture used by the app.
 - `src/routes/bundlegame.svelte`: in-store flow, delivery flow, and round-completion logging
 - `src/routes/admin/masterdata/+page.svelte`: admin UI for configs, datasets, Cities data, and timing validation
 - `src/routes/admin/analysis/+page.svelte`: participant-vs-optimal analytics dashboard and exports
+- `src/routes/admin/research/+page.svelte`: research workflow, snapshot QA, exports, model registry, and jobs
 
 ## Firestore Source of Truth
 
@@ -76,4 +77,6 @@ Example:
 ## Notes
 
 - `docs/current/CONFIG_AND_DATASETS.md` is the best reference for Firestore document shapes and admin editing behavior.
+- `DATA_SCHEMA.md` is the schema reference for reviewers and export consumers.
+- `ARTIFACTS.md` is the artifact regeneration guide.
 - Legacy documentation from the pre-`MasterData` era is archived under `docs/archive/legacy-2026-03/`.

@@ -1,4 +1,10 @@
-# Venue Positioning and Scoring
+# Archived Planning Note: Venue Positioning And Scoring
+
+This file is archived planning context from April 2026. It is not the current scoring or analysis source of truth. Use these current docs instead:
+
+- [../../current/ANALYTICS_AND_RL_EXPORTS.md](../../current/ANALYTICS_AND_RL_EXPORTS.md)
+- [../../current/EXPERIMENT_PROTOCOL.md](../../current/EXPERIMENT_PROTOCOL.md)
+- [../../../DATA_SCHEMA.md](../../../DATA_SCHEMA.md)
 
 ## Purpose
 

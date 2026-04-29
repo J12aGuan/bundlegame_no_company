@@ -1,5 +1,7 @@
 # Paper Analysis Workflow
 
+This workflow is a conceptual checklist. For exact regeneration commands and table/figure source mapping, use [../../ARTIFACTS.md](../../ARTIFACTS.md).
+
 ## Goal
 
 Turn BundleGame gameplay into a reproducible research workflow for studying human decision-making and recommendation policies.

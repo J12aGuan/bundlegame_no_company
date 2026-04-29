@@ -128,7 +128,7 @@ Firebase browser config values use `VITE_FIREBASE_*` because Firebase client app
 ## 📞 Security Contact
 
 **Security issues**: nchen06@berkeley.edu
-**General questions**: See [README.md](README.md#-contributing)
+**General questions**: See [README.md](README.md) and [docs/README.md](docs/README.md)
 
 ---
 

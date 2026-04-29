@@ -1,5 +1,7 @@
 # Full-Paper-Ready Study Roadmap
 
+This roadmap is planning guidance. For current executable commands and schemas, use [../../ARTIFACTS.md](../../ARTIFACTS.md), [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md), [EXPERIMENT_PROTOCOL.md](EXPERIMENT_PROTOCOL.md), and [MODELS.md](MODELS.md).
+
 ## Current State
 
 BundleGame is ready for pilot and benchmark analysis, but the existing `mainGame` data should not be used alone for strong recommendation-treatment claims. Treat the current class data as useful for descriptive behavior, baseline modeling, simulator fitting, and workflow validation.

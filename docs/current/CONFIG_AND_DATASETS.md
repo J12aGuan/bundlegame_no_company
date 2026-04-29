@@ -1,4 +1,4 @@
-# Current Config and Dataset Management (March 2026)
+# Current Config And Dataset Management
 
 ## Source of Truth
 
@@ -190,5 +190,5 @@ Order details in admin should be interpreted as:
 
 - Treat `MasterData/cities` as the authoritative cross-city source for runtime and admin validation.
 - Keep order cities aligned with the Cities matrix before collecting data.
-- If behavior changes, update this document and the README `Recent Feature History` table together.
+- If behavior changes, update this document and [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md) together.
 - Archived docs may reference older store-distance or static-config approaches; use them only as legacy reference.

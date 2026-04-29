@@ -1,169 +1,83 @@
-# Experiment Design Documentation
+# Experiment Design
 
-## Research Overview
+This is the human-readable study design summary. The implementation source of truth is [../current/EXPERIMENT_PROTOCOL.md](../current/EXPERIMENT_PROTOCOL.md) and `src/lib/researchStudy.js`.
 
-This experiment studies how delivery workers make bundling decisions with and without algorithmic recommendations.
+## Task
 
-## Experimental Design
+Participants play a delivery bundling game. Each round presents a small set of delivery orders. The participant chooses which orders to bundle, then completes a store and delivery flow. The system records the chosen bundle, timing, reward, comparison to the oracle bundle, and recommendation exposure when applicable.
 
-### Three-Phase Structure
+## Current Protocol
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         50-ROUND EXPERIMENT                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  PHASE A (R1-15)    │  PHASE B (R16-35)   │  PHASE C (R36-50)               │
-│  No Recommendations │  With Recommendations│  No Recommendations            │
-│  Baseline Behavior  │  Optimal Shown       │  Post-Recommendation           │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+| Phase | Rounds | Recommendation Exposure | Purpose |
+| --- | --- | --- | --- |
+| A | 1-15 | Off | Baseline decision behavior |
+| B | 16-35 | Allowed by assigned arm | Recommendation exposure and arm comparison |
+| C | 36-50 | Off | Transfer/retention behavior after exposure |
 
-### Phase Details
+Default arms:
 
-| Phase | Rounds | Orders with `recommended: true` | Research Question |
-|-------|--------|--------------------------------|-------------------|
-| A | 1-15 | 0 | How do players bundle without guidance? |
-| B | 16-35 | 2 per round | Do players follow optimal recommendations? |
-| C | 36-50 | 0 | Does learning persist after recommendations removed? |
+- `control`
+- `contextual_bandit`
+- `rl_cql`
 
-## Scenario Types
+Assignment is participant-level and should not change during a session.
 
-Each round presents 4 orders. The **optimal bundle** varies:
+## Scenario Structure
 
-### Type 1: Single High-Value Order (Bundle Size = 1)
-- **Efficiency**: 1.8 $/s
-- **Total Time**: 10s (4s travel + 2s base + 2×2s for 2 aisles)
-- **Earnings**: $18
+Each scenario row defines:
 
-**Scenario**: Order A has $18 earnings with only 2 aisles. Bundling with low-value orders ($4 each) adds time but proportionally less earnings.
+- round index
+- phase
+- scenario id
+- order ids shown to the participant
+- maximum bundle size
+- optional classification and recommendation metadata
 
-### Type 2: Overlapping Duo (Bundle Size = 2)  
-- **Efficiency**: 1.667 $/s
-- **Total Time**: 12s (4s travel + 2s base + 3×2s for 3 unique aisles)
-- **Earnings**: $20
+Each order row defines:
 
-**Scenario**: Two $10 orders share aisles [1,2] and [1,2,3]. Combined, only 3 unique aisles. Adding a third order hurts efficiency.
+- city
+- store
+- earnings
+- item payload
+- modeled base time
+- local delivery time
 
-### Type 3: Chain Triple (Bundle Size = 3)
-- **Efficiency**: 3.071 $/s
-- **Total Time**: 14s (4s travel + 2s base + 4×2s for 4 unique aisles)  
-- **Earnings**: $43
+The city travel matrix in `MasterData/cities` supplies cross-city travel time.
 
-**Scenario**: Three orders with sequential aisle overlap: [1,2], [2,3], [3,4]. Only 4 unique aisles for $15+$14+$14 earnings.
+## Oracle And Candidate Bundles
 
-## Round Distribution
+Generated scenario sets store every legal candidate bundle for each scenario in `optimal[].candidate_bundles[]`. Candidate metadata includes:
 
-| Rounds | Scenario Type | Optimal Size | Cities (rotating) |
-|--------|--------------|--------------|-------------------|
-| 1-5 | Single High | 1 | Emeryville → Berkeley → Oakland → Piedmont → Emeryville |
-| 6-10 | Overlap Duo | 2 | Berkeley → Oakland → Piedmont → Emeryville → Berkeley |
-| 11-15 | Chain Triple | 3 | Oakland → Piedmont → Emeryville → Berkeley → Oakland |
-| 16-20 | Mixed | 1-2 | Piedmont → Emeryville → Berkeley → Oakland → Piedmont |
-| 21-25 | Mixed | 1-2 | Emeryville → Berkeley → Oakland → Piedmont → Emeryville |
-| 26-30 | Mixed | 1-3 | Berkeley → Oakland → Piedmont → Emeryville → Berkeley |
-| 31-35 | Chain Triple | 3 | Oakland → Piedmont → Emeryville → Berkeley → Oakland |
-| 36-40 | Single High | 1 | Piedmont → Emeryville → Berkeley → Oakland → Piedmont |
-| 41-45 | Overlap Duo | 2 | Emeryville → Berkeley → Oakland → Piedmont → Emeryville |
-| 46-50 | Chain Triple | 3 | Berkeley → Oakland → Piedmont → Emeryville → Berkeley |
+- bundle ids
+- optimized delivery sequence
+- earnings
+- travel time
+- pick time
+- shared-item savings
+- total time
+- score ratio to best
+- regret to best
+- uncertainty flags
 
-## Time Calculation Formula
+The legal action mask currently uses same-store bundle legality. Offline model training and policy evaluation should use the stored candidate bundle set when available.
 
-```
-Total Time = travel_time + base_store_time + (unique_aisles × per_aisle_time)
-           = 4s + 2s + (aisles × 2s)
-```
+## Main Outcome Families
 
-**Efficiency** = Total Earnings / Total Time ($/s)
+Use decomposed metrics rather than the admin class score for research claims:
 
-## Store & City Mapping
+- score ratio to best
+- percent regret
+- exact-optimal rate
+- near-optimal rate
+- chosen bundle size
+- failure rate
+- rounds completed
+- timing and burden measures
+- recommendation exposure and compliance
+- survey-linked trust, usefulness, and workload
 
-| Store | City |
-|-------|------|
-| Target | Emeryville |
-| Berkeley Bowl | Berkeley |
-| Sprouts Farmers Market | Oakland |
-| Safeway | Piedmont |
+## Current Evidence Limits
 
-## Phase B Recommendations
+Historical `mainGame` rows are useful for descriptive behavior, benchmark baselines, and pipeline validation. Strong recommendation-treatment claims require a treatment-aware dataset with complete Phase B labels, timestamps, arm assignments, and survey linkage.
 
-In rounds 16-35, two orders are marked with `"recommended": true`. These form the **optimal bundle** for that round.
-
-**Important**: In some rounds (e.g., 24-29), recommendations mark orders that DON'T form the true optimal. This tests whether players blindly follow recommendations or think critically.
-
-### Recommendation Accuracy by Round
-
-| Rounds | Recommendation Quality |
-|--------|----------------------|
-| 16-23 | ✅ Optimal (true optimal bundle) |
-| 24-29 | ⚠️ Sub-optimal (marked orders form worse bundle) |
-| 30-35 | ✅ Optimal (true optimal bundle) |
-
-## Key Metrics to Collect
-
-1. **Bundle Composition**: Which orders did player select?
-2. **Match Rate**: Did selection match optimal bundle?
-3. **Efficiency Achieved**: Actual $/s vs optimal $/s
-4. **Recommendation Compliance** (Phase B): Did player follow marked orders?
-5. **Learning Transfer** (Phase C): Does Phase C efficiency improve vs Phase A?
-
-## Data Analysis Questions
-
-1. **Baseline Behavior (Phase A)**
-   - Do players naturally gravitate toward larger bundles?
-   - How often do they accidentally find optimal bundles?
-
-2. **Recommendation Impact (Phase B)**
-   - Compliance rate with recommendations
-   - Difference in behavior when recommendations are optimal vs sub-optimal
-   
-3. **Learning Persistence (Phase C)**
-   - Efficiency improvement from Phase A to Phase C
-   - Whether players internalize optimal strategies
-
-## File Reference
-
-- **Experiment Data**: Firestore grouped dataset entry selected by `centralConfig.scenario_set`
-- **Core Game Logic**: `src/lib/bundle.js`
-- **Quick Reference**: `docs/experiment/experiment_reference.csv`
-- **Current Data Model Guide**: `docs/current/CONFIG_AND_DATASETS.md`
-
-## JSON Schema
-
-```json
-{
-  "round": 1,
-  "phase": "A",
-  "scenario_id": "A01",
-  "max_bundle": 3,
-  "store_travel_time_s": 4,
-  "base_store_time_s": 2,
-  "per_aisle_time_s": 2,
-  "orders": [
-    {
-      "id": "R1_A",
-      "store": "Target",
-      "city": "Emeryville",
-      "earnings": 18,
-      "aisles": [1, 2],
-      "travel_time_s": 4,
-      "recommended": false
-    }
-  ],
-  "optimal": {
-    "combo": ["R1_A"],
-    "bundle_size": 1,
-    "efficiency_earnings_per_s": 1.8,
-    "total_time_s": 10,
-    "total_earnings": 18,
-    "num_aisles": 2
-  },
-  "second_best": {
-    "combo": ["R1_A", "R1_C", "R1_D"],
-    "bundle_size": 3,
-    "efficiency_earnings_per_s": 1.444,
-    "total_time_s": 18,
-    "total_earnings": 26,
-    "num_aisles": 6
-  }
-}
-```
+See [../../ARTIFACTS.md](../../ARTIFACTS.md) for reproduction commands and [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md) for table schemas.

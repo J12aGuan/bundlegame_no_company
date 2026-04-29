@@ -18,6 +18,8 @@ Companion runtime utilities:
 - `scripts/research-worker.mjs`
 - `scripts/export-admin-scores.mjs`
 
+For exact regeneration commands, use [../../ARTIFACTS.md](../../ARTIFACTS.md). For table schemas and redaction rules, use [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md). For model maturity and registry rules, use [MODELS.md](MODELS.md).
+
 ## Supported Data Sources
 
 - live Firestore participant data
@@ -103,6 +105,8 @@ Both modes use schema version `bundlegame_research_export_v1`.
 ### `raw_research_export`
 
 Internal QA export with operational identifiers retained.
+
+Do not share this export outside the approved research team.
 
 Tables:
 
@@ -295,8 +299,10 @@ Uploaded snapshots are still exportable, but they are marked offline-only and ar
 
 See also:
 
-- `docs/current/RESEARCH_PLAYBOOK.md`
-- `docs/current/PAPER_ANALYSIS_WORKFLOW.md`
-- `docs/current/FULL_PAPER_READY_STUDY_ROADMAP.md`
-- `docs/current/CHI_CSCW_DRL_ROADMAP.md`
-- `docs/current/VENUE_POSITIONING_AND_SCORING.md`
+- [RESEARCH_PLAYBOOK.md](RESEARCH_PLAYBOOK.md)
+- [PAPER_ANALYSIS_WORKFLOW.md](PAPER_ANALYSIS_WORKFLOW.md)
+- [FULL_PAPER_READY_STUDY_ROADMAP.md](FULL_PAPER_READY_STUDY_ROADMAP.md)
+- [EXPERIMENT_PROTOCOL.md](EXPERIMENT_PROTOCOL.md)
+- [MODELS.md](MODELS.md)
+- [../../ARTIFACTS.md](../../ARTIFACTS.md)
+- [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md)
