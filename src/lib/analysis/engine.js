@@ -204,12 +204,16 @@ export const POLICY_TRAINING_EXPORT_COLUMNS = [
   "state_prior_mean_score_ratio",
   "state_prior_phase_score_ratio",
   "action_bundle_ids",
+  "action_delivery_sequence_ids",
   "action_bundle_size",
   "action_score_ratio_to_best",
   "action_percent_regret",
   "action_score",
   "action_modeled_time",
+  "action_travel_time",
+  "action_pick_time",
   "action_earnings",
+  "action_uncertainty_flags",
   "action_is_optimal",
   "action_is_near_optimal",
   "action_matches_shown_recommendation",
@@ -2523,6 +2527,72 @@ function evaluateCandidateBundles({
   );
   const shownBundleSignature = bundleSignature(shownBundleIds);
   const storedBestBundleSignature = bundleSignature(optimal?.best_bundle_ids);
+  const storedCandidateRows = Array.isArray(optimal?.candidate_bundles)
+    ? optimal.candidate_bundles
+    : [];
+
+  if (storedCandidateRows.length > 0) {
+    const rawCandidates = storedCandidateRows
+      .map((candidate) => {
+        const bundleIds = normalizeIdArray(candidate?.bundle_ids);
+        const signature = bundleSignature(bundleIds);
+        return {
+          bundleIds,
+          bundleSignature: signature,
+          bundleSize: Number(candidate?.bundle_size) || bundleIds.length,
+          earnings: valueToFloat(candidate?.earnings),
+          modeledTime: valueToFloat(candidate?.total_time_seconds),
+          score: valueToFloat(candidate?.score),
+          scoreRatioToBest: candidate?.score_ratio_to_best == null
+            ? null
+            : valueToFloat(candidate.score_ratio_to_best),
+          percentRegret: candidate?.regret_to_best == null
+            ? null
+            : valueToFloat(candidate.regret_to_best),
+          isStoredOptimal: Number(signature === storedBestBundleSignature),
+          deliverySequenceIds: normalizeIdArray(candidate?.delivery_sequence_ids),
+          travelTime: valueToFloat(candidate?.travel_time_seconds),
+          pickTime: valueToFloat(candidate?.pick_time_seconds),
+          uncertaintyFlags: Array.isArray(candidate?.uncertainty_flags)
+            ? candidate.uncertainty_flags
+            : [],
+        };
+      })
+      .filter((candidate) => candidate.bundleIds.length > 0)
+      .sort((left, right) => {
+        const scoreDiff = (right.score ?? -Infinity) - (left.score ?? -Infinity);
+        if (scoreDiff !== 0) return scoreDiff;
+        return left.bundleSize - right.bundleSize;
+      });
+
+    const bestCandidate = rawCandidates[0] || null;
+    const secondBestCandidate = rawCandidates[1] || null;
+    const bestBundleSignature = String(bestCandidate?.bundleSignature || "");
+    const bestScore = bestCandidate?.score ?? null;
+
+    return rawCandidates.map((candidate) => {
+      const scoreRatio = candidate.scoreRatioToBest ??
+        (bestScore && candidate?.score != null ? candidate.score / bestScore : null);
+      const percentRegret = candidate.percentRegret ??
+        (scoreRatio != null ? 1 - scoreRatio : null);
+      return {
+        ...candidate,
+        scoreRatioToBest: scoreRatio,
+        percentRegret,
+        isOptimal: Number(candidate.bundleSignature === bestBundleSignature),
+        isNearOptimal: Number(
+          scoreRatio != null && scoreRatio >= NEAR_OPTIMAL_THRESHOLD,
+        ),
+        matchesShownRecommendation: Number(
+          shownBundleSignature && candidate.bundleSignature === shownBundleSignature,
+        ),
+        recommendationQuality:
+          scoreRatio != null && scoreRatio >= 0.999999 ? "optimal" : "suboptimal",
+        dynamicBestBundleIds: bestCandidate?.bundleIds ?? [],
+        dynamicSecondBestBundleIds: secondBestCandidate?.bundleIds ?? [],
+      };
+    });
+  }
 
   const rawCandidates = generateCombinations(scenarioOrderIds, maxBundle)
     .filter((bundleIds) => !checkMultiStoreBundle(bundleIds, ordersById))
@@ -2543,6 +2613,10 @@ function evaluateCandidateBundles({
         modeledTime: evaluation?.modeled_time ?? null,
         score: evaluation?.score ?? null,
         isStoredOptimal: Number(signature === storedBestBundleSignature),
+        deliverySequenceIds: bundleIds,
+        travelTime: null,
+        pickTime: null,
+        uncertaintyFlags: [],
       };
     })
     .sort((left, right) => {
@@ -3240,12 +3314,18 @@ function buildPolicyTrainingRows({
         state_prior_mean_score_ratio: row?.prior_mean_score_ratio,
         state_prior_phase_score_ratio: row?.prior_phase_score_ratio,
         action_bundle_ids: candidate.bundleIds,
+        action_delivery_sequence_ids: candidate.deliverySequenceIds || candidate.bundleIds,
         action_bundle_size: candidate.bundleSize,
         action_score_ratio_to_best: candidate.scoreRatioToBest,
         action_percent_regret: candidate.percentRegret,
         action_score: candidate.score,
         action_modeled_time: candidate.modeledTime,
+        action_travel_time: candidate.travelTime ?? null,
+        action_pick_time: candidate.pickTime ?? null,
         action_earnings: candidate.earnings,
+        action_uncertainty_flags: Array.isArray(candidate.uncertaintyFlags)
+          ? candidate.uncertaintyFlags
+          : [],
         action_is_optimal: candidate.isOptimal,
         action_is_near_optimal: candidate.isNearOptimal,
         action_matches_shown_recommendation:

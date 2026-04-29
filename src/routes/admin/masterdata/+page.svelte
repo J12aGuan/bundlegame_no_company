@@ -381,10 +381,11 @@
     let generationPayFieldsInvalid = false;
     const generationForm = {
         datasetName: '',
-        totalRounds: 10,
+        totalRounds: 50,
         maxBundle: 3,
         payMin: 8,
-        payMax: 24
+        payMax: 24,
+        seed: 'bundlegame-default-seed'
     };
 
     $: usedOrdersIds = [centralConfig?.scenario_set || '', tutorialConfig?.scenario_set || ''].filter(Boolean);
@@ -563,11 +564,13 @@
                 totalRounds: Number(generationForm.totalRounds),
                 maxBundle: Number(generationForm.maxBundle),
                 payMin: Number(generationForm.payMin),
-                payMax: Number(generationForm.payMax)
+                payMax: Number(generationForm.payMax),
+                seed: generationForm.seed
             });
 
             selectedScenariosId = result?.datasetName || validation.normalizedDataset;
-            showMessage(`Scenario set "${selectedScenariosId}" generated successfully.`);
+            const candidateCount = Number(result?.generated?.candidateBundles) || 0;
+            showMessage(`Scenario set "${selectedScenariosId}" generated successfully with ${candidateCount} candidate bundles.`);
             await loadAllData();
             await switchScenariosId();
             generationValidationError = '';
@@ -1197,7 +1200,7 @@
                                     />
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700">Total Rounds (> 1)</label>
+                                    <label class="block text-sm font-medium text-gray-700">Total Rounds (50)</label>
                                     <input
                                         type="number"
                                         min="2"
@@ -1235,8 +1238,18 @@
                                         class={`mt-1 w-full px-3 py-2 border rounded-md ${generationPayFieldsInvalid ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                     />
                                 </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700">Seed</label>
+                                    <input
+                                        type="text"
+                                        bind:value={generationForm.seed}
+                                        on:blur={validateGenerationForm}
+                                        placeholder="bundlegame-default-seed"
+                                        class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
                             </div>
-                            <p class="text-xs text-gray-600">Orders per scenario is fixed to 4.</p>
+                            <p class="text-xs text-gray-600">Orders per scenario is fixed to 4. The main protocol expects 50 rounds; reusing a seed reproduces the same orders and candidate-bundle rankings.</p>
                             <div>
                                 <button
                                     on:click={generateScenarioSetHandler}

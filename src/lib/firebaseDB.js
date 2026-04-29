@@ -1,6 +1,6 @@
-import {firestore} from './firebaseConfig';
+import {firestore} from './firebaseConfig.js';
 import { collection, doc, setDoc, getDoc, getDocs, updateDoc, Timestamp, deleteField, query, where, onSnapshot } from "firebase/firestore";
-import { generateAuthToken } from './authToken';
+import { generateAuthToken } from './authToken.js';
 import {
     assertValidResearchProtocolDefinition,
     assertValidResearchProtocolSnapshot,

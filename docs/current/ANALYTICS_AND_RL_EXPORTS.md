@@ -189,6 +189,8 @@ Field groups:
 - terminal flag
 - state provenance copied from the source decision row
 
+For new generated scenario sets, candidate-bundle metadata is persisted in `optimal[].candidate_bundles[]` using generator schema `bundlegame_scenario_generator_v2`. Those rows preserve route-optimised delivery sequence, earnings, travel time, pick time, shared-item savings, regret to best, and uncertainty flags for offline evaluation. Older datasets can still be reconstructed dynamically from scenario/order data, but reproducible research snapshots should prefer generated datasets with stored candidate metadata.
+
 ## `dataset_snapshot.json`
 
 Snapshot manifest for reproducible research runs.

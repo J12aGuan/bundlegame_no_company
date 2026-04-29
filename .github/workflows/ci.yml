@@ -28,6 +28,12 @@ jobs:
       - name: Build SvelteKit app
         run: npm run build
 
+      - name: Run JS regression tests
+        run: |
+          npm run test:scores
+          npm run test:protocol
+          npm run test:generator
+
   python-analytics:
     name: Python analytics tests
     runs-on: ubuntu-latest

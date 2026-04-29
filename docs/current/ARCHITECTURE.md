@@ -39,6 +39,8 @@ Grouped dataset entries hold:
 
 The main research protocol is `bundlegame_abc_50_round_v1`: Phase A rounds 1-15, Phase B rounds 16-35, and Phase C rounds 36-50. Runtime loading, scenario dataset saves, research protocol saves, and analytics computation validate against this definition so Firestore cannot silently drift from the documented experiment.
 
+Admin-generated scenario sets also store route-aware candidate-bundle metadata under `optimal[].candidate_bundles[]`. The generator separates legal bundle enumeration, within-bundle route optimisation, reward scoring, and persisted metadata so offline evaluation can inspect every legal action, not only the best and second-best bundles.
+
 ## Round Flow
 
 1. Load central config, tutorial config, Cities data, and the active scenario dataset.

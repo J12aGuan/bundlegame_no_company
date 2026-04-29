@@ -1,4 +1,3 @@
-import { saveScenarioDatasetBundle } from "../firebaseDB.js";
 import {
   fetchStoreDataset,
   fetchCitiesDataset,
@@ -10,6 +9,12 @@ import {
   crossCityExtraTime
 } from "./scenarioTime.js";
 import { applySharedItemBundleSavings } from "../bundleTime.js";
+import {
+  BUNDLEGAME_STUDY_PROTOCOL_VERSION,
+  BUNDLEGAME_STUDY_TOTAL_ROUNDS,
+  getCanonicalResearchStudyProtocol,
+  resolveProtocolPhaseForRound
+} from "../researchStudy.js";
 
 export {
   fetchStoreDataset,
@@ -20,30 +25,61 @@ export {
   crossCityExtraTime
 };
 
+const GENERATOR_SCHEMA_VERSION = "bundlegame_scenario_generator_v2";
+const REWARD_MODEL_VERSION = "route_aware_pay_per_second_v2";
+const ROUTE_OPTIMIZER_VERSION = "exhaustive_permutation_v1";
+const LEGAL_BUNDLE_MODEL_VERSION = "same_store_multi_order_v1";
+const DEFAULT_GENERATION_SEED = "bundlegame-default-seed";
+
 // Helper methods
+function hashSeed(seed = "") {
+  const input = String(seed || DEFAULT_GENERATION_SEED);
+  let hash = 2166136261;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+export function createSeededRandom(seed = DEFAULT_GENERATION_SEED) {
+  let state = hashSeed(seed) || 1;
+  return function seededRandom() {
+    state += 0x6D2B79F5;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function getRng(context = {}) {
+  return typeof context?.rng === "function" ? context.rng : Math.random;
+}
+
 // Returns a random integer in the inclusive range [min, max].
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+function randomInt(min, max, rng = Math.random) {
+  return Math.floor(rng() * (max - min + 1)) + min;
 }
 
 // Returns one random element from an array, or null for empty input.
-function pickRandom(arr = []) {
+function pickRandom(arr = [], rng = Math.random) {
   if (!arr.length) return null;
-  return arr[randomInt(0, arr.length - 1)];
+  return arr[randomInt(0, arr.length - 1, rng)];
 }
 
 // Shuffles a copy of an array.
-function shuffle(arr = []) {
+function shuffle(arr = [], rng = Math.random) {
   const out = [...arr];
   for (let i = out.length - 1; i > 0; i -= 1) {
-    const j = randomInt(0, i);
+    const j = randomInt(0, i, rng);
     [out[i], out[j]] = [out[j], out[i]];
   }
   return out;
 }
 
 // Picks one entry from weighted candidates: [{ value, weight }].
-function pickWeighted(candidates = []) {
+function pickWeighted(candidates = [], rng = Math.random) {
   const valid = (Array.isArray(candidates) ? candidates : [])
     .filter((c) => c && Number(c.weight) > 0);
   if (!valid.length) return null;
@@ -51,7 +87,7 @@ function pickWeighted(candidates = []) {
   const total = valid.reduce((sum, c) => sum + Number(c.weight || 0), 0);
   if (total <= 0) return valid[0]?.value ?? null;
 
-  let roll = Math.random() * total;
+  let roll = rng() * total;
   for (const item of valid) {
     roll -= Number(item.weight || 0);
     if (roll <= 0) return item.value;
@@ -61,7 +97,7 @@ function pickWeighted(candidates = []) {
 
 // Fair target-city selector for odd rounds:
 // least-used cities first, then weighted preference for reference city.
-function selectFairTargetCity(cities = [], targetCityCount = {}, referenceCity = "") {
+function selectFairTargetCity(cities = [], targetCityCount = {}, referenceCity = "", rng = Math.random) {
   const uniqueCities = [...new Set((Array.isArray(cities) ? cities : []).map((c) => String(c || "").trim()).filter(Boolean))];
   if (!uniqueCities.length) return "";
 
@@ -75,7 +111,7 @@ function selectFairTargetCity(cities = [], targetCityCount = {}, referenceCity =
     weight: city === ref ? 3 : 1
   }));
 
-  return String(pickWeighted(weighted) || candidateCities[0] || uniqueCities[0] || "");
+  return String(pickWeighted(weighted, rng) || candidateCities[0] || uniqueCities[0] || "");
 }
 
 // Extracts available city names from the cities travel-time matrix.
@@ -100,7 +136,8 @@ function buildCityAssignments({
   cities = [],
   storeDataset = {},
   targetCity = "",
-  forcedCity = ""
+  forcedCity = "",
+  rng = Math.random
 } = {}) {
   const validCities = (Array.isArray(cities) ? cities : [])
     .map((c) => String(c || "").trim())
@@ -114,9 +151,9 @@ function buildCityAssignments({
   }
 
   const target = String(targetCity || "").trim();
-  const primary = target && validCities.includes(target) ? target : (pickRandom(validCities) || validCities[0]);
+  const primary = target && validCities.includes(target) ? target : (pickRandom(validCities, rng) || validCities[0]);
   const secondaryPool = validCities.filter((c) => c !== primary);
-  const secondary = secondaryPool.length ? (pickRandom(secondaryPool) || secondaryPool[0]) : "";
+  const secondary = secondaryPool.length ? (pickRandom(secondaryPool, rng) || secondaryPool[0]) : "";
 
   if (!secondary) {
     return new Array(count).fill(primary);
@@ -125,7 +162,7 @@ function buildCityAssignments({
   // For 4 orders, use either 2/2 or 3/1 split to encourage bundle opportunities.
   let primaryCount = count;
   if (count >= 4) {
-    primaryCount = pickRandom([2, 3]);
+    primaryCount = pickRandom([2, 3], rng);
   } else if (count === 3) {
     primaryCount = 2;
   } else if (count === 2) {
@@ -137,7 +174,7 @@ function buildCityAssignments({
     ...new Array(primaryCount).fill(primary),
     ...new Array(secondaryCount).fill(secondary)
   ];
-  return shuffle(assignments);
+  return shuffle(assignments, rng);
 }
 
 // Collects item names from store config (explicit list or scanned grid).
@@ -161,11 +198,11 @@ function getStoreItems(storeConfig = {}) {
 }
 
 // Randomly picks distinct item names from the candidate item list.
-function pickDistinctItems(items = [], count = 2) {
+function pickDistinctItems(items = [], count = 2, rng = Math.random) {
   const pool = [...items];
   const out = [];
   for (let i = 0; i < count && pool.length > 0; i += 1) {
-    const idx = randomInt(0, pool.length - 1);
+    const idx = randomInt(0, pool.length - 1, rng);
     out.push(pool[idx]);
     pool.splice(idx, 1);
   }
@@ -244,31 +281,6 @@ function permutations(source = []) {
   return out;
 }
 
-// Scores all delivery sequences for one bundle and keeps the best one.
-function scoreBundleBestSequence(bundle = [], context = {}) {
-  const sequenceCandidates = permutations(bundle);
-  let best = null;
-
-  for (const sequence of sequenceCandidates) {
-    const scored = computeBundleScore(sequence, context);
-    if (!best || (Number(scored?.score) || 0) > (Number(best?.score) || 0)) {
-      best = {
-        ...scored,
-        bundleIds: sequence.map((o) => o?.id ?? "")
-      };
-    }
-  }
-
-  return best || {
-    score: 0,
-    totalPay: 0,
-    totalTime: 0,
-    endingCity: context.currentCity ?? "",
-    perOrder: [],
-    bundleIds: []
-  };
-}
-
 // Resolves a stable scenario ID prefix from context.
 function resolveScenarioIdPrefix(context = {}) {
   const base = String(
@@ -342,6 +354,32 @@ function sanitizeGenerationMetadata(metadata = {}) {
   const maxBundle = Number(metadata.maxBundle);
   if (Number.isFinite(maxBundle) && maxBundle > 0) cleaned.maxBundle = Math.floor(maxBundle);
 
+  const seed = String(metadata.seed ?? "").trim();
+  if (seed) cleaned.seed = seed;
+
+  const generatorSchemaVersion = String(metadata.generatorSchemaVersion ?? metadata.generator_schema_version ?? "").trim();
+  cleaned.generatorSchemaVersion = generatorSchemaVersion || GENERATOR_SCHEMA_VERSION;
+
+  const rewardModelVersion = String(metadata.rewardModelVersion ?? metadata.reward_model_version ?? "").trim();
+  cleaned.rewardModelVersion = rewardModelVersion || REWARD_MODEL_VERSION;
+
+  const routeOptimizerVersion = String(metadata.routeOptimizerVersion ?? metadata.route_optimizer_version ?? "").trim();
+  cleaned.routeOptimizerVersion = routeOptimizerVersion || ROUTE_OPTIMIZER_VERSION;
+
+  const legalBundleModelVersion = String(metadata.legalBundleModelVersion ?? metadata.legal_bundle_model_version ?? "").trim();
+  cleaned.legalBundleModelVersion = legalBundleModelVersion || LEGAL_BUNDLE_MODEL_VERSION;
+
+  const protocolVersion = String(metadata.protocolVersion ?? metadata.protocol_version ?? "").trim();
+  cleaned.protocol_version = protocolVersion || BUNDLEGAME_STUDY_PROTOCOL_VERSION;
+
+  const expectedTotalRounds = Number(metadata.expectedTotalRounds ?? metadata.expected_total_rounds);
+  cleaned.expected_total_rounds = Number.isFinite(expectedTotalRounds) && expectedTotalRounds > 0
+    ? Math.floor(expectedTotalRounds)
+    : BUNDLEGAME_STUDY_TOTAL_ROUNDS;
+
+  const generatedAt = String(metadata.generatedAt ?? metadata.generated_at ?? "").trim();
+  if (generatedAt) cleaned.generatedAt = generatedAt;
+
   const payMin = Number(metadata.payMin);
   if (Number.isFinite(payMin)) cleaned.payMin = payMin;
 
@@ -366,6 +404,9 @@ function validatePipelineInputs(input = {}) {
   if (!Number.isFinite(totalRounds) || totalRounds <= 1) {
     throw new Error("totalRounds must be greater than 1.");
   }
+  if (Math.floor(totalRounds) !== BUNDLEGAME_STUDY_TOTAL_ROUNDS) {
+    throw new Error(`totalRounds must be ${BUNDLEGAME_STUDY_TOTAL_ROUNDS} for the active research protocol.`);
+  }
 
   const ordersPerScenario = 4;
   const maxBundle = Number(input.maxBundle);
@@ -385,6 +426,10 @@ function validatePipelineInputs(input = {}) {
   const minimumPayRange = 8;
   if ((payMax - payMin) < minimumPayRange) {
     throw new Error(`payMax - payMin must be at least ${minimumPayRange}.`);
+  }
+
+  if (input.seed != null && typeof input.seed !== "string" && typeof input.seed !== "number") {
+    throw new Error("seed must be blank or a string/number value.");
   }
 }
 
@@ -441,6 +486,39 @@ function estimateOrderCompletionTime(order, context = {}) {
   return baseTime + extraCrossCity;
 }
 
+function estimateGeneratedLocalTravelTime(rng = Math.random) {
+  return randomInt(2, 6, rng);
+}
+
+function findStoreConfig(storeDataset = {}, storeName = "") {
+  const stores = Array.isArray(storeDataset?.stores) ? storeDataset.stores : [];
+  return stores.find((store) => String(store?.store || "") === String(storeName || "")) || null;
+}
+
+function routeExistsBetweenCities(fromCity = "", toCity = "", context = {}) {
+  const origin = String(fromCity || "").trim();
+  const destination = String(toCity || "").trim();
+  if (!origin || !destination || origin === destination) return true;
+  const cityTravelTimes = context.citiesDataset?.travelTimes ?? {};
+  const direct = Number(cityTravelTimes?.[origin]?.[destination]);
+  if (Number.isFinite(direct) && direct > 0) return true;
+
+  const distanceTable = context.storeDataset?.distances ?? {};
+  const fromRow = distanceTable[origin];
+  const destinations = Array.isArray(fromRow?.destinations) ? fromRow.destinations : [];
+  const times = Array.isArray(fromRow?.distances) ? fromRow.distances : [];
+  const idx = destinations.indexOf(destination);
+  return idx >= 0 && Number.isFinite(Number(times[idx])) && Number(times[idx]) > 0;
+}
+
+function normalizeIdList(values = []) {
+  return [...new Set(
+    (Array.isArray(values) ? values : [])
+      .map((value) => String(value ?? "").trim())
+      .filter(Boolean)
+  )];
+}
+
 // Builds one synthetic order with generated city/store/items/earnings/time.
 function createOrderModel(context = {}) {
   const {
@@ -454,6 +532,7 @@ function createOrderModel(context = {}) {
     payMin = 8,
     payMax = 24
   } = context;
+  const rng = getRng(context);
 
   const cities = getCitiesFromTravelTimes(citiesDataset);
   const fallbackCity = cities[0] || "Berkeley";
@@ -464,25 +543,25 @@ function createOrderModel(context = {}) {
   const chosenCity = forcedCity
     ? String(forcedCity)
     : forceRandomCity
-    ? (pickRandom(cities) || fallbackCity)
+    ? (pickRandom(cities, rng) || fallbackCity)
     : (scenarioIndex % 2 === 1)
-    ? (pickRandom(cities) || fallbackCity)
+    ? (pickRandom(cities, rng) || fallbackCity)
     : fixedCity;
 
   // Pick store from chosen city
   const candidateStores = getStoresInCity(storeDataset, chosenCity);
-  const chosenStoreConfig = pickRandom(candidateStores) || pickRandom(storeDataset?.stores || []) || {};
+  const chosenStoreConfig = pickRandom(candidateStores, rng) || pickRandom(storeDataset?.stores || [], rng) || {};
   const chosenStore = String(chosenStoreConfig?.store || "");
 
   // Pick 2-3 distinct items
   const availableItems = getStoreItems(chosenStoreConfig);
-  const itemCount = randomInt(2, 3);
-  const selectedItems = pickDistinctItems(availableItems, itemCount);
+  const itemCount = randomInt(2, 3, rng);
+  const selectedItems = pickDistinctItems(availableItems, itemCount, rng);
 
   // Build items object with random qty
   const items = {};
   for (const item of selectedItems) {
-    items[item] = randomInt(1, 3);
+    items[item] = randomInt(1, 3, rng);
   }
 
   const order = {
@@ -490,12 +569,12 @@ function createOrderModel(context = {}) {
     city: String(chosenCity),
     store: String(chosenStore),
     items,
-    earnings: randomInt(payMin, payMax),
+    earnings: randomInt(payMin, payMax, rng),
     estimatedTime: 0,
     localTravelTime: 0
   };
 
-  order.localTravelTime = estimateLocalTravelTime();
+  order.localTravelTime = estimateGeneratedLocalTravelTime(rng);
 
   // Store only base estimate (local + pick). Cross-city is runtime/simulation-dependent.
   if (!order.estimatedTime || !Number.isFinite(order.estimatedTime)) {
@@ -509,8 +588,21 @@ function createOrderModel(context = {}) {
   return order;
 }
 
-// Enumerates all order bundles of size 1..kMax.
-function enumerateBundles(orders = [], kMax = 3) {
+function getBundleLegality(bundle = []) {
+  if (!Array.isArray(bundle) || bundle.length === 0) {
+    return { legal: false, reason: "empty_bundle" };
+  }
+  if (bundle.length <= 1) return { legal: true, reason: "single_order" };
+  const firstStore = String(bundle[0]?.store || "");
+  if (!firstStore) return { legal: false, reason: "missing_store" };
+  const sameStore = bundle.every((order) => String(order?.store || "") === firstStore);
+  return sameStore
+    ? { legal: true, reason: "same_store_multi_order" }
+    : { legal: false, reason: "multi_store_bundle" };
+}
+
+// Enumerates all legal order bundles of size 1..kMax without scoring them.
+function enumerateLegalBundles(orders = [], kMax = 3) {
   const source = Array.isArray(orders) ? orders : [];
   const n = source.length;
 
@@ -523,50 +615,95 @@ function enumerateBundles(orders = [], kMax = 3) {
     combine(source, size, 0, [], bundles);
   }
 
-  // Gameplay rule consistency:
-  // Bundles with more than 1 order must all come from the same store.
-  return bundles.filter((bundle) => {
-    if (!Array.isArray(bundle) || bundle.length <= 1) return true;
-    const firstStore = String(bundle[0]?.store || "");
-    return bundle.every((order) => String(order?.store || "") === firstStore);
-  });
+  return bundles
+    .map((bundle) => ({
+      bundle,
+      legality: getBundleLegality(bundle)
+    }))
+    .filter((entry) => entry.legality.legal);
 }
 
-// Computes score and summary metrics for a single bundle.
-function computeBundleScore(bundle = [], context = {}) {
+function buildUncertaintyFlags({ sequence = [], perOrder = [], context = {} } = {}) {
+  const flags = [];
+  const currentCity = String(context.currentCity ?? context.playerCity ?? "");
+  if (!currentCity) flags.push("missing_start_city");
+  for (const order of sequence) {
+    if (!order?.city) flags.push(`missing_city:${order?.id || "unknown"}`);
+    if (!order?.store) flags.push(`missing_store:${order?.id || "unknown"}`);
+    if (!findStoreConfig(context.storeDataset || {}, order?.store)) {
+      flags.push(`missing_store_config:${order?.store || "unknown"}`);
+    }
+  }
+  for (const row of perOrder) {
+    if (row.routeMissing) flags.push(`missing_city_route:${row.fromCity}->${row.toCity}`);
+    if (row.pickTimeSeconds <= 0 && Object.keys(row.items || {}).length > 0) {
+      flags.push(`missing_pick_time:${row.id}`);
+    }
+  }
+  return normalizeIdList(flags);
+}
+
+// Scores one concrete delivery sequence. Route optimisation happens outside this function.
+function scoreBundleSequence(sequence = [], context = {}) {
   // Empty bundle => zero score
-  if (!Array.isArray(bundle) || bundle.length === 0) {
+  if (!Array.isArray(sequence) || sequence.length === 0) {
     return {
       score: 0,
-      totalPay: 0,
-      totalTime: 0,
+      totalEarnings: 0,
+      totalTimeSeconds: 0,
+      travelTimeSeconds: 0,
+      localTravelTimeSeconds: 0,
+      crossCityTravelTimeSeconds: 0,
+      pickTimeSeconds: 0,
+      effectivePickTimeSeconds: 0,
+      sharedItemSavingsSeconds: 0,
       endingCity: context.currentCity ?? "",
-      perOrder: []
+      perOrder: [],
+      uncertaintyFlags: ["empty_bundle"]
     };
   }
 
   // Simulated player location while executing this bundle in order
   let simulatedCity = String(context.currentCity ?? context.playerCity ?? "");
 
-  let totalPay = 0;
-  let totalTime = 0;
+  let totalEarnings = 0;
+  let localTravelTimeSeconds = 0;
+  let crossCityTravelTimeSeconds = 0;
+  let pickTimeSeconds = 0;
   const perOrder = [];
 
-  for (const order of bundle) {
+  for (const order of sequence) {
     const pay = Number(order?.earnings) || 0;
-    const orderTime = estimateOrderCompletionTime(order, {
-      ...context,
-      currentCity: simulatedCity
-    });
+    const fromCity = simulatedCity;
+    const toCity = String(order?.city || "");
+    const crossCitySeconds = crossCityExtraTime(toCity, fromCity, context);
+    const localSeconds = Math.max(0, Number(order?.localTravelTime) || 0);
+    const storedBase = Number(order?.estimatedTime);
+    const estimatedPickSeconds = Math.max(0, Number(estimatePickItemTime(order, context)) || 0);
+    const pickSeconds = Number.isFinite(storedBase) && storedBase > 0
+      ? Math.max(0, storedBase - localSeconds)
+      : estimatedPickSeconds;
+    const orderTime = crossCitySeconds + localSeconds + pickSeconds;
 
-    totalPay += pay;
-    totalTime += orderTime;
+    totalEarnings += pay;
+    localTravelTimeSeconds += localSeconds;
+    crossCityTravelTimeSeconds += crossCitySeconds;
+    pickTimeSeconds += pickSeconds;
 
     perOrder.push({
       id: order?.id ?? "",
-      city: order?.city ?? "",
+      fromCity,
+      toCity,
+      city: toCity,
+      store: order?.store ?? "",
+      items: order?.items && typeof order.items === "object" ? { ...order.items } : {},
       pay,
-      orderTime
+      earnings: pay,
+      localTravelTimeSeconds: localSeconds,
+      crossCityTravelTimeSeconds: crossCitySeconds,
+      pickTimeSeconds: pickSeconds,
+      orderTimeSeconds: orderTime,
+      routeMissing: !routeExistsBetweenCities(fromCity, toCity, context)
     });
 
     // After completing this order, player ends at order city
@@ -574,60 +711,158 @@ function computeBundleScore(bundle = [], context = {}) {
   }
 
   const discounted = applySharedItemBundleSavings(
-    bundle,
-    perOrder.map((entry) => Number(entry?.orderTime) || 0),
+    sequence,
+    perOrder.map((entry) => Number(entry?.orderTimeSeconds) || 0),
     { storeDataset: context?.storeDataset || {} }
   );
-  const effectiveTotalTime = discounted.discountedTotalTime;
+  const sharedItemSavingsSeconds = Math.max(0, Number(discounted.savingsSeconds) || 0);
+  const effectiveTotalTime = Math.max(0, Number(discounted.discountedTotalTime) || 0);
+  const effectivePickTimeSeconds = Math.max(0, pickTimeSeconds - sharedItemSavingsSeconds);
+  const travelTimeSeconds = localTravelTimeSeconds + crossCityTravelTimeSeconds;
 
   // Avoid divide by zero
   const safeTime = effectiveTotalTime > 0 ? effectiveTotalTime : 1e-9;
-  const score = totalPay / safeTime;
+  const score = totalEarnings / safeTime;
+  const uncertaintyFlags = buildUncertaintyFlags({ sequence, perOrder, context });
 
   return {
     score,
-    totalPay,
+    totalPay: totalEarnings,
+    totalEarnings,
     totalTime: effectiveTotalTime,
+    totalTimeSeconds: effectiveTotalTime,
+    travelTimeSeconds,
+    localTravelTimeSeconds,
+    crossCityTravelTimeSeconds,
+    pickTimeSeconds,
+    effectivePickTimeSeconds,
+    sharedItemSavingsSeconds,
     endingCity: simulatedCity,
-    perOrder
+    perOrder,
+    uncertaintyFlags
   };
 }
 
-// Solves all candidate bundles and returns best/second plus scoring diagnostics.
+// Scores all delivery sequences for one bundle and keeps the route-optimised one.
+function scoreBundleBestSequence(bundle = [], context = {}) {
+  const sequenceCandidates = permutations(bundle);
+  let best = null;
+
+  for (const sequence of sequenceCandidates) {
+    const scored = scoreBundleSequence(sequence, context);
+    const bundleIds = bundle.map((order) => String(order?.id ?? "")).filter(Boolean);
+    const sequenceIds = sequence.map((order) => String(order?.id ?? "")).filter(Boolean);
+    const candidate = {
+      ...scored,
+      bundle,
+      bundleIds,
+      sequenceIds
+    };
+    if (!best || (Number(candidate?.score) || 0) > (Number(best?.score) || 0)) {
+      best = candidate;
+    }
+  }
+
+  return best || {
+    score: 0,
+    totalPay: 0,
+    totalEarnings: 0,
+    totalTime: 0,
+    totalTimeSeconds: 0,
+    travelTimeSeconds: 0,
+    localTravelTimeSeconds: 0,
+    crossCityTravelTimeSeconds: 0,
+    pickTimeSeconds: 0,
+    effectivePickTimeSeconds: 0,
+    sharedItemSavingsSeconds: 0,
+    endingCity: context.currentCity ?? "",
+    perOrder: [],
+    bundleIds: [],
+    sequenceIds: [],
+    uncertaintyFlags: ["no_route_candidate"]
+  };
+}
+
+function enrichCandidateRegret(candidate = {}, bestScore = 0, rank = 0) {
+  const score = Number(candidate?.score);
+  const ratio = Number.isFinite(score) && bestScore > 0 ? score / bestScore : null;
+  const regret = ratio == null ? null : Math.max(0, 1 - ratio);
+  return {
+    ...candidate,
+    rank,
+    scoreRatioToBest: ratio,
+    regretToBest: regret,
+    isBest: rank === 1,
+    isNearBest: ratio != null && ratio >= 0.95
+  };
+}
+
+function serializeCandidateBundle(candidate = {}) {
+  return {
+    rank: Number(candidate.rank) || 0,
+    legal: true,
+    legality_reason: candidate.legalityReason || "same_store_multi_order",
+    bundle_ids: normalizeIdList(candidate.bundleIds),
+    delivery_sequence_ids: normalizeIdList(candidate.sequenceIds),
+    bundle_size: normalizeIdList(candidate.bundleIds).length,
+    score: Number(candidate.score) || 0,
+    score_ratio_to_best: candidate.scoreRatioToBest == null ? null : Number(candidate.scoreRatioToBest),
+    regret_to_best: candidate.regretToBest == null ? null : Number(candidate.regretToBest),
+    earnings: Number(candidate.totalEarnings ?? candidate.totalPay) || 0,
+    total_time_seconds: Number(candidate.totalTimeSeconds ?? candidate.totalTime) || 0,
+    travel_time_seconds: Number(candidate.travelTimeSeconds) || 0,
+    local_travel_time_seconds: Number(candidate.localTravelTimeSeconds) || 0,
+    cross_city_travel_time_seconds: Number(candidate.crossCityTravelTimeSeconds) || 0,
+    pick_time_seconds: Number(candidate.pickTimeSeconds) || 0,
+    effective_pick_time_seconds: Number(candidate.effectivePickTimeSeconds) || 0,
+    shared_item_savings_seconds: Number(candidate.sharedItemSavingsSeconds) || 0,
+    ending_city: String(candidate.endingCity ?? ""),
+    uncertainty_flags: normalizeIdList(candidate.uncertaintyFlags),
+    per_order: Array.isArray(candidate.perOrder) ? candidate.perOrder : []
+  };
+}
+
+// Solves all candidate bundles and returns best/second plus full candidate metadata.
 function solveBestAndSecondBundle(orders = [], context = {}) {
   const maxBundle = Number(context.maxBundle ?? context.kMax ?? 3);
 
-  // 1) Generate all candidate bundles
-  const bundles = enumerateBundles(orders, maxBundle);
-  if (bundles.length === 0) {
+  const legalBundleEntries = enumerateLegalBundles(orders, maxBundle);
+  if (legalBundleEntries.length === 0) {
     return {
       best: null,
       second: null,
+      candidates: [],
       bestScore: 0,
       secondScore: 0
     };
   }
 
-  // 2) Score each bundle once (avoid re-scoring randomness)
-  const scored = bundles.map((bundle) => {
+  const scored = legalBundleEntries.map(({ bundle, legality }) => {
     const scoreResult = scoreBundleBestSequence(bundle, context);
     return {
-      bundle,
-      ...scoreResult
+      ...scoreResult,
+      legalityReason: legality.reason
     };
   });
 
-  // 3) Rank by raw score (highest first)
-  scored.sort((a, b) => (b.score || 0) - (a.score || 0));
+  scored.sort((a, b) => {
+    const scoreDiff = (Number(b.score) || 0) - (Number(a.score) || 0);
+    if (scoreDiff !== 0) return scoreDiff;
+    const sizeDiff = (a.bundleIds?.length || 0) - (b.bundleIds?.length || 0);
+    if (sizeDiff !== 0) return sizeDiff;
+    return String(a.bundleIds?.join("+") || "").localeCompare(String(b.bundleIds?.join("+") || ""));
+  });
 
   const bestScore = Number(scored[0]?.score) || 0;
-  const secondScore = Number(scored[1]?.score) || 0;
-  const best = scored[0] ?? null;
-  const second = scored[1] ?? null;
+  const candidates = scored.map((candidate, index) => enrichCandidateRegret(candidate, bestScore, index + 1));
+  const secondScore = Number(candidates[1]?.score) || 0;
+  const best = candidates[0] ?? null;
+  const second = candidates[1] ?? null;
 
   return {
     best,
     second,
+    candidates,
     bestScore,
     secondScore
   };
@@ -648,6 +883,7 @@ function generateCandidateCase(context = {}) {
   } = context;
 
   const count = Math.max(1, Number(ordersPerScenario) || 1);
+  const rng = getRng(context);
   const orders = [];
   const cities = getCitiesFromTravelTimes(citiesDataset);
   const cityAssignments = buildCityAssignments({
@@ -655,7 +891,8 @@ function generateCandidateCase(context = {}) {
     cities,
     storeDataset,
     targetCity,
-    forcedCity
+    forcedCity,
+    rng
   });
 
   for (let i = 0; i < count; i += 1) {
@@ -724,6 +961,9 @@ function generateCaseWithCityTarget(context = {}) {
 function buildScenarioRound(caseResult, context = {}) {
   const round = Number(context.round ?? context.scenarioIndex ?? caseResult?.scenarioIndex ?? 1);
   const maxBundle = Number(context.maxBundle ?? context.kMax ?? 3);
+  const protocol = context.protocol || getCanonicalResearchStudyProtocol();
+  const phaseConfig = resolveProtocolPhaseForRound(round, protocol);
+  const phase = String(phaseConfig?.id || context.phase || "");
   const scenarioId = String(
     context.scenarioId ||
     caseResult?.scenario_id ||
@@ -739,6 +979,12 @@ function buildScenarioRound(caseResult, context = {}) {
   const secondBestBundleIds = Array.isArray(caseResult?.solution?.second?.bundleIds)
     ? caseResult.solution.second.bundleIds.map((id) => String(id ?? "")).filter(Boolean)
     : [];
+  const candidateBundles = Array.isArray(caseResult?.solution?.candidates)
+    ? caseResult.solution.candidates.map((candidate) => serializeCandidateBundle(candidate))
+    : [];
+  const bestCandidate = candidateBundles[0] || null;
+  const secondCandidate = candidateBundles[1] || null;
+  const uncertaintyFlags = normalizeIdList(candidateBundles.flatMap((candidate) => candidate.uncertainty_flags || []));
 
   return {
     orders: orders.map((order = {}) => ({
@@ -752,15 +998,49 @@ function buildScenarioRound(caseResult, context = {}) {
     })),
     scenario: {
       round,
+      phase,
       scenario_id: scenarioId,
       max_bundle: maxBundle,
-      order_ids: orderIds
+      order_ids: orderIds,
+      candidate_bundle_count: candidateBundles.length,
+      reward_model_version: REWARD_MODEL_VERSION,
+      route_optimizer_version: ROUTE_OPTIMIZER_VERSION,
+      legal_bundle_model_version: LEGAL_BUNDLE_MODEL_VERSION,
+      recommendation_phase: Boolean(phaseConfig?.recommendations_enabled)
     },
     optimal: {
       scenario_id: scenarioId,
+      phase,
       best_bundle_ids: bestBundleIds,
       second_best_bundle_ids: secondBestBundleIds,
-      ending_city_best: String(caseResult?.solution?.best?.endingCity ?? "")
+      ending_city_best: String(caseResult?.solution?.best?.endingCity ?? ""),
+      best_score: Number(caseResult?.solution?.bestScore) || 0,
+      second_best_score: Number(caseResult?.solution?.secondScore) || 0,
+      reward_model_version: REWARD_MODEL_VERSION,
+      route_optimizer_version: ROUTE_OPTIMIZER_VERSION,
+      legal_bundle_model_version: LEGAL_BUNDLE_MODEL_VERSION,
+      reward_components: {
+        earnings: Number(bestCandidate?.earnings) || 0,
+        total_time_seconds: Number(bestCandidate?.total_time_seconds) || 0,
+        travel_time_seconds: Number(bestCandidate?.travel_time_seconds) || 0,
+        local_travel_time_seconds: Number(bestCandidate?.local_travel_time_seconds) || 0,
+        cross_city_travel_time_seconds: Number(bestCandidate?.cross_city_travel_time_seconds) || 0,
+        pick_time_seconds: Number(bestCandidate?.pick_time_seconds) || 0,
+        effective_pick_time_seconds: Number(bestCandidate?.effective_pick_time_seconds) || 0,
+        shared_item_savings_seconds: Number(bestCandidate?.shared_item_savings_seconds) || 0,
+        regret_to_best: 0,
+        uncertainty_flags: uncertaintyFlags
+      },
+      second_best_reward_components: secondCandidate ? {
+        earnings: Number(secondCandidate.earnings) || 0,
+        total_time_seconds: Number(secondCandidate.total_time_seconds) || 0,
+        travel_time_seconds: Number(secondCandidate.travel_time_seconds) || 0,
+        pick_time_seconds: Number(secondCandidate.pick_time_seconds) || 0,
+        regret_to_best: Number(secondCandidate.regret_to_best) || 0,
+        uncertainty_flags: normalizeIdList(secondCandidate.uncertainty_flags)
+      } : null,
+      candidate_bundles: candidateBundles,
+      candidate_bundle_count: candidateBundles.length
     }
   };
 }
@@ -792,6 +1072,7 @@ function serializeScenarioOutput(scenarios = [], metadata = {}) {
 
 // Persists generated scenario set to Firebase MasterData.
 async function saveGeneratedScenarioSet(scenarios = [], scenarioSetId = "experiment", options = {}) {
+  const { saveScenarioDatasetBundle } = await import("../firebaseDB.js");
   const serialized = isSerializedPayload(scenarios)
     ? scenarios
     : serializeScenarioOutput(scenarios, options.metadata ?? {});
@@ -836,34 +1117,38 @@ async function saveGeneratedScenarioSet(scenarios = [], scenarioSetId = "experim
   };
 }
 
-// High-level orchestration entry point for full generation pipeline (to be implemented).
-export async function runScenarioGenerationPipeline(options = {}) {
+export function generateScenarioSetPayload(options = {}, datasets = {}) {
   const FIXED_ORDERS_PER_SCENARIO = 4;
   const {
     datasetName = "experiment",
-    totalRounds = 10,
+    totalRounds = BUNDLEGAME_STUDY_TOTAL_ROUNDS,
     maxBundle = 3,
     payMin = 8,
     payMax = 24,
-    scenarioSetId = datasetName
+    scenarioSetId = datasetName,
+    seed = DEFAULT_GENERATION_SEED,
+    generatedAt = new Date().toISOString(),
+    scenarioSetVersionId = ""
   } = options;
 
   const normalizedDataset = resolveDatasetRootName(datasetName);
+  const normalizedSeed = String(seed || DEFAULT_GENERATION_SEED).trim();
   const normalizedInput = {
     datasetName: normalizedDataset,
     totalRounds,
     maxBundle,
     payMin,
     payMax,
-    ordersPerScenario: FIXED_ORDERS_PER_SCENARIO
+    ordersPerScenario: FIXED_ORDERS_PER_SCENARIO,
+    seed: normalizedSeed
   };
 
   validatePipelineInputs(normalizedInput);
-  await assertDatasetNameAvailable(normalizedDataset);
   const resolvedScenarioSetId = scenarioSetId || normalizedDataset;
-
-  const storeDataset = await fetchStoreDataset("store");
-  const citiesDataset = await fetchCitiesDataset("cities");
+  const rng = createSeededRandom(normalizedSeed);
+  const storeDataset = datasets.storeDataset || {};
+  const citiesDataset = datasets.citiesDataset || {};
+  const protocol = getCanonicalResearchStudyProtocol();
   const roundOutputs = [];
   let nextOrderIndex = 1;
   let currentCity = String(citiesDataset?.startinglocation || "Berkeley");
@@ -875,7 +1160,7 @@ export async function runScenarioGenerationPipeline(options = {}) {
     const isEvenRoundAfterFirst = round % 2 === 0;
     const targetCity = isEvenRoundAfterFirst
       ? ""
-      : selectFairTargetCity(allCities, targetCityCount, previousBestCity);
+      : selectFairTargetCity(allCities, targetCityCount, previousBestCity, rng);
     if (targetCity) {
       targetCityCount[targetCity] = (Number(targetCityCount[targetCity]) || 0) + 1;
     }
@@ -894,6 +1179,8 @@ export async function runScenarioGenerationPipeline(options = {}) {
       currentCity,
       storeDataset,
       citiesDataset,
+      protocol,
+      rng,
       datasetName: normalizedDataset,
       scenarioSetId: resolvedScenarioSetId
     });
@@ -901,6 +1188,7 @@ export async function runScenarioGenerationPipeline(options = {}) {
     const scenarioRound = buildScenarioRound(caseResult, {
       round,
       maxBundle,
+      protocol,
       datasetName: normalizedDataset,
       scenarioSetId: resolvedScenarioSetId
     });
@@ -913,14 +1201,51 @@ export async function runScenarioGenerationPipeline(options = {}) {
 
   const metadata = {
     datasetName: normalizedDataset,
-    scenarioSetVersionId: createScenarioSetVersionId(normalizedDataset),
+    scenarioSetVersionId: String(scenarioSetVersionId || "").trim()
+      || createScenarioSetVersionId(normalizedDataset, new Date(generatedAt)),
     totalRounds: Number(totalRounds),
     maxBundle: Number(maxBundle),
     payMin: Number(payMin),
-    payMax: Number(payMax)
+    payMax: Number(payMax),
+    seed: normalizedSeed,
+    generatedAt,
+    generatorSchemaVersion: GENERATOR_SCHEMA_VERSION,
+    rewardModelVersion: REWARD_MODEL_VERSION,
+    routeOptimizerVersion: ROUTE_OPTIMIZER_VERSION,
+    legalBundleModelVersion: LEGAL_BUNDLE_MODEL_VERSION,
+    protocolVersion: BUNDLEGAME_STUDY_PROTOCOL_VERSION,
+    expectedTotalRounds: BUNDLEGAME_STUDY_TOTAL_ROUNDS
   };
 
   const serialized = serializeScenarioOutput(roundOutputs, metadata);
+  return {
+    roundOutputs,
+    serialized,
+    metadata,
+    datasetName: normalizedDataset
+  };
+}
+
+// High-level orchestration entry point for full generation pipeline.
+export async function runScenarioGenerationPipeline(options = {}) {
+  const {
+    datasetName = "experiment"
+  } = options;
+
+  const normalizedDataset = resolveDatasetRootName(datasetName);
+  await assertDatasetNameAvailable(normalizedDataset);
+  const [storeDataset, citiesDataset] = await Promise.all([
+    fetchStoreDataset("store"),
+    fetchCitiesDataset("cities")
+  ]);
+  const generated = generateScenarioSetPayload({
+    ...options,
+    datasetName: normalizedDataset
+  }, {
+    storeDataset,
+    citiesDataset
+  });
+  const { serialized, roundOutputs, metadata } = generated;
   const saved = await saveGeneratedScenarioSet(serialized, normalizedDataset, {
     datasetName: normalizedDataset,
     metadata
@@ -932,7 +1257,11 @@ export async function runScenarioGenerationPipeline(options = {}) {
     generated: {
       rounds: roundOutputs.length,
       orders: serialized?.orders?.orders?.length || 0,
-      optimal: serialized?.optimal?.optimal?.length || 0
+      optimal: serialized?.optimal?.optimal?.length || 0,
+      candidateBundles: (serialized?.optimal?.optimal || [])
+        .reduce((sum, row) => sum + (Array.isArray(row?.candidate_bundles) ? row.candidate_bundles.length : 0), 0),
+      seed: metadata.seed,
+      rewardModelVersion: metadata.rewardModelVersion
     },
     saved
   };
