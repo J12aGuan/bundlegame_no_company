@@ -9,6 +9,14 @@ from typing import Any
 from analytics.types import QAIssue
 
 
+DEFAULT_LEGAL_ACTION_MASK_VERSION = "legal_bundle_mask_v1"
+
+
+def _normalize_legal_action_mask_version(value: Any) -> str:
+    normalized = str(value or "").strip()
+    return normalized or DEFAULT_LEGAL_ACTION_MASK_VERSION
+
+
 def _timestamp_to_float(value: Any) -> float:
     if value is None:
         return 0.0
@@ -147,7 +155,14 @@ def get_latest_round_summaries(
                     "policy_name": str(action.get("policy_name", "") or ""),
                     "policy_version": str(action.get("policy_version", "") or ""),
                     "dataset_snapshot_id": str(action.get("dataset_snapshot_id", "") or ""),
-                    "legal_action_mask_version": str(action.get("legal_action_mask_version", "") or ""),
+                    "legal_action_mask_version": _normalize_legal_action_mask_version(
+                        action.get("legal_action_mask_version")
+                        or (
+                            (action.get("state_snapshot") or {}).get("legal_action_mask_version")
+                            if isinstance(action.get("state_snapshot"), dict)
+                            else ""
+                        )
+                    ),
                     "recommendation_source": str(action.get("recommendation_source", "") or ""),
                     "shown_recommendation_bundle_ids": _normalize_id_array(
                         action.get("shown_recommendation_bundle_ids")
@@ -319,7 +334,9 @@ def get_action_summary_reconstructed_decisions(
                     "policy_name": str(study_state.get("policy_name", "") or ""),
                     "policy_version": str(study_state.get("policy_version", "") or ""),
                     "dataset_snapshot_id": str(study_state.get("dataset_snapshot_id", "") or ""),
-                    "legal_action_mask_version": str(study_state.get("legal_action_mask_version", "") or ""),
+                    "legal_action_mask_version": _normalize_legal_action_mask_version(
+                        study_state.get("legal_action_mask_version")
+                    ),
                     "recommendation_source": "none",
                     "shown_recommendation_bundle_ids": [],
                     "shown_ranked_bundles": [],
@@ -378,7 +395,10 @@ def merge_decision_sources(
             "policy_name": str(decision.get("policy_name") or (existing or {}).get("policy_name", "")),
             "policy_version": str(decision.get("policy_version") or (existing or {}).get("policy_version", "")),
             "dataset_snapshot_id": str(decision.get("dataset_snapshot_id") or (existing or {}).get("dataset_snapshot_id", "")),
-            "legal_action_mask_version": str(decision.get("legal_action_mask_version") or (existing or {}).get("legal_action_mask_version", "")),
+            "legal_action_mask_version": _normalize_legal_action_mask_version(
+                decision.get("legal_action_mask_version")
+                or (existing or {}).get("legal_action_mask_version")
+            ),
             "recommendation_source": str(decision.get("recommendation_source") or (existing or {}).get("recommendation_source", "")),
             "shown_recommendation_bundle_ids": decision.get("shown_recommendation_bundle_ids")
             or (existing or {}).get("shown_recommendation_bundle_ids", []),

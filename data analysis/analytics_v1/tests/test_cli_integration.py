@@ -8,6 +8,10 @@ from analytics.cli import build_parser, run_pipeline
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+def _numeric_flag(value: str) -> int:
+    return int(float(value or 0))
+
+
 def test_cli_json_pipeline_outputs(tmp_path: Path):
     parser = build_parser()
     args = parser.parse_args(
@@ -201,6 +205,89 @@ def test_cli_json_pipeline_outputs(tmp_path: Path):
     paper_manifest = json.loads((tmp_path / "paper_manifest.json").read_text(encoding="utf-8"))
     assert paper_manifest["dataset_snapshot"]["snapshot_id"] == dataset_snapshot["snapshot_id"]
     assert "study_randomization.csv" in paper_manifest["exports"]
+
+
+def test_cli_policy_training_export_is_fixture_end_to_end_ready(tmp_path: Path):
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "run",
+            "--source",
+            "json",
+            "--dataset-root",
+            "experiment",
+            "--data-json",
+            str(FIXTURES / "participants_fixture.json"),
+            "--scenario-bundle-json",
+            str(FIXTURES / "scenario_bundle_fixture.json"),
+            "--stores-json",
+            str(FIXTURES / "stores_fixture.json"),
+            "--cities-json",
+            str(FIXTURES / "cities_fixture.json"),
+            "--metadata-file",
+            str(FIXTURES / "metadata_fixture.csv"),
+            "--out-dir",
+            str(tmp_path),
+            "--bootstrap-b",
+            "50",
+            "--seed",
+            "11",
+            "--cohort-col",
+            "condition",
+        ]
+    )
+
+    metadata = run_pipeline(args)
+    assert metadata["input_counts"]["analysis_master_rows"] == 3
+    assert metadata["input_counts"]["policy_training_rows"] > 3
+
+    with (tmp_path / "policy_training.csv").open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == metadata["input_counts"]["policy_training_rows"]
+
+    required_fields = [
+        "participant_id",
+        "state_id",
+        "action_id",
+        "action_legal",
+        "action_bundle_ids",
+        "observed_chosen_action",
+        "reward_target",
+        "observed_reward",
+        "state_legal_action_mask_version",
+        "next_state_id",
+        "done",
+    ]
+    for field in required_fields:
+        assert field in rows[0]
+
+    rows_by_state: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        assert row["participant_id"]
+        assert row["state_id"]
+        assert row["action_id"]
+        assert row["state_legal_action_mask_version"] == "legal_bundle_mask_v1"
+        assert _numeric_flag(row["action_legal"]) == 1
+        assert json.loads(row["action_bundle_ids"])
+        assert row["reward_target"] not in {"", None}
+        rows_by_state.setdefault(row["state_id"], []).append(row)
+
+    assert len(rows_by_state) == 3
+    assert all(state_id.startswith("state_") for state_id in rows_by_state)
+    for state_id, state_rows in rows_by_state.items():
+        chosen_rows = [
+            row for row in state_rows if _numeric_flag(row["observed_chosen_action"]) == 1
+        ]
+        assert len(chosen_rows) == 1, f"{state_id} should have exactly one observed action"
+        if _numeric_flag(chosen_rows[0]["done"]) == 0:
+            assert chosen_rows[0]["next_state_id"].startswith("state_")
+        else:
+            assert chosen_rows[0]["next_state_id"] == ""
+        assert chosen_rows[0]["observed_reward"] not in {"", None}
+
+    dataset_snapshot = json.loads((tmp_path / "dataset_snapshot.json").read_text(encoding="utf-8"))
+    assert dataset_snapshot["analysis_outputs"]["policy_training_rows"] == len(rows)
+    assert dataset_snapshot["analysis_outputs"]["analysis_master_rows"] == 3
 
 
 def test_cli_recovers_reconstructed_action_summary_rows(tmp_path: Path):
