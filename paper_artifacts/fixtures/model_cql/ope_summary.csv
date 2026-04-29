@@ -1,0 +1,2 @@
+policy_name,policy_version,algorithm,split,n_states,ips,snips,direct_method,doubly_robust,fqe_one_step,match_rate,mean_logging_propensity
+CQL,fixture,cql,test,2,0.82,0.83,0.84,0.85,0.81,0.5,0.333

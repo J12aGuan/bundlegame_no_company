@@ -120,6 +120,7 @@ Publication exports must use pseudonymous participant IDs and exclude direct ide
 | `npm run qualtrics:sync` | Sync completed Qualtrics responses into Firestore |
 | `npm run scores:export` | Export admin scores and class averages |
 | `npm run scores:export -- --mode publication_export` | Export publication-safe derived tables |
+| `npm run paper:artifacts -- --analysis-dir ...` | Generate paper figures, tables, and output manifest |
 | `npm run research:summary` | Print a Firestore-backed research summary |
 | `npm run research:worker` | Process queued research snapshot jobs |
 

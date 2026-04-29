@@ -1,0 +1,6 @@
+{
+  "algorithm": "cql",
+  "policy_name": "CQL",
+  "policy_version": "fixture",
+  "seed": 11
+}

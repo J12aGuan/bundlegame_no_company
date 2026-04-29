@@ -1,0 +1,3 @@
+policy_name,model_type,implementation_status,training_mode,training_data_source,training_rows,scope,group_value,n_states,mean_reward,mean_regret,optimal_rate,mean_bundle_size,mean_lift_vs_historical
+historical_human,reference_baseline,implemented,logged_data_reference,observed participant choices,6,overall,overall,6,0.78,0.22,0.167,2.0,0
+contextual_bandit_linear,contextual_bandit,analysis_baseline,analysis_time_linear_fit,policy_training.csv,18,overall,overall,6,0.82,0.18,0.25,2.0,0.04

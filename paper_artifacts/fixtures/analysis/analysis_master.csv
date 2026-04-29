@@ -1,0 +1,7 @@
+participant_id,round_index,phase,policy_arm,policy_name,recommendation_source,recommendation_quality,followed_recommendation,score_ratio_to_best,percent_regret,is_exact_optimal,is_near_optimal,is_failure
+p1,1,A,control,control,none,none,,1.0,0.0,1,1,0
+p1,16,B,contextual_bandit,contextual_bandit_linear,model_registry,optimal,1,0.95,0.05,0,1,0
+p1,36,C,contextual_bandit,contextual_bandit_linear,none,none,,0.82,0.18,0,0,0
+p2,1,A,control,control,none,none,,0.55,0.45,0,0,0
+p2,16,B,contextual_bandit,contextual_bandit_linear,model_registry,suboptimal,0,0.62,0.38,0,0,0
+p2,36,C,contextual_bandit,contextual_bandit_linear,none,none,,0.74,0.26,0,0,0

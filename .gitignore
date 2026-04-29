@@ -48,6 +48,7 @@ phase1_possibilities.json
 /data analysis/raw_research_export-*/
 /data analysis/publication_export-*/
 /data analysis/analytics_v1/out*/
+/paper_artifacts/out*/
 
 # Python cache/artifacts
 __pycache__/

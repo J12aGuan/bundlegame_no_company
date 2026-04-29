@@ -17,6 +17,7 @@
 		"token": "node scripts/generate-auth-token.mjs",
 		"qualtrics:sync": "node scripts/sync-qualtrics-responses.mjs",
 		"scores:export": "node scripts/export-admin-scores.mjs",
+		"paper:artifacts": "node scripts/generate-paper-artifacts.mjs",
 		"research:summary": "node scripts/research-data-summary.mjs",
 		"research:worker": "node scripts/research-worker.mjs --once",
 		"lint": "prettier --plugin-search-dir . --check .",

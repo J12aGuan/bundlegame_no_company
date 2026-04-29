@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-29T00:00:00Z",
+  "dataset_snapshot": {
+    "snapshot_id": "fixture_snapshot_v1",
+    "dataset_root": "fixture",
+    "dataset_version": "fixture_dataset_v1",
+    "feature_version": "research_v2",
+    "benchmark_only_dataset": false,
+    "paper_ready": true,
+    "blockers": []
+  },
+  "study_protocol": {
+    "protocol_id": "bundlegame_abc_recommendation_v1",
+    "title": "BundleGame fixture protocol",
+    "enabled": true
+  },
+  "model_registry": {
+    "total_models": 2,
+    "active_models": 1,
+    "simulation_only_models": 0,
+    "baseline_ladder": [
+      {
+        "model_id": "historical_human_logged_v1",
+        "policy_name": "historical_human",
+        "model_type": "reference_baseline",
+        "implementation_status": "implemented",
+        "baseline_ladder_rank": 0,
+        "training_mode": "logged_data_reference",
+        "training_data_source": "observed participant choices"
+      },
+      {
+        "model_id": "contextual_bandit_linear_v1",
+        "policy_name": "contextual_bandit_linear",
+        "model_type": "contextual_bandit",
+        "implementation_status": "analysis_baseline",
+        "baseline_ladder_rank": 4,
+        "training_mode": "analysis_time_linear_fit",
+        "training_data_source": "policy_training.csv"
+      }
+    ],
+    "models": [
+      {
+        "model_id": "fixture_cql_v1",
+        "algorithm": "cql",
+        "policy_name": "CQL",
+        "policy_version": "fixture",
+        "model_type": "offline_rl",
+        "implementation_status": "trained",
+        "training_mode": "masked_discrete_offline_rl_baseline",
+        "training_data_source": "policy_training.csv",
+        "training_rows": 18,
+        "is_active": true,
+        "simulation_only": false
+      }
+    ]
+  },
+  "exports": [
+    "analysis_master.csv",
+    "policy_training.csv",
+    "policy_comparison.csv",
+    "ope_summary.csv",
+    "sandbox_summary.csv"
+  ]
+}

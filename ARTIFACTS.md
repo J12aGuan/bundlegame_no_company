@@ -201,6 +201,29 @@ The repository currently guarantees reproducible table source data. If a paper d
 - any manual formatting changes
 - alt text or caption text
 
+To regenerate the standard paper tables and figures from one command:
+
+```bash
+npm run paper:artifacts -- \
+  --analysis-dir "data analysis/research_jobs/<job_id>" \
+  --publication-dir "data analysis/publication_export-YYYY-MM-DD" \
+  --model-dir "data analysis/offline_rl/cql_<snapshot_id>" \
+  --model-dir "data analysis/offline_rl/iql_<snapshot_id>" \
+  --out-dir "data analysis/paper_artifacts/<snapshot_id>"
+```
+
+For a credential-free smoke test:
+
+```bash
+npm run paper:artifacts -- \
+  --analysis-dir paper_artifacts/fixtures/analysis \
+  --publication-dir paper_artifacts/fixtures/publication_export \
+  --model-dir paper_artifacts/fixtures/model_cql \
+  --out-dir paper_artifacts/out/fixture
+```
+
+The command writes SVG figures, CSV/Markdown tables, and `output_manifest.json`. See [paper_artifacts/README.md](paper_artifacts/README.md).
+
 ## 8. Paper Package Checklist
 
 Archive this set for each analysis milestone:

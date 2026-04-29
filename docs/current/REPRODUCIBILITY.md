@@ -54,6 +54,28 @@ python -m analytics.cli run \
 
 The output folder should contain `analysis_master.csv`, `policy_training.csv`, snapshot manifests, QA outputs, and model-comparison tables.
 
+## Paper Figure And Table Reproduction
+
+Generate the standard paper figures, tables, and output manifest from a frozen snapshot with:
+
+```bash
+npm run paper:artifacts -- \
+  --analysis-dir "data analysis/research_jobs/<job_id>" \
+  --publication-dir "data analysis/publication_export-YYYY-MM-DD" \
+  --model-dir "data analysis/offline_rl/cql_<snapshot_id>" \
+  --out-dir "data analysis/paper_artifacts/<snapshot_id>"
+```
+
+The credential-free fixture check is:
+
+```bash
+npm run paper:artifacts -- \
+  --analysis-dir paper_artifacts/fixtures/analysis \
+  --publication-dir paper_artifacts/fixtures/publication_export \
+  --model-dir paper_artifacts/fixtures/model_cql \
+  --out-dir paper_artifacts/out/fixture
+```
+
 ## Firestore Reproduction
 
 Live Firestore reproduction needs:
