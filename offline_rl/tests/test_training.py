@@ -92,6 +92,25 @@ def test_schema_validation_rejects_missing_mask_column(tmp_path: Path):
     assert any("action_legal" in error for error in validation.errors)
 
 
+def test_schema_validation_rejects_missing_chosen_observed_reward(tmp_path: Path):
+    policy_csv, snapshot_json = _write_fixture_snapshot(tmp_path)
+    rows = list(csv.DictReader(policy_csv.open("r", encoding="utf-8", newline="")))
+    for row in rows:
+        if row["observed_chosen_action"] == "1":
+            row["observed_reward"] = ""
+            break
+
+    bad_csv = tmp_path / "bad_observed_reward_policy_training.csv"
+    with bad_csv.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    validation = validate_files(bad_csv, snapshot_json)
+    assert not validation.ok
+    assert any("observed_reward" in error for error in validation.errors)
+
+
 def _write_fixture_snapshot(tmp_path: Path):
     participants = {
         split: _participant_for_split(split)

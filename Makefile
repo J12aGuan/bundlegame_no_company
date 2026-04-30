@@ -35,10 +35,10 @@ prepare-python-venv: check-python
 test-python: test-python-analytics test-offline-rl
 
 test-python-analytics: prepare-python-venv
-	cd "$(PY_ANALYTICS_DIR)" && "../../$(PY_BIN)" -m pip install -e ".[dev]" && "../../$(PY_BIN)" -m pytest
+	cd "$(PY_ANALYTICS_DIR)" && "../../$(PY_BIN)" -m pip install -e ".[dev]" && "../../$(PY_BIN)" -m pytest --cov=analytics --cov-report=term-missing
 
 test-offline-rl: prepare-python-venv
-	cd "$(PY_OFFLINE_RL_DIR)" && "../$(PY_BIN)" -m pip install -e ".[dev]" && "../$(PY_BIN)" -m pytest
+	cd "$(PY_OFFLINE_RL_DIR)" && "../$(PY_BIN)" -m pip install -e ".[dev]" && "../$(PY_BIN)" -m pytest --cov=offline_rl --cov-report=term-missing
 
 paper-artifacts:
 	PYTHON="$(PAPER_PYTHON)" npm run paper:artifacts -- --analysis-dir paper_artifacts/fixtures/analysis --publication-dir paper_artifacts/fixtures/publication_export --model-dir paper_artifacts/fixtures/model_cql --out-dir paper_artifacts/out/fixture

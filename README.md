@@ -35,7 +35,7 @@ The equivalent full workflow is:
 make ci
 ```
 
-`test:js` covers experiment logic, protocol validation, score exports, recommendation resolution, scenario generation, and research snapshot smoke behavior. `test-python` covers the offline analytics package and the standalone masked discrete-action offline-RL package.
+`test:js` covers experiment logic, protocol validation, score exports, recommendation resolution, scenario generation, and research snapshot smoke behavior. `test-python` covers the offline analytics package and the standalone masked discrete-action offline-RL package. CI prints coverage summaries for the JS, analytics, and offline-RL test targets.
 
 ## How The System Fits Together
 

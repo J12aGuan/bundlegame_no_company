@@ -489,6 +489,24 @@ function valueToFloat(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function resolveObservedPolicyReward(
+  row = {},
+  candidate = {},
+  isObservedAction = false,
+) {
+  if (!isObservedAction) return null;
+
+  const scoreRatio = valueToFloat(row?.score_ratio_to_best);
+  if (scoreRatio != null) return scoreRatio;
+
+  const loggedReward = valueToFloat(row?.logged_reward);
+  if (loggedReward != null) return loggedReward;
+
+  if (Number(row?.is_failure) === 1 || Number(row?.success) === 0) return 0;
+
+  return valueToFloat(candidate?.scoreRatioToBest);
+}
+
 function timestampToFloat(value) {
   if (value == null) return 0;
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -3333,6 +3351,7 @@ function buildPolicyTrainingRows({
     const nextStateId = nextRow ? buildOfflineRlStateId(nextRow) : "";
 
     for (const candidate of candidates) {
+      const isObservedAction = candidate.bundleSignature === chosenSignature;
       const policyRow = {
         dataset_root: row?.dataset_root,
         participant_id: row?.participant_id,
@@ -3384,15 +3403,14 @@ function buildPolicyTrainingRows({
         action_matches_shown_recommendation:
           candidate.matchesShownRecommendation,
         action_recommendation_quality: candidate.recommendationQuality,
-        observed_chosen_action: Number(
-          candidate.bundleSignature === chosenSignature,
-        ),
+        observed_chosen_action: Number(isObservedAction),
         observed_followed_recommendation: row?.followed_recommendation,
         reward_target: candidate.scoreRatioToBest,
-        observed_reward:
-          candidate.bundleSignature === chosenSignature
-            ? (row?.score_ratio_to_best ?? 0)
-            : null,
+        observed_reward: resolveObservedPolicyReward(
+          row,
+          candidate,
+          isObservedAction,
+        ),
         next_round_index: nextRow?.round_index ?? null,
         next_state_id: nextStateId,
         next_phase: nextRow?.phase ?? null,

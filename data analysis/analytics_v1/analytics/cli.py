@@ -375,6 +375,16 @@ def _clamp(value: float | int | None, lo: float = 0.0, hi: float = 1.0) -> float
     return min(hi, max(lo, float(value)))
 
 
+def _float_or_none(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
 def _normalize_id_array(value: Any) -> list[str]:
     if isinstance(value, list):
         return [str(entry).strip() for entry in value if str(entry).strip()]
@@ -413,6 +423,31 @@ def _offline_rl_action_id(row: dict[str, Any], candidate: dict[str, Any]) -> str
         ]
     )
     return f"action_{_stable_hash_string(key):x}"
+
+
+def _resolve_observed_policy_reward(
+    row: dict[str, Any],
+    candidate: dict[str, Any],
+    is_observed_action: bool,
+) -> float | None:
+    if not is_observed_action:
+        return None
+
+    score_ratio = _float_or_none(row.get("score_ratio_to_best"))
+    if score_ratio is not None:
+        return score_ratio
+
+    logged_reward = _float_or_none(row.get("logged_reward"))
+    if logged_reward is not None:
+        return logged_reward
+
+    if (
+        int(_float_or_none(row.get("is_failure")) or 0) == 1
+        or int(_float_or_none(row.get("success")) or 1) == 0
+    ):
+        return 0.0
+
+    return _float_or_none(candidate.get("scoreRatioToBest"))
 
 
 def _read_optional_rows(path: str | None) -> list[dict[str, Any]]:
@@ -1936,6 +1971,7 @@ def _build_policy_training_rows(
         state_id = _offline_rl_state_id(row)
         next_state_id = _offline_rl_state_id(next_row) if next_row else ""
         for candidate in candidates:
+            is_observed_action = candidate["bundleSignature"] == chosen_signature
             policy_row = {
                 "dataset_root": row.get("dataset_root"),
                 "participant_id": row.get("participant_id"),
@@ -1978,10 +2014,10 @@ def _build_policy_training_rows(
                 "action_is_near_optimal": candidate["isNearOptimal"],
                 "action_matches_shown_recommendation": candidate["matchesShownRecommendation"],
                 "action_recommendation_quality": candidate["recommendationQuality"],
-                "observed_chosen_action": int(candidate["bundleSignature"] == chosen_signature),
+                "observed_chosen_action": int(is_observed_action),
                 "observed_followed_recommendation": row.get("followed_recommendation"),
                 "reward_target": candidate["scoreRatioToBest"],
-                "observed_reward": row.get("score_ratio_to_best") if candidate["bundleSignature"] == chosen_signature else None,
+                "observed_reward": _resolve_observed_policy_reward(row, candidate, is_observed_action),
                 "next_round_index": next_row.get("round_index") if next_row else None,
                 "next_state_id": next_state_id,
                 "next_phase": next_row.get("phase") if next_row else None,

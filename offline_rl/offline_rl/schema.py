@@ -23,6 +23,7 @@ REQUIRED_POLICY_TRAINING_COLUMNS = [
     "action_is_optimal",
     "observed_chosen_action",
     "reward_target",
+    "observed_reward",
     "next_state_id",
     "done",
 ]
@@ -88,6 +89,11 @@ def validate_policy_training_schema(
             errors.append(f"row {index} missing state_legal_action_mask_version")
         if to_float(row.get("reward_target")) is None:
             errors.append(f"row {index} missing numeric reward_target")
+        if (
+            truthy(row.get("observed_chosen_action"))
+            and to_float(row.get("observed_reward")) is None
+        ):
+            errors.append(f"row {index} missing numeric observed_reward for chosen action")
         if to_float(row.get("action_score_ratio_to_best")) is None:
             errors.append(f"row {index} missing numeric action_score_ratio_to_best")
         if str(row.get("action_bundle_ids", "")).strip() == "":
