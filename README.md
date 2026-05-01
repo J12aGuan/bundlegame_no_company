@@ -109,6 +109,10 @@ Before collecting participant data, publish [`firestore.rules`](firestore.rules)
 
 Publication exports must use pseudonymous participant IDs and exclude direct identifiers such as names, result codes, Qualtrics response IDs, match keys, and raw survey payloads. See [DATA_SCHEMA.md](DATA_SCHEMA.md) and [docs/current/DATA_GOVERNANCE.md](docs/current/DATA_GOVERNANCE.md).
 
+## License And Data Scope
+
+The BundleGame source code is licensed under the MIT License; see [LICENSE](LICENSE). Raw human-subject data, Qualtrics exports, Firestore dumps, restricted participant records, and private salts or credentials are not covered by this software license and must not be redistributed without the appropriate study approval and data-sharing review.
+
 ## Common Commands
 
 | Command | Purpose |
