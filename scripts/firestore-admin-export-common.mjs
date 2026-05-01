@@ -97,18 +97,43 @@ const RAW_SURVEY_PAYLOAD_NAMES = new Set([
   "survey_raw_payload",
 ]);
 
+const OPERATIONAL_LINKAGE_NAMES = new Set([
+  "livesessionid",
+  "live_session_id",
+  "sessionlabel",
+  "session_label",
+]);
+
 const FORBIDDEN_PUBLICATION_KEY_NAMES = new Set([
   ...RESULT_KEY_NAMES,
   ...QUALTRICS_ID_NAMES,
   ...PARTICIPANT_ID_NAMES,
   ...PERSON_NAME_NAMES,
   ...RAW_SURVEY_PAYLOAD_NAMES,
+  ...OPERATIONAL_LINKAGE_NAMES,
   "resultaccesskey",
-  "live_session_id",
-  "livesessionid",
-  "sessionlabel",
-  "session_label",
 ]);
+
+const KNOWN_LEAF_SUBCOLLECTIONS = new Set([
+  "Action",
+  "Actions",
+  "DetailedAction",
+  "Orders",
+  "Progress",
+  "ScenarioSet",
+  "Summary",
+]);
+
+function isKnownLeafCollectionPath(collectionPath = "") {
+  const segments = String(collectionPath || "").split("/").filter(Boolean);
+  if (segments.length === 3 && segments[0] === "Users") {
+    return KNOWN_LEAF_SUBCOLLECTIONS.has(segments[2]);
+  }
+  if (segments.length === 3 && segments[0] === "LiveSessions" && segments[2] === "participants") {
+    return true;
+  }
+  return false;
+}
 
 function normalizeKey(value = "") {
   return String(value || "").trim().replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
@@ -395,18 +420,46 @@ export async function checkFirestoreConnection({
   }
 }
 
-export async function exportCollectionRecursive(collectionRef) {
+export async function exportCollectionRecursive(collectionRef, {
+  depth = 0,
+  onProgress = null,
+  progressEvery = 25,
+} = {}) {
   const snap = await collectionRef.get();
+  if (onProgress) {
+    onProgress({
+      type: "collection_start",
+      path: collectionRef.path,
+      depth,
+      document_count: snap.size,
+    });
+  }
   const documents = [];
   let nestedDocumentCount = 0;
 
-  for (const docSnap of snap.docs) {
-    const subcollectionRefs = (await docSnap.ref.listCollections()).sort((left, right) =>
-      left.id.localeCompare(right.id),
-    );
+  for (let index = 0; index < snap.docs.length; index += 1) {
+    const docSnap = snap.docs[index];
+    if (onProgress && (index + 1 === 1 || (index + 1) % progressEvery === 0 || index + 1 === snap.size)) {
+      onProgress({
+        type: "document_progress",
+        path: collectionRef.path,
+        depth,
+        completed: index + 1,
+        total: snap.size,
+      });
+    }
+    const subcollectionRefs = isKnownLeafCollectionPath(collectionRef.path)
+      ? []
+      : (await docSnap.ref.listCollections()).sort((left, right) =>
+          left.id.localeCompare(right.id),
+        );
     const subcollections = {};
     for (const subcollectionRef of subcollectionRefs) {
-      const subcollection = await exportCollectionRecursive(subcollectionRef);
+      const subcollection = await exportCollectionRecursive(subcollectionRef, {
+        depth: depth + 1,
+        onProgress,
+        progressEvery,
+      });
       subcollections[subcollectionRef.id] = subcollection;
       nestedDocumentCount += subcollection.total_document_count;
     }
@@ -418,7 +471,7 @@ export async function exportCollectionRecursive(collectionRef) {
     });
   }
 
-  return {
+  const collectionExport = {
     id: collectionRef.id,
     path: collectionRef.path,
     document_count: snap.size,
@@ -426,18 +479,30 @@ export async function exportCollectionRecursive(collectionRef) {
     total_document_count: snap.size + nestedDocumentCount,
     documents,
   };
+  if (onProgress) {
+    onProgress({
+      type: "collection_done",
+      path: collectionRef.path,
+      depth,
+      total_document_count: collectionExport.total_document_count,
+    });
+  }
+  return collectionExport;
 }
 
 export async function exportFirestoreCollections({
   projectId = "",
   collectionNames = TARGET_FIRESTORE_COLLECTIONS,
   generatedAt = new Date().toISOString(),
+  onProgress = null,
 } = {}) {
   const { app, db, projectId: resolvedProjectId } = initializeAdminFirestore({ projectId });
   try {
     const collections = {};
     for (const collectionName of collectionNames) {
-      collections[collectionName] = await exportCollectionRecursive(db.collection(collectionName));
+      collections[collectionName] = await exportCollectionRecursive(db.collection(collectionName), {
+        onProgress,
+      });
     }
     const collectionCounts = Object.fromEntries(
       Object.entries(collections).map(([name, collectionExport]) => [
@@ -619,7 +684,8 @@ function sanitizeObjectForPublication(object = {}, context) {
       RESULT_KEY_NAMES.has(normalizedKey) ||
       QUALTRICS_ID_NAMES.has(normalizedKey) ||
       PERSON_NAME_NAMES.has(normalizedKey) ||
-      RAW_SURVEY_PAYLOAD_NAMES.has(normalizedKey)
+      RAW_SURVEY_PAYLOAD_NAMES.has(normalizedKey) ||
+      OPERATIONAL_LINKAGE_NAMES.has(normalizedKey)
     ) {
       continue;
     }
