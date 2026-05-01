@@ -102,6 +102,20 @@ By default, each mode writes a dated folder under `data analysis/` containing:
 
 Both modes use schema version `bundlegame_research_export_v1`.
 
+For a complete privileged Firestore dump, use the Admin SDK exporters:
+
+```bash
+npm run firestore:connection:check
+npm run firestore:export:raw
+PUBLICATION_PSEUDONYM_SALT=private-stable-salt npm run firestore:export:publication
+```
+
+Raw recursive Firestore exports write ignored timestamp folders under
+`data analysis/firestore_raw_export/`. Publication-safe recursive exports write
+ignored timestamp folders under `data analysis/firestore_publication_safe_export/`
+after replacing participant IDs with salted pseudonyms and removing direct
+Qualtrics/result-linkage identifiers.
+
 ### `raw_research_export`
 
 Internal QA export with operational identifiers retained.

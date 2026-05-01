@@ -43,6 +43,30 @@ npm run scores:export -- --mode raw_research_export
 
 Raw exports may include operational identifiers needed to debug linkage. Do not attach raw exports to public repositories, shared supplements, reviewer packages, or screenshots.
 
+Full recursive Firestore dumps are even more sensitive. Use them only for local
+research operations:
+
+```bash
+npm run firestore:connection:check
+npm run firestore:export:raw
+```
+
+These commands use the Firebase Admin SDK with Application Default Credentials
+or `GOOGLE_APPLICATION_CREDENTIALS`; they do not use browser-exposed `VITE_`
+secrets. Generated timestamp folders under `data analysis/firestore_raw_export/`
+are ignored by Git.
+
+To derive a shareable Firestore-level export, set a private
+`PUBLICATION_PSEUDONYM_SALT` and run:
+
+```bash
+npm run firestore:export:publication
+```
+
+The derived export removes names, result access keys/codes, Qualtrics IDs, match
+keys, and raw survey payloads while keeping gameplay/recommendation fields needed
+for analysis.
+
 ## Qualtrics Linkage
 
 Qualtrics credentials must stay server/local-script only:
@@ -64,6 +88,21 @@ Before collecting data:
 3. Grant `admin: true` only to approved users.
 4. Remove any old client-side downloader password variables.
 5. Confirm admin pages work only after sign-in.
+
+For local privileged Firestore exports, prefer:
+
+```bash
+gcloud auth application-default login
+firebase login
+firebase use bundling-63c10
+```
+
+If your coding environment supports stdio MCP servers, the optional Firebase MCP
+command is:
+
+```bash
+npx -y firebase-tools@latest mcp --dir "$PWD" --only firestore,auth,storage
+```
 
 ## Sharing Checklist
 

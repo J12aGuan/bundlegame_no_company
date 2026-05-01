@@ -85,10 +85,18 @@ Live Firestore reproduction needs:
 - `FIREBASE_ADMIN_PASSWORD`
 - Firebase Auth user with `admin: true` for admin UI access
 - optional Qualtrics API credentials for survey sync
+- Firebase Admin SDK credentials for recursive raw Firestore export:
+  Application Default Credentials from `gcloud auth application-default login`
+  or `GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json`
+- `PUBLICATION_PSEUDONYM_SALT` for publication-safe Firestore exports
 
 Recommended sequence:
 
 ```bash
+firebase use bundling-63c10
+npm run firestore:connection:check
+npm run firestore:export:raw
+npm run firestore:export:publication
 npm run qualtrics:sync
 npm run research:summary -- --dataset-root mainGame --days 60
 ```
@@ -97,6 +105,13 @@ Then use `/admin/research` to run analysis and save or queue a snapshot. Process
 
 ```bash
 npm run research:worker
+```
+
+The optional Firebase MCP server can be started in environments that support
+stdio MCP tools:
+
+```bash
+npx -y firebase-tools@latest mcp --dir "$PWD" --only firestore,auth,storage
 ```
 
 ## Snapshot Discipline

@@ -78,10 +78,29 @@ For live Firestore exports, configure `.env`, then run the relevant command:
 
 ```bash
 npm run qualtrics:sync
+npm run firestore:connection:check
+npm run firestore:export:raw
+npm run firestore:export:publication
 npm run scores:export
 npm run scores:export -- --mode publication_export
 npm run research:summary -- --dataset-root mainGame --days 60
 ```
+
+The full Firestore exporters use the Firebase Admin SDK with project
+`bundling-63c10`. Prefer Application Default Credentials:
+
+```bash
+gcloud auth application-default login
+firebase login
+firebase use bundling-63c10
+```
+
+As a fallback, set `GOOGLE_APPLICATION_CREDENTIALS` to an absolute
+service-account JSON path. Raw Firestore exports are restricted internal data and
+are written under ignored timestamped folders in
+`data analysis/firestore_raw_export/`. Publication-safe Firestore exports require
+`PUBLICATION_PSEUDONYM_SALT` and write redacted outputs under
+`data analysis/firestore_publication_safe_export/`.
 
 Use `/admin/research` to run analysis, save snapshots, queue Firestore-backed jobs, and export the research CSV/JSON package. The local worker processes queued research jobs:
 
@@ -124,6 +143,9 @@ The BundleGame source code is licensed under the MIT License; see [LICENSE](LICE
 | `npm run qualtrics:sync` | Sync completed Qualtrics responses into Firestore |
 | `npm run scores:export` | Export admin scores and class averages |
 | `npm run scores:export -- --mode publication_export` | Export publication-safe derived tables |
+| `npm run firestore:connection:check` | Verify privileged Firebase Admin SDK access |
+| `npm run firestore:export:raw` | Export restricted raw Firestore data recursively |
+| `npm run firestore:export:publication` | Export pseudonymized Firestore data with direct identifiers removed |
 | `npm run paper:artifacts -- --analysis-dir ...` | Generate paper figures, tables, and output manifest |
 | `npm run research:summary` | Print a Firestore-backed research summary |
 | `npm run research:worker` | Process queued research snapshot jobs |
