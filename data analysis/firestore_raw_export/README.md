@@ -39,4 +39,3 @@ PATH, the official Firebase MCP server can be started with:
 ```bash
 npx -y firebase-tools@latest mcp --dir "$PWD" --only firestore,auth,storage
 ```
-

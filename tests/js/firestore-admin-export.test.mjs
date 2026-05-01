@@ -198,4 +198,3 @@ test("publication-safe Firestore export pseudonymizes participants and removes i
   const validation = validatePublicationSafeFirestoreExport(safeExport, { rawExport });
   assert.equal(validation.ok, true);
 });
-

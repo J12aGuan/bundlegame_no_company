@@ -41,4 +41,3 @@ When present in Firestore, the export keeps research-useful gameplay fields such
 as phase, arm, scenario, recommendation source, shown recommendation bundles,
 chosen bundles, oracle/optimal bundle fields, reward, timestamps, and legal action
 mask metadata.
-
