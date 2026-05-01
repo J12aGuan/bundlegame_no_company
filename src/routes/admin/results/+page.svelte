@@ -5,6 +5,8 @@
 
 	let users = [];
 	let loading = true;
+	let loadingPercent = 0;
+	let loadingMessage = 'Starting…';
 	let error = null;
 	let filterText = '';
 	let sortField = 'completionDateMs';
@@ -186,17 +188,24 @@
 	}
 
 	onMount(async () => {
+		loadingPercent = 5;
+		loadingMessage = 'Connecting to Firestore…';
 		try {
-			const [rawUsers, activeSession] = await Promise.all([
-				retrieveData(),
-				getActiveLiveSession()
-			]);
+			const rawUsers = await retrieveData();
+			loadingPercent = 60;
+			loadingMessage = `Loaded ${rawUsers.length} participants…`;
+			const activeSession = await getActiveLiveSession();
+			loadingPercent = 80;
+			loadingMessage = 'Hydrating run metrics…';
 			users = rawUsers.map(hydrateUser);
 			activeSessionId = String(activeSession?.sessionId ?? '').trim();
+			loadingPercent = 100;
+			loadingMessage = 'Done.';
 			loading = false;
 		} catch (err) {
 			console.error('Error loading results:', err);
 			error = err.message;
+			loadingMessage = 'Failed to load results.';
 			loading = false;
 		}
 	});
@@ -253,7 +262,17 @@
 	</div>
 
 	{#if loading}
-		<div class="py-12 text-center text-gray-600">Loading results...</div>
+		<div class="rounded-lg border border-blue-100 bg-blue-50 px-6 py-8 text-center text-gray-700">
+			<div class="text-sm font-medium text-blue-700">Loading results</div>
+			<div class="mt-2 text-xs text-blue-600">{loadingMessage}</div>
+			<div class="mt-4 h-3 w-full overflow-hidden rounded-full bg-blue-100">
+				<div
+					class="h-full rounded-full bg-blue-600 transition-all duration-300 ease-out"
+					style={`width: ${Math.min(100, Math.max(0, loadingPercent))}%`}
+				></div>
+			</div>
+			<div class="mt-2 text-xs text-blue-700">{Math.round(loadingPercent)}%</div>
+		</div>
 	{:else if error}
 		<div class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
 			Error: {error}
