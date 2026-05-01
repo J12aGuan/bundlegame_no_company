@@ -27,6 +27,7 @@ firestore-debug*.log
 
 # IDE, OS, and local history folders
 .DS_Store
+__MACOSX/
 .history/
 .claude/
 .sixth/
