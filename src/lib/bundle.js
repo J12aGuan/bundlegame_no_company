@@ -2077,6 +2077,13 @@ export const saveScenarioProgress = (progress) => {
 			duration: Math.max(0, Number(progress?.duration) || 0),
 			earnings: Math.max(0, Number(progress?.earnings) || 0),
 			reward: Number(progress?.reward) || 0,
+			score_ratio_to_best: progress?.scoreRatioToBest ?? null,
+			percent_regret: progress?.percentRegret ?? null,
+			regret: progress?.percentRegret ?? null,
+			exact_optimal: progress?.isExactOptimal ?? null,
+			is_exact_optimal: progress?.isExactOptimal ?? null,
+			near_optimal: progress?.isNearOptimal ?? null,
+			is_near_optimal: progress?.isNearOptimal ?? null,
 			trust_rating: Number(progress?.trustRating) || 0,
 			usefulness_rating: Number(progress?.usefulnessRating) || 0,
 			workload_rating: Number(progress?.workloadRating) || 0,
@@ -2119,7 +2126,10 @@ export const saveScenarioProgress = (progress) => {
 				chosen_orders: chosenOrders,
 				score_ratio_to_best: progress?.scoreRatioToBest ?? null,
 				percent_regret: progress?.percentRegret ?? null,
+				regret: progress?.percentRegret ?? null,
+				exact_optimal: progress?.isExactOptimal ?? null,
 				is_exact_optimal: progress?.isExactOptimal ?? null,
+				near_optimal: progress?.isNearOptimal ?? null,
 				is_near_optimal: progress?.isNearOptimal ?? null
 			}),
 			state_snapshot: removeUndefinedDeep({
@@ -2155,7 +2165,10 @@ export const saveScenarioProgress = (progress) => {
 				reward: Number(progress?.reward) || 0,
 				score_ratio_to_best: progress?.scoreRatioToBest ?? null,
 				percent_regret: progress?.percentRegret ?? null,
+				regret: progress?.percentRegret ?? null,
+				exact_optimal: progress?.isExactOptimal ?? null,
 				is_exact_optimal: progress?.isExactOptimal ?? null,
+				near_optimal: progress?.isNearOptimal ?? null,
 				is_near_optimal: progress?.isNearOptimal ?? null
 			})
 		});

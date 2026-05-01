@@ -1,6 +1,6 @@
 <script>
     import { onMount } from 'svelte';
-    import { retrieveData, getActiveLiveSession, listQualtricsResponses, listQualtricsSyncRuns, importQualtricsResponses } from '$lib/firebaseDB.js';
+    import { retrieveData, getActiveLiveSession, listQualtricsResponses, listQualtricsSyncRuns, importQualtricsResponses, getCentralConfig, getScenarioDatasetBundle } from '$lib/firebaseDB.js';
     import { generateAuthToken } from '$lib/authToken.js';
     import { deriveUserRunMetrics } from '$lib/userRunMetrics.js';
     import { buildAdminScoreSheet, getAdminScoreClassAverageExportRows, getAdminScoreExportRows } from '$lib/adminScores.js';
@@ -22,6 +22,7 @@
     let users = [];
     let qualtricsResponses = [];
     let qualtricsSyncRuns = [];
+    let scenarioBundle = null;
     let csvImporting = false;
     let csvImportMessage = '';
     let csvImportTone = 'text-slate-600';
@@ -32,7 +33,7 @@
         copyMessage = '';
         copyMessageTone = 'text-slate-600';
     }
-    $: scoreSheet = buildAdminScoreSheet(users, qualtricsResponses);
+    $: scoreSheet = buildAdminScoreSheet(users, qualtricsResponses, { scenarioBundle });
     $: scoreRows = scoreSheet.rows;
     $: scoreStats = scoreSheet.stats;
     $: classAverages = scoreSheet.classAverages || {};
@@ -41,12 +42,14 @@
     
     onMount(async () => {
         try {
-            const [data, liveSession, syncedResponses, syncRuns] = await Promise.all([
+            const [data, liveSession, syncedResponses, syncRuns, centralConfig] = await Promise.all([
                 retrieveData(),
                 getActiveLiveSession(),
                 listQualtricsResponses(),
-                listQualtricsSyncRuns()
+                listQualtricsSyncRuns(),
+                getCentralConfig()
             ]);
+            scenarioBundle = await getScenarioDatasetBundle(String(centralConfig?.scenario_set || 'mainGame').trim() || 'mainGame');
             users = data;
             qualtricsResponses = syncedResponses;
             qualtricsSyncRuns = syncRuns;

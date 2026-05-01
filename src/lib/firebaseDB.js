@@ -397,19 +397,90 @@ function buildRoundSummaryActionId(scenarioSetVersionId = '', roundIndex = 0) {
     return `${version || 'dataset'}__round_${round}`;
 }
 
+function optionalNumber(...values) {
+    for (const value of values) {
+        if (value === undefined || value === null || value === '') continue;
+        const numeric = Number(value);
+        if (Number.isFinite(numeric)) return numeric;
+    }
+    return undefined;
+}
+
+function optionalBoolean(...values) {
+    for (const value of values) {
+        if (value === true || value === false) return value;
+        const normalized = String(value ?? '').trim().toLowerCase();
+        if (['true', '1', 'yes', 'y'].includes(normalized)) return true;
+        if (['false', '0', 'no', 'n'].includes(normalized)) return false;
+    }
+    return undefined;
+}
+
+function withCanonicalOutcomeAliases(value = {}) {
+    if (!value || typeof value !== 'object') return value;
+    const scoreRatio = optionalNumber(value.score_ratio_to_best, value.scoreRatioToBest);
+    const regret = optionalNumber(value.regret, value.percent_regret, value.percentRegret);
+    const exactOptimal = optionalBoolean(value.exact_optimal, value.is_exact_optimal, value.isExactOptimal);
+    const nearOptimal = optionalBoolean(value.near_optimal, value.is_near_optimal, value.isNearOptimal);
+    return removeUndefinedDeep({
+        ...value,
+        score_ratio_to_best: scoreRatio,
+        percent_regret: regret,
+        regret,
+        exact_optimal: exactOptimal,
+        is_exact_optimal: exactOptimal,
+        near_optimal: nearOptimal,
+        is_near_optimal: nearOptimal
+    });
+}
+
 function normalizeRoundSummaryAction(existing = {}, payload = {}) {
     const stateSnapshot = payload?.state_snapshot && typeof payload.state_snapshot === 'object'
         ? removeUndefinedDeep(payload.state_snapshot)
         : undefined;
     const outcomeSnapshot = payload?.outcome_snapshot && typeof payload.outcome_snapshot === 'object'
-        ? removeUndefinedDeep(payload.outcome_snapshot)
+        ? withCanonicalOutcomeAliases(payload.outcome_snapshot)
         : undefined;
     const preState = payload?.pre_state && typeof payload.pre_state === 'object'
         ? removeUndefinedDeep(payload.pre_state)
         : undefined;
     const postState = payload?.post_state && typeof payload.post_state === 'object'
-        ? removeUndefinedDeep(payload.post_state)
+        ? withCanonicalOutcomeAliases(payload.post_state)
         : undefined;
+    const scoreRatio = optionalNumber(
+        payload?.score_ratio_to_best,
+        payload?.scoreRatioToBest,
+        outcomeSnapshot?.score_ratio_to_best,
+        postState?.score_ratio_to_best,
+        existing?.score_ratio_to_best
+    );
+    const regret = optionalNumber(
+        payload?.regret,
+        payload?.percent_regret,
+        payload?.percentRegret,
+        outcomeSnapshot?.regret,
+        postState?.regret,
+        existing?.regret,
+        existing?.percent_regret
+    );
+    const exactOptimal = optionalBoolean(
+        payload?.exact_optimal,
+        payload?.is_exact_optimal,
+        payload?.isExactOptimal,
+        outcomeSnapshot?.exact_optimal,
+        postState?.exact_optimal,
+        existing?.exact_optimal,
+        existing?.is_exact_optimal
+    );
+    const nearOptimal = optionalBoolean(
+        payload?.near_optimal,
+        payload?.is_near_optimal,
+        payload?.isNearOptimal,
+        outcomeSnapshot?.near_optimal,
+        postState?.near_optimal,
+        existing?.near_optimal,
+        existing?.is_near_optimal
+    );
     return removeUndefinedDeep({
         type: 'round_summary',
         scenarioSetVersionId: String(payload?.scenarioSetVersionId ?? existing?.scenarioSetVersionId ?? '').trim(),
@@ -442,6 +513,13 @@ function normalizeRoundSummaryAction(existing = {}, payload = {}) {
         duration: Math.max(0, Number(payload?.duration ?? existing?.duration) || 0),
         earnings: Math.max(0, Number(payload?.earnings ?? existing?.earnings) || 0),
         reward: Number(payload?.reward ?? existing?.reward) || 0,
+        score_ratio_to_best: scoreRatio,
+        percent_regret: regret,
+        regret,
+        exact_optimal: exactOptimal,
+        is_exact_optimal: exactOptimal,
+        near_optimal: nearOptimal,
+        is_near_optimal: nearOptimal,
         trust_rating: Number(payload?.trust_rating ?? existing?.trust_rating) || 0,
         usefulness_rating: Number(payload?.usefulness_rating ?? existing?.usefulness_rating) || 0,
         workload_rating: Number(payload?.workload_rating ?? existing?.workload_rating) || 0,

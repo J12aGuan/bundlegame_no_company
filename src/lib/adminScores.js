@@ -6,6 +6,7 @@ export const RESEARCH_EXPORT_SCHEMA_VERSION = 'bundlegame_research_export_v1';
 export const FIXED_SCORE_ROUND_COUNT = BUNDLEGAME_STUDY_TOTAL_ROUNDS;
 export const ROUND_SCORE_STATUSES = {
 	VALID: 'valid',
+	INFERRED_LEGACY_EARNINGS_RATIO: 'inferred_legacy_earnings_ratio',
 	NOT_PLAYED: 'not_played',
 	PLAYED_INVALID: 'played_invalid',
 	EXPORT_MISSING: 'export_missing'
@@ -50,10 +51,13 @@ const PARTICIPANT_SUMMARY_PUBLICATION_COLUMNS = [
 const PER_ROUND_DECISION_BASE_COLUMNS = [
 	'schema_version',
 	'export_mode',
+	'decision_source',
 	'scenario_set_version_id',
 	'round_index',
 	'phase',
+	'phase_source',
 	'policy_arm',
+	'policy_arm_source',
 	'study_protocol_id',
 	'policy_name',
 	'policy_version',
@@ -74,12 +78,15 @@ const PER_ROUND_DECISION_BASE_COLUMNS = [
 	'earnings',
 	'reward',
 	'score_ratio_to_best',
+	'score_ratio_basis',
 	'participant_score',
 	'best_score',
 	'regret',
+	'regret_basis',
 	'exact_optimal',
 	'near_optimal',
 	'decision_timestamp',
+	'timestamp_source',
 	'timestamp_available',
 	'missing_required_fields_json'
 ];
@@ -197,6 +204,9 @@ const PUBLICATION_FORBIDDEN_COLUMNS = new Set([
 ]);
 
 const PUBLICATION_REQUIRED_DECISION_COLUMNS = [
+	'score_ratio_to_best',
+	'regret',
+	'round_index',
 	'phase',
 	'policy_arm',
 	'scenario_id',
@@ -204,7 +214,8 @@ const PUBLICATION_REQUIRED_DECISION_COLUMNS = [
 	'chosen_orders_json',
 	'best_bundle_ids_json',
 	'reward',
-	'legal_action_mask_version'
+	'legal_action_mask_version',
+	'decision_timestamp'
 ];
 
 function clamp01(value) {
@@ -266,6 +277,12 @@ function normalizeBoolean(value) {
 	return Boolean(value);
 }
 
+function isBlank(value) {
+	if (value === undefined || value === null) return true;
+	if (typeof value === 'string') return value.trim() === '';
+	return false;
+}
+
 function getNestedValue(source = {}, paths = []) {
 	for (const path of paths) {
 		const value = path.split('.').reduce((current, key) => current?.[key], source);
@@ -277,6 +294,7 @@ function getNestedValue(source = {}, paths = []) {
 function getNestedNumber(source = {}, paths = []) {
 	for (const path of paths) {
 		const value = path.split('.').reduce((current, key) => current?.[key], source);
+		if (value === undefined || value === null || value === '') continue;
 		const numeric = Number(value);
 		if (Number.isFinite(numeric)) return numeric;
 	}
@@ -306,55 +324,406 @@ function normalizeRankedBundleRows(value) {
 		.filter((entry) => entry.length > 0);
 }
 
-function getRoundScoreRows(user = {}) {
-	const roundSummaries = Array.isArray(user.actions)
-		? user.actions
-			.filter((entry) => String(entry?.type || '').trim() === 'round_summary')
-			.map((entry) => {
-				const roundIndex = Math.max(1, Number(entry?.round_index) || 1);
-				const scoreRatio = getNestedNumber(entry, [
-					'outcome_snapshot.score_ratio_to_best',
-					'post_state.score_ratio_to_best',
-					'score_ratio_to_best',
-					'reward'
-				]);
-				const success = entry?.success !== false;
-				const hasValidScoreRatio = success && scoreRatio != null && Number.isFinite(Number(scoreRatio));
-				const participantScore = getNestedNumber(entry, [
-					'outcome_snapshot.participant_score',
-					'post_state.participant_score',
-					'participant_score'
-				]);
-				const bestScore = getNestedNumber(entry, [
-					'outcome_snapshot.best_score',
-					'post_state.best_score',
-					'best_score'
-				]);
-				return {
-					roundIndex,
-					scenarioId: String(entry?.scenario_id ?? '').trim(),
-					scoreRatio: hasValidScoreRatio ? clamp01(scoreRatio) : null,
-					participantScore,
-					bestScore,
-					success,
-					status: hasValidScoreRatio ? ROUND_SCORE_STATUSES.VALID : ROUND_SCORE_STATUSES.PLAYED_INVALID
-				};
-			})
-		: [];
+function normalizeBundleKey(ids = []) {
+	return normalizeIdArray(ids).sort().join('||');
+}
 
-	return roundSummaries
+function hasJsonArrayValues(value = '') {
+	if (Array.isArray(value)) return value.length > 0;
+	const normalized = normalizeString(value);
+	if (!normalized) return false;
+	try {
+		const parsed = JSON.parse(normalized);
+		if (!Array.isArray(parsed)) return false;
+		return parsed.length > 0;
+	} catch (_error) {
+		return false;
+	}
+}
+
+function resolveTextWithSource(source = {}, paths = []) {
+	for (const path of paths) {
+		const value = path.split('.').reduce((current, key) => current?.[key], source);
+		if (!isBlank(value)) {
+			return { value: normalizeString(value), source: path };
+		}
+	}
+	return { value: '', source: '' };
+}
+
+function resolveNumberWithSource(source = {}, paths = []) {
+	for (const path of paths) {
+		const value = path.split('.').reduce((current, key) => current?.[key], source);
+		if (value === undefined || value === null || value === '') continue;
+		const numeric = Number(value);
+		if (Number.isFinite(numeric)) {
+			return { value: numeric, source: path };
+		}
+	}
+	return { value: null, source: '' };
+}
+
+function resolveBooleanWithSource(source = {}, paths = []) {
+	for (const path of paths) {
+		const value = path.split('.').reduce((current, key) => current?.[key], source);
+		if (value === true || value === false) return { value, source: path };
+		const normalized = normalizeString(value).toLowerCase();
+		if (['true', '1', 'yes', 'y'].includes(normalized)) return { value: true, source: path };
+		if (['false', '0', 'no', 'n'].includes(normalized)) return { value: false, source: path };
+	}
+	return { value: '', source: '' };
+}
+
+function resolveDateWithSource(source = {}, paths = []) {
+	for (const path of paths) {
+		const value = path.split('.').reduce((current, key) => current?.[key], source);
+		const normalized = normalizeDateLike(value);
+		if (normalized) return { value: normalized, source: path };
+	}
+	return { value: '', source: '' };
+}
+
+function getScenarioBundleIndexes(scenarioBundle = {}) {
+	const scenarios = Array.isArray(scenarioBundle?.scenarios) ? scenarioBundle.scenarios : [];
+	const orders = Array.isArray(scenarioBundle?.orders) ? scenarioBundle.orders : [];
+	const optimal = Array.isArray(scenarioBundle?.optimal) ? scenarioBundle.optimal : [];
+	const ordersById = new Map(orders.map((order) => [normalizeString(order?.id), order]).filter(([id]) => id));
+	const scenariosById = new Map(scenarios.map((scenario) => [
+		normalizeString(scenario?.scenario_id || scenario?.id),
+		scenario
+	]).filter(([id]) => id));
+	const optimalByScenarioId = new Map(optimal.map((entry) => [
+		normalizeString(entry?.scenario_id || entry?.id),
+		entry
+	]).filter(([id]) => id));
+	return {
+		ordersById,
+		scenariosById,
+		optimalByScenarioId,
+		metadata: scenarioBundle?.metadata && typeof scenarioBundle.metadata === 'object'
+			? scenarioBundle.metadata
+			: {}
+	};
+}
+
+function getScenarioCandidateBundles(scenario = {}, optimalEntry = {}) {
+	const candidates = [
+		scenario?.candidate_bundles,
+		scenario?.candidateBundles,
+		scenario?.candidates,
+		scenario?.legal_bundles,
+		scenario?.legalBundles,
+		optimalEntry?.candidate_bundles,
+		optimalEntry?.candidateBundles,
+		optimalEntry?.candidates,
+		optimalEntry?.legal_bundles,
+		optimalEntry?.legalBundles
+	].find((value) => Array.isArray(value));
+	return Array.isArray(candidates) ? candidates : [];
+}
+
+function getCandidateBundleIds(candidate = {}) {
+	if (Array.isArray(candidate)) return normalizeIdArray(candidate);
+	return normalizeIdArray(
+		candidate?.bundle_ids ||
+		candidate?.order_ids ||
+		candidate?.orders ||
+		candidate?.ids ||
+		candidate?.bundle ||
+		[]
+	);
+}
+
+function sumOrderEarnings(orderIds = [], ordersById = new Map()) {
+	return normalizeIdArray(orderIds).reduce((sum, orderId) => {
+		const order = ordersById.get(orderId) || {};
+		return sum + Math.max(0, Number(order?.earnings) || 0);
+	}, 0);
+}
+
+function inferRoundIndexFromScenarioId(scenarioId = '') {
+	const match = normalizeString(scenarioId).match(/(?:scenario|round)[_-]?(\d+)$/i);
+	return match ? Math.max(1, Number(match[1]) || 1) : 1;
+}
+
+function inferLegacyDecisionMetrics({
+	scenarioId = '',
+	chosenOrders = [],
+	scenarioBundleIndexes = null
+} = {}) {
+	if (!scenarioBundleIndexes) return {};
+	const scenario = scenarioBundleIndexes.scenariosById.get(scenarioId) || {};
+	const optimal = scenarioBundleIndexes.optimalByScenarioId.get(scenarioId) || {};
+	const bestBundleIds = normalizeIdArray(
+		optimal?.best_bundle_ids ||
+		optimal?.bestBundleIds ||
+		scenario?.best_bundle_ids ||
+		scenario?.bestBundleIds ||
+		[]
+	);
+	const scenarioOrderIds = normalizeIdArray(
+		scenario?.order_ids ||
+		scenario?.orderIds ||
+		optimal?.scenario_order_ids ||
+		[]
+	);
+	const chosenKey = normalizeBundleKey(chosenOrders);
+	const candidate = getScenarioCandidateBundles(scenario, optimal)
+		.find((entry) => normalizeBundleKey(getCandidateBundleIds(entry)) === chosenKey) || null;
+	const candidateScoreRatio = candidate
+		? getNestedNumber(candidate, ['score_ratio_to_best', 'scoreRatioToBest', 'reward'])
+		: null;
+	const candidateRegret = candidate
+		? getNestedNumber(candidate, ['regret_to_best', 'percent_regret', 'percentRegret', 'regret'])
+		: null;
+	const chosenEarnings = candidate
+		? (getNestedNumber(candidate, ['earnings', 'reward_components.earnings']) ?? sumOrderEarnings(chosenOrders, scenarioBundleIndexes.ordersById))
+		: sumOrderEarnings(chosenOrders, scenarioBundleIndexes.ordersById);
+	const bestEarnings = sumOrderEarnings(bestBundleIds, scenarioBundleIndexes.ordersById);
+	const scoreRatio = candidateScoreRatio != null
+		? candidateScoreRatio
+		: (bestEarnings > 0 ? chosenEarnings / bestEarnings : null);
+	const regret = candidateRegret != null
+		? candidateRegret
+		: (scoreRatio != null ? 1 - clamp01(scoreRatio) : null);
+	const exactOptimal = bestBundleIds.length > 0 && chosenKey === normalizeBundleKey(bestBundleIds);
+	return {
+		round_index: Math.max(1, Number(scenario?.round || scenario?.round_index) || inferRoundIndexFromScenarioId(scenarioId)),
+		scenario_order_ids: scenarioOrderIds,
+		best_bundle_ids: bestBundleIds,
+		earnings: chosenEarnings,
+		participant_score: chosenEarnings,
+		best_score: bestEarnings || null,
+		score_ratio_to_best: scoreRatio == null ? null : clamp01(scoreRatio),
+		score_ratio_basis: candidateScoreRatio != null ? 'candidate_bundle_metadata' : 'inferred_legacy_earnings_ratio',
+		regret: regret == null ? null : Math.max(0, Number(regret)),
+		percent_regret: regret == null ? null : Math.max(0, Number(regret)),
+		regret_basis: candidateRegret != null ? 'candidate_bundle_metadata' : 'inferred_from_score_ratio',
+		exact_optimal: exactOptimal,
+		is_exact_optimal: exactOptimal,
+		near_optimal: scoreRatio != null ? clamp01(scoreRatio) >= 0.9 : '',
+		is_near_optimal: scoreRatio != null ? clamp01(scoreRatio) >= 0.9 : ''
+	};
+}
+
+function getDecisionScoreRatioInfo(action = {}) {
+	const resolved = resolveNumberWithSource(action, [
+		'outcome_snapshot.score_ratio_to_best',
+		'post_state.score_ratio_to_best',
+		'score_ratio_to_best',
+		'reward'
+	]);
+	return {
+		value: resolved.value == null ? null : clamp01(resolved.value),
+		basis: normalizeString(action.score_ratio_basis) || resolved.source || ''
+	};
+}
+
+function getDecisionRegretInfo(action = {}) {
+	const resolved = resolveNumberWithSource(action, [
+		'outcome_snapshot.regret',
+		'post_state.regret',
+		'regret',
+		'outcome_snapshot.percent_regret',
+		'post_state.percent_regret',
+		'percent_regret'
+	]);
+	return {
+		value: resolved.value == null ? null : Math.max(0, Number(resolved.value)),
+		basis: normalizeString(action.regret_basis) || resolved.source || ''
+	};
+}
+
+function getDecisionTimestampInfo(action = {}) {
+	return resolveDateWithSource(action, [
+		'decision_timestamp',
+		'decisionTimestamp',
+		'updatedAt',
+		'createdAt',
+		'timestamp'
+	]);
+}
+
+function getDecisionPhaseInfo(action = {}) {
+	return resolveTextWithSource(action, [
+		'phase',
+		'pre_state.phase',
+		'state_snapshot.phase'
+	]);
+}
+
+function getDecisionPolicyArmInfo(action = {}) {
+	return resolveTextWithSource(action, [
+		'policy_arm',
+		'pre_state.policy_arm',
+		'state_snapshot.policy_arm'
+	]);
+}
+
+function getDecisionExactOptimal(action = {}) {
+	return resolveBooleanWithSource(action, [
+		'outcome_snapshot.exact_optimal',
+		'post_state.exact_optimal',
+		'exact_optimal',
+		'outcome_snapshot.is_exact_optimal',
+		'post_state.is_exact_optimal',
+		'is_exact_optimal'
+	]).value;
+}
+
+function getDecisionNearOptimal(action = {}) {
+	return resolveBooleanWithSource(action, [
+		'outcome_snapshot.near_optimal',
+		'post_state.near_optimal',
+		'near_optimal',
+		'outcome_snapshot.is_near_optimal',
+		'post_state.is_near_optimal',
+		'is_near_optimal'
+	]).value;
+}
+
+function normalizeModernRoundDecision(entry = {}) {
+	const scoreRatio = getDecisionScoreRatioInfo(entry);
+	const regret = getDecisionRegretInfo(entry);
+	return {
+		...entry,
+		decision_source: normalizeString(entry.decision_source) || 'round_summary',
+		score_ratio_basis: normalizeString(entry.score_ratio_basis) || scoreRatio.basis || 'logged_round_summary',
+		regret_basis: normalizeString(entry.regret_basis) || regret.basis || (regret.value == null ? '' : 'logged_round_summary'),
+		regret: getNestedNumber(entry, ['regret']) ?? regret.value,
+		percent_regret: getNestedNumber(entry, ['percent_regret']) ?? regret.value,
+		exact_optimal: getDecisionExactOptimal(entry),
+		near_optimal: getDecisionNearOptimal(entry)
+	};
+}
+
+function buildLegacyRoundDecision({
+	user = {},
+	version = {},
+	scenarioId = '',
+	action = {},
+	context = {}
+} = {}) {
+	const scenarioBundleIndexes = context.scenarioBundleIndexes || null;
+	const chosenOrders = normalizeIdArray(action?.orderSummary || action?.chosen_orders || action?.chosenOrders || []);
+	const inferred = inferLegacyDecisionMetrics({
+		scenarioId,
+		chosenOrders,
+		scenarioBundleIndexes
+	});
+	const roundIndex = Math.max(1, Number(action?.round_index || inferred.round_index) || 1);
+	const versionId = normalizeString(version.versionId || context.scenarioBundleIndexes?.metadata?.scenarioSetVersionId);
+	return {
+		id: `${versionId || 'dataset'}__legacy_round_${roundIndex}__${scenarioId || 'scenario'}`,
+		type: 'round_summary',
+		decision_source: 'action_summary',
+		scenarioSetVersionId: versionId,
+		round_index: roundIndex,
+		scenario_id: scenarioId,
+		phase: normalizeString(action?.phase),
+		policy_arm: normalizeString(action?.policy_arm),
+		policy_name: normalizeString(action?.policy_name),
+		policy_version: normalizeString(action?.policy_version),
+		dataset_snapshot_id: normalizeString(action?.dataset_snapshot_id),
+		legal_action_mask_version: normalizeString(action?.legal_action_mask_version),
+		recommendation_source: normalizeString(action?.recommendation_source),
+		recommendation_quality: normalizeString(action?.recommendation_quality),
+		chosen_orders: chosenOrders,
+		shown_recommendation_bundle_ids: normalizeIdArray(action?.shown_recommendation_bundle_ids),
+		shown_ranked_bundles: normalizeRankedBundleRows(action?.shown_ranked_bundles),
+		success: chosenOrders.length > 0,
+		duration: toNumber(action?.totalTimeSeconds, 0),
+		time_summary: action?.timeSummary || {},
+		...inferred
+	};
+}
+
+function getRoundDecisionActionsForUser(user = {}, context = {}) {
+	const modernActions = (Array.isArray(user.actions) ? user.actions : [])
+		.filter((entry) => normalizeString(entry?.type) === 'round_summary')
+		.map((entry) => normalizeModernRoundDecision(entry));
+	const seen = new Set(
+		modernActions.map((entry) => {
+			const round = Math.max(1, Number(entry?.round_index) || 1);
+			const scenario = normalizeString(entry?.scenario_id);
+			return `${round}::${scenario}`;
+		})
+	);
+	const legacyActions = [];
+	for (const version of getParticipantVersions(user)) {
+		for (const [scenarioId, action] of Object.entries(getScenarioActions(version.actionSummary))) {
+			const legacy = buildLegacyRoundDecision({ user, version, scenarioId, action, context });
+			const key = `${Math.max(1, Number(legacy?.round_index) || 1)}::${normalizeString(legacy?.scenario_id)}`;
+			if (!seen.has(key)) {
+				legacyActions.push(legacy);
+				seen.add(key);
+			}
+		}
+	}
+	return [...modernActions, ...legacyActions]
+		.filter((row) => Math.max(1, Number(row?.round_index) || 0) >= 1)
+		.sort((left, right) => {
+			const versionCompare = normalizeString(left.scenarioSetVersionId).localeCompare(normalizeString(right.scenarioSetVersionId));
+			if (versionCompare !== 0) return versionCompare;
+			return toNumber(left.round_index, 0) - toNumber(right.round_index, 0);
+		});
+}
+
+function isUsableRoundScoreStatus(status = '') {
+	return [
+		ROUND_SCORE_STATUSES.VALID,
+		ROUND_SCORE_STATUSES.INFERRED_LEGACY_EARNINGS_RATIO
+	].includes(status);
+}
+
+function getRoundScoreRows(user = {}, context = {}) {
+	return getRoundDecisionActionsForUser(user, context)
+		.map((entry) => {
+			const roundIndex = Math.max(1, Number(entry?.round_index) || 1);
+			const scoreRatio = getDecisionScoreRatioInfo(entry);
+			const success = entry?.success !== false;
+			const hasValidScoreRatio = success && scoreRatio.value != null && Number.isFinite(Number(scoreRatio.value));
+			const participantScore = getNestedNumber(entry, [
+				'outcome_snapshot.participant_score',
+				'post_state.participant_score',
+				'participant_score'
+			]);
+			const bestScore = getNestedNumber(entry, [
+				'outcome_snapshot.best_score',
+				'post_state.best_score',
+				'best_score'
+			]);
+			return {
+				roundIndex,
+				scenarioId: normalizeString(entry?.scenario_id),
+				scoreRatio: hasValidScoreRatio ? clamp01(scoreRatio.value) : null,
+				scoreRatioBasis: scoreRatio.basis,
+				decisionSource: normalizeString(entry?.decision_source),
+				participantScore,
+				bestScore,
+				success,
+				status: hasValidScoreRatio
+					? (scoreRatio.basis === 'inferred_legacy_earnings_ratio'
+						? ROUND_SCORE_STATUSES.INFERRED_LEGACY_EARNINGS_RATIO
+						: ROUND_SCORE_STATUSES.VALID)
+					: ROUND_SCORE_STATUSES.PLAYED_INVALID
+			};
+		})
 		.filter((row) => row.roundIndex >= 1 && row.roundIndex <= FIXED_SCORE_ROUND_COUNT)
 		.sort((left, right) => left.roundIndex - right.roundIndex);
 }
 
 function pickRoundScore(existing, next) {
 	if (!existing) return next;
-	if (existing.status !== ROUND_SCORE_STATUSES.VALID && next.status === ROUND_SCORE_STATUSES.VALID) {
-		return next;
-	}
-	if (existing.status === ROUND_SCORE_STATUSES.VALID && next.status !== ROUND_SCORE_STATUSES.VALID) {
-		return existing;
-	}
+	const rank = (row) => {
+		if (row?.status === ROUND_SCORE_STATUSES.VALID) return 3;
+		if (row?.status === ROUND_SCORE_STATUSES.INFERRED_LEGACY_EARNINGS_RATIO) return 2;
+		if (row?.status === ROUND_SCORE_STATUSES.PLAYED_INVALID) return 1;
+		return 0;
+	};
+	const existingRank = rank(existing);
+	const nextRank = rank(next);
+	if (nextRank !== existingRank) return nextRank > existingRank ? next : existing;
 	return next;
 }
 
@@ -374,7 +743,9 @@ function buildFixedRoundScoreGrid(roundScores = [], roundsCompleted = 0) {
 			return {
 				roundIndex,
 				scenarioId: row.scenarioId || '',
-				scoreRatio: row.status === ROUND_SCORE_STATUSES.VALID ? row.scoreRatio : null,
+				scoreRatio: isUsableRoundScoreStatus(row.status) ? row.scoreRatio : null,
+				scoreRatioBasis: row.scoreRatioBasis || '',
+				decisionSource: row.decisionSource || '',
 				participantScore: row.participantScore ?? null,
 				bestScore: row.bestScore ?? null,
 				success: row.success,
@@ -398,6 +769,7 @@ function buildFixedRoundScoreGrid(roundScores = [], roundsCompleted = 0) {
 function summarizeRoundScoreStatuses(roundScores = []) {
 	const counts = {
 		valid: 0,
+		inferred_legacy_earnings_ratio: 0,
 		played_invalid: 0,
 		export_missing: 0,
 		not_played: 0
@@ -419,6 +791,21 @@ function getQualtricsStudentName(response = {}) {
 		`${rawFields.RecipientFirstName || ''} ${rawFields.RecipientLastName || ''}`
 	]
 		.map((value) => String(value ?? '').trim())
+		.find(Boolean) || '';
+}
+
+function getQualtricsSaveStatus(response = {}) {
+	const rawFields = response?.raw_fields && typeof response.raw_fields === 'object' ? response.raw_fields : {};
+	return [
+		response?.save_status,
+		response?.bundleGameSaveStatus,
+		rawFields.bundleGameSaveStatus,
+		rawFields['Bundle Game Save Status'],
+		rawFields.bundle_game_save_status,
+		rawFields.saveStatus,
+		rawFields['Save Status']
+	]
+		.map((value) => normalizeString(value))
 		.find(Boolean) || '';
 }
 
@@ -582,7 +969,11 @@ function buildClassAverages(rows = [], stats = {}) {
 	};
 }
 
-export function buildAdminScoreSheet(users = [], qualtricsResponses = []) {
+export function buildAdminScoreSheet(users = [], qualtricsResponses = [], options = {}) {
+	const context = {
+		...options,
+		scenarioBundleIndexes: getScenarioBundleIndexes(options.scenarioBundle || options.scenarioDataset || {})
+	};
 	const { byMatch: qualtricsByMatch, byUser: qualtricsByUser } = getLatestQualtricsIndexes(qualtricsResponses);
 	const completedUserCandidates = getCompletedUserCandidates(users);
 	const missingQualtrics = [];
@@ -603,16 +994,25 @@ export function buildAdminScoreSheet(users = [], qualtricsResponses = []) {
 			continue;
 		}
 
-		const observedRoundScores = getRoundScoreRows(user);
+		const observedRoundScores = getRoundScoreRows(user, context);
 		const observedRoundCount = Math.max(0, ...observedRoundScores.map((row) => row.roundIndex));
 		const roundsCompleted = Math.max(toNumber(metrics.roundsCompleted, 0), observedRoundCount);
 		const roundScores = buildFixedRoundScoreGrid(observedRoundScores, roundsCompleted);
 		const roundScoreStatusCounts = summarizeRoundScoreStatuses(roundScores);
 		const ratioValues = roundScores
-			.filter((row) => row.status === ROUND_SCORE_STATUSES.VALID)
+			.filter((row) => isUsableRoundScoreStatus(row.status))
 			.map((row) => row.scoreRatio)
 			.filter((value) => value != null);
 		const averageScoreRatio = ratioValues.length > 0 ? clamp01(mean(ratioValues)) : null;
+		const inferredCount = roundScoreStatusCounts.inferred_legacy_earnings_ratio;
+		const loggedCount = roundScoreStatusCounts.valid;
+		const averageScoreRatioStatus = ratioValues.length === 0
+			? 'no_valid_round_scores'
+			: (inferredCount > 0 && loggedCount > 0)
+				? 'computed_from_mixed_logged_and_inferred_round_scores'
+				: inferredCount > 0
+					? 'computed_from_inferred_legacy_earnings_ratio'
+					: 'computed_from_valid_round_scores';
 		const optimalRate = roundsCompleted > 0 ? clamp01(toNumber(metrics.optimalChoices, 0) / roundsCompleted) : 0;
 		const averageSecondsPerRound = roundsCompleted > 0
 			? Math.max(0, toNumber(metrics.totalGameTime, 0) / roundsCompleted)
@@ -628,7 +1028,7 @@ export function buildAdminScoreSheet(users = [], qualtricsResponses = []) {
 			qualtricsResponseId: qualtrics.response_id || qualtrics.id,
 			qualtricsUserId: qualtrics.user_id || '',
 			qualtricsRecordedAt: qualtrics.recorded_at || '',
-			qualtricsSaveStatus: qualtrics.save_status || '',
+			qualtricsSaveStatus: getQualtricsSaveStatus(qualtrics),
 			qualtricsFinishedId: qualtrics.finished_id || qualtrics.raw_fields?.finishedid || '',
 			qualtricsMatchMethod: qualtrics.match_key && qualtrics.match_key === matchKey ? 'result_code' : 'user_id',
 			completionDate: metrics.completionDate,
@@ -639,8 +1039,9 @@ export function buildAdminScoreSheet(users = [], qualtricsResponses = []) {
 			optimalChoices: toNumber(metrics.optimalChoices, 0),
 			optimalRate,
 			averageScoreRatio,
-			averageScoreRatioStatus: ratioValues.length > 0 ? 'computed_from_valid_round_scores' : 'no_valid_round_scores',
+			averageScoreRatioStatus,
 			validScoreRatioRoundCount: roundScoreStatusCounts.valid,
+			inferredLegacyScoreRatioRoundCount: roundScoreStatusCounts.inferred_legacy_earnings_ratio,
 			playedInvalidRoundCount: roundScoreStatusCounts.played_invalid,
 			exportMissingRoundCount: roundScoreStatusCounts.export_missing,
 			notPlayedRoundCount: roundScoreStatusCounts.not_played,
@@ -752,18 +1153,50 @@ function getDecisionReward(action = {}) {
 		'reward',
 		'outcome_snapshot.reward',
 		'post_state.reward',
+		'score_ratio_to_best',
 		'outcome_snapshot.score_ratio_to_best',
 		'post_state.score_ratio_to_best'
 	]);
 }
 
+function isRequiredDecisionValueMissing(column = '', value) {
+	if ([
+		'chosen_orders_json',
+		'best_bundle_ids_json',
+		'shown_recommendation_bundle_ids_json',
+		'shown_ranked_bundles_json'
+	].includes(column)) {
+		return !hasJsonArrayValues(value);
+	}
+	return isBlank(value);
+}
+
+function decisionShouldHaveShownRecommendation(row = {}) {
+	if (hasJsonArrayValues(row?.shown_recommendation_bundle_ids_json) || hasJsonArrayValues(row?.shown_ranked_bundles_json)) {
+		return true;
+	}
+	const source = normalizeString(row?.recommendation_source).toLowerCase();
+	if (!source) return false;
+	return ![
+		'none',
+		'no_recommendation',
+		'no_recommendations',
+		'not_shown',
+		'control',
+		'off'
+	].includes(source);
+}
+
 function buildMissingRequiredDecisionFields(row = {}) {
-	return PUBLICATION_REQUIRED_DECISION_COLUMNS.filter((column) => {
-		const value = row?.[column];
-		if (value === undefined || value === null) return true;
-		if (typeof value === 'string') return value.trim() === '';
-		return false;
-	});
+	const missing = PUBLICATION_REQUIRED_DECISION_COLUMNS.filter((column) => isRequiredDecisionValueMissing(column, row?.[column]));
+	if (
+		decisionShouldHaveShownRecommendation(row)
+		&& !hasJsonArrayValues(row?.shown_recommendation_bundle_ids_json)
+		&& !hasJsonArrayValues(row?.shown_ranked_bundles_json)
+	) {
+		missing.push('shown_recommendation_bundle_or_ranking');
+	}
+	return missing;
 }
 
 function getDecisionPublicationId(userId = '', action = {}, options = {}) {
@@ -775,7 +1208,7 @@ function getDecisionPublicationId(userId = '', action = {}, options = {}) {
 }
 
 function buildPerRoundDecisionRow(user = {}, action = {}, mode = 'raw_research_export', options = {}) {
-	const scoreRatio = getDecisionScoreRatio(action);
+	const scoreRatio = getDecisionScoreRatioInfo(action);
 	const participantScore = getNestedNumber(action, [
 		'outcome_snapshot.participant_score',
 		'post_state.participant_score',
@@ -786,19 +1219,20 @@ function buildPerRoundDecisionRow(user = {}, action = {}, mode = 'raw_research_e
 		'post_state.best_score',
 		'best_score'
 	]);
-	const regret = getNestedNumber(action, [
-		'outcome_snapshot.regret',
-		'post_state.regret',
-		'regret'
-	]);
-	const decisionTimestamp = normalizeDateLike(action.decision_timestamp || action.updatedAt || action.createdAt || action.timestamp);
+	const regret = getDecisionRegretInfo(action);
+	const phase = getDecisionPhaseInfo(action);
+	const policyArm = getDecisionPolicyArmInfo(action);
+	const decisionTimestamp = getDecisionTimestampInfo(action);
 	const row = {
 		schema_version: RESEARCH_EXPORT_SCHEMA_VERSION,
 		export_mode: mode,
+		decision_source: normalizeString(action.decision_source) || 'round_summary',
 		scenario_set_version_id: normalizeString(action.scenarioSetVersionId),
 		round_index: Math.max(1, Number(action.round_index) || 1),
-		phase: normalizeString(action.phase || action?.pre_state?.phase || action?.state_snapshot?.phase),
-		policy_arm: normalizeString(action.policy_arm || action?.pre_state?.policy_arm || action?.state_snapshot?.policy_arm),
+		phase: phase.value,
+		phase_source: phase.source,
+		policy_arm: policyArm.value,
+		policy_arm_source: policyArm.source,
 		study_protocol_id: normalizeString(action.study_protocol_id || action?.pre_state?.study_protocol_id || action?.state_snapshot?.study_protocol_id),
 		policy_name: normalizeString(action.policy_name || action?.pre_state?.policy_name || action?.state_snapshot?.policy_name),
 		policy_version: normalizeString(action.policy_version || action?.pre_state?.policy_version || action?.state_snapshot?.policy_version),
@@ -818,22 +1252,17 @@ function buildPerRoundDecisionRow(user = {}, action = {}, mode = 'raw_research_e
 		duration_seconds: toNumber(action.duration, 0),
 		earnings: toNumber(action.earnings, 0),
 		reward: getDecisionReward(action) ?? '',
-		score_ratio_to_best: scoreRatio,
+		score_ratio_to_best: scoreRatio.value ?? '',
+		score_ratio_basis: scoreRatio.basis,
 		participant_score: participantScore ?? '',
 		best_score: bestScore ?? '',
-		regret: regret ?? '',
-		exact_optimal: getNestedBoolean(action, [
-			'outcome_snapshot.exact_optimal',
-			'post_state.exact_optimal',
-			'exact_optimal'
-		]),
-		near_optimal: getNestedBoolean(action, [
-			'outcome_snapshot.near_optimal',
-			'post_state.near_optimal',
-			'near_optimal'
-		]),
-		decision_timestamp: decisionTimestamp,
-		timestamp_available: Boolean(decisionTimestamp)
+		regret: regret.value ?? '',
+		regret_basis: regret.basis,
+		exact_optimal: getDecisionExactOptimal(action),
+		near_optimal: getDecisionNearOptimal(action),
+		decision_timestamp: decisionTimestamp.value,
+		timestamp_source: decisionTimestamp.source,
+		timestamp_available: Boolean(decisionTimestamp.value)
 	};
 	row.missing_required_fields_json = jsonCell(buildMissingRequiredDecisionFields(row));
 
@@ -854,8 +1283,7 @@ function buildPerRoundDecisionRow(user = {}, action = {}, mode = 'raw_research_e
 }
 
 function getPerRoundDecisionRowsForUser(user = {}, mode = 'raw_research_export', options = {}) {
-	return (Array.isArray(user.actions) ? user.actions : [])
-		.filter((entry) => normalizeString(entry?.type) === 'round_summary')
+	return getRoundDecisionActionsForUser(user, options)
 		.map((entry) => buildPerRoundDecisionRow(user, entry, mode, options))
 		.sort((left, right) => {
 			const versionCompare = normalizeString(left.scenario_set_version_id).localeCompare(normalizeString(right.scenario_set_version_id));
@@ -979,7 +1407,7 @@ function buildSurveyLinkageRow(user = {}, mode = 'raw_research_export', options 
 		survey_duration_seconds: response?.duration_seconds ?? '',
 		survey_started_at: response?.started_at || '',
 		survey_recorded_at: response?.recorded_at || '',
-		survey_save_status: response?.save_status || '',
+		survey_save_status: getQualtricsSaveStatus(response || {}),
 		survey_source: response?.source || ''
 	};
 	if (mode === 'publication_export') {
@@ -1015,7 +1443,8 @@ export function buildResearchExport(users = [], qualtricsResponses = [], options
 	const context = {
 		...options,
 		mode,
-		qualtricsIndexes
+		qualtricsIndexes,
+		scenarioBundleIndexes: getScenarioBundleIndexes(options.scenarioBundle || options.scenarioDataset || {})
 	};
 	const participantRows = [];
 	const decisionRows = [];
@@ -1061,6 +1490,8 @@ export function validatePublicationExport(exportData = {}) {
 		return { ok: true, errors: [] };
 	}
 	const errors = [];
+	const missingCounts = new Map();
+	const missingExamples = [];
 	for (const [tableName, rows] of Object.entries(exportData.tables || {})) {
 		const columns = exportData.schemas?.[tableName] || [];
 		for (const column of columns) {
@@ -1074,6 +1505,19 @@ export function validatePublicationExport(exportData = {}) {
 					errors.push(`${tableName} row includes forbidden publication key: ${column}`);
 				}
 			}
+			if (tableName === 'per_round_decisions') {
+				const missing = buildMissingRequiredDecisionFields(row);
+				if (missing.length > 0) {
+					for (const field of missing) {
+						missingCounts.set(field, (missingCounts.get(field) || 0) + 1);
+					}
+					if (missingExamples.length < 20) {
+						missingExamples.push(
+							`${row?.decision_publication_id || 'decision'} missing ${missing.join(', ')}`
+						);
+					}
+				}
+			}
 		}
 	}
 	const decisionColumns = new Set(exportData.schemas?.per_round_decisions || []);
@@ -1081,6 +1525,14 @@ export function validatePublicationExport(exportData = {}) {
 		if (!decisionColumns.has(required)) {
 			errors.push(`publication per_round_decisions schema missing required column: ${required}`);
 		}
+	}
+	if (missingCounts.size > 0) {
+		const summary = [...missingCounts.entries()]
+			.sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+			.map(([field, count]) => `${field}: ${count}`)
+			.join(', ');
+		errors.push(`publication per_round_decisions missing required values (${summary})`);
+		errors.push(...missingExamples);
 	}
 	return {
 		ok: errors.length === 0,
@@ -1109,6 +1561,7 @@ export function getAdminScoreExportRows(scoreRows = [], maxRound = 0) {
 			average_score_ratio: row.averageScoreRatio,
 			average_score_ratio_status: row.averageScoreRatioStatus,
 			valid_score_ratio_round_count: row.validScoreRatioRoundCount,
+			inferred_legacy_score_ratio_round_count: row.inferredLegacyScoreRatioRoundCount,
 			played_invalid_round_count: row.playedInvalidRoundCount,
 			export_missing_round_count: row.exportMissingRoundCount,
 			not_played_round_count: row.notPlayedRoundCount,
@@ -1135,6 +1588,8 @@ export function getAdminScoreExportRows(scoreRows = [], maxRound = 0) {
 					? ROUND_SCORE_STATUSES.EXPORT_MISSING
 					: ROUND_SCORE_STATUSES.NOT_PLAYED
 			);
+			out[`round_${round}_score_ratio_basis`] = roundScore?.scoreRatioBasis || '';
+			out[`round_${round}_decision_source`] = roundScore?.decisionSource || '';
 		}
 		return out;
 	});

@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { collection, getDocs } from "firebase/firestore";
 
-import { closeDb, getDb, loadDotEnv, retrieveParticipants, repoRoot } from "./research-common.mjs";
+import { closeDb, getDb, getScenarioDatasetBundle, loadDotEnv, retrieveParticipants, repoRoot } from "./research-common.mjs";
 import {
   buildAdminScoreSheet,
   buildResearchExport,
@@ -18,6 +18,7 @@ function parseArgs(argv = []) {
     mode: "admin_scores",
     out: "",
     inputJson: "",
+    datasetRoot: "mainGame",
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -29,6 +30,9 @@ function parseArgs(argv = []) {
       index += 1;
     } else if (arg === "--input-json") {
       options.inputJson = String(argv[index + 1] || "").trim();
+      index += 1;
+    } else if (arg === "--dataset-root") {
+      options.datasetRoot = String(argv[index + 1] || "mainGame").trim() || "mainGame";
       index += 1;
     }
   }
@@ -70,14 +74,86 @@ function getClassAverageOutputPath(scoreOutputPath) {
   return path.join(parsed.dir, filename);
 }
 
+function getFieldAuditOutputPath(scoreOutputPath) {
+  const parsed = path.parse(scoreOutputPath);
+  return path.join(parsed.dir, `${parsed.name}-field-audit.md`);
+}
+
 async function listQualtricsResponses(db) {
   const snap = await getDocs(collection(db, "QualtricsResponses"));
   return snap.docs.map((docSnap) => normalizeQualtricsResponseDocument(docSnap.id, docSnap.data()));
 }
 
+function buildScoreFieldAuditNote({
+  scoreSheet,
+  rows,
+  users,
+  qualtricsResponses,
+  scenarioBundle,
+} = {}) {
+  const directLoggedRounds = rows.reduce(
+    (sum, row) => sum + Number(row.valid_score_ratio_round_count || 0),
+    0,
+  );
+  const inferredLegacyRounds = rows.reduce(
+    (sum, row) => sum + Number(row.inferred_legacy_score_ratio_round_count || 0),
+    0,
+  );
+  const exportMissingRounds = rows.reduce(
+    (sum, row) => sum + Number(row.export_missing_round_count || 0),
+    0,
+  );
+  const playedInvalidRounds = rows.reduce(
+    (sum, row) => sum + Number(row.played_invalid_round_count || 0),
+    0,
+  );
+  const qualtricsSaveStatusRows = rows.filter((row) =>
+    String(row.qualtrics_save_status || "").trim(),
+  ).length;
+  const publicationExport = buildResearchExport(users, qualtricsResponses, {
+    mode: "publication_export",
+    pseudonymSalt: process.env.PUBLICATION_PSEUDONYM_SALT || "audit_only",
+    scenarioBundle,
+  });
+  const publicationValidation = validatePublicationExport(publicationExport);
+  const blockerLines = publicationValidation.ok
+    ? ["- None from strict publication validation."]
+    : publicationValidation.errors.slice(0, 30).map((error) => `- ${error}`);
+
+  return [
+    "# BundleGame Score Field Audit",
+    "",
+    `Generated: ${new Date().toISOString()}`,
+    "",
+    "## Round Score Sources",
+    "",
+    `- Matched score rows: ${rows.length}`,
+    `- Direct logged score-ratio rounds: ${directLoggedRounds}`,
+    `- Inferred legacy earnings-ratio rounds: ${inferredLegacyRounds}`,
+    `- Played but invalid rounds: ${playedInvalidRounds}`,
+    `- Completed rounds still missing exportable score fields: ${exportMissingRounds}`,
+    "",
+    "## Qualtrics Linkage",
+    "",
+    `- Completed Qualtrics responses loaded: ${scoreSheet?.stats?.qualtricsResponseCount ?? 0}`,
+    `- Missing Qualtrics matches: ${scoreSheet?.stats?.missingQualtricsCount ?? 0}`,
+    `- Rows with Qualtrics save status populated: ${qualtricsSaveStatusRows}`,
+    "",
+    "## Publication Validation Blockers",
+    "",
+    ...blockerLines,
+    "",
+    "## Notes",
+    "",
+    "- Inferred legacy earnings-ratio rows are suitable for admin/QA and exploratory summaries, not unqualified paper claims.",
+    "- Existing Firestore documents were not rewritten by this export.",
+    "",
+  ].join("\n");
+}
+
 function normalizeInputPayload(payload = {}) {
   if (Array.isArray(payload)) {
-    return { users: payload, qualtricsResponses: [] };
+    return { users: payload, qualtricsResponses: [], scenarioBundle: null };
   }
   const users = Array.isArray(payload.users)
     ? payload.users
@@ -93,7 +169,8 @@ function normalizeInputPayload(payload = {}) {
         ? payload.qualtrics_responses
         : []
   ).map((row) => normalizeQualtricsResponseDocument(row?.id, row));
-  return { users, qualtricsResponses };
+  const scenarioBundle = payload.scenarioBundle || payload.scenario_bundle || payload.datasetBundle || null;
+  return { users, qualtricsResponses, scenarioBundle };
 }
 
 async function loadExportData(options = {}) {
@@ -104,11 +181,12 @@ async function loadExportData(options = {}) {
   }
 
   const db = await getDb();
-  const [users, qualtricsResponses] = await Promise.all([
+  const [users, qualtricsResponses, scenarioBundle] = await Promise.all([
     retrieveParticipants(db),
     listQualtricsResponses(db),
+    getScenarioDatasetBundle(db, options.datasetRoot || "mainGame"),
   ]);
-  return { users, qualtricsResponses };
+  return { users, qualtricsResponses, scenarioBundle };
 }
 
 async function writeResearchExport(exportData, outputDir) {
@@ -142,12 +220,13 @@ async function main() {
   await loadDotEnv();
   const options = parseArgs(process.argv.slice(2));
   const mode = normalizeMode(options.mode);
-  const { users, qualtricsResponses } = await loadExportData(options);
+  const { users, qualtricsResponses, scenarioBundle } = await loadExportData(options);
 
   if (mode === "raw_research_export" || mode === "publication_export") {
     const exportData = buildResearchExport(users, qualtricsResponses, {
       mode,
       pseudonymSalt: process.env.PUBLICATION_PSEUDONYM_SALT || "",
+      scenarioBundle,
     });
     if (mode === "publication_export") {
       const validation = validatePublicationExport(exportData);
@@ -167,7 +246,7 @@ async function main() {
     return;
   }
 
-  const scoreSheet = buildAdminScoreSheet(users, qualtricsResponses);
+  const scoreSheet = buildAdminScoreSheet(users, qualtricsResponses, { scenarioBundle });
   const rows = getAdminScoreExportRows(scoreSheet.rows, scoreSheet.maxRound);
   const averageRows = getAdminScoreClassAverageExportRows(scoreSheet.classAverages);
   const outputPath = path.resolve(
@@ -175,13 +254,26 @@ async function main() {
     options.out || `data analysis/bundlegame-scores-${new Date().toISOString().slice(0, 10)}.csv`,
   );
   const classAverageOutputPath = getClassAverageOutputPath(outputPath);
+  const fieldAuditOutputPath = getFieldAuditOutputPath(outputPath);
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, `${toCsv(rows)}\n`, "utf8");
   await fs.writeFile(classAverageOutputPath, `${toCsv(averageRows)}\n`, "utf8");
+  await fs.writeFile(
+    fieldAuditOutputPath,
+    buildScoreFieldAuditNote({
+      scoreSheet,
+      rows,
+      users,
+      qualtricsResponses,
+      scenarioBundle,
+    }),
+    "utf8",
+  );
 
   console.log(`Wrote ${rows.length} score rows to ${outputPath}`);
   console.log(`Wrote class averages to ${classAverageOutputPath}`);
+  console.log(`Wrote field audit note to ${fieldAuditOutputPath}`);
   console.log(`Completed game runs: ${scoreSheet.stats.completedGameCount}`);
   console.log(`Completed Qualtrics responses: ${scoreSheet.stats.qualtricsResponseCount}`);
   console.log(`Missing Qualtrics match: ${scoreSheet.stats.missingQualtricsCount}`);

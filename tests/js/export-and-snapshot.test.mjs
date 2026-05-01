@@ -9,7 +9,9 @@ import {
   FIXED_SCORE_ROUND_COUNT,
   ROUND_SCORE_STATUSES,
   buildAdminScoreSheet,
+  buildResearchExport,
   getAdminScoreExportRows,
+  validatePublicationExport,
 } from "../../src/lib/adminScores.js";
 import {
   BUNDLEGAME_STUDY_TOTAL_ROUNDS,
@@ -88,6 +90,29 @@ function makeQualtrics(userId) {
   };
 }
 
+function makeScenarioBundle() {
+  return {
+    scenarios: [
+      {
+        scenario_id: "scenario_1",
+        round: 1,
+        order_ids: ["o1", "o2"],
+      },
+    ],
+    orders: [
+      { id: "o1", earnings: 10 },
+      { id: "o2", earnings: 10 },
+    ],
+    optimal: [
+      {
+        scenario_id: "scenario_1",
+        best_bundle_ids: ["o1", "o2"],
+      },
+    ],
+    metadata: { scenarioSetVersionId: "mainGame" },
+  };
+}
+
 function getRow(exportRows, participantId) {
   const row = exportRows.find((entry) => entry.participant_id === participantId);
   assert.ok(row, `Expected export row for ${participantId}`);
@@ -160,6 +185,130 @@ test("admin score export has deterministic 50-round score columns and statuses",
   assert.equal(malformedRow.average_score_ratio_status, "no_valid_round_scores");
   assert.equal(malformedRow.round_1_score_ratio_status, ROUND_SCORE_STATUSES.EXPORT_MISSING);
   assert.equal(malformedRow.round_3_score_ratio_status, ROUND_SCORE_STATUSES.NOT_PLAYED);
+});
+
+test("admin score export infers legacy compact action score ratios and Qualtrics save status", () => {
+  const legacyUser = {
+    id: "legacy_user",
+    displayName: "Legacy User",
+    summaryDoc: makeSummary({
+      versionId: "mainGame",
+      resultAccessKey: "legacy_user_result_key",
+      roundsCompleted: 1,
+      totalRounds: 50,
+      earnings: 10,
+      optimalChoices: 0,
+    }),
+    scenarioActionsDoc: {
+      id: "actions",
+      actionsByScenarioSetVersionId: {
+        mainGame: {
+          actionsByScenarioId: {
+            scenario_1: {
+              orderSummary: ["o1"],
+              totalTimeSeconds: 42,
+              timeSummary: { thinkingTime: 2 },
+            },
+          },
+        },
+      },
+    },
+    actions: [],
+  };
+  const qualtrics = {
+    ...makeQualtrics("legacy_user"),
+    save_status: "",
+    raw_fields: { bundleGameSaveStatus: "saved_via_iframe" },
+  };
+
+  const scoreSheet = buildAdminScoreSheet([legacyUser], [qualtrics], {
+    scenarioBundle: makeScenarioBundle(),
+  });
+  const rows = getAdminScoreExportRows(scoreSheet.rows, scoreSheet.maxRound);
+  const row = getRow(rows, "legacy_user");
+
+  assert.equal(row.round_1_score_ratio, 0.5);
+  assert.equal(
+    row.round_1_score_ratio_status,
+    ROUND_SCORE_STATUSES.INFERRED_LEGACY_EARNINGS_RATIO,
+  );
+  assert.equal(row.round_1_score_ratio_basis, "inferred_legacy_earnings_ratio");
+  assert.equal(row.round_1_decision_source, "action_summary");
+  assert.equal(row.average_score_ratio, 0.5);
+  assert.equal(
+    row.average_score_ratio_status,
+    "computed_from_inferred_legacy_earnings_ratio",
+  );
+  assert.equal(row.qualtrics_save_status, "saved_via_iframe");
+});
+
+test("research export maps modern percent regret and optimality aliases", () => {
+  const user = makeUser(
+    "modern_user",
+    { roundsCompleted: 1, totalRounds: 50, earnings: 75, optimalChoices: 0 },
+    [
+      makeAction(1, 0.75, {
+        phase: "A",
+        policy_arm: "control",
+        recommendation_source: "none",
+        legal_action_mask_version: "mask_v1",
+        chosen_orders: ["o1"],
+        best_bundle_ids: ["o1", "o2"],
+        decision_timestamp: "2026-04-27T10:31:00.000Z",
+        reward: 0.75,
+        outcome_snapshot: {
+          score_ratio_to_best: 0.75,
+          percent_regret: 0.25,
+          participant_score: 75,
+          best_score: 100,
+          is_exact_optimal: false,
+          is_near_optimal: true,
+        },
+      }),
+    ],
+  );
+
+  const exported = buildResearchExport([user], [makeQualtrics("modern_user")], {
+    mode: "raw_research_export",
+  });
+  const row = exported.tables.per_round_decisions[0];
+
+  assert.equal(row.score_ratio_to_best, 0.75);
+  assert.equal(row.regret, 0.25);
+  assert.equal(row.exact_optimal, false);
+  assert.equal(row.near_optimal, true);
+  assert.equal(row.timestamp_source, "decision_timestamp");
+});
+
+test("publication export validation fails loudly for missing decision fields", () => {
+  const user = makeUser(
+    "blocked_user",
+    { roundsCompleted: 1, totalRounds: 50, earnings: 75, optimalChoices: 0 },
+    [
+      makeAction(1, 0.75, {
+        phase: "B",
+        recommendation_source: "policy",
+        legal_action_mask_version: "mask_v1",
+        chosen_orders: ["o1"],
+        best_bundle_ids: ["o1", "o2"],
+        outcome_snapshot: {
+          score_ratio_to_best: 0.75,
+          percent_regret: 0.25,
+        },
+      }),
+    ],
+  );
+
+  const exported = buildResearchExport([user], [makeQualtrics("blocked_user")], {
+    mode: "publication_export",
+    pseudonymSalt: "test_salt",
+  });
+  const validation = validatePublicationExport(exported);
+
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors.join("\n"), /policy_arm/);
+  assert.match(validation.errors.join("\n"), /decision_timestamp/);
+  assert.match(validation.errors.join("\n"), /shown_recommendation_bundle_or_ranking/);
 });
 
 test("policy training exports expose full masked state-action tuple columns", () => {
