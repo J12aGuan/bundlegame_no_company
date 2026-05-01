@@ -17,6 +17,9 @@
 		"token": "node scripts/generate-auth-token.mjs",
 		"qualtrics:sync": "node scripts/sync-qualtrics-responses.mjs",
 		"scores:export": "node scripts/export-admin-scores.mjs",
+		"firestore:connection:check": "node scripts/firestore-connection-check.mjs",
+		"firestore:export:raw": "node scripts/export-firestore-research.mjs",
+		"firestore:export:publication": "node scripts/export-firestore-publication-safe.mjs",
 		"paper:artifacts": "node scripts/generate-paper-artifacts.mjs",
 		"research:summary": "node scripts/research-data-summary.mjs",
 		"research:worker": "node scripts/research-worker.mjs --once",
@@ -28,6 +31,7 @@
 		"@sveltejs/kit": "^2.49.0",
 		"chart.js": "^4.5.1",
 		"firebase": "^10.13.0",
+		"firebase-admin": "^13.8.0",
 		"svelte": "^5.28.2"
 	},
 	"engines": {

@@ -48,6 +48,10 @@ phase1_possibilities.json
 /data analysis/research_jobs/
 /data analysis/raw_research_export-*/
 /data analysis/publication_export-*/
+/data analysis/firestore_raw_export/*
+!/data analysis/firestore_raw_export/README.md
+/data analysis/firestore_publication_safe_export/*
+!/data analysis/firestore_publication_safe_export/README.md
 /data analysis/analytics_v1/out*/
 /paper_artifacts/out*/
 
