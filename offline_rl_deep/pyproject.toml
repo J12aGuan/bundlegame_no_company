@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bundlegame-offline-rl-deep"
+version = "0.1.0"
+description = "PyTorch masked discrete-action offline RL baselines for BundleGame frozen snapshots"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "torch>=2.2,<3"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0", "pytest-cov>=5.0.0"]
+
+[project.scripts]
+bundlegame-offline-rl-deep-train = "offline_rl_deep.train:main"
+bundlegame-offline-rl-deep-validate = "offline_rl_deep.schema:main"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["offline_rl_deep*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

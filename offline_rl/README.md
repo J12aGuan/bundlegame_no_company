@@ -1,8 +1,10 @@
-# BundleGame Offline RL
+# BundleGame Tabular Offline-RL Baselines
 
-Standalone masked discrete-action offline-RL baselines for frozen BundleGame research snapshots.
+Standalone tabular masked discrete-action offline-RL baselines for frozen BundleGame research snapshots.
 
-This package is intentionally separate from the admin research UI and human-evidence tables. It consumes frozen `policy_training.csv` and `dataset_snapshot.json`, validates that the export contains full state-action-reward tuples with legal-action masks, then trains CQL or IQL baselines and writes reproducible artifacts.
+This package is intentionally separate from the admin research UI and human-evidence tables. It consumes frozen `policy_training.csv` and `dataset_snapshot.json`, validates that the export contains full state-action-reward tuples with legal-action masks, then trains CQL/IQL-style dictionary-value baselines and writes reproducible artifacts.
+
+Use `offline_rl_deep/` for PyTorch neural masked-action baselines.
 
 ## Inputs
 

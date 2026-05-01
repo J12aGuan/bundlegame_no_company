@@ -273,22 +273,29 @@ Each policy/OPE/sandbox export includes `model_type`, `implementation_status`, `
 
 `sandbox_summary.csv` contains simulation-only bootstrap summaries and should never be mixed into human-evidence tables without labeling.
 
-## Offline RL Training Package
+## Offline RL Training Packages
 
-The standalone `offline_rl/` Python package trains masked discrete-action CQL and IQL baselines from frozen snapshots. It validates `policy_training.csv` before training and refuses to run unless full state-action-reward tuples, legal-action masks, candidate bundle actions, and participant-level split inputs are present.
+The standalone `offline_rl/` Python package trains tabular masked discrete-action CQL/IQL-style baselines from frozen snapshots. It validates `policy_training.csv` before training and refuses to run unless full state-action-reward tuples, legal-action masks, candidate bundle actions, and participant-level split inputs are present.
+
+The standalone `offline_rl_deep/` Python package trains PyTorch masked discrete-action baselines from the same frozen files. It uses state feature columns plus action feature columns, pads variable action sets, masks illegal actions in all logits/losses/evaluation paths, and preserves participant-level splits.
 
 Outputs are kept separate from human-evidence exports:
 
-- `checkpoint.json`
+- `checkpoint.json` for tabular baselines
+- `checkpoint.pt` for deep baselines
 - `config.json`
 - `schema_validation.json`
+- `training_log.jsonl` for deep baselines
 - `evaluation_summary.json`
 - `policy_comparison.csv`
 - `ope_summary.csv`
 - `recommendation_map.json`
 - `scenario_recommendation_map.json`
+- `seed_summary.csv` and `multi_seed_summary.json` for deep runs
 
-Registry import rows can be generated with `python -m offline_rl.export_artifacts`; trained rows use `model_type=offline_rl`, `implementation_status=trained`, and `simulator_only=false`.
+Deep runs perform masked behavior-cloning pretraining before CQL/IQL. OPE uses logged propensity columns when present (`logged_action_propensity`, `behavior_policy_propensity`, `observed_action_probability`, or `logging_propensity`). If those are absent, the deep package trains a behavior-policy model and records `propensity_source=estimated_behavior_model`; it does not assume uniform logging.
+
+Registry import rows can be generated with `python -m offline_rl.export_artifacts` for the tabular package. Deep trained rows should use `model_type=offline_rl_deep`, `implementation_status=trained`, and `simulator_only=false`.
 
 ## Research Job Runtime
 

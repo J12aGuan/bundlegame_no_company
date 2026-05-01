@@ -1,7 +1,8 @@
-.PHONY: install build check-python prepare-python-venv test-js test-python test-python-analytics test-offline-rl paper-artifacts verify ci clean distclean
+.PHONY: install build check-python prepare-python-venv test-js test-python test-python-analytics test-offline-rl test-offline-rl-deep paper-artifacts verify ci clean distclean
 
 PY_ANALYTICS_DIR := data analysis/analytics_v1
 PY_OFFLINE_RL_DIR := offline_rl
+PY_OFFLINE_RL_DEEP_DIR := offline_rl_deep
 PAPER_PYTHON ?= python3
 PYTHON ?= $(shell for python in python3.12 python3.11 python3.10 python3; do \
 	if command -v $$python >/dev/null 2>&1 && $$python -c 'import sys; raise SystemExit(sys.version_info < (3, 10))' >/dev/null 2>&1; then \
@@ -30,15 +31,19 @@ prepare-python-venv: check-python
 		"$(PY_BIN)" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' || rm -rf "$(PY_VENV)"; \
 	fi
 	@if [ ! -x "$(PY_BIN)" ]; then $(PYTHON) -m venv "$(PY_VENV)"; fi
-	"$(PY_BIN)" -m pip install --upgrade pip setuptools wheel
+	"$(PY_BIN)" -m pip install --upgrade pip "setuptools<82" wheel
 
-test-python: test-python-analytics test-offline-rl
+test-python: test-python-analytics test-offline-rl test-offline-rl-deep
 
 test-python-analytics: prepare-python-venv
 	cd "$(PY_ANALYTICS_DIR)" && "../../$(PY_BIN)" -m pip install -e ".[dev]" && "../../$(PY_BIN)" -m pytest --cov=analytics --cov-report=term-missing
 
 test-offline-rl: prepare-python-venv
 	cd "$(PY_OFFLINE_RL_DIR)" && "../$(PY_BIN)" -m pip install -e ".[dev]" && "../$(PY_BIN)" -m pytest --cov=offline_rl --cov-report=term-missing
+
+test-offline-rl-deep: prepare-python-venv
+	"$(PY_BIN)" -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.2,<3"
+	cd "$(PY_OFFLINE_RL_DEEP_DIR)" && "../$(PY_BIN)" -m pip install -e ".[dev]" && "../$(PY_BIN)" -m pytest --cov=offline_rl_deep --cov-report=term-missing
 
 paper-artifacts:
 	PYTHON="$(PAPER_PYTHON)" npm run paper:artifacts -- --analysis-dir paper_artifacts/fixtures/analysis --publication-dir paper_artifacts/fixtures/publication_export --model-dir paper_artifacts/fixtures/model_cql --out-dir paper_artifacts/out/fixture
