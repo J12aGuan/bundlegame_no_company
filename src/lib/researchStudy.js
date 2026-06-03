@@ -1649,3 +1649,180 @@ export function resolveRecommendationSlate({
     notes: resolved.notes || "",
   };
 }
+
+/* ========================================================================== *
+ * CHI main study: diagnosis + form-varying scaffolding + transfer.
+ *
+ * A confirmatory variant of the protocol. Round counts are configurable
+ * (default 30: A 1-10 unaided, B 11-20 aided-by-scaffold, C 21-30 unaided
+ * shifted transfer) so participants reliably reach Phase C (the pilot maxed
+ * out at round 27). Four BETWEEN-SUBJECTS arms vary the explanation FORM while
+ * the recommended bundle is held fixed (all treated arms use one policy, the
+ * `fixed_recommendation_policy`). Arm id == scaffold_type.
+ * ========================================================================== */
+
+export const CHI_STUDY_PROTOCOL_ID = "bundlegame_chi_diagnose_v1";
+export const CHI_STUDY_PROTOCOL_VERSION = "bundlegame_chi_diagnose_30_round_v1";
+export const CHI_DEFAULT_ROUNDS_PER_PHASE = { A: 10, B: 10, C: 10 };
+// Single fixed recommendation policy shared by every treated arm (bundle invariance).
+export const CHI_FIXED_RECOMMENDATION_POLICY = "oracle_optimal";
+
+export const CHI_SCAFFOLD_TYPES = ["no_ai", "generic", "matched", "mismatched"];
+export const CHI_TREATED_SCAFFOLD_TYPES = ["generic", "matched", "mismatched"];
+
+export const BUNDLEGAME_CHI_SCAFFOLD_ARMS = [
+  {
+    id: "no_ai",
+    label: "No AI (unaided control)",
+    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
+    policy_version: "v1",
+    show_recommendations: false,
+    active_phases: ["B"],
+    assignment_weight: 1,
+  },
+  {
+    id: "generic",
+    label: "Generic explanation",
+    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
+    policy_version: "v1",
+    show_recommendations: true,
+    active_phases: ["B"],
+    assignment_weight: 1,
+  },
+  {
+    id: "matched",
+    label: "Matched (targets diagnosed weakness)",
+    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
+    policy_version: "v1",
+    show_recommendations: true,
+    active_phases: ["B"],
+    assignment_weight: 1,
+  },
+  {
+    id: "mismatched",
+    label: "Mismatched (targets non-diagnosed attribute)",
+    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
+    policy_version: "v1",
+    show_recommendations: true,
+    active_phases: ["B"],
+    assignment_weight: 1,
+  },
+];
+
+export function buildChiPhasePlan(roundsPerPhase = CHI_DEFAULT_ROUNDS_PER_PHASE) {
+  const a = Math.max(1, Number(roundsPerPhase?.A ?? CHI_DEFAULT_ROUNDS_PER_PHASE.A) || 0);
+  const b = Math.max(1, Number(roundsPerPhase?.B ?? CHI_DEFAULT_ROUNDS_PER_PHASE.B) || 0);
+  const c = Math.max(1, Number(roundsPerPhase?.C ?? CHI_DEFAULT_ROUNDS_PER_PHASE.C) || 0);
+  return [
+    { id: "A", label: "Phase A (unaided diagnosis)", round_start: 1, round_end: a, rounds: a, recommendations_enabled: false },
+    { id: "B", label: "Phase B (scaffolded)", round_start: a + 1, round_end: a + b, rounds: b, recommendations_enabled: true },
+    { id: "C", label: "Phase C (unaided shifted transfer)", round_start: a + b + 1, round_end: a + b + c, rounds: c, recommendations_enabled: false },
+  ];
+}
+
+export function buildChiStudyProtocol(overrides = {}) {
+  const roundsPerPhase = overrides?.rounds_per_phase || CHI_DEFAULT_ROUNDS_PER_PHASE;
+  const phasePlan = buildChiPhasePlan(roundsPerPhase);
+  const totalRounds = phasePlan.reduce((sum, p) => sum + p.rounds, 0);
+  return {
+    protocol_id: CHI_STUDY_PROTOCOL_ID,
+    protocol_version: CHI_STUDY_PROTOCOL_VERSION,
+    title: "BundleGame CHI diagnosis + tailored scaffolding study",
+    expected_total_rounds: totalRounds,
+    enabled: true,
+    phase_plan: phasePlan,
+    policy_arms: BUNDLEGAME_CHI_SCAFFOLD_ARMS.map((arm) => ({ ...arm })),
+    recommendation_exposure: {
+      active_phase_ids: ["B"],
+      treatment_arm_ids: ["generic", "matched", "mismatched"],
+      control_arm_ids: ["no_ai"],
+      default_ranked_bundles_shown: 1,
+      expected_shown_bundle_size: 2,
+    },
+    fixed_recommendation_policy: CHI_FIXED_RECOMMENDATION_POLICY,
+    legal_action_mask_version: DEFAULT_ACTION_MASK_VERSION,
+    ...(overrides && typeof overrides === "object" ? overrides : {}),
+  };
+}
+
+export function getChiStudyProtocol(overrides = {}) {
+  const base = buildChiStudyProtocol(overrides);
+  return normalizeResearchStudyProtocol(base, base);
+}
+
+/** Stable, participant-level scaffold-arm assignment (== scaffold_type). */
+export function assignScaffoldArm(participantId = "", protocol = buildChiStudyProtocol()) {
+  return assignStudyArm(participantId, protocol);
+}
+
+/**
+ * Validate a CHI protocol: configurable totals, phases A/B/C contiguous,
+ * recommendations only in Phase B, exactly the four scaffold arms, control
+ * unaided, and the bundle-invariance guarantee (all treated arms share one
+ * fixed recommendation policy).
+ */
+export function validateChiStudyProtocol(protocol = buildChiStudyProtocol()) {
+  const normalized = normalizeResearchStudyProtocol(protocol, protocol);
+  const errors = [];
+
+  const phases = normalized.phase_plan;
+  const ids = phases.map((p) => p.id).join(",");
+  if (ids !== "A,B,C") errors.push(`phase ids must be A,B,C, got ${ids}`);
+  const total = phases.reduce((sum, p) => sum + Math.max(0, Number(p.rounds) || 0), 0);
+  if (total !== normalized.expected_total_rounds) {
+    errors.push(`phase rounds total ${total} != expected_total_rounds ${normalized.expected_total_rounds}`);
+  }
+  let cursor = 1;
+  for (const p of phases) {
+    if (p.round_start !== cursor) {
+      errors.push(`phase ${p.id} must start at round ${cursor}, got ${p.round_start}`);
+    }
+    cursor = p.round_end + 1;
+  }
+  for (const p of phases) {
+    const shouldEnable = p.id === "B";
+    if (Boolean(p.recommendations_enabled) !== shouldEnable) {
+      errors.push(`phase ${p.id} recommendations_enabled must be ${shouldEnable}`);
+    }
+  }
+
+  const armIds = normalized.policy_arms.map((a) => a.id).sort().join(",");
+  if (armIds !== "generic,matched,mismatched,no_ai") {
+    errors.push(`arms must be exactly the four scaffold arms, got ${armIds}`);
+  }
+  const armById = new Map(normalized.policy_arms.map((a) => [a.id, a]));
+  if (armById.get("no_ai")?.show_recommendations) {
+    errors.push("no_ai must not show recommendations");
+  }
+  for (const id of CHI_TREATED_SCAFFOLD_TYPES) {
+    const arm = armById.get(id);
+    if (arm && !arm.show_recommendations) {
+      errors.push(`treated arm ${id} must show recommendations`);
+    }
+  }
+  // Bundle-invariance: all treated arms must use the same fixed policy.
+  const treatedPolicies = new Set(
+    CHI_TREATED_SCAFFOLD_TYPES.map((id) => normalizeText(armById.get(id)?.policy_name)),
+  );
+  if (treatedPolicies.size !== 1) {
+    errors.push(
+      `all treated arms must share one fixed recommendation policy; got ${[...treatedPolicies].join(", ")}`,
+    );
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    protocol: normalized,
+    expected_total_rounds: normalized.expected_total_rounds,
+    phase_round_counts: Object.fromEntries(phases.map((p) => [p.id, p.rounds])),
+  };
+}
+
+export function assertValidChiStudyProtocol(protocol = buildChiStudyProtocol()) {
+  const validation = validateChiStudyProtocol(protocol);
+  if (!validation.ok) {
+    throw new Error(`CHI protocol invalid: ${validation.errors.join("; ")}`);
+  }
+  return validation;
+}
