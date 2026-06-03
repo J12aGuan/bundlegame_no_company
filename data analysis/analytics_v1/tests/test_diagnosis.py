@@ -7,11 +7,18 @@ participant data is required for the unit tests.
 
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
 import pytest
 
-from analytics import diagnosis as dg
+# The diagnosis module needs a numeric stack (declared in the `dev`/`diagnosis`
+# extras). Skip cleanly if it is unavailable rather than erroring at collection.
+pytest.importorskip("numpy")
+pytest.importorskip("scipy")
+pytest.importorskip("pandas")
+
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+
+from analytics import diagnosis as dg  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
