@@ -1,4 +1,9 @@
-.PHONY: install build check-python prepare-python-venv test-js test-python test-python-analytics test-offline-rl test-offline-rl-deep paper-artifacts verify ci clean distclean
+.PHONY: install build check-python prepare-python-venv test-js test-python test-python-analytics test-offline-rl test-offline-rl-deep paper-artifacts figures-pdf figures-schematic-pdf figures-verify verify ci clean distclean
+
+# Where camera-ready vector figures are written.
+FIGURES_PDF_DIR := publishing/paper_artifacts/out/figures_pdf
+FIGURES_SCHEMATIC_DIR := publishing/paper/raw_materials/figures/vector
+SCREENSHOTS_DIR := publishing/paper/figures/screenshots
 
 PY_ANALYTICS_DIR := publishing/data_analysis/analytics_v1
 PY_OFFLINE_RL_DIR := offline_rl
@@ -47,6 +52,26 @@ test-offline-rl-deep: prepare-python-venv
 
 paper-artifacts:
 	PYTHON="$(PAPER_PYTHON)" npm run paper:artifacts -- --analysis-dir publishing/paper_artifacts/fixtures/analysis --publication-dir publishing/paper_artifacts/fixtures/publication_export --model-dir publishing/paper_artifacts/fixtures/model_cql --out-dir publishing/paper_artifacts/out/fixture
+
+# Camera-ready vector figures (matplotlib, embedded TrueType fonts). These need
+# matplotlib + pypdf, which are installed into the project venv on demand so the
+# target is self-contained for CI.
+figures-pdf: prepare-python-venv
+	"$(PY_BIN)" -m pip install "matplotlib>=3.6" "pypdf>=4"
+	"$(PY_BIN)" publishing/paper_artifacts/figures_pdf.py --analysis-dir publishing/paper_artifacts/fixtures/analysis --publication-dir publishing/paper_artifacts/fixtures/publication_export --out-dir "$(FIGURES_PDF_DIR)"
+	"$(PY_BIN)" publishing/paper_artifacts/verify_figures_pdf.py "$(FIGURES_PDF_DIR)"
+
+# Conceptual diagrams (worked example, archetype panels, store geometry) redrawn
+# as native vector figures from the frozen raw_materials sources.
+figures-schematic-pdf: prepare-python-venv
+	"$(PY_BIN)" -m pip install "matplotlib>=3.6" "pypdf>=4"
+	"$(PY_BIN)" publishing/paper/raw_materials/scripts/figures_schematic_pdf.py --out-dir "$(FIGURES_SCHEMATIC_DIR)"
+	"$(PY_BIN)" publishing/paper_artifacts/verify_figures_pdf.py "$(FIGURES_SCHEMATIC_DIR)"
+
+# Verify every generated figure PDF + the genuine screenshot PDFs in one pass.
+figures-verify: prepare-python-venv
+	"$(PY_BIN)" -m pip install "pypdf>=4"
+	"$(PY_BIN)" publishing/paper_artifacts/verify_figures_pdf.py "$(FIGURES_PDF_DIR)" "$(FIGURES_SCHEMATIC_DIR)" --screenshots-dir "$(SCREENSHOTS_DIR)"
 
 verify: build test-js test-python
 

@@ -46,3 +46,37 @@ jobs:
 
       - name: Run analytics tests
         run: make test-python
+
+  paper-figures-pdf:
+    name: Paper figure PDFs (vector smoke test)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install figure dependencies
+        run: python -m pip install "matplotlib>=3.6" "pypdf>=4"
+
+      - name: Render analysis-chart PDFs (Part 1)
+        run: >-
+          python publishing/paper_artifacts/figures_pdf.py
+          --analysis-dir publishing/paper_artifacts/fixtures/analysis
+          --publication-dir publishing/paper_artifacts/fixtures/publication_export
+          --out-dir publishing/paper_artifacts/out/figures_pdf
+
+      - name: Render conceptual-diagram PDFs (Part 2)
+        run: >-
+          python publishing/paper/raw_materials/scripts/figures_schematic_pdf.py
+          --out-dir publishing/paper/raw_materials/figures/vector
+
+      - name: Verify PDFs are vector with embedded fonts (no Type3, no rasterization)
+        run: >-
+          python publishing/paper_artifacts/verify_figures_pdf.py
+          publishing/paper_artifacts/out/figures_pdf
+          publishing/paper/raw_materials/figures/vector

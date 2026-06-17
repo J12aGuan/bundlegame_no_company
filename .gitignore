@@ -58,6 +58,13 @@ phase1_possibilities.json
 # Publishing bundles: large, regenerable zip snapshots of folders already tracked
 /publishing/bundles/*.zip
 
+# Generated camera-ready figure PDFs/SVGs (regenerate with `make figures-pdf` /
+# `make figures-schematic-pdf`; the capture scripts also emit per-screen PDFs).
+# Source generators and the tracked PNG screenshots are kept; the rendered PDFs are not.
+/publishing/paper/raw_materials/figures/vector/
+/publishing/paper/figures/screenshots/*.pdf
+/publishing/paper/raw_materials/figures/screenshots/*.pdf
+
 # Python cache/artifacts
 __pycache__/
 **/__pycache__/

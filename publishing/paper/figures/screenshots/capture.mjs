@@ -8,10 +8,17 @@
  *
  * Then:  node paper/figures/screenshots/capture.mjs
  *
- * Captures at a fixed 1440x900 viewport, deviceScaleFactor 2 (=> ~2880px wide),
- * light theme (the app's only theme), cropped to the app (Playwright shots never
- * include browser chrome). Uses the DEV-only `window.__bundle` hook to pin the
- * exact study scenarios (no random reshuffle; deterministic).
+ * Captures at a fixed 1440x900 viewport, deviceScaleFactor 4 (=> ~5760px wide,
+ * high-DPI), light theme (the app's only theme), cropped to the app (Playwright
+ * shots never include browser chrome). Uses the DEV-only `window.__bundle` hook to
+ * pin the exact study scenarios (no random reshuffle; deterministic).
+ *
+ * In addition to the high-DPI PNGs, each full-screen state is also printed to a
+ * vector PDF via page.pdf(): emulateMedia('screen') keeps the on-screen CSS (no
+ * print-only reflow) and the PDF page size is pinned to the viewport, so the PDF
+ * layout matches the screenshot. These PDFs are mostly selectable vector text/UI;
+ * only genuinely raster content (the Leaflet/MapTiler map tiles) stays embedded as
+ * an image, which is expected for a real interface capture.
  */
 import { chromium } from "playwright";
 import { fileURLToPath } from "node:url";
@@ -20,7 +27,14 @@ import path from "node:path";
 const OUT = path.dirname(fileURLToPath(import.meta.url));
 const BASE = process.env.BG_URL || "http://localhost:5173";
 const VIEWPORT = { width: 1440, height: 900 };
-const SCALE = 2;
+const SCALE = 4; // high-DPI raster (was 2)
+// Fixed print viewport so the vector PDF matches the on-screen layout 1:1.
+const PDF_OPTS = {
+  width: `${VIEWPORT.width}px`,
+  height: `${VIEWPORT.height}px`,
+  printBackground: true,
+  pageRanges: "1",
+};
 
 // Real study scenarios mapped to their round index (mainGame_2026_03_20_14_26_36).
 const PRIMARY_ROUND = 10;  // mainGameScenario10 - clean Safeway/Piedmont menu for the core task figure
@@ -52,6 +66,17 @@ async function main() {
       log("FAILED", name, e.message);
     }
   };
+  // Vector PDF of the current full screen (keeps on-screen layout via screen media).
+  const shotPdf = async (name) => {
+    try {
+      await page.emulateMedia({ media: "screen" });
+      await page.pdf({ path: path.join(OUT, `${name}.pdf`), ...PDF_OPTS });
+      log("saved", `${name}.pdf`);
+    } catch (e) {
+      results[`${name}.pdf`] = `FAIL: ${e.message}`;
+      log("FAILED", `${name}.pdf`, e.message);
+    }
+  };
   const hasHook = () => page.evaluate(() => !!window.__bundle);
   const pin = async (round) => {
     await page.evaluate((r) => {
@@ -70,6 +95,7 @@ async function main() {
   const authRequired = await page.$("#main-user-id");
   log("auth form present:", !!authRequired);
   await shot("00_landing");
+  await shotPdf("00_landing");
   // Dev-only: flip to the no-auth entry so loadGame() runs WITHOUT a participant
   // token and WITHOUT writing any session to Firestore. (Saves are gated on
   // needsAuth && id && scenarioSetVersionId, so nothing is persisted.)
@@ -107,6 +133,7 @@ async function main() {
   await pin(PRIMARY_ROUND);
   await skip(); await cleanChrome(); await page.waitForTimeout(300);
   await shot("task_decision_empty");
+  await shotPdf("task_decision_empty");
 
   // ---- order card close-up (UNSELECTED state), clip to one card ----
   {
@@ -119,6 +146,7 @@ async function main() {
   for (const c of cards.slice(0, 3)) { await c.click().catch(() => {}); await page.waitForTimeout(250); }
   await cleanChrome();
   await shot("task_decision_midbundle");
+  await shotPdf("task_decision_midbundle");
 
   // ---- map of stores/cities (clip to the #map panel) ----
   {
@@ -131,11 +159,13 @@ async function main() {
   await page.evaluate(() => window.__bundle && window.__bundle.orders.set([]));
   await cleanChrome();
   await shot("score_feedback");
+  await shotPdf("score_feedback");
 
   // ---- the three manipulation menus (empty state, pinned) ----
   for (const [name, round] of Object.entries(MENUS)) {
     await pin(round); await skip(); await cleanChrome(); await page.waitForTimeout(700);
     await shot(name);
+    await shotPdf(name);
   }
 
   // ---- instructions / tutorial (enter the tutorial game; rules are taught via prompts) ----
@@ -149,6 +179,7 @@ async function main() {
   await page.waitForTimeout(2500);
   await skip();
   await shot("instructions");
+  await shotPdf("instructions");
   if (!tut) log("tutorial decision screen not reached; instructions.png shows the tutorial entry/loading.");
 
   log("RESULTS", JSON.stringify(results, null, 2));

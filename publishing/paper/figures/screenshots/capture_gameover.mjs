@@ -14,6 +14,10 @@ import path from "node:path";
 const OUT = path.dirname(fileURLToPath(import.meta.url));
 const BASE = process.env.BG_URL || "http://localhost:5173";
 const ROUND = 10; // mainGameScenario10 (single store, Safeway/Piedmont)
+const VIEWPORT = { width: 1440, height: 900 };
+const SCALE = 4; // high-DPI raster (was 2)
+// Fixed print viewport so the vector PDF matches the on-screen layout 1:1.
+const PDF_OPTS = { width: `${VIEWPORT.width}px`, height: `${VIEWPORT.height}px`, printBackground: true, pageRanges: "1" };
 const log = (...a) => console.log("[gameover]", ...a);
 
 async function main() {
@@ -22,10 +26,15 @@ async function main() {
     args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader",
            "--ignore-gpu-blocklist", "--enable-webgl"],
   });
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE });
   const page = await ctx.newPage();
   page.on("dialog", (d) => d.dismiss().catch(() => {}));
   const shot = (n, o = {}) => page.screenshot({ path: path.join(OUT, `${n}.png`), ...o }).then(() => log("saved", n)).catch((e) => log("FAIL", n, e.message));
+  // Vector PDF of the current full screen (screen media keeps the on-screen layout).
+  const shotPdf = async (n) => {
+    await page.emulateMedia({ media: "screen" });
+    await page.pdf({ path: path.join(OUT, `${n}.pdf`), ...PDF_OPTS }).then(() => log("saved", n + ".pdf")).catch((e) => log("FAIL", n + ".pdf", e.message));
+  };
 
   // entry (no-auth dev path) + pin a single-scenario set so 1 round => game over
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
@@ -54,10 +63,12 @@ async function main() {
   // in-store: Start Picking
   await page.waitForSelector("#startorder", { timeout: 15000 });
   await shot("task_instore_picking_start");
+  await shotPdf("task_instore_picking_start");
   await page.click("#startorder");
   await page.waitForSelector("#addtobag", { timeout: 15000 });
   await page.waitForTimeout(800);
   await shot("task_instore_picking");
+  await shotPdf("task_instore_picking");
 
   // read the shopping list for order 1 from the DOM
   const list = await page.evaluate(() => {
@@ -88,6 +99,7 @@ async function main() {
   if (delivering) {
     await page.waitForTimeout(600);
     await shot("task_delivery");
+    await shotPdf("task_delivery");
     // click every Deliver button, waiting out each countdown
     for (let i = 0; i < 4; i++) {
       const btn = page.locator("button:has-text('Deliver')").first();
@@ -103,7 +115,7 @@ async function main() {
   // wait for game over
   const over = await page.waitForSelector("text=/Your Stats|Game Over|Results Saved/", { timeout: 20000 }).then(() => true).catch(() => false);
   await page.waitForTimeout(1500);
-  if (over) { await shot("score_gameover"); log("GAME OVER reached"); }
+  if (over) { await shot("score_gameover"); await shotPdf("score_gameover"); log("GAME OVER reached"); }
   else { log("game over not reached; capturing whatever is shown"); await shot("score_gameover_partial"); }
 
   await browser.close();
