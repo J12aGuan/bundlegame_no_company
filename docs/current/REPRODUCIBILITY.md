@@ -39,7 +39,7 @@ Python:
 Use the checked-in analytics fixture when reproducing without Firebase:
 
 ```bash
-cd "data analysis/analytics_v1"
+cd "publishing/data_analysis/analytics_v1"
 python -m pip install -e ".[dev]"
 python -m analytics.cli run \
   --source json \
@@ -60,20 +60,20 @@ Generate the standard paper figures, tables, and output manifest from a frozen s
 
 ```bash
 npm run paper:artifacts -- \
-  --analysis-dir "data analysis/research_jobs/<job_id>" \
-  --publication-dir "data analysis/publication_export-YYYY-MM-DD" \
-  --model-dir "data analysis/offline_rl/cql_<snapshot_id>" \
-  --out-dir "data analysis/paper_artifacts/<snapshot_id>"
+  --analysis-dir "publishing/data_analysis/research_jobs/<job_id>" \
+  --publication-dir "publishing/data_analysis/publication_export-YYYY-MM-DD" \
+  --model-dir "publishing/data_analysis/offline_rl/cql_<snapshot_id>" \
+  --out-dir "publishing/data_analysis/paper_artifacts/<snapshot_id>"
 ```
 
 The credential-free fixture check is:
 
 ```bash
 npm run paper:artifacts -- \
-  --analysis-dir paper_artifacts/fixtures/analysis \
-  --publication-dir paper_artifacts/fixtures/publication_export \
-  --model-dir paper_artifacts/fixtures/model_cql \
-  --out-dir paper_artifacts/out/fixture
+  --analysis-dir publishing/paper_artifacts/fixtures/analysis \
+  --publication-dir publishing/paper_artifacts/fixtures/publication_export \
+  --model-dir publishing/paper_artifacts/fixtures/model_cql \
+  --out-dir publishing/paper_artifacts/out/fixture
 ```
 
 ## Firestore Reproduction

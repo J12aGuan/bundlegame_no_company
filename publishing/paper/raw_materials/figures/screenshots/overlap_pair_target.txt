@@ -1,0 +1,18 @@
+file: overlap_pair_target.png
+figure_type: overlap_pair
+store: Target
+city: Emeryville
+scenario_set: mainGame_2026_03_20_14_26_36
+round_index: 12
+order_ids: ["mainGameOrder45","mainGameOrder46"]
+shared_items: ["grape","watermelon"]
+entrance_rc: [0,0]
+cell_distance_ms: 900
+seconds_per_cell: 0.9
+viewport: 1440x900
+device_pixel_ratio: 2
+rendered_pixels: 2880x1800
+zoom: 1.0
+crop: none (full viewport, identical dimensions across all panels)
+source: rendered from publishing/export_for_analysis/_raw_pull/stores.json (deployed grids); not a live authenticated play-through
+renderer: paper/raw_materials/render_store_figures.mjs

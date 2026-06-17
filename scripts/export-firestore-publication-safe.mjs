@@ -53,7 +53,7 @@ async function main() {
   const timestamp = options.timestamp || makeTimestampId(new Date(generatedAt));
   const outputDir = options.out
     ? path.resolve(repoRoot, options.out)
-    : path.join(repoRoot, "data analysis", "firestore_publication_safe_export", timestamp);
+    : path.join(repoRoot, "publishing", "data_analysis", "firestore_publication_safe_export", timestamp);
   const absoluteOutputDir = await writeFirestoreExportDirectory(publicationExport, outputDir);
 
   console.log(`Wrote publication-safe Firestore export to ${absoluteOutputDir}`);

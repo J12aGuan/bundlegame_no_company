@@ -1,0 +1,72 @@
+{
+ "berkeley_bowl": {
+  "A": {
+   "id": "mainGameOrder9",
+   "items": {
+    "orange": 3,
+    "grape": 1,
+    "pineapple": 1
+   }
+  },
+  "B": {
+   "id": "mainGameOrder11",
+   "items": {
+    "grape": 3,
+    "pineapple": 1,
+    "orange": 2
+   }
+  }
+ },
+ "sprouts": {
+  "A": {
+   "id": "mainGameOrder77",
+   "items": {
+    "kiwi": 1,
+    "grape": 3,
+    "apple": 3
+   }
+  },
+  "B": {
+   "id": "mainGameOrder78",
+   "items": {
+    "kiwi": 2,
+    "apple": 3
+   }
+  }
+ },
+ "target": {
+  "A": {
+   "id": "mainGameOrder45",
+   "items": {
+    "grape": 2,
+    "watermelon": 1,
+    "banana": 1
+   }
+  },
+  "B": {
+   "id": "mainGameOrder46",
+   "items": {
+    "watermelon": 1,
+    "grape": 2
+   }
+  }
+ },
+ "safeway": {
+  "A": {
+   "id": "mainGameOrder89",
+   "items": {
+    "orange": 2,
+    "apple": 3,
+    "watermelon": 3
+   }
+  },
+  "B": {
+   "id": "mainGameOrder91",
+   "items": {
+    "orange": 3,
+    "apple": 3,
+    "watermelon": 1
+   }
+  }
+ }
+}

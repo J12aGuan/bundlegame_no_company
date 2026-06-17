@@ -1,6 +1,6 @@
 .PHONY: install build check-python prepare-python-venv test-js test-python test-python-analytics test-offline-rl test-offline-rl-deep paper-artifacts verify ci clean distclean
 
-PY_ANALYTICS_DIR := data analysis/analytics_v1
+PY_ANALYTICS_DIR := publishing/data_analysis/analytics_v1
 PY_OFFLINE_RL_DIR := offline_rl
 PY_OFFLINE_RL_DEEP_DIR := offline_rl_deep
 PAPER_PYTHON ?= python3
@@ -36,7 +36,7 @@ prepare-python-venv: check-python
 test-python: test-python-analytics test-offline-rl test-offline-rl-deep
 
 test-python-analytics: prepare-python-venv
-	cd "$(PY_ANALYTICS_DIR)" && "../../$(PY_BIN)" -m pip install -e ".[dev]" && "../../$(PY_BIN)" -m pytest --cov=analytics --cov-report=term-missing
+	cd "$(PY_ANALYTICS_DIR)" && "../../../$(PY_BIN)" -m pip install -e ".[dev]" && "../../../$(PY_BIN)" -m pytest --cov=analytics --cov-report=term-missing
 
 test-offline-rl: prepare-python-venv
 	cd "$(PY_OFFLINE_RL_DIR)" && "../$(PY_BIN)" -m pip install -e ".[dev]" && "../$(PY_BIN)" -m pytest --cov=offline_rl --cov-report=term-missing
@@ -46,7 +46,7 @@ test-offline-rl-deep: prepare-python-venv
 	cd "$(PY_OFFLINE_RL_DEEP_DIR)" && "../$(PY_BIN)" -m pip install -e ".[dev]" && "../$(PY_BIN)" -m pytest --cov=offline_rl_deep --cov-report=term-missing
 
 paper-artifacts:
-	PYTHON="$(PAPER_PYTHON)" npm run paper:artifacts -- --analysis-dir paper_artifacts/fixtures/analysis --publication-dir paper_artifacts/fixtures/publication_export --model-dir paper_artifacts/fixtures/model_cql --out-dir paper_artifacts/out/fixture
+	PYTHON="$(PAPER_PYTHON)" npm run paper:artifacts -- --analysis-dir publishing/paper_artifacts/fixtures/analysis --publication-dir publishing/paper_artifacts/fixtures/publication_export --model-dir publishing/paper_artifacts/fixtures/model_cql --out-dir publishing/paper_artifacts/out/fixture
 
 verify: build test-js test-python
 

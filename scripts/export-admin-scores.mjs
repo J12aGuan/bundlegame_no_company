@@ -236,7 +236,7 @@ async function main() {
     }
     const outputDir = path.resolve(
       repoRoot,
-      options.out || `data analysis/${mode}-${new Date().toISOString().slice(0, 10)}`,
+      options.out || `publishing/data_analysis/${mode}-${new Date().toISOString().slice(0, 10)}`,
     );
     await writeResearchExport(exportData, outputDir);
     console.log(`Wrote ${mode} to ${outputDir}`);
@@ -251,7 +251,7 @@ async function main() {
   const averageRows = getAdminScoreClassAverageExportRows(scoreSheet.classAverages);
   const outputPath = path.resolve(
     repoRoot,
-    options.out || `data analysis/bundlegame-scores-${new Date().toISOString().slice(0, 10)}.csv`,
+    options.out || `publishing/data_analysis/bundlegame-scores-${new Date().toISOString().slice(0, 10)}.csv`,
   );
   const classAverageOutputPath = getClassAverageOutputPath(outputPath);
   const fieldAuditOutputPath = getFieldAuditOutputPath(outputPath);

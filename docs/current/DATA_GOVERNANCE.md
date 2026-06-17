@@ -53,7 +53,7 @@ npm run firestore:export:raw
 
 These commands use the Firebase Admin SDK with Application Default Credentials
 or `GOOGLE_APPLICATION_CREDENTIALS`; they do not use browser-exposed `VITE_`
-secrets. Generated timestamp folders under `data analysis/firestore_raw_export/`
+secrets. Generated timestamp folders under `publishing/data_analysis/firestore_raw_export/`
 are ignored by Git.
 
 To derive a shareable Firestore-level export, set a private

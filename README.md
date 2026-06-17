@@ -61,7 +61,7 @@ The canonical experiment protocol lives in `src/lib/researchStudy.js`: 50 rounds
 For a fixture-based offline run:
 
 ```bash
-cd "data analysis/analytics_v1"
+cd "publishing/data_analysis/analytics_v1"
 python -m pip install -e ".[dev]"
 python -m analytics.cli run \
   --source json \
@@ -98,9 +98,9 @@ firebase use bundling-63c10
 As a fallback, set `GOOGLE_APPLICATION_CREDENTIALS` to an absolute
 service-account JSON path. Raw Firestore exports are restricted internal data and
 are written under ignored timestamped folders in
-`data analysis/firestore_raw_export/`. Publication-safe Firestore exports require
+`publishing/data_analysis/firestore_raw_export/`. Publication-safe Firestore exports require
 `PUBLICATION_PSEUDONYM_SALT` and write redacted outputs under
-`data analysis/firestore_publication_safe_export/`.
+`publishing/data_analysis/firestore_publication_safe_export/`.
 
 Use `/admin/research` to run analysis, save snapshots, queue Firestore-backed jobs, and export the research CSV/JSON package. The local worker processes queued research jobs:
 

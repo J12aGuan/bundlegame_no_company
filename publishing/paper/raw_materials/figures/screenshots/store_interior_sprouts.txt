@@ -1,0 +1,13 @@
+file: live_store_interior_sprouts.png
+figure_type: store_interior (LIVE in-game)
+store: Sprouts Farmers Market
+city: Oakland
+scenario_set: mainGame_2026_03_20_14_26_36
+round_index: 5
+order_ids: ["mainGameOrder17"]
+participant: bobalab
+viewport: 1440x900
+device_pixel_ratio: 2
+rendered_pixels: 2880x1800
+crop: none (full viewport)
+source: genuine authenticated play-through of deployed game

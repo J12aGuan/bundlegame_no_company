@@ -134,7 +134,8 @@ async function processJob(db, job) {
     });
     const outputDir = path.join(
       repoRoot,
-      "data analysis",
+      "publishing",
+      "data_analysis",
       "research_jobs",
       jobId,
     );

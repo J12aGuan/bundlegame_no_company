@@ -1,0 +1,428 @@
+{
+  "provenance": {
+    "deployed_scenario_set": "mainGame_2026_03_20_14_26_36",
+    "source_commit": "17989b5",
+    "sources": [
+      "src/lib/bundleTime.js",
+      "src/lib/scripts/scenarioTime.js",
+      "src/lib/scripts/generateScenarios.js",
+      "publishing/data_analysis/analytics_v1/analytics/model/time_model.py (offline mirror)"
+    ],
+    "raw_data": [
+      "export_for_analysis/_raw_pull/stores.json",
+      "export_for_analysis/_raw_pull/cities.json"
+    ]
+  },
+  "constants": {
+    "SECONDS_PER_UNIQUE_ITEM_DEFAULT": 3.0,
+    "seconds_per_cell_formula": "store.cellDistance / 1000",
+    "distance_metric": "manhattan (grid cells)",
+    "max_bundle_size": 3,
+    "legal_bundle_rule": "single-store subsets only (same_store_multi_order_v1)"
+  },
+  "pick_time_model": {
+    "per_order_pick_seconds": "sum over items in listed order of manhattan(curr->nearest position)*seconds_per_cell, then + n_unique_items * SECONDS_PER_UNIQUE_ITEM_DEFAULT; walker starts at Entrance",
+    "note": "Deployed orders store estimatedTime (= localTravel + pick); scoring uses pick = estimatedTime - localTravel."
+  },
+  "local_travel_model": {
+    "per_order_local_seconds": "stored field order.localTravelTime",
+    "generator_distribution": "uniform integer 2..6 seconds (estimateLocalTravelTime)"
+  },
+  "cross_city_model": {
+    "rule": "crossCityExtraTime(orderCity, currentCity) = travelTimes[currentCity][orderCity]; 0 if same city or no route",
+    "starting_city": "Berkeley",
+    "travel_times_seconds": {
+      "Berkeley": {
+        "Oakland": 10,
+        "Emeryville": 7,
+        "Piedmont": 11
+      },
+      "Oakland": {
+        "Berkeley": 10,
+        "Emeryville": 6,
+        "Piedmont": 5
+      },
+      "Emeryville": {
+        "Piedmont": 8,
+        "Oakland": 6,
+        "Berkeley": 7
+      },
+      "Piedmont": {
+        "Oakland": 5,
+        "Berkeley": 11,
+        "Emeryville": 8
+      }
+    },
+    "is_symmetric": true
+  },
+  "overlap_savings_rule": {
+    "DEPLOYED": {
+      "name": "shared_item_access_savings",
+      "rate_constant": 1.0,
+      "formula": "for each (store,city) group with >=2 orders, for each item present in >=2 of those orders: nearest_access_seconds(item) * (count-1) * 1.0; summed; subtracted from raw bundle time",
+      "applies_to": "redundant item-access (pick-walk) only",
+      "note": "This is what produced the deployed oracle/second-best. NO 0.25x local-travel reduction here."
+    },
+    "ALT_analytics_mirror_NOT_deployed": {
+      "name": "shared_item_access + local_travel_fraction",
+      "extra_rule": "additionally subtracts sum(local_travel_per_order_in_group) * LOCAL_TRAVEL_BUNDLE_SAVE_RATE",
+      "LOCAL_TRAVEL_BUNDLE_SAVE_RATE": 0.25,
+      "source": "publishing/data_analysis/analytics_v1/analytics/model/time_model.py + config.py"
+    },
+    "ALT_chi_redesign_NOT_deployed": {
+      "name": "shared_store_pick_save",
+      "rule": "for each store hosting >=2 orders: sum(order.pick) * 0.25",
+      "source": "src/lib/chiScenarioDesign.js (SHARED_STORE_PICK_SAVE_RATE)"
+    }
+  },
+  "stores": [
+    {
+      "store": "Target",
+      "city": "Emeryville",
+      "entrance_rc": [
+        0,
+        0
+      ],
+      "cell_distance_ms": 900,
+      "seconds_per_cell": 0.9,
+      "grid_rows": 3,
+      "grid_cols": 3,
+      "grid": [
+        [
+          "Entrance",
+          "Watermelon",
+          ""
+        ],
+        [
+          "Apple",
+          "Pineapple",
+          ""
+        ],
+        [
+          "Grape",
+          "Banana",
+          ""
+        ]
+      ],
+      "item_access": {
+        "apple": {
+          "positions_rc": [
+            [
+              1,
+              0
+            ]
+          ],
+          "nearest_manhattan_cells": 1,
+          "nearest_access_seconds": 0.9
+        },
+        "banana": {
+          "positions_rc": [
+            [
+              2,
+              1
+            ]
+          ],
+          "nearest_manhattan_cells": 3,
+          "nearest_access_seconds": 2.7
+        },
+        "grape": {
+          "positions_rc": [
+            [
+              2,
+              0
+            ]
+          ],
+          "nearest_manhattan_cells": 2,
+          "nearest_access_seconds": 1.8
+        },
+        "pineapple": {
+          "positions_rc": [
+            [
+              1,
+              1
+            ]
+          ],
+          "nearest_manhattan_cells": 2,
+          "nearest_access_seconds": 1.8
+        },
+        "watermelon": {
+          "positions_rc": [
+            [
+              0,
+              1
+            ]
+          ],
+          "nearest_manhattan_cells": 1,
+          "nearest_access_seconds": 0.9
+        }
+      },
+      "layout_spread": {
+        "n_items": 5,
+        "mean_access_seconds": 1.62,
+        "max_access_seconds": 2.7
+      }
+    },
+    {
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "entrance_rc": [
+        0,
+        0
+      ],
+      "cell_distance_ms": 600,
+      "seconds_per_cell": 0.6,
+      "grid_rows": 3,
+      "grid_cols": 3,
+      "grid": [
+        [
+          "Entrance",
+          "Pineapple",
+          "Watermelon"
+        ],
+        [
+          "Orange",
+          "Apple",
+          "Grape"
+        ],
+        [
+          "",
+          "",
+          ""
+        ]
+      ],
+      "item_access": {
+        "apple": {
+          "positions_rc": [
+            [
+              1,
+              1
+            ]
+          ],
+          "nearest_manhattan_cells": 2,
+          "nearest_access_seconds": 1.2
+        },
+        "grape": {
+          "positions_rc": [
+            [
+              1,
+              2
+            ]
+          ],
+          "nearest_manhattan_cells": 3,
+          "nearest_access_seconds": 1.8
+        },
+        "orange": {
+          "positions_rc": [
+            [
+              1,
+              0
+            ]
+          ],
+          "nearest_manhattan_cells": 1,
+          "nearest_access_seconds": 0.6
+        },
+        "pineapple": {
+          "positions_rc": [
+            [
+              0,
+              1
+            ]
+          ],
+          "nearest_manhattan_cells": 1,
+          "nearest_access_seconds": 0.6
+        },
+        "watermelon": {
+          "positions_rc": [
+            [
+              0,
+              2
+            ]
+          ],
+          "nearest_manhattan_cells": 2,
+          "nearest_access_seconds": 1.2
+        }
+      },
+      "layout_spread": {
+        "n_items": 5,
+        "mean_access_seconds": 1.08,
+        "max_access_seconds": 1.8
+      }
+    },
+    {
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "entrance_rc": [
+        1,
+        0
+      ],
+      "cell_distance_ms": 750,
+      "seconds_per_cell": 0.75,
+      "grid_rows": 3,
+      "grid_cols": 3,
+      "grid": [
+        [
+          "Apple",
+          "Watermelon",
+          "Pear"
+        ],
+        [
+          "Entrance",
+          "Pineapple",
+          "Kiwi"
+        ],
+        [
+          "Grape",
+          "Orange",
+          "Apple"
+        ]
+      ],
+      "item_access": {
+        "apple": {
+          "positions_rc": [
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "nearest_manhattan_cells": 1,
+          "nearest_access_seconds": 0.75
+        },
+        "grape": {
+          "positions_rc": [
+            [
+              2,
+              0
+            ]
+          ],
+          "nearest_manhattan_cells": 1,
+          "nearest_access_seconds": 0.75
+        },
+        "kiwi": {
+          "positions_rc": [
+            [
+              1,
+              2
+            ]
+          ],
+          "nearest_manhattan_cells": 2,
+          "nearest_access_seconds": 1.5
+        },
+        "orange": {
+          "positions_rc": [
+            [
+              2,
+              1
+            ]
+          ],
+          "nearest_manhattan_cells": 2,
+          "nearest_access_seconds": 1.5
+        },
+        "pear": {
+          "positions_rc": [
+            [
+              0,
+              2
+            ]
+          ],
+          "nearest_manhattan_cells": 3,
+          "nearest_access_seconds": 2.25
+        },
+        "pineapple": {
+          "positions_rc": [
+            [
+              1,
+              1
+            ]
+          ],
+          "nearest_manhattan_cells": 1,
+          "nearest_access_seconds": 0.75
+        },
+        "watermelon": {
+          "positions_rc": [
+            [
+              0,
+              1
+            ]
+          ],
+          "nearest_manhattan_cells": 2,
+          "nearest_access_seconds": 1.5
+        }
+      },
+      "layout_spread": {
+        "n_items": 7,
+        "mean_access_seconds": 1.2857,
+        "max_access_seconds": 2.25
+      }
+    },
+    {
+      "store": "Safeway",
+      "city": "Piedmont",
+      "entrance_rc": [
+        0,
+        0
+      ],
+      "cell_distance_ms": 700,
+      "seconds_per_cell": 0.7,
+      "grid_rows": 3,
+      "grid_cols": 3,
+      "grid": [
+        [
+          "Entrance",
+          "Watermelon",
+          ""
+        ],
+        [
+          "Apple",
+          "Orange",
+          ""
+        ],
+        [
+          "",
+          "",
+          ""
+        ]
+      ],
+      "item_access": {
+        "apple": {
+          "positions_rc": [
+            [
+              1,
+              0
+            ]
+          ],
+          "nearest_manhattan_cells": 1,
+          "nearest_access_seconds": 0.7
+        },
+        "orange": {
+          "positions_rc": [
+            [
+              1,
+              1
+            ]
+          ],
+          "nearest_manhattan_cells": 2,
+          "nearest_access_seconds": 1.4
+        },
+        "watermelon": {
+          "positions_rc": [
+            [
+              0,
+              1
+            ]
+          ],
+          "nearest_manhattan_cells": 1,
+          "nearest_access_seconds": 0.7
+        }
+      },
+      "layout_spread": {
+        "n_items": 3,
+        "mean_access_seconds": 0.9333,
+        "max_access_seconds": 1.4
+      }
+    }
+  ]
+}

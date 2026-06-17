@@ -1,0 +1,269 @@
+BundleGame scoring / completion-time / oracle — EXACT SERVER-SIDE SOURCE
+Extracted verbatim at commit 17989b5. Do not edit by hand.
+Provenance: src/lib/bundleTime.js, src/lib/scripts/generateScenarios.js,
+and the mirrored offline reference publishing/data_analysis/analytics_v1/analytics/model/time_model.py
+==============================================================================
+
+## (a) BUNDLE SCORE  (src/lib/scripts/generateScenarios.js)
+
+function scoreBundleSequence(sequence = [], context = {}) {
+  // Empty bundle => zero score
+  if (!Array.isArray(sequence) || sequence.length === 0) {
+    return {
+      score: 0,
+      totalEarnings: 0,
+      totalTimeSeconds: 0,
+      travelTimeSeconds: 0,
+      localTravelTimeSeconds: 0,
+      crossCityTravelTimeSeconds: 0,
+      pickTimeSeconds: 0,
+      effectivePickTimeSeconds: 0,
+      sharedItemSavingsSeconds: 0,
+      endingCity: context.currentCity ?? "",
+      perOrder: [],
+      uncertaintyFlags: ["empty_bundle"]
+    };
+  }
+
+  // Simulated player location while executing this bundle in order
+  let simulatedCity = String(context.currentCity ?? context.playerCity ?? "");
+
+  let totalEarnings = 0;
+  let localTravelTimeSeconds = 0;
+  let crossCityTravelTimeSeconds = 0;
+  let pickTimeSeconds = 0;
+  const perOrder = [];
+
+  for (const order of sequence) {
+    const pay = Number(order?.earnings) || 0;
+    const fromCity = simulatedCity;
+    const toCity = String(order?.city || "");
+    const crossCitySeconds = crossCityExtraTime(toCity, fromCity, context);
+    const localSeconds = Math.max(0, Number(order?.localTravelTime) || 0);
+    const storedBase = Number(order?.estimatedTime);
+    const estimatedPickSeconds = Math.max(0, Number(estimatePickItemTime(order, context)) || 0);
+    const pickSeconds = Number.isFinite(storedBase) && storedBase > 0
+      ? Math.max(0, storedBase - localSeconds)
+      : estimatedPickSeconds;
+    const orderTime = crossCitySeconds + localSeconds + pickSeconds;
+
+    totalEarnings += pay;
+    localTravelTimeSeconds += localSeconds;
+    crossCityTravelTimeSeconds += crossCitySeconds;
+    pickTimeSeconds += pickSeconds;
+
+    perOrder.push({
+      id: order?.id ?? "",
+      fromCity,
+      toCity,
+      city: toCity,
+      store: order?.store ?? "",
+      items: order?.items && typeof order.items === "object" ? { ...order.items } : {},
+      pay,
+      earnings: pay,
+      localTravelTimeSeconds: localSeconds,
+      crossCityTravelTimeSeconds: crossCitySeconds,
+      pickTimeSeconds: pickSeconds,
+      orderTimeSeconds: orderTime,
+      routeMissing: !routeExistsBetweenCities(fromCity, toCity, context)
+    });
+
+    // After completing this order, player ends at order city
+    if (order?.city) simulatedCity = String(order.city);
+  }
+
+  const discounted = applySharedItemBundleSavings(
+    sequence,
+    perOrder.map((entry) => Number(entry?.orderTimeSeconds) || 0),
+    { storeDataset: context?.storeDataset || {} }
+  );
+  const sharedItemSavingsSeconds = Math.max(0, Number(discounted.savingsSeconds) || 0);
+  const effectiveTotalTime = Math.max(0, Number(discounted.discountedTotalTime) || 0);
+  const effectivePickTimeSeconds = Math.max(0, pickTimeSeconds - sharedItemSavingsSeconds);
+  const travelTimeSeconds = localTravelTimeSeconds + crossCityTravelTimeSeconds;
+
+  // Avoid divide by zero
+  const safeTime = effectiveTotalTime > 0 ? effectiveTotalTime : 1e-9;
+  const score = totalEarnings / safeTime;
+  const uncertaintyFlags = buildUncertaintyFlags({ sequence, perOrder, context });
+
+  return {
+    score,
+    totalPay: totalEarnings,
+    totalEarnings,
+    totalTime: effectiveTotalTime,
+    totalTimeSeconds: effectiveTotalTime,
+    travelTimeSeconds,
+    localTravelTimeSeconds,
+    crossCityTravelTimeSeconds,
+    pickTimeSeconds,
+    effectivePickTimeSeconds,
+    sharedItemSavingsSeconds,
+    endingCity: simulatedCity,
+    perOrder,
+    uncertaintyFlags
+  };
+}
+
+function scoreBundleBestSequence(bundle = [], context = {}) {
+  const sequenceCandidates = permutations(bundle);
+  let best = null;
+
+  for (const sequence of sequenceCandidates) {
+    const scored = scoreBundleSequence(sequence, context);
+    const bundleIds = bundle.map((order) => String(order?.id ?? "")).filter(Boolean);
+    const sequenceIds = sequence.map((order) => String(order?.id ?? "")).filter(Boolean);
+    const candidate = {
+      ...scored,
+      bundle,
+      bundleIds,
+      sequenceIds
+    };
+    if (!best || (Number(candidate?.score) || 0) > (Number(best?.score) || 0)) {
+      best = candidate;
+    }
+  }
+
+  return best || {
+    score: 0,
+    totalPay: 0,
+    totalEarnings: 0,
+    totalTime: 0,
+    totalTimeSeconds: 0,
+    travelTimeSeconds: 0,
+    localTravelTimeSeconds: 0,
+    crossCityTravelTimeSeconds: 0,
+    pickTimeSeconds: 0,
+    effectivePickTimeSeconds: 0,
+    sharedItemSavingsSeconds: 0,
+    endingCity: context.currentCity ?? "",
+    perOrder: [],
+    bundleIds: [],
+    sequenceIds: [],
+    uncertaintyFlags: ["no_route_candidate"]
+  };
+}
+
+## (b) COMPLETION TIME = pick + local + cross-city - shared savings  (src/lib/bundleTime.js)
+
+export function applySharedItemBundleSavings(orders = [], orderTimes = [], options = {}) {
+  const times = Array.isArray(orderTimes) ? orderTimes : [];
+  const rawTotalTime = times.reduce((sum, t) => sum + Math.max(0, Number(t) || 0), 0);
+  const sharedSavings = calculateSharedItemTravelSavings(orders, options);
+  const discountedTotalTime = Math.max(0, rawTotalTime - sharedSavings);
+  return {
+    rawTotalTime,
+    discountedTotalTime,
+    savingsSeconds: sharedSavings
+  };
+}
+
+export function calculateSharedItemTravelSavings(orders = [], options = {}) {
+  const list = Array.isArray(orders) ? orders : [];
+  if (list.length <= 1) return 0;
+
+  const groups = new Map();
+  for (const order of list) {
+    const store = String(order?.store || "");
+    const city = String(order?.city || "");
+    const key = `${store}@@${city}`;
+    const group = groups.get(key) || [];
+    group.push(order);
+    groups.set(key, group);
+  }
+
+  let savingsSeconds = 0;
+  for (const [key, groupOrders] of groups.entries()) {
+    if (groupOrders.length < 2) continue;
+
+    const [storeName] = key.split("@@");
+    const cfg = resolveStoreConfig(storeName, options);
+    if (!cfg) continue;
+
+    const itemCounts = new Map();
+    for (const order of groupOrders) {
+      const uniqueKeys = new Set(normalizeItemKeys(order?.items));
+      for (const item of uniqueKeys) {
+        itemCounts.set(item, (itemCounts.get(item) || 0) + 1);
+      }
+    }
+
+    for (const [item, count] of itemCounts.entries()) {
+      if (count <= 1) continue;
+      const access = itemAccessSeconds(cfg, item);
+      savingsSeconds += access * (count - 1) * SHARED_ITEM_ACCESS_SAVE_RATE;
+    }
+  }
+
+  return savingsSeconds;
+}
+
+## (c) ORACLE / best & second selection  (src/lib/scripts/generateScenarios.js)
+
+function solveBestAndSecondBundle(orders = [], context = {}) {
+  const maxBundle = Number(context.maxBundle ?? context.kMax ?? 3);
+
+  const legalBundleEntries = enumerateLegalBundles(orders, maxBundle);
+  if (legalBundleEntries.length === 0) {
+    return {
+      best: null,
+      second: null,
+      candidates: [],
+      bestScore: 0,
+      secondScore: 0
+    };
+  }
+
+  const scored = legalBundleEntries.map(({ bundle, legality }) => {
+    const scoreResult = scoreBundleBestSequence(bundle, context);
+    return {
+      ...scoreResult,
+      legalityReason: legality.reason
+    };
+  });
+
+  scored.sort((a, b) => {
+    const scoreDiff = (Number(b.score) || 0) - (Number(a.score) || 0);
+    if (scoreDiff !== 0) return scoreDiff;
+    const sizeDiff = (a.bundleIds?.length || 0) - (b.bundleIds?.length || 0);
+    if (sizeDiff !== 0) return sizeDiff;
+    return String(a.bundleIds?.join("+") || "").localeCompare(String(b.bundleIds?.join("+") || ""));
+  });
+
+  const bestScore = Number(scored[0]?.score) || 0;
+  const candidates = scored.map((candidate, index) => enrichCandidateRegret(candidate, bestScore, index + 1));
+  const secondScore = Number(candidates[1]?.score) || 0;
+  const best = candidates[0] ?? null;
+  const second = candidates[1] ?? null;
+
+  return {
+    best,
+    second,
+    candidates,
+    bestScore,
+    secondScore
+  };
+}
+
+function enrichCandidateRegret(candidate = {}, bestScore = 0, rank = 0) {
+  const score = Number(candidate?.score);
+  const ratio = Number.isFinite(score) && bestScore > 0 ? score / bestScore : null;
+  const regret = ratio == null ? null : Math.max(0, 1 - ratio);
+  return {
+    ...candidate,
+    rank,
+    scoreRatioToBest: ratio,
+    regretToBest: regret,
+    isBest: rank === 1,
+    isNearBest: ratio != null && ratio >= 0.95
+  };
+}
+
+## Offline reference mirror (Python; what the export uses)
+
+# publishing/data_analysis/analytics_v1/analytics/model/time_model.py :: compute_modeled_bundle_time
+def compute_modeled_bundle_time(
+    bundle_orders: list[dict[str, Any]],
+    current_city: str,
+    cities_dataset: dict[str, Any],
+    store_dataset: dict[str, Any],

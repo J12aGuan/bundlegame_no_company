@@ -1,0 +1,12 @@
+file: decision_screen.png
+figure_type: decision_screen (LIVE in-game)
+scenario_set: mainGame_2026_03_20_14_26_36
+round_index: 4 (compact Berkeley Bowl menu; screenshot taken at the round the live session resumed at)
+participant: bobalab (arm: control)
+note: Study-arm panel reads "unassigned - control / NO RECOMMENDATION - this round is running without a displayed recommendation for your assigned study condition."
+shows: Available Orders menu (4 order cards) + MapTiler city map (Berkeley/Emeryville/Piedmont/Oakland)
+viewport: 1440x900
+device_pixel_ratio: 2
+rendered_pixels: 2880x1800
+crop: none (full viewport)
+source: genuine authenticated play-through of deployed game

@@ -1,0 +1,26 @@
+{
+  "id": "cities",
+  "travelTimes": {
+    "Berkeley": {
+      "Oakland": 10,
+      "Emeryville": 7,
+      "Piedmont": 11
+    },
+    "Oakland": {
+      "Berkeley": 10,
+      "Emeryville": 6,
+      "Piedmont": 5
+    },
+    "Emeryville": {
+      "Piedmont": 8,
+      "Oakland": 6,
+      "Berkeley": 7
+    },
+    "Piedmont": {
+      "Oakland": 5,
+      "Berkeley": 11,
+      "Emeryville": 8
+    }
+  },
+  "startinglocation": "Berkeley"
+}
