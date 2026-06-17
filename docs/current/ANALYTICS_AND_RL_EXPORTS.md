@@ -10,7 +10,7 @@ The project now has two admin-facing analytics surfaces:
 The shared logic lives in:
 
 - `src/lib/analysis/engine.js`
-- `data analysis/analytics_v1`
+- `publishing/data_analysis/analytics_v1`
 
 Companion runtime utilities:
 
@@ -90,7 +90,7 @@ npm run scores:export -- --mode raw_research_export
 npm run scores:export -- --mode publication_export
 ```
 
-By default, each mode writes a dated folder under `data analysis/` containing:
+By default, each mode writes a dated folder under `publishing/data_analysis/` containing:
 
 - `<mode>.json`
 - `schema.json`
@@ -111,8 +111,8 @@ PUBLICATION_PSEUDONYM_SALT=private-stable-salt npm run firestore:export:publicat
 ```
 
 Raw recursive Firestore exports write ignored timestamp folders under
-`data analysis/firestore_raw_export/`. Publication-safe recursive exports write
-ignored timestamp folders under `data analysis/firestore_publication_safe_export/`
+`publishing/data_analysis/firestore_raw_export/`. Publication-safe recursive exports write
+ignored timestamp folders under `publishing/data_analysis/firestore_publication_safe_export/`
 after replacing participant IDs with salted pseudonyms and removing direct
 Qualtrics/result-linkage identifiers.
 
@@ -307,7 +307,7 @@ The worker:
 
 - reads `ResearchJobs` and `ResearchSnapshots`
 - recomputes analysis from the referenced Firestore dataset
-- writes artifact files under `data analysis/research_jobs/<job_id>/`
+- writes artifact files under `publishing/data_analysis/research_jobs/<job_id>/`
 - updates job `metrics`, `artifact_uris`, and status
 
 Uploaded snapshots are still exportable, but they are marked offline-only and are not runnable by the Firestore worker.

@@ -27,7 +27,7 @@ If your machine only has `python3.9`, install Python 3.10+ or pass a supported i
 The fixture run requires no Firebase or Qualtrics credentials.
 
 ```bash
-cd "data analysis/analytics_v1"
+cd "publishing/data_analysis/analytics_v1"
 python -m pip install -e ".[dev]"
 python -m analytics.cli run \
   --source json \
@@ -40,7 +40,7 @@ python -m analytics.cli run \
   --out-dir ./out/fixture
 ```
 
-Expected core outputs under `data analysis/analytics_v1/out/fixture/`:
+Expected core outputs under `publishing/data_analysis/analytics_v1/out/fixture/`:
 
 - `analysis_master.csv`
 - `policy_training.csv`
@@ -87,7 +87,7 @@ npm run research:worker
 Worker outputs are written under:
 
 ```text
-data analysis/research_jobs/<job_id>/
+publishing/data_analysis/research_jobs/<job_id>/
 ```
 
 ## 4. Publication-Safe Derived Export
@@ -102,7 +102,7 @@ npm run scores:export -- --mode publication_export
 Default output:
 
 ```text
-data analysis/publication_export-YYYY-MM-DD/
+publishing/data_analysis/publication_export-YYYY-MM-DD/
 ```
 
 Expected files:
@@ -133,7 +133,7 @@ Class-facing score exports are useful for instructors/admins but are not the pri
 npm run scores:export
 ```
 
-Default outputs under `data analysis/`:
+Default outputs under `publishing/data_analysis/`:
 
 - `bundlegame-scores-YYYY-MM-DD.csv`
 - `bundlegame-score-class-averages-YYYY-MM-DD.csv`
@@ -205,24 +205,24 @@ To regenerate the standard paper tables and figures from one command:
 
 ```bash
 npm run paper:artifacts -- \
-  --analysis-dir "data analysis/research_jobs/<job_id>" \
-  --publication-dir "data analysis/publication_export-YYYY-MM-DD" \
-  --model-dir "data analysis/offline_rl/cql_<snapshot_id>" \
-  --model-dir "data analysis/offline_rl/iql_<snapshot_id>" \
-  --out-dir "data analysis/paper_artifacts/<snapshot_id>"
+  --analysis-dir "publishing/data_analysis/research_jobs/<job_id>" \
+  --publication-dir "publishing/data_analysis/publication_export-YYYY-MM-DD" \
+  --model-dir "publishing/data_analysis/offline_rl/cql_<snapshot_id>" \
+  --model-dir "publishing/data_analysis/offline_rl/iql_<snapshot_id>" \
+  --out-dir "publishing/data_analysis/paper_artifacts/<snapshot_id>"
 ```
 
 For a credential-free smoke test:
 
 ```bash
 npm run paper:artifacts -- \
-  --analysis-dir paper_artifacts/fixtures/analysis \
-  --publication-dir paper_artifacts/fixtures/publication_export \
-  --model-dir paper_artifacts/fixtures/model_cql \
-  --out-dir paper_artifacts/out/fixture
+  --analysis-dir publishing/paper_artifacts/fixtures/analysis \
+  --publication-dir publishing/paper_artifacts/fixtures/publication_export \
+  --model-dir publishing/paper_artifacts/fixtures/model_cql \
+  --out-dir publishing/paper_artifacts/out/fixture
 ```
 
-The command writes SVG figures, CSV/Markdown tables, and `output_manifest.json`. See [paper_artifacts/README.md](paper_artifacts/README.md).
+The command writes SVG figures, CSV/Markdown tables, and `output_manifest.json`. See [publishing/paper_artifacts/README.md](publishing/paper_artifacts/README.md).
 
 ## 8. Paper Package Checklist
 

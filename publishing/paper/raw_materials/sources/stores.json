@@ -1,0 +1,160 @@
+{
+  "stores": [
+    {
+      "locations": [
+        {
+          "cells": [
+            "Entrance",
+            "Watermelon",
+            ""
+          ]
+        },
+        {
+          "cells": [
+            "Apple",
+            "Pineapple",
+            ""
+          ]
+        },
+        {
+          "cells": [
+            "Grape",
+            "Banana",
+            ""
+          ]
+        }
+      ],
+      "Entrance": [
+        0,
+        0
+      ],
+      "items": [
+        "watermelon",
+        "apple",
+        "pineapple",
+        "grape",
+        "banana"
+      ],
+      "city": "Emeryville",
+      "cellDistance": 900,
+      "store": "Target"
+    },
+    {
+      "items": [
+        "apple",
+        "pineapple",
+        "grape",
+        "orange",
+        "watermelon"
+      ],
+      "Entrance": [
+        0,
+        0
+      ],
+      "locations": [
+        {
+          "cells": [
+            "Entrance",
+            "Pineapple",
+            "Watermelon"
+          ]
+        },
+        {
+          "cells": [
+            "Orange",
+            "Apple",
+            "Grape"
+          ]
+        },
+        {
+          "cells": [
+            "",
+            "",
+            ""
+          ]
+        }
+      ],
+      "city": "Berkeley",
+      "cellDistance": 600,
+      "store": "Berkeley Bowl"
+    },
+    {
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "cellDistance": 750,
+      "locations": [
+        {
+          "cells": [
+            "Apple",
+            "Watermelon",
+            "Pear"
+          ]
+        },
+        {
+          "cells": [
+            "Entrance",
+            "Pineapple",
+            "Kiwi"
+          ]
+        },
+        {
+          "cells": [
+            "Grape",
+            "Orange",
+            "Apple"
+          ]
+        }
+      ],
+      "Entrance": [
+        1,
+        0
+      ],
+      "items": [
+        "apple",
+        "watermelon",
+        "pear",
+        "kiwi",
+        "pineapple",
+        "grape",
+        "orange"
+      ]
+    },
+    {
+      "store": "Safeway",
+      "cellDistance": 700,
+      "city": "Piedmont",
+      "Entrance": [
+        0,
+        0
+      ],
+      "items": [
+        "apple",
+        "watermelon",
+        "orange"
+      ],
+      "locations": [
+        {
+          "cells": [
+            "Entrance",
+            "Watermelon",
+            ""
+          ]
+        },
+        {
+          "cells": [
+            "Apple",
+            "Orange",
+            ""
+          ]
+        },
+        {
+          "cells": [
+            "",
+            "",
+            ""
+          ]
+        }
+      ]
+    }
+  ]
+}

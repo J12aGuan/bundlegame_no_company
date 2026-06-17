@@ -1,0 +1,3643 @@
+{
+  "scenarios": [
+    {
+      "order_ids": [
+        "mainGameOrder1",
+        "mainGameOrder2",
+        "mainGameOrder3",
+        "mainGameOrder4"
+      ],
+      "scenario_id": "mainGameScenario1",
+      "round": 1,
+      "max_bundle": 3
+    },
+    {
+      "max_bundle": 3,
+      "round": 2,
+      "scenario_id": "mainGameScenario2",
+      "order_ids": [
+        "mainGameOrder5",
+        "mainGameOrder6",
+        "mainGameOrder7",
+        "mainGameOrder8"
+      ]
+    },
+    {
+      "order_ids": [
+        "mainGameOrder9",
+        "mainGameOrder10",
+        "mainGameOrder11",
+        "mainGameOrder12"
+      ],
+      "scenario_id": "mainGameScenario3",
+      "round": 3,
+      "max_bundle": 3
+    },
+    {
+      "round": 4,
+      "max_bundle": 3,
+      "order_ids": [
+        "mainGameOrder13",
+        "mainGameOrder14",
+        "mainGameOrder15",
+        "mainGameOrder16"
+      ],
+      "scenario_id": "mainGameScenario4"
+    },
+    {
+      "order_ids": [
+        "mainGameOrder17",
+        "mainGameOrder18",
+        "mainGameOrder19",
+        "mainGameOrder20"
+      ],
+      "scenario_id": "mainGameScenario5",
+      "round": 5,
+      "max_bundle": 3
+    },
+    {
+      "order_ids": [
+        "mainGameOrder21",
+        "mainGameOrder22",
+        "mainGameOrder23",
+        "mainGameOrder24"
+      ],
+      "scenario_id": "mainGameScenario6",
+      "round": 6,
+      "max_bundle": 3
+    },
+    {
+      "scenario_id": "mainGameScenario7",
+      "order_ids": [
+        "mainGameOrder25",
+        "mainGameOrder26",
+        "mainGameOrder27",
+        "mainGameOrder28"
+      ],
+      "max_bundle": 3,
+      "round": 7
+    },
+    {
+      "scenario_id": "mainGameScenario8",
+      "order_ids": [
+        "mainGameOrder29",
+        "mainGameOrder30",
+        "mainGameOrder31",
+        "mainGameOrder32"
+      ],
+      "max_bundle": 3,
+      "round": 8
+    },
+    {
+      "round": 9,
+      "max_bundle": 3,
+      "order_ids": [
+        "mainGameOrder33",
+        "mainGameOrder34",
+        "mainGameOrder35",
+        "mainGameOrder36"
+      ],
+      "scenario_id": "mainGameScenario9"
+    },
+    {
+      "max_bundle": 3,
+      "round": 10,
+      "scenario_id": "mainGameScenario10",
+      "order_ids": [
+        "mainGameOrder37",
+        "mainGameOrder38",
+        "mainGameOrder39",
+        "mainGameOrder40"
+      ]
+    },
+    {
+      "max_bundle": 3,
+      "round": 11,
+      "scenario_id": "mainGameScenario11",
+      "order_ids": [
+        "mainGameOrder41",
+        "mainGameOrder42",
+        "mainGameOrder43",
+        "mainGameOrder44"
+      ]
+    },
+    {
+      "max_bundle": 3,
+      "round": 12,
+      "scenario_id": "mainGameScenario12",
+      "order_ids": [
+        "mainGameOrder45",
+        "mainGameOrder46",
+        "mainGameOrder47",
+        "mainGameOrder48"
+      ]
+    },
+    {
+      "order_ids": [
+        "mainGameOrder49",
+        "mainGameOrder50",
+        "mainGameOrder51",
+        "mainGameOrder52"
+      ],
+      "scenario_id": "mainGameScenario13",
+      "round": 13,
+      "max_bundle": 3
+    },
+    {
+      "max_bundle": 3,
+      "round": 14,
+      "scenario_id": "mainGameScenario14",
+      "order_ids": [
+        "mainGameOrder53",
+        "mainGameOrder54",
+        "mainGameOrder55",
+        "mainGameOrder56"
+      ]
+    },
+    {
+      "round": 15,
+      "max_bundle": 3,
+      "order_ids": [
+        "mainGameOrder57",
+        "mainGameOrder58",
+        "mainGameOrder59",
+        "mainGameOrder60"
+      ],
+      "scenario_id": "mainGameScenario15"
+    },
+    {
+      "round": 16,
+      "max_bundle": 3,
+      "order_ids": [
+        "mainGameOrder61",
+        "mainGameOrder62",
+        "mainGameOrder63",
+        "mainGameOrder64"
+      ],
+      "scenario_id": "mainGameScenario16"
+    },
+    {
+      "max_bundle": 3,
+      "round": 17,
+      "scenario_id": "mainGameScenario17",
+      "order_ids": [
+        "mainGameOrder65",
+        "mainGameOrder66",
+        "mainGameOrder67",
+        "mainGameOrder68"
+      ]
+    },
+    {
+      "scenario_id": "mainGameScenario18",
+      "order_ids": [
+        "mainGameOrder69",
+        "mainGameOrder70",
+        "mainGameOrder71",
+        "mainGameOrder72"
+      ],
+      "max_bundle": 3,
+      "round": 18
+    },
+    {
+      "max_bundle": 3,
+      "round": 19,
+      "scenario_id": "mainGameScenario19",
+      "order_ids": [
+        "mainGameOrder73",
+        "mainGameOrder74",
+        "mainGameOrder75",
+        "mainGameOrder76"
+      ]
+    },
+    {
+      "order_ids": [
+        "mainGameOrder77",
+        "mainGameOrder78",
+        "mainGameOrder79",
+        "mainGameOrder80"
+      ],
+      "scenario_id": "mainGameScenario20",
+      "round": 20,
+      "max_bundle": 3
+    },
+    {
+      "max_bundle": 3,
+      "round": 21,
+      "scenario_id": "mainGameScenario21",
+      "order_ids": [
+        "mainGameOrder81",
+        "mainGameOrder82",
+        "mainGameOrder83",
+        "mainGameOrder84"
+      ]
+    },
+    {
+      "max_bundle": 3,
+      "round": 22,
+      "scenario_id": "mainGameScenario22",
+      "order_ids": [
+        "mainGameOrder85",
+        "mainGameOrder86",
+        "mainGameOrder87",
+        "mainGameOrder88"
+      ]
+    },
+    {
+      "round": 23,
+      "max_bundle": 3,
+      "order_ids": [
+        "mainGameOrder89",
+        "mainGameOrder90",
+        "mainGameOrder91",
+        "mainGameOrder92"
+      ],
+      "scenario_id": "mainGameScenario23"
+    },
+    {
+      "max_bundle": 3,
+      "round": 24,
+      "scenario_id": "mainGameScenario24",
+      "order_ids": [
+        "mainGameOrder93",
+        "mainGameOrder94",
+        "mainGameOrder95",
+        "mainGameOrder96"
+      ]
+    },
+    {
+      "scenario_id": "mainGameScenario25",
+      "order_ids": [
+        "mainGameOrder97",
+        "mainGameOrder98",
+        "mainGameOrder99",
+        "mainGameOrder100"
+      ],
+      "max_bundle": 3,
+      "round": 25
+    },
+    {
+      "max_bundle": 3,
+      "round": 26,
+      "scenario_id": "mainGameScenario26",
+      "order_ids": [
+        "mainGameOrder101",
+        "mainGameOrder102",
+        "mainGameOrder103",
+        "mainGameOrder104"
+      ]
+    },
+    {
+      "round": 27,
+      "max_bundle": 3,
+      "order_ids": [
+        "mainGameOrder105",
+        "mainGameOrder106",
+        "mainGameOrder107",
+        "mainGameOrder108"
+      ],
+      "scenario_id": "mainGameScenario27"
+    },
+    {
+      "scenario_id": "mainGameScenario28",
+      "order_ids": [
+        "mainGameOrder109",
+        "mainGameOrder110",
+        "mainGameOrder111",
+        "mainGameOrder112"
+      ],
+      "max_bundle": 3,
+      "round": 28
+    },
+    {
+      "scenario_id": "mainGameScenario29",
+      "order_ids": [
+        "mainGameOrder113",
+        "mainGameOrder114",
+        "mainGameOrder115",
+        "mainGameOrder116"
+      ],
+      "max_bundle": 3,
+      "round": 29
+    },
+    {
+      "order_ids": [
+        "mainGameOrder117",
+        "mainGameOrder118",
+        "mainGameOrder119",
+        "mainGameOrder120"
+      ],
+      "scenario_id": "mainGameScenario30",
+      "round": 30,
+      "max_bundle": 3
+    },
+    {
+      "scenario_id": "mainGameScenario31",
+      "order_ids": [
+        "mainGameOrder121",
+        "mainGameOrder122",
+        "mainGameOrder123",
+        "mainGameOrder124"
+      ],
+      "max_bundle": 3,
+      "round": 31
+    },
+    {
+      "round": 32,
+      "max_bundle": 3,
+      "order_ids": [
+        "mainGameOrder125",
+        "mainGameOrder126",
+        "mainGameOrder127",
+        "mainGameOrder128"
+      ],
+      "scenario_id": "mainGameScenario32"
+    },
+    {
+      "max_bundle": 3,
+      "round": 33,
+      "scenario_id": "mainGameScenario33",
+      "order_ids": [
+        "mainGameOrder129",
+        "mainGameOrder130",
+        "mainGameOrder131",
+        "mainGameOrder132"
+      ]
+    },
+    {
+      "max_bundle": 3,
+      "round": 34,
+      "scenario_id": "mainGameScenario34",
+      "order_ids": [
+        "mainGameOrder133",
+        "mainGameOrder134",
+        "mainGameOrder135",
+        "mainGameOrder136"
+      ]
+    },
+    {
+      "max_bundle": 3,
+      "round": 35,
+      "scenario_id": "mainGameScenario35",
+      "order_ids": [
+        "mainGameOrder137",
+        "mainGameOrder138",
+        "mainGameOrder139",
+        "mainGameOrder140"
+      ]
+    },
+    {
+      "round": 36,
+      "max_bundle": 3,
+      "order_ids": [
+        "mainGameOrder141",
+        "mainGameOrder142",
+        "mainGameOrder143",
+        "mainGameOrder144"
+      ],
+      "scenario_id": "mainGameScenario36"
+    },
+    {
+      "order_ids": [
+        "mainGameOrder145",
+        "mainGameOrder146",
+        "mainGameOrder147",
+        "mainGameOrder148"
+      ],
+      "scenario_id": "mainGameScenario37",
+      "round": 37,
+      "max_bundle": 3
+    },
+    {
+      "order_ids": [
+        "mainGameOrder149",
+        "mainGameOrder150",
+        "mainGameOrder151",
+        "mainGameOrder152"
+      ],
+      "scenario_id": "mainGameScenario38",
+      "round": 38,
+      "max_bundle": 3
+    },
+    {
+      "max_bundle": 3,
+      "round": 39,
+      "scenario_id": "mainGameScenario39",
+      "order_ids": [
+        "mainGameOrder153",
+        "mainGameOrder154",
+        "mainGameOrder155",
+        "mainGameOrder156"
+      ]
+    },
+    {
+      "scenario_id": "mainGameScenario40",
+      "order_ids": [
+        "mainGameOrder157",
+        "mainGameOrder158",
+        "mainGameOrder159",
+        "mainGameOrder160"
+      ],
+      "max_bundle": 3,
+      "round": 40
+    },
+    {
+      "scenario_id": "mainGameScenario41",
+      "order_ids": [
+        "mainGameOrder161",
+        "mainGameOrder162",
+        "mainGameOrder163",
+        "mainGameOrder164"
+      ],
+      "max_bundle": 3,
+      "round": 41
+    },
+    {
+      "max_bundle": 3,
+      "round": 42,
+      "scenario_id": "mainGameScenario42",
+      "order_ids": [
+        "mainGameOrder165",
+        "mainGameOrder166",
+        "mainGameOrder167",
+        "mainGameOrder168"
+      ]
+    },
+    {
+      "scenario_id": "mainGameScenario43",
+      "order_ids": [
+        "mainGameOrder169",
+        "mainGameOrder170",
+        "mainGameOrder171",
+        "mainGameOrder172"
+      ],
+      "max_bundle": 3,
+      "round": 43
+    },
+    {
+      "scenario_id": "mainGameScenario44",
+      "order_ids": [
+        "mainGameOrder173",
+        "mainGameOrder174",
+        "mainGameOrder175",
+        "mainGameOrder176"
+      ],
+      "max_bundle": 3,
+      "round": 44
+    },
+    {
+      "order_ids": [
+        "mainGameOrder177",
+        "mainGameOrder178",
+        "mainGameOrder179",
+        "mainGameOrder180"
+      ],
+      "scenario_id": "mainGameScenario45",
+      "round": 45,
+      "max_bundle": 3
+    },
+    {
+      "round": 46,
+      "max_bundle": 3,
+      "order_ids": [
+        "mainGameOrder181",
+        "mainGameOrder182",
+        "mainGameOrder183",
+        "mainGameOrder184"
+      ],
+      "scenario_id": "mainGameScenario46"
+    },
+    {
+      "order_ids": [
+        "mainGameOrder185",
+        "mainGameOrder186",
+        "mainGameOrder187",
+        "mainGameOrder188"
+      ],
+      "scenario_id": "mainGameScenario47",
+      "round": 47,
+      "max_bundle": 3
+    },
+    {
+      "scenario_id": "mainGameScenario48",
+      "order_ids": [
+        "mainGameOrder189",
+        "mainGameOrder190",
+        "mainGameOrder191",
+        "mainGameOrder192"
+      ],
+      "max_bundle": 3,
+      "round": 48
+    },
+    {
+      "max_bundle": 3,
+      "round": 49,
+      "scenario_id": "mainGameScenario49",
+      "order_ids": [
+        "mainGameOrder193",
+        "mainGameOrder194",
+        "mainGameOrder195",
+        "mainGameOrder196"
+      ]
+    },
+    {
+      "round": 50,
+      "max_bundle": 3,
+      "order_ids": [
+        "mainGameOrder197",
+        "mainGameOrder198",
+        "mainGameOrder199",
+        "mainGameOrder200"
+      ],
+      "scenario_id": "mainGameScenario50"
+    }
+  ],
+  "orders": [
+    {
+      "estimatedTime": 10.8,
+      "items": {
+        "grape": 1,
+        "orange": 3
+      },
+      "earnings": 22,
+      "id": "mainGameOrder1",
+      "localTravelTime": 3,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl"
+    },
+    {
+      "earnings": 22,
+      "id": "mainGameOrder2",
+      "estimatedTime": 14.4,
+      "items": {
+        "watermelon": 1,
+        "orange": 3
+      },
+      "localTravelTime": 6,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley"
+    },
+    {
+      "items": {
+        "orange": 3,
+        "grape": 1
+      },
+      "estimatedTime": 13,
+      "id": "mainGameOrder3",
+      "earnings": 15,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 4
+    },
+    {
+      "estimatedTime": 11.75,
+      "items": {
+        "orange": 1,
+        "pear": 1
+      },
+      "id": "mainGameOrder4",
+      "earnings": 18,
+      "localTravelTime": 2,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market"
+    },
+    {
+      "estimatedTime": 17,
+      "items": {
+        "pineapple": 2,
+        "grape": 3,
+        "orange": 2
+      },
+      "id": "mainGameOrder5",
+      "earnings": 24,
+      "localTravelTime": 5,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl"
+    },
+    {
+      "id": "mainGameOrder6",
+      "earnings": 15,
+      "estimatedTime": 15.4,
+      "items": {
+        "pineapple": 1,
+        "grape": 3,
+        "apple": 2
+      },
+      "localTravelTime": 4,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl"
+    },
+    {
+      "items": {
+        "apple": 1,
+        "grape": 1,
+        "watermelon": 1
+      },
+      "estimatedTime": 14,
+      "id": "mainGameOrder7",
+      "earnings": 15,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 2
+    },
+    {
+      "items": {
+        "pineapple": 2,
+        "orange": 1
+      },
+      "estimatedTime": 10.8,
+      "id": "mainGameOrder8",
+      "earnings": 20,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 3
+    },
+    {
+      "items": {
+        "orange": 3,
+        "grape": 1,
+        "pineapple": 1
+      },
+      "estimatedTime": 16.2,
+      "id": "mainGameOrder9",
+      "earnings": 15,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 3
+    },
+    {
+      "localTravelTime": 3,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "earnings": 23,
+      "id": "mainGameOrder10",
+      "estimatedTime": 15.75,
+      "items": {
+        "apple": 2,
+        "orange": 2,
+        "kiwi": 3
+      }
+    },
+    {
+      "id": "mainGameOrder11",
+      "earnings": 23,
+      "items": {
+        "grape": 3,
+        "pineapple": 1,
+        "orange": 2
+      },
+      "estimatedTime": 18,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "localTravelTime": 6
+    },
+    {
+      "localTravelTime": 6,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "estimatedTime": 13.8,
+      "items": {
+        "apple": 3,
+        "orange": 2
+      },
+      "id": "mainGameOrder12",
+      "earnings": 16
+    },
+    {
+      "id": "mainGameOrder13",
+      "earnings": 17,
+      "estimatedTime": 11.2,
+      "items": {
+        "apple": 1,
+        "pineapple": 2
+      },
+      "localTravelTime": 4,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley"
+    },
+    {
+      "localTravelTime": 2,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "id": "mainGameOrder14",
+      "earnings": 17,
+      "estimatedTime": 9.8,
+      "items": {
+        "orange": 3,
+        "pineapple": 2
+      }
+    },
+    {
+      "localTravelTime": 2,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "earnings": 20,
+      "id": "mainGameOrder15",
+      "estimatedTime": 14,
+      "items": {
+        "apple": 3,
+        "pineapple": 2,
+        "orange": 2
+      }
+    },
+    {
+      "id": "mainGameOrder16",
+      "earnings": 16,
+      "items": {
+        "orange": 3,
+        "apple": 2,
+        "watermelon": 2
+      },
+      "estimatedTime": 17.4,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "localTravelTime": 6
+    },
+    {
+      "localTravelTime": 4,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "estimatedTime": 11.5,
+      "items": {
+        "pineapple": 1,
+        "orange": 3
+      },
+      "earnings": 14,
+      "id": "mainGameOrder17"
+    },
+    {
+      "localTravelTime": 5,
+      "store": "Safeway",
+      "city": "Piedmont",
+      "estimatedTime": 17.5,
+      "items": {
+        "apple": 2,
+        "watermelon": 1,
+        "orange": 2
+      },
+      "id": "mainGameOrder18",
+      "earnings": 20
+    },
+    {
+      "estimatedTime": 12.25,
+      "items": {
+        "apple": 2,
+        "kiwi": 2
+      },
+      "id": "mainGameOrder19",
+      "earnings": 17,
+      "localTravelTime": 4,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market"
+    },
+    {
+      "items": {
+        "apple": 3,
+        "watermelon": 2
+      },
+      "estimatedTime": 12.1,
+      "earnings": 13,
+      "id": "mainGameOrder20",
+      "city": "Piedmont",
+      "store": "Safeway",
+      "localTravelTime": 4
+    },
+    {
+      "earnings": 19,
+      "id": "mainGameOrder21",
+      "estimatedTime": 14,
+      "items": {
+        "orange": 2,
+        "watermelon": 3,
+        "pineapple": 1
+      },
+      "localTravelTime": 2,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland"
+    },
+    {
+      "estimatedTime": 10.25,
+      "items": {
+        "pineapple": 3,
+        "apple": 3
+      },
+      "earnings": 22,
+      "id": "mainGameOrder22",
+      "localTravelTime": 2,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland"
+    },
+    {
+      "estimatedTime": 14.25,
+      "items": {
+        "watermelon": 3,
+        "apple": 1
+      },
+      "earnings": 24,
+      "id": "mainGameOrder23",
+      "localTravelTime": 6,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market"
+    },
+    {
+      "id": "mainGameOrder24",
+      "earnings": 18,
+      "items": {
+        "pear": 1,
+        "apple": 2
+      },
+      "estimatedTime": 11.75,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 2
+    },
+    {
+      "id": "mainGameOrder25",
+      "earnings": 12,
+      "estimatedTime": 17.5,
+      "items": {
+        "grape": 2,
+        "watermelon": 3,
+        "kiwi": 3
+      },
+      "localTravelTime": 4,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland"
+    },
+    {
+      "localTravelTime": 2,
+      "city": "Emeryville",
+      "store": "Target",
+      "earnings": 17,
+      "id": "mainGameOrder26",
+      "estimatedTime": 15.5,
+      "items": {
+        "watermelon": 3,
+        "pineapple": 3,
+        "apple": 3
+      }
+    },
+    {
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "localTravelTime": 4,
+      "items": {
+        "kiwi": 1,
+        "apple": 2
+      },
+      "estimatedTime": 13,
+      "id": "mainGameOrder27",
+      "earnings": 21
+    },
+    {
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 3,
+      "earnings": 21,
+      "id": "mainGameOrder28",
+      "items": {
+        "pear": 1,
+        "apple": 2
+      },
+      "estimatedTime": 11.25
+    },
+    {
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 3,
+      "items": {
+        "apple": 3,
+        "pineapple": 3
+      },
+      "estimatedTime": 11.25,
+      "earnings": 17,
+      "id": "mainGameOrder29"
+    },
+    {
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "localTravelTime": 6,
+      "items": {
+        "orange": 2,
+        "watermelon": 2,
+        "grape": 3
+      },
+      "estimatedTime": 19.5,
+      "id": "mainGameOrder30",
+      "earnings": 15
+    },
+    {
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 5,
+      "earnings": 15,
+      "id": "mainGameOrder31",
+      "items": {
+        "orange": 1,
+        "grape": 1,
+        "pear": 3
+      },
+      "estimatedTime": 17.75
+    },
+    {
+      "items": {
+        "pineapple": 2,
+        "apple": 1
+      },
+      "estimatedTime": 11.25,
+      "id": "mainGameOrder32",
+      "earnings": 14,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 3
+    },
+    {
+      "estimatedTime": 11.1,
+      "items": {
+        "watermelon": 2,
+        "apple": 2
+      },
+      "id": "mainGameOrder33",
+      "earnings": 12,
+      "localTravelTime": 3,
+      "city": "Piedmont",
+      "store": "Safeway"
+    },
+    {
+      "city": "Emeryville",
+      "store": "Target",
+      "localTravelTime": 6,
+      "earnings": 17,
+      "id": "mainGameOrder34",
+      "items": {
+        "watermelon": 2,
+        "apple": 3,
+        "banana": 3
+      },
+      "estimatedTime": 21.3
+    },
+    {
+      "store": "Safeway",
+      "city": "Piedmont",
+      "localTravelTime": 5,
+      "items": {
+        "orange": 3,
+        "watermelon": 3,
+        "apple": 2
+      },
+      "estimatedTime": 16.1,
+      "earnings": 12,
+      "id": "mainGameOrder35"
+    },
+    {
+      "earnings": 13,
+      "id": "mainGameOrder36",
+      "estimatedTime": 16.1,
+      "items": {
+        "watermelon": 2,
+        "apple": 2,
+        "orange": 1
+      },
+      "localTravelTime": 5,
+      "city": "Piedmont",
+      "store": "Safeway"
+    },
+    {
+      "estimatedTime": 13.1,
+      "items": {
+        "apple": 1,
+        "watermelon": 3
+      },
+      "id": "mainGameOrder37",
+      "earnings": 14,
+      "localTravelTime": 5,
+      "store": "Safeway",
+      "city": "Piedmont"
+    },
+    {
+      "earnings": 20,
+      "id": "mainGameOrder38",
+      "estimatedTime": 14.1,
+      "items": {
+        "orange": 2,
+        "apple": 3
+      },
+      "localTravelTime": 6,
+      "store": "Safeway",
+      "city": "Piedmont"
+    },
+    {
+      "earnings": 19,
+      "id": "mainGameOrder39",
+      "estimatedTime": 13.4,
+      "items": {
+        "apple": 1,
+        "orange": 1
+      },
+      "localTravelTime": 6,
+      "city": "Piedmont",
+      "store": "Safeway"
+    },
+    {
+      "estimatedTime": 13.8,
+      "items": {
+        "watermelon": 1,
+        "apple": 1,
+        "orange": 2
+      },
+      "earnings": 23,
+      "id": "mainGameOrder40",
+      "localTravelTime": 2,
+      "city": "Piedmont",
+      "store": "Safeway"
+    },
+    {
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "localTravelTime": 2,
+      "id": "mainGameOrder41",
+      "earnings": 13,
+      "items": {
+        "apple": 2,
+        "orange": 2
+      },
+      "estimatedTime": 9.8
+    },
+    {
+      "localTravelTime": 2,
+      "city": "Emeryville",
+      "store": "Target",
+      "estimatedTime": 9.8,
+      "items": {
+        "pineapple": 2,
+        "apple": 3
+      },
+      "id": "mainGameOrder42",
+      "earnings": 19
+    },
+    {
+      "localTravelTime": 5,
+      "store": "Target",
+      "city": "Emeryville",
+      "earnings": 18,
+      "id": "mainGameOrder43",
+      "estimatedTime": 13.7,
+      "items": {
+        "apple": 3,
+        "banana": 2
+      }
+    },
+    {
+      "store": "Target",
+      "city": "Emeryville",
+      "localTravelTime": 3,
+      "items": {
+        "apple": 3,
+        "grape": 3,
+        "banana": 3
+      },
+      "estimatedTime": 16.5,
+      "earnings": 15,
+      "id": "mainGameOrder44"
+    },
+    {
+      "localTravelTime": 3,
+      "city": "Emeryville",
+      "store": "Target",
+      "estimatedTime": 16.5,
+      "items": {
+        "grape": 2,
+        "watermelon": 1,
+        "banana": 1
+      },
+      "earnings": 16,
+      "id": "mainGameOrder45"
+    },
+    {
+      "city": "Emeryville",
+      "store": "Target",
+      "localTravelTime": 5,
+      "items": {
+        "watermelon": 1,
+        "grape": 2
+      },
+      "estimatedTime": 14.6,
+      "id": "mainGameOrder46",
+      "earnings": 14
+    },
+    {
+      "localTravelTime": 6,
+      "city": "Emeryville",
+      "store": "Target",
+      "id": "mainGameOrder47",
+      "earnings": 22,
+      "estimatedTime": 19.5,
+      "items": {
+        "watermelon": 2,
+        "pineapple": 2,
+        "grape": 1
+      }
+    },
+    {
+      "localTravelTime": 2,
+      "city": "Emeryville",
+      "store": "Target",
+      "id": "mainGameOrder48",
+      "earnings": 14,
+      "estimatedTime": 15.5,
+      "items": {
+        "banana": 2,
+        "apple": 3,
+        "watermelon": 2
+      }
+    },
+    {
+      "items": {
+        "apple": 3,
+        "pineapple": 1,
+        "watermelon": 3
+      },
+      "estimatedTime": 13.7,
+      "id": "mainGameOrder49",
+      "earnings": 24,
+      "store": "Target",
+      "city": "Emeryville",
+      "localTravelTime": 2
+    },
+    {
+      "localTravelTime": 6,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "estimatedTime": 14.4,
+      "items": {
+        "watermelon": 2,
+        "apple": 2
+      },
+      "id": "mainGameOrder50",
+      "earnings": 17
+    },
+    {
+      "items": {
+        "watermelon": 3,
+        "pineapple": 3
+      },
+      "estimatedTime": 12.8,
+      "id": "mainGameOrder51",
+      "earnings": 14,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "localTravelTime": 5
+    },
+    {
+      "city": "Emeryville",
+      "store": "Target",
+      "localTravelTime": 5,
+      "items": {
+        "pineapple": 3,
+        "grape": 3
+      },
+      "estimatedTime": 14.6,
+      "earnings": 12,
+      "id": "mainGameOrder52"
+    },
+    {
+      "store": "Target",
+      "city": "Emeryville",
+      "localTravelTime": 6,
+      "id": "mainGameOrder53",
+      "earnings": 21,
+      "items": {
+        "banana": 1,
+        "watermelon": 3,
+        "apple": 2
+      },
+      "estimatedTime": 19.5
+    },
+    {
+      "id": "mainGameOrder54",
+      "earnings": 14,
+      "items": {
+        "watermelon": 2,
+        "pineapple": 2,
+        "banana": 3
+      },
+      "estimatedTime": 18.5,
+      "store": "Target",
+      "city": "Emeryville",
+      "localTravelTime": 5
+    },
+    {
+      "estimatedTime": 19.5,
+      "items": {
+        "pineapple": 2,
+        "apple": 2,
+        "banana": 2
+      },
+      "earnings": 22,
+      "id": "mainGameOrder55",
+      "localTravelTime": 6,
+      "city": "Emeryville",
+      "store": "Target"
+    },
+    {
+      "store": "Target",
+      "city": "Emeryville",
+      "localTravelTime": 6,
+      "earnings": 18,
+      "id": "mainGameOrder56",
+      "items": {
+        "grape": 3,
+        "apple": 3
+      },
+      "estimatedTime": 13.8
+    },
+    {
+      "estimatedTime": 11.4,
+      "items": {
+        "orange": 3,
+        "watermelon": 3
+      },
+      "id": "mainGameOrder57",
+      "earnings": 22,
+      "localTravelTime": 4,
+      "city": "Piedmont",
+      "store": "Safeway"
+    },
+    {
+      "estimatedTime": 15.5,
+      "items": {
+        "orange": 3,
+        "kiwi": 3,
+        "grape": 2
+      },
+      "id": "mainGameOrder58",
+      "earnings": 18,
+      "localTravelTime": 2,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland"
+    },
+    {
+      "localTravelTime": 4,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "estimatedTime": 11.4,
+      "items": {
+        "orange": 3,
+        "watermelon": 3
+      },
+      "id": "mainGameOrder59",
+      "earnings": 17
+    },
+    {
+      "localTravelTime": 5,
+      "store": "Safeway",
+      "city": "Piedmont",
+      "earnings": 22,
+      "id": "mainGameOrder60",
+      "estimatedTime": 16.8,
+      "items": {
+        "apple": 2,
+        "watermelon": 3,
+        "orange": 3
+      }
+    },
+    {
+      "localTravelTime": 3,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "earnings": 24,
+      "id": "mainGameOrder61",
+      "estimatedTime": 15.5,
+      "items": {
+        "apple": 2,
+        "watermelon": 1,
+        "orange": 3
+      }
+    },
+    {
+      "earnings": 24,
+      "id": "mainGameOrder62",
+      "estimatedTime": 10.1,
+      "items": {
+        "apple": 2,
+        "watermelon": 1
+      },
+      "localTravelTime": 2,
+      "city": "Piedmont",
+      "store": "Safeway"
+    },
+    {
+      "localTravelTime": 4,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "id": "mainGameOrder63",
+      "earnings": 18,
+      "estimatedTime": 16.5,
+      "items": {
+        "apple": 1,
+        "watermelon": 1,
+        "orange": 2
+      }
+    },
+    {
+      "earnings": 22,
+      "id": "mainGameOrder64",
+      "items": {
+        "watermelon": 3,
+        "apple": 3,
+        "orange": 2
+      },
+      "estimatedTime": 13.1,
+      "store": "Safeway",
+      "city": "Piedmont",
+      "localTravelTime": 2
+    },
+    {
+      "localTravelTime": 6,
+      "store": "Safeway",
+      "city": "Piedmont",
+      "estimatedTime": 13.4,
+      "items": {
+        "orange": 1,
+        "watermelon": 3
+      },
+      "id": "mainGameOrder65",
+      "earnings": 19
+    },
+    {
+      "estimatedTime": 10.5,
+      "items": {
+        "pineapple": 2,
+        "watermelon": 2
+      },
+      "earnings": 22,
+      "id": "mainGameOrder66",
+      "localTravelTime": 3,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market"
+    },
+    {
+      "earnings": 17,
+      "id": "mainGameOrder67",
+      "estimatedTime": 18.75,
+      "items": {
+        "orange": 1,
+        "kiwi": 1,
+        "pineapple": 3
+      },
+      "localTravelTime": 6,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market"
+    },
+    {
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 6,
+      "id": "mainGameOrder68",
+      "earnings": 13,
+      "items": {
+        "pineapple": 1,
+        "pear": 1,
+        "kiwi": 1
+      },
+      "estimatedTime": 18.75
+    },
+    {
+      "items": {
+        "watermelon": 2,
+        "pineapple": 3
+      },
+      "estimatedTime": 13.25,
+      "id": "mainGameOrder69",
+      "earnings": 14,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 5
+    },
+    {
+      "localTravelTime": 3,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "earnings": 13,
+      "id": "mainGameOrder70",
+      "estimatedTime": 11.25,
+      "items": {
+        "orange": 3,
+        "apple": 3
+      }
+    },
+    {
+      "localTravelTime": 3,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "id": "mainGameOrder71",
+      "earnings": 22,
+      "estimatedTime": 17.25,
+      "items": {
+        "grape": 2,
+        "pear": 1,
+        "pineapple": 3
+      }
+    },
+    {
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "localTravelTime": 4,
+      "id": "mainGameOrder72",
+      "earnings": 19,
+      "items": {
+        "pear": 1,
+        "kiwi": 2
+      },
+      "estimatedTime": 13
+    },
+    {
+      "id": "mainGameOrder73",
+      "earnings": 12,
+      "estimatedTime": 17.75,
+      "items": {
+        "grape": 1,
+        "pineapple": 2,
+        "orange": 1
+      },
+      "localTravelTime": 5,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland"
+    },
+    {
+      "earnings": 17,
+      "id": "mainGameOrder74",
+      "estimatedTime": 12.4,
+      "items": {
+        "apple": 3,
+        "orange": 3
+      },
+      "localTravelTime": 5,
+      "city": "Piedmont",
+      "store": "Safeway"
+    },
+    {
+      "items": {
+        "apple": 2,
+        "orange": 3
+      },
+      "estimatedTime": 12,
+      "id": "mainGameOrder75",
+      "earnings": 18,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "localTravelTime": 3
+    },
+    {
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 2,
+      "earnings": 24,
+      "id": "mainGameOrder76",
+      "items": {
+        "grape": 1,
+        "pineapple": 1,
+        "pear": 2
+      },
+      "estimatedTime": 16.25
+    },
+    {
+      "items": {
+        "kiwi": 1,
+        "grape": 3,
+        "apple": 3
+      },
+      "estimatedTime": 20.25,
+      "id": "mainGameOrder77",
+      "earnings": 24,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 6
+    },
+    {
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 4,
+      "items": {
+        "kiwi": 2,
+        "apple": 3
+      },
+      "estimatedTime": 12.25,
+      "earnings": 23,
+      "id": "mainGameOrder78"
+    },
+    {
+      "estimatedTime": 18.25,
+      "items": {
+        "pineapple": 2,
+        "pear": 2,
+        "grape": 1
+      },
+      "earnings": 17,
+      "id": "mainGameOrder79",
+      "localTravelTime": 4,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland"
+    },
+    {
+      "items": {
+        "apple": 3,
+        "pineapple": 3,
+        "orange": 2
+      },
+      "estimatedTime": 16.25,
+      "earnings": 20,
+      "id": "mainGameOrder80",
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "localTravelTime": 5
+    },
+    {
+      "city": "Piedmont",
+      "store": "Safeway",
+      "localTravelTime": 4,
+      "items": {
+        "orange": 1,
+        "apple": 3
+      },
+      "estimatedTime": 12.1,
+      "earnings": 20,
+      "id": "mainGameOrder81"
+    },
+    {
+      "localTravelTime": 2,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "estimatedTime": 14.5,
+      "items": {
+        "orange": 3,
+        "apple": 3,
+        "watermelon": 1
+      },
+      "earnings": 17,
+      "id": "mainGameOrder82"
+    },
+    {
+      "localTravelTime": 3,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "estimatedTime": 10.8,
+      "items": {
+        "watermelon": 1,
+        "pineapple": 1
+      },
+      "id": "mainGameOrder83",
+      "earnings": 24
+    },
+    {
+      "localTravelTime": 3,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "earnings": 21,
+      "id": "mainGameOrder84",
+      "estimatedTime": 10.4,
+      "items": {
+        "orange": 2,
+        "watermelon": 1
+      }
+    },
+    {
+      "id": "mainGameOrder85",
+      "earnings": 17,
+      "estimatedTime": 10.1,
+      "items": {
+        "watermelon": 2,
+        "apple": 1
+      },
+      "localTravelTime": 2,
+      "city": "Piedmont",
+      "store": "Safeway"
+    },
+    {
+      "localTravelTime": 3,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "estimatedTime": 11.1,
+      "items": {
+        "orange": 3,
+        "apple": 2
+      },
+      "id": "mainGameOrder86",
+      "earnings": 22
+    },
+    {
+      "earnings": 19,
+      "id": "mainGameOrder87",
+      "estimatedTime": 13.1,
+      "items": {
+        "apple": 2,
+        "watermelon": 1,
+        "orange": 1
+      },
+      "localTravelTime": 2,
+      "city": "Piedmont",
+      "store": "Safeway"
+    },
+    {
+      "city": "Piedmont",
+      "store": "Safeway",
+      "localTravelTime": 2,
+      "items": {
+        "apple": 3,
+        "orange": 3
+      },
+      "estimatedTime": 9.4,
+      "earnings": 16,
+      "id": "mainGameOrder88"
+    },
+    {
+      "earnings": 16,
+      "id": "mainGameOrder89",
+      "items": {
+        "orange": 2,
+        "apple": 3,
+        "watermelon": 3
+      },
+      "estimatedTime": 17.1,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "localTravelTime": 6
+    },
+    {
+      "items": {
+        "grape": 3,
+        "watermelon": 2,
+        "apple": 2
+      },
+      "estimatedTime": 13.4,
+      "id": "mainGameOrder90",
+      "earnings": 21,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 2
+    },
+    {
+      "localTravelTime": 5,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "estimatedTime": 16.8,
+      "items": {
+        "orange": 3,
+        "apple": 3,
+        "watermelon": 1
+      },
+      "earnings": 22,
+      "id": "mainGameOrder91"
+    },
+    {
+      "localTravelTime": 5,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "id": "mainGameOrder92",
+      "earnings": 19,
+      "estimatedTime": 16.1,
+      "items": {
+        "watermelon": 3,
+        "apple": 1,
+        "orange": 3
+      }
+    },
+    {
+      "localTravelTime": 6,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "earnings": 17,
+      "id": "mainGameOrder93",
+      "estimatedTime": 14.1,
+      "items": {
+        "orange": 3,
+        "watermelon": 1
+      }
+    },
+    {
+      "store": "Safeway",
+      "city": "Piedmont",
+      "localTravelTime": 3,
+      "items": {
+        "watermelon": 3,
+        "apple": 3
+      },
+      "estimatedTime": 11.1,
+      "earnings": 21,
+      "id": "mainGameOrder94"
+    },
+    {
+      "earnings": 19,
+      "id": "mainGameOrder95",
+      "estimatedTime": 11.1,
+      "items": {
+        "orange": 1,
+        "apple": 1
+      },
+      "localTravelTime": 3,
+      "city": "Piedmont",
+      "store": "Safeway"
+    },
+    {
+      "city": "Piedmont",
+      "store": "Safeway",
+      "localTravelTime": 6,
+      "id": "mainGameOrder96",
+      "earnings": 15,
+      "items": {
+        "watermelon": 3,
+        "orange": 3
+      },
+      "estimatedTime": 13.4
+    },
+    {
+      "earnings": 12,
+      "id": "mainGameOrder97",
+      "items": {
+        "watermelon": 2,
+        "apple": 3,
+        "kiwi": 2
+      },
+      "estimatedTime": 18.5,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 5
+    },
+    {
+      "items": {
+        "pineapple": 3,
+        "grape": 3,
+        "apple": 1
+      },
+      "estimatedTime": 19.5,
+      "id": "mainGameOrder98",
+      "earnings": 18,
+      "store": "Target",
+      "city": "Emeryville",
+      "localTravelTime": 6
+    },
+    {
+      "store": "Target",
+      "city": "Emeryville",
+      "localTravelTime": 3,
+      "id": "mainGameOrder99",
+      "earnings": 17,
+      "items": {
+        "grape": 2,
+        "watermelon": 2
+      },
+      "estimatedTime": 13.5
+    },
+    {
+      "estimatedTime": 14,
+      "items": {
+        "pear": 1,
+        "watermelon": 1
+      },
+      "id": "mainGameOrder100",
+      "earnings": 15,
+      "localTravelTime": 5,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland"
+    },
+    {
+      "items": {
+        "apple": 2,
+        "watermelon": 1
+      },
+      "estimatedTime": 10.7,
+      "earnings": 22,
+      "id": "mainGameOrder101",
+      "store": "Target",
+      "city": "Emeryville",
+      "localTravelTime": 2
+    },
+    {
+      "items": {
+        "apple": 1,
+        "watermelon": 1,
+        "banana": 1
+      },
+      "estimatedTime": 16.5,
+      "id": "mainGameOrder102",
+      "earnings": 16,
+      "city": "Emeryville",
+      "store": "Target",
+      "localTravelTime": 3
+    },
+    {
+      "city": "Emeryville",
+      "store": "Target",
+      "localTravelTime": 2,
+      "id": "mainGameOrder103",
+      "earnings": 17,
+      "items": {
+        "watermelon": 2,
+        "grape": 2
+      },
+      "estimatedTime": 11.6
+    },
+    {
+      "localTravelTime": 2,
+      "city": "Emeryville",
+      "store": "Target",
+      "earnings": 19,
+      "id": "mainGameOrder104",
+      "estimatedTime": 17.3,
+      "items": {
+        "banana": 3,
+        "grape": 2,
+        "watermelon": 3
+      }
+    },
+    {
+      "items": {
+        "grape": 2,
+        "banana": 2
+      },
+      "estimatedTime": 10.7,
+      "earnings": 18,
+      "id": "mainGameOrder105",
+      "store": "Target",
+      "city": "Emeryville",
+      "localTravelTime": 2
+    },
+    {
+      "id": "mainGameOrder106",
+      "earnings": 21,
+      "items": {
+        "apple": 3,
+        "pineapple": 2,
+        "banana": 2
+      },
+      "estimatedTime": 20.4,
+      "city": "Emeryville",
+      "store": "Target",
+      "localTravelTime": 6
+    },
+    {
+      "estimatedTime": 12.5,
+      "items": {
+        "banana": 3,
+        "watermelon": 2
+      },
+      "earnings": 14,
+      "id": "mainGameOrder107",
+      "localTravelTime": 2,
+      "city": "Emeryville",
+      "store": "Target"
+    },
+    {
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 6,
+      "id": "mainGameOrder108",
+      "earnings": 24,
+      "items": {
+        "apple": 3,
+        "orange": 3
+      },
+      "estimatedTime": 13.8
+    },
+    {
+      "localTravelTime": 5,
+      "city": "Emeryville",
+      "store": "Target",
+      "id": "mainGameOrder109",
+      "earnings": 13,
+      "estimatedTime": 17.6,
+      "items": {
+        "pineapple": 2,
+        "grape": 1,
+        "apple": 2
+      }
+    },
+    {
+      "earnings": 22,
+      "id": "mainGameOrder110",
+      "items": {
+        "apple": 1,
+        "pineapple": 2
+      },
+      "estimatedTime": 9.8,
+      "store": "Target",
+      "city": "Emeryville",
+      "localTravelTime": 2
+    },
+    {
+      "estimatedTime": 17.6,
+      "items": {
+        "apple": 3,
+        "grape": 3,
+        "banana": 3
+      },
+      "earnings": 19,
+      "id": "mainGameOrder111",
+      "localTravelTime": 5,
+      "city": "Emeryville",
+      "store": "Target"
+    },
+    {
+      "city": "Emeryville",
+      "store": "Target",
+      "localTravelTime": 2,
+      "items": {
+        "watermelon": 1,
+        "apple": 3
+      },
+      "estimatedTime": 10.7,
+      "earnings": 12,
+      "id": "mainGameOrder112"
+    },
+    {
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 2,
+      "earnings": 15,
+      "id": "mainGameOrder113",
+      "items": {
+        "apple": 2,
+        "watermelon": 2
+      },
+      "estimatedTime": 10.4
+    },
+    {
+      "store": "Safeway",
+      "city": "Piedmont",
+      "localTravelTime": 4,
+      "items": {
+        "watermelon": 2,
+        "apple": 2,
+        "orange": 1
+      },
+      "estimatedTime": 16.5,
+      "id": "mainGameOrder114",
+      "earnings": 24
+    },
+    {
+      "estimatedTime": 13.8,
+      "items": {
+        "apple": 2,
+        "orange": 3
+      },
+      "earnings": 16,
+      "id": "mainGameOrder115",
+      "localTravelTime": 6,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley"
+    },
+    {
+      "city": "Piedmont",
+      "store": "Safeway",
+      "localTravelTime": 6,
+      "earnings": 12,
+      "id": "mainGameOrder116",
+      "items": {
+        "orange": 1,
+        "apple": 3
+      },
+      "estimatedTime": 14.1
+    },
+    {
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 5,
+      "id": "mainGameOrder117",
+      "earnings": 16,
+      "items": {
+        "grape": 1,
+        "pineapple": 2,
+        "apple": 3
+      },
+      "estimatedTime": 17.6
+    },
+    {
+      "items": {
+        "apple": 1,
+        "watermelon": 1,
+        "grape": 2
+      },
+      "estimatedTime": 15,
+      "id": "mainGameOrder118",
+      "earnings": 12,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "localTravelTime": 3
+    },
+    {
+      "id": "mainGameOrder119",
+      "earnings": 24,
+      "estimatedTime": 12.8,
+      "items": {
+        "watermelon": 2,
+        "pineapple": 2
+      },
+      "localTravelTime": 5,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl"
+    },
+    {
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "localTravelTime": 5,
+      "items": {
+        "grape": 3,
+        "pineapple": 3
+      },
+      "estimatedTime": 14,
+      "id": "mainGameOrder120",
+      "earnings": 18
+    },
+    {
+      "localTravelTime": 5,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "estimatedTime": 16.1,
+      "items": {
+        "orange": 2,
+        "apple": 3,
+        "watermelon": 2
+      },
+      "id": "mainGameOrder121",
+      "earnings": 18
+    },
+    {
+      "localTravelTime": 5,
+      "store": "Safeway",
+      "city": "Piedmont",
+      "estimatedTime": 12.4,
+      "items": {
+        "orange": 3,
+        "watermelon": 1
+      },
+      "earnings": 22,
+      "id": "mainGameOrder122"
+    },
+    {
+      "items": {
+        "orange": 2,
+        "pineapple": 3
+      },
+      "estimatedTime": 13.25,
+      "id": "mainGameOrder123",
+      "earnings": 24,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 5
+    },
+    {
+      "store": "Safeway",
+      "city": "Piedmont",
+      "localTravelTime": 3,
+      "id": "mainGameOrder124",
+      "earnings": 15,
+      "items": {
+        "orange": 3,
+        "apple": 1,
+        "watermelon": 2
+      },
+      "estimatedTime": 14.1
+    },
+    {
+      "localTravelTime": 5,
+      "store": "Safeway",
+      "city": "Piedmont",
+      "id": "mainGameOrder125",
+      "earnings": 21,
+      "estimatedTime": 16.8,
+      "items": {
+        "orange": 3,
+        "watermelon": 3,
+        "apple": 3
+      }
+    },
+    {
+      "estimatedTime": 12.1,
+      "items": {
+        "orange": 3,
+        "apple": 2
+      },
+      "earnings": 17,
+      "id": "mainGameOrder126",
+      "localTravelTime": 4,
+      "store": "Safeway",
+      "city": "Piedmont"
+    },
+    {
+      "store": "Safeway",
+      "city": "Piedmont",
+      "localTravelTime": 5,
+      "items": {
+        "orange": 1,
+        "apple": 2
+      },
+      "estimatedTime": 13.1,
+      "earnings": 14,
+      "id": "mainGameOrder127"
+    },
+    {
+      "items": {
+        "apple": 1,
+        "watermelon": 1,
+        "orange": 3
+      },
+      "estimatedTime": 15.1,
+      "earnings": 20,
+      "id": "mainGameOrder128",
+      "store": "Safeway",
+      "city": "Piedmont",
+      "localTravelTime": 4
+    },
+    {
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 2,
+      "earnings": 19,
+      "id": "mainGameOrder129",
+      "items": {
+        "kiwi": 2,
+        "grape": 1,
+        "apple": 3
+      },
+      "estimatedTime": 16.25
+    },
+    {
+      "localTravelTime": 5,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "estimatedTime": 13.4,
+      "items": {
+        "apple": 1,
+        "watermelon": 2
+      },
+      "earnings": 12,
+      "id": "mainGameOrder130"
+    },
+    {
+      "items": {
+        "apple": 1,
+        "orange": 1
+      },
+      "estimatedTime": 10.8,
+      "earnings": 19,
+      "id": "mainGameOrder131",
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "localTravelTime": 3
+    },
+    {
+      "earnings": 18,
+      "id": "mainGameOrder132",
+      "items": {
+        "pineapple": 1,
+        "apple": 3,
+        "orange": 2
+      },
+      "estimatedTime": 15,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 3
+    },
+    {
+      "earnings": 19,
+      "id": "mainGameOrder133",
+      "items": {
+        "apple": 1,
+        "grape": 1
+      },
+      "estimatedTime": 11.8,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "localTravelTime": 4
+    },
+    {
+      "items": {
+        "grape": 3,
+        "pineapple": 1,
+        "orange": 3
+      },
+      "estimatedTime": 17,
+      "id": "mainGameOrder134",
+      "earnings": 14,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 5
+    },
+    {
+      "items": {
+        "grape": 2,
+        "watermelon": 1,
+        "pineapple": 2
+      },
+      "estimatedTime": 12.8,
+      "earnings": 24,
+      "id": "mainGameOrder135",
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 2
+    },
+    {
+      "localTravelTime": 3,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "id": "mainGameOrder136",
+      "earnings": 24,
+      "estimatedTime": 13.8,
+      "items": {
+        "orange": 3,
+        "apple": 2,
+        "grape": 1
+      }
+    },
+    {
+      "items": {
+        "watermelon": 3,
+        "apple": 2,
+        "orange": 2
+      },
+      "estimatedTime": 15.8,
+      "id": "mainGameOrder137",
+      "earnings": 23,
+      "store": "Safeway",
+      "city": "Piedmont",
+      "localTravelTime": 4
+    },
+    {
+      "id": "mainGameOrder138",
+      "earnings": 18,
+      "items": {
+        "watermelon": 1,
+        "pineapple": 1
+      },
+      "estimatedTime": 10.8,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 3
+    },
+    {
+      "id": "mainGameOrder139",
+      "earnings": 13,
+      "items": {
+        "watermelon": 3,
+        "apple": 1
+      },
+      "estimatedTime": 11.4,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 3
+    },
+    {
+      "earnings": 24,
+      "id": "mainGameOrder140",
+      "estimatedTime": 9.2,
+      "items": {
+        "pineapple": 3,
+        "watermelon": 3
+      },
+      "localTravelTime": 2,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl"
+    },
+    {
+      "estimatedTime": 12.4,
+      "items": {
+        "watermelon": 3,
+        "orange": 3
+      },
+      "id": "mainGameOrder141",
+      "earnings": 13,
+      "localTravelTime": 4,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley"
+    },
+    {
+      "items": {
+        "apple": 3,
+        "orange": 1
+      },
+      "estimatedTime": 13.8,
+      "earnings": 24,
+      "id": "mainGameOrder142",
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 6
+    },
+    {
+      "localTravelTime": 6,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "estimatedTime": 13.8,
+      "items": {
+        "watermelon": 1,
+        "grape": 2
+      },
+      "earnings": 17,
+      "id": "mainGameOrder143"
+    },
+    {
+      "id": "mainGameOrder144",
+      "earnings": 13,
+      "items": {
+        "grape": 2,
+        "watermelon": 2
+      },
+      "estimatedTime": 11.4,
+      "store": "Berkeley Bowl",
+      "city": "Berkeley",
+      "localTravelTime": 3
+    },
+    {
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 6,
+      "items": {
+        "watermelon": 1,
+        "grape": 3
+      },
+      "estimatedTime": 13.8,
+      "earnings": 23,
+      "id": "mainGameOrder145"
+    },
+    {
+      "estimatedTime": 18,
+      "items": {
+        "apple": 3,
+        "grape": 2,
+        "watermelon": 3
+      },
+      "id": "mainGameOrder146",
+      "earnings": 21,
+      "localTravelTime": 6,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl"
+    },
+    {
+      "id": "mainGameOrder147",
+      "earnings": 17,
+      "items": {
+        "grape": 3,
+        "pineapple": 2
+      },
+      "estimatedTime": 11,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 2
+    },
+    {
+      "estimatedTime": 14.75,
+      "items": {
+        "watermelon": 1,
+        "grape": 3
+      },
+      "earnings": 22,
+      "id": "mainGameOrder148",
+      "localTravelTime": 5,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market"
+    },
+    {
+      "items": {
+        "apple": 3,
+        "grape": 2,
+        "orange": 1
+      },
+      "estimatedTime": 14.4,
+      "earnings": 24,
+      "id": "mainGameOrder149",
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 3
+    },
+    {
+      "earnings": 22,
+      "id": "mainGameOrder150",
+      "estimatedTime": 14.6,
+      "items": {
+        "watermelon": 2,
+        "apple": 1,
+        "orange": 2
+      },
+      "localTravelTime": 2,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl"
+    },
+    {
+      "localTravelTime": 5,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "earnings": 12,
+      "id": "mainGameOrder151",
+      "estimatedTime": 14,
+      "items": {
+        "grape": 2,
+        "orange": 2
+      }
+    },
+    {
+      "items": {
+        "watermelon": 2,
+        "grape": 2
+      },
+      "estimatedTime": 12.8,
+      "earnings": 14,
+      "id": "mainGameOrder152",
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 5
+    },
+    {
+      "items": {
+        "watermelon": 3,
+        "grape": 1,
+        "apple": 1
+      },
+      "estimatedTime": 15.75,
+      "earnings": 19,
+      "id": "mainGameOrder153",
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "localTravelTime": 3
+    },
+    {
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "localTravelTime": 3,
+      "earnings": 15,
+      "id": "mainGameOrder154",
+      "items": {
+        "apple": 1,
+        "pear": 3,
+        "orange": 1
+      },
+      "estimatedTime": 17.25
+    },
+    {
+      "estimatedTime": 15.5,
+      "items": {
+        "pineapple": 2,
+        "watermelon": 3,
+        "banana": 2
+      },
+      "earnings": 14,
+      "id": "mainGameOrder155",
+      "localTravelTime": 2,
+      "store": "Target",
+      "city": "Emeryville"
+    },
+    {
+      "id": "mainGameOrder156",
+      "earnings": 12,
+      "estimatedTime": 20.25,
+      "items": {
+        "apple": 2,
+        "pear": 2,
+        "pineapple": 3
+      },
+      "localTravelTime": 6,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market"
+    },
+    {
+      "localTravelTime": 2,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "id": "mainGameOrder157",
+      "earnings": 15,
+      "estimatedTime": 9.5,
+      "items": {
+        "orange": 1,
+        "pineapple": 2
+      }
+    },
+    {
+      "localTravelTime": 3,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "estimatedTime": 13.5,
+      "items": {
+        "orange": 1,
+        "pear": 2
+      },
+      "id": "mainGameOrder158",
+      "earnings": 23
+    },
+    {
+      "localTravelTime": 2,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "earnings": 22,
+      "id": "mainGameOrder159",
+      "estimatedTime": 11.75,
+      "items": {
+        "grape": 2,
+        "pear": 3
+      }
+    },
+    {
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "localTravelTime": 5,
+      "earnings": 19,
+      "id": "mainGameOrder160",
+      "items": {
+        "kiwi": 3,
+        "grape": 2,
+        "pear": 3
+      },
+      "estimatedTime": 21.5
+    },
+    {
+      "localTravelTime": 3,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "earnings": 19,
+      "id": "mainGameOrder161",
+      "estimatedTime": 12,
+      "items": {
+        "grape": 2,
+        "kiwi": 2
+      }
+    },
+    {
+      "items": {
+        "watermelon": 1,
+        "pear": 1,
+        "pineapple": 1
+      },
+      "estimatedTime": 18,
+      "earnings": 21,
+      "id": "mainGameOrder162",
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 6
+    },
+    {
+      "earnings": 13,
+      "id": "mainGameOrder163",
+      "items": {
+        "apple": 1,
+        "pineapple": 2,
+        "pear": 2
+      },
+      "estimatedTime": 14.75,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "localTravelTime": 2
+    },
+    {
+      "localTravelTime": 5,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "earnings": 21,
+      "id": "mainGameOrder164",
+      "estimatedTime": 13.1,
+      "items": {
+        "watermelon": 2,
+        "orange": 1
+      }
+    },
+    {
+      "earnings": 20,
+      "id": "mainGameOrder165",
+      "estimatedTime": 13.25,
+      "items": {
+        "pineapple": 3,
+        "pear": 2
+      },
+      "localTravelTime": 5,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland"
+    },
+    {
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "localTravelTime": 5,
+      "items": {
+        "apple": 3,
+        "grape": 3
+      },
+      "estimatedTime": 13.25,
+      "earnings": 20,
+      "id": "mainGameOrder166"
+    },
+    {
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 3,
+      "items": {
+        "grape": 2,
+        "pineapple": 1
+      },
+      "estimatedTime": 11.25,
+      "earnings": 20,
+      "id": "mainGameOrder167"
+    },
+    {
+      "earnings": 19,
+      "id": "mainGameOrder168",
+      "estimatedTime": 15.5,
+      "items": {
+        "orange": 3,
+        "apple": 2,
+        "watermelon": 2
+      },
+      "localTravelTime": 2,
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market"
+    },
+    {
+      "localTravelTime": 6,
+      "store": "Safeway",
+      "city": "Piedmont",
+      "earnings": 24,
+      "id": "mainGameOrder169",
+      "estimatedTime": 14.1,
+      "items": {
+        "apple": 3,
+        "watermelon": 2
+      }
+    },
+    {
+      "city": "Emeryville",
+      "store": "Target",
+      "localTravelTime": 3,
+      "items": {
+        "banana": 1,
+        "watermelon": 2,
+        "grape": 3
+      },
+      "estimatedTime": 15.6,
+      "id": "mainGameOrder170",
+      "earnings": 14
+    },
+    {
+      "estimatedTime": 10.7,
+      "items": {
+        "pineapple": 3,
+        "banana": 1
+      },
+      "earnings": 18,
+      "id": "mainGameOrder171",
+      "localTravelTime": 2,
+      "city": "Emeryville",
+      "store": "Target"
+    },
+    {
+      "estimatedTime": 15.6,
+      "items": {
+        "banana": 1,
+        "grape": 2,
+        "pineapple": 3
+      },
+      "earnings": 20,
+      "id": "mainGameOrder172",
+      "localTravelTime": 3,
+      "city": "Emeryville",
+      "store": "Target"
+    },
+    {
+      "estimatedTime": 18.3,
+      "items": {
+        "watermelon": 3,
+        "apple": 1,
+        "banana": 2
+      },
+      "earnings": 19,
+      "id": "mainGameOrder173",
+      "localTravelTime": 3,
+      "store": "Target",
+      "city": "Emeryville"
+    },
+    {
+      "localTravelTime": 2,
+      "city": "Emeryville",
+      "store": "Target",
+      "id": "mainGameOrder174",
+      "earnings": 15,
+      "estimatedTime": 10.7,
+      "items": {
+        "apple": 3,
+        "pineapple": 1
+      }
+    },
+    {
+      "earnings": 17,
+      "id": "mainGameOrder175",
+      "items": {
+        "grape": 1,
+        "watermelon": 3
+      },
+      "estimatedTime": 13.5,
+      "city": "Emeryville",
+      "store": "Target",
+      "localTravelTime": 3
+    },
+    {
+      "items": {
+        "grape": 3,
+        "pineapple": 1
+      },
+      "estimatedTime": 14.6,
+      "earnings": 20,
+      "id": "mainGameOrder176",
+      "city": "Emeryville",
+      "store": "Target",
+      "localTravelTime": 5
+    },
+    {
+      "id": "mainGameOrder177",
+      "earnings": 19,
+      "items": {
+        "grape": 2,
+        "watermelon": 2,
+        "banana": 1
+      },
+      "estimatedTime": 14.6,
+      "city": "Emeryville",
+      "store": "Target",
+      "localTravelTime": 2
+    },
+    {
+      "items": {
+        "apple": 2,
+        "watermelon": 2
+      },
+      "estimatedTime": 13.4,
+      "id": "mainGameOrder178",
+      "earnings": 17,
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 5
+    },
+    {
+      "items": {
+        "grape": 1,
+        "watermelon": 2,
+        "pineapple": 1
+      },
+      "estimatedTime": 12.8,
+      "earnings": 18,
+      "id": "mainGameOrder179",
+      "city": "Berkeley",
+      "store": "Berkeley Bowl",
+      "localTravelTime": 2
+    },
+    {
+      "estimatedTime": 14.7,
+      "items": {
+        "pineapple": 3,
+        "watermelon": 2
+      },
+      "id": "mainGameOrder180",
+      "earnings": 20,
+      "localTravelTime": 6,
+      "city": "Emeryville",
+      "store": "Target"
+    },
+    {
+      "city": "Emeryville",
+      "store": "Target",
+      "localTravelTime": 3,
+      "id": "mainGameOrder181",
+      "earnings": 20,
+      "items": {
+        "apple": 1,
+        "grape": 3,
+        "banana": 2
+      },
+      "estimatedTime": 16.5
+    },
+    {
+      "localTravelTime": 4,
+      "store": "Target",
+      "city": "Emeryville",
+      "earnings": 15,
+      "id": "mainGameOrder182",
+      "estimatedTime": 19.3,
+      "items": {
+        "apple": 3,
+        "watermelon": 1,
+        "banana": 2
+      }
+    },
+    {
+      "localTravelTime": 6,
+      "city": "Emeryville",
+      "store": "Target",
+      "estimatedTime": 14.7,
+      "items": {
+        "grape": 3,
+        "banana": 2
+      },
+      "id": "mainGameOrder183",
+      "earnings": 15
+    },
+    {
+      "items": {
+        "grape": 1,
+        "apple": 1,
+        "banana": 3
+      },
+      "estimatedTime": 15.6,
+      "id": "mainGameOrder184",
+      "earnings": 22,
+      "store": "Target",
+      "city": "Emeryville",
+      "localTravelTime": 3
+    },
+    {
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 5,
+      "earnings": 17,
+      "id": "mainGameOrder185",
+      "items": {
+        "pineapple": 2,
+        "pear": 3
+      },
+      "estimatedTime": 13.25
+    },
+    {
+      "localTravelTime": 4,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "earnings": 21,
+      "id": "mainGameOrder186",
+      "estimatedTime": 15.25,
+      "items": {
+        "apple": 3,
+        "watermelon": 2,
+        "pear": 2
+      }
+    },
+    {
+      "estimatedTime": 18.5,
+      "items": {
+        "orange": 3,
+        "watermelon": 3,
+        "apple": 2
+      },
+      "earnings": 20,
+      "id": "mainGameOrder187",
+      "localTravelTime": 6,
+      "city": "Piedmont",
+      "store": "Safeway"
+    },
+    {
+      "earnings": 16,
+      "id": "mainGameOrder188",
+      "items": {
+        "orange": 3,
+        "apple": 3
+      },
+      "estimatedTime": 11.1,
+      "store": "Safeway",
+      "city": "Piedmont",
+      "localTravelTime": 3
+    },
+    {
+      "id": "mainGameOrder189",
+      "earnings": 12,
+      "items": {
+        "orange": 3,
+        "kiwi": 2,
+        "apple": 1
+      },
+      "estimatedTime": 17.75,
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "localTravelTime": 5
+    },
+    {
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 4,
+      "items": {
+        "apple": 2,
+        "kiwi": 2
+      },
+      "estimatedTime": 13,
+      "id": "mainGameOrder190",
+      "earnings": 19
+    },
+    {
+      "items": {
+        "watermelon": 3,
+        "pineapple": 3
+      },
+      "estimatedTime": 14.25,
+      "earnings": 13,
+      "id": "mainGameOrder191",
+      "city": "Oakland",
+      "store": "Sprouts Farmers Market",
+      "localTravelTime": 6
+    },
+    {
+      "store": "Sprouts Farmers Market",
+      "city": "Oakland",
+      "localTravelTime": 3,
+      "id": "mainGameOrder192",
+      "earnings": 24,
+      "items": {
+        "watermelon": 2,
+        "pear": 1
+      },
+      "estimatedTime": 11.25
+    },
+    {
+      "localTravelTime": 3,
+      "store": "Target",
+      "city": "Emeryville",
+      "id": "mainGameOrder193",
+      "earnings": 15,
+      "estimatedTime": 11.7,
+      "items": {
+        "watermelon": 3,
+        "banana": 2
+      }
+    },
+    {
+      "store": "Safeway",
+      "city": "Piedmont",
+      "localTravelTime": 5,
+      "items": {
+        "apple": 1,
+        "watermelon": 1
+      },
+      "estimatedTime": 13.1,
+      "id": "mainGameOrder194",
+      "earnings": 17
+    },
+    {
+      "id": "mainGameOrder195",
+      "earnings": 20,
+      "estimatedTime": 10.1,
+      "items": {
+        "watermelon": 1,
+        "apple": 1
+      },
+      "localTravelTime": 2,
+      "city": "Piedmont",
+      "store": "Safeway"
+    },
+    {
+      "store": "Safeway",
+      "city": "Piedmont",
+      "localTravelTime": 6,
+      "items": {
+        "orange": 3,
+        "watermelon": 2,
+        "apple": 3
+      },
+      "estimatedTime": 18.5,
+      "id": "mainGameOrder196",
+      "earnings": 21
+    },
+    {
+      "id": "mainGameOrder197",
+      "earnings": 16,
+      "items": {
+        "apple": 1,
+        "orange": 2
+      },
+      "estimatedTime": 13.4,
+      "city": "Piedmont",
+      "store": "Safeway",
+      "localTravelTime": 6
+    },
+    {
+      "store": "Safeway",
+      "city": "Piedmont",
+      "localTravelTime": 2,
+      "earnings": 12,
+      "id": "mainGameOrder198",
+      "items": {
+        "orange": 2,
+        "apple": 2
+      },
+      "estimatedTime": 10.1
+    },
+    {
+      "localTravelTime": 5,
+      "store": "Safeway",
+      "city": "Piedmont",
+      "earnings": 12,
+      "id": "mainGameOrder199",
+      "estimatedTime": 17.5,
+      "items": {
+        "orange": 2,
+        "watermelon": 2,
+        "apple": 1
+      }
+    },
+    {
+      "estimatedTime": 11.4,
+      "items": {
+        "apple": 3,
+        "orange": 3
+      },
+      "id": "mainGameOrder200",
+      "earnings": 14,
+      "localTravelTime": 4,
+      "city": "Piedmont",
+      "store": "Safeway"
+    }
+  ],
+  "optimal": [
+    {
+      "best_bundle_ids": [
+        "mainGameOrder1"
+      ],
+      "ending_city_best": "Berkeley",
+      "second_best_bundle_ids": [
+        "mainGameOrder1",
+        "mainGameOrder2"
+      ],
+      "scenario_id": "mainGameScenario1"
+    },
+    {
+      "best_bundle_ids": [
+        "mainGameOrder8"
+      ],
+      "ending_city_best": "Berkeley",
+      "second_best_bundle_ids": [
+        "mainGameOrder5",
+        "mainGameOrder8"
+      ],
+      "scenario_id": "mainGameScenario2"
+    },
+    {
+      "best_bundle_ids": [
+        "mainGameOrder11"
+      ],
+      "ending_city_best": "Berkeley",
+      "second_best_bundle_ids": [
+        "mainGameOrder11",
+        "mainGameOrder12"
+      ],
+      "scenario_id": "mainGameScenario3"
+    },
+    {
+      "scenario_id": "mainGameScenario4",
+      "second_best_bundle_ids": [
+        "mainGameOrder13",
+        "mainGameOrder14",
+        "mainGameOrder15"
+      ],
+      "ending_city_best": "Berkeley",
+      "best_bundle_ids": [
+        "mainGameOrder14"
+      ]
+    },
+    {
+      "scenario_id": "mainGameScenario5",
+      "second_best_bundle_ids": [
+        "mainGameOrder18",
+        "mainGameOrder20"
+      ],
+      "ending_city_best": "Oakland",
+      "best_bundle_ids": [
+        "mainGameOrder17",
+        "mainGameOrder19"
+      ]
+    },
+    {
+      "scenario_id": "mainGameScenario6",
+      "second_best_bundle_ids": [
+        "mainGameOrder22",
+        "mainGameOrder23"
+      ],
+      "ending_city_best": "Oakland",
+      "best_bundle_ids": [
+        "mainGameOrder22"
+      ]
+    },
+    {
+      "best_bundle_ids": [
+        "mainGameOrder28"
+      ],
+      "ending_city_best": "Oakland",
+      "second_best_bundle_ids": [
+        "mainGameOrder27",
+        "mainGameOrder28"
+      ],
+      "scenario_id": "mainGameScenario7"
+    },
+    {
+      "ending_city_best": "Oakland",
+      "best_bundle_ids": [
+        "mainGameOrder29"
+      ],
+      "second_best_bundle_ids": [
+        "mainGameOrder29",
+        "mainGameOrder32"
+      ],
+      "scenario_id": "mainGameScenario8"
+    },
+    {
+      "ending_city_best": "Piedmont",
+      "best_bundle_ids": [
+        "mainGameOrder33",
+        "mainGameOrder35",
+        "mainGameOrder36"
+      ],
+      "scenario_id": "mainGameScenario9",
+      "second_best_bundle_ids": [
+        "mainGameOrder33",
+        "mainGameOrder36"
+      ]
+    },
+    {
+      "scenario_id": "mainGameScenario10",
+      "second_best_bundle_ids": [
+        "mainGameOrder38",
+        "mainGameOrder39",
+        "mainGameOrder40"
+      ],
+      "ending_city_best": "Piedmont",
+      "best_bundle_ids": [
+        "mainGameOrder39",
+        "mainGameOrder40"
+      ]
+    },
+    {
+      "ending_city_best": "Emeryville",
+      "best_bundle_ids": [
+        "mainGameOrder42",
+        "mainGameOrder43"
+      ],
+      "scenario_id": "mainGameScenario11",
+      "second_best_bundle_ids": [
+        "mainGameOrder42",
+        "mainGameOrder43",
+        "mainGameOrder44"
+      ]
+    },
+    {
+      "ending_city_best": "Emeryville",
+      "best_bundle_ids": [
+        "mainGameOrder45",
+        "mainGameOrder46",
+        "mainGameOrder47"
+      ],
+      "scenario_id": "mainGameScenario12",
+      "second_best_bundle_ids": [
+        "mainGameOrder45",
+        "mainGameOrder47",
+        "mainGameOrder48"
+      ]
+    },
+    {
+      "ending_city_best": "Emeryville",
+      "best_bundle_ids": [
+        "mainGameOrder49"
+      ],
+      "second_best_bundle_ids": [
+        "mainGameOrder49",
+        "mainGameOrder52"
+      ],
+      "scenario_id": "mainGameScenario13"
+    },
+    {
+      "ending_city_best": "Emeryville",
+      "best_bundle_ids": [
+        "mainGameOrder56"
+      ],
+      "scenario_id": "mainGameScenario14",
+      "second_best_bundle_ids": [
+        "mainGameOrder53",
+        "mainGameOrder55",
+        "mainGameOrder56"
+      ]
+    },
+    {
+      "best_bundle_ids": [
+        "mainGameOrder57",
+        "mainGameOrder59",
+        "mainGameOrder60"
+      ],
+      "ending_city_best": "Piedmont",
+      "scenario_id": "mainGameScenario15",
+      "second_best_bundle_ids": [
+        "mainGameOrder57",
+        "mainGameOrder59"
+      ]
+    },
+    {
+      "best_bundle_ids": [
+        "mainGameOrder62"
+      ],
+      "ending_city_best": "Piedmont",
+      "scenario_id": "mainGameScenario16",
+      "second_best_bundle_ids": [
+        "mainGameOrder62",
+        "mainGameOrder64"
+      ]
+    },
+    {
+      "second_best_bundle_ids": [
+        "mainGameOrder65"
+      ],
+      "scenario_id": "mainGameScenario17",
+      "ending_city_best": "Oakland",
+      "best_bundle_ids": [
+        "mainGameOrder66"
+      ]
+    },
+    {
+      "second_best_bundle_ids": [
+        "mainGameOrder72"
+      ],
+      "scenario_id": "mainGameScenario18",
+      "ending_city_best": "Oakland",
+      "best_bundle_ids": [
+        "mainGameOrder71",
+        "mainGameOrder72"
+      ]
+    },
+    {
+      "ending_city_best": "Oakland",
+      "best_bundle_ids": [
+        "mainGameOrder75"
+      ],
+      "second_best_bundle_ids": [
+        "mainGameOrder75",
+        "mainGameOrder76"
+      ],
+      "scenario_id": "mainGameScenario19"
+    },
+    {
+      "second_best_bundle_ids": [
+        "mainGameOrder77",
+        "mainGameOrder78"
+      ],
+      "scenario_id": "mainGameScenario20",
+      "best_bundle_ids": [
+        "mainGameOrder78"
+      ],
+      "ending_city_best": "Oakland"
+    },
+    {
+      "ending_city_best": "Piedmont",
+      "best_bundle_ids": [
+        "mainGameOrder81",
+        "mainGameOrder84"
+      ],
+      "scenario_id": "mainGameScenario21",
+      "second_best_bundle_ids": [
+        "mainGameOrder81",
+        "mainGameOrder82",
+        "mainGameOrder84"
+      ]
+    },
+    {
+      "best_bundle_ids": [
+        "mainGameOrder86",
+        "mainGameOrder88"
+      ],
+      "ending_city_best": "Piedmont",
+      "scenario_id": "mainGameScenario22",
+      "second_best_bundle_ids": [
+        "mainGameOrder86"
+      ]
+    },
+    {
+      "second_best_bundle_ids": [
+        "mainGameOrder91"
+      ],
+      "scenario_id": "mainGameScenario23",
+      "ending_city_best": "Piedmont",
+      "best_bundle_ids": [
+        "mainGameOrder91",
+        "mainGameOrder92"
+      ]
+    },
+    {
+      "scenario_id": "mainGameScenario24",
+      "second_best_bundle_ids": [
+        "mainGameOrder94",
+        "mainGameOrder95"
+      ],
+      "best_bundle_ids": [
+        "mainGameOrder94"
+      ],
+      "ending_city_best": "Piedmont"
+    },
+    {
+      "best_bundle_ids": [
+        "mainGameOrder98",
+        "mainGameOrder99"
+      ],
+      "ending_city_best": "Emeryville",
+      "scenario_id": "mainGameScenario25",
+      "second_best_bundle_ids": [
+        "mainGameOrder99"
+      ]
+    },
+    {
+      "second_best_bundle_ids": [
+        "mainGameOrder101",
+        "mainGameOrder103"
+      ],
+      "scenario_id": "mainGameScenario26",
+      "ending_city_best": "Emeryville",
+      "best_bundle_ids": [
+        "mainGameOrder101"
+      ]
+    },
+    {
+      "ending_city_best": "Emeryville",
+      "best_bundle_ids": [
+        "mainGameOrder105"
+      ],
+      "scenario_id": "mainGameScenario27",
+      "second_best_bundle_ids": [
+        "mainGameOrder105",
+        "mainGameOrder107"
+      ]
+    },
+    {
+      "ending_city_best": "Emeryville",
+      "best_bundle_ids": [
+        "mainGameOrder110"
+      ],
+      "second_best_bundle_ids": [
+        "mainGameOrder110",
+        "mainGameOrder112"
+      ],
+      "scenario_id": "mainGameScenario28"
+    },
+    {
+      "ending_city_best": "Berkeley",
+      "best_bundle_ids": [
+        "mainGameOrder113",
+        "mainGameOrder115"
+      ],
+      "scenario_id": "mainGameScenario29",
+      "second_best_bundle_ids": [
+        "mainGameOrder114",
+        "mainGameOrder116"
+      ]
+    },
+    {
+      "scenario_id": "mainGameScenario30",
+      "second_best_bundle_ids": [
+        "mainGameOrder119",
+        "mainGameOrder120"
+      ],
+      "best_bundle_ids": [
+        "mainGameOrder119"
+      ],
+      "ending_city_best": "Berkeley"
+    },
+    {
+      "ending_city_best": "Piedmont",
+      "best_bundle_ids": [
+        "mainGameOrder121",
+        "mainGameOrder122",
+        "mainGameOrder124"
+      ],
+      "scenario_id": "mainGameScenario31",
+      "second_best_bundle_ids": [
+        "mainGameOrder121",
+        "mainGameOrder122"
+      ]
+    },
+    {
+      "second_best_bundle_ids": [
+        "mainGameOrder126",
+        "mainGameOrder128"
+      ],
+      "scenario_id": "mainGameScenario32",
+      "best_bundle_ids": [
+        "mainGameOrder125",
+        "mainGameOrder126",
+        "mainGameOrder128"
+      ],
+      "ending_city_best": "Piedmont"
+    },
+    {
+      "ending_city_best": "Berkeley",
+      "best_bundle_ids": [
+        "mainGameOrder131",
+        "mainGameOrder132"
+      ],
+      "second_best_bundle_ids": [
+        "mainGameOrder131",
+        "mainGameOrder132",
+        "mainGameOrder130"
+      ],
+      "scenario_id": "mainGameScenario33"
+    },
+    {
+      "scenario_id": "mainGameScenario34",
+      "second_best_bundle_ids": [
+        "mainGameOrder135",
+        "mainGameOrder136"
+      ],
+      "ending_city_best": "Berkeley",
+      "best_bundle_ids": [
+        "mainGameOrder133",
+        "mainGameOrder135",
+        "mainGameOrder136"
+      ]
+    },
+    {
+      "second_best_bundle_ids": [
+        "mainGameOrder138",
+        "mainGameOrder140"
+      ],
+      "scenario_id": "mainGameScenario35",
+      "best_bundle_ids": [
+        "mainGameOrder140"
+      ],
+      "ending_city_best": "Berkeley"
+    },
+    {
+      "scenario_id": "mainGameScenario36",
+      "second_best_bundle_ids": [
+        "mainGameOrder142",
+        "mainGameOrder143",
+        "mainGameOrder144"
+      ],
+      "ending_city_best": "Berkeley",
+      "best_bundle_ids": [
+        "mainGameOrder142"
+      ]
+    },
+    {
+      "ending_city_best": "Berkeley",
+      "best_bundle_ids": [
+        "mainGameOrder145",
+        "mainGameOrder147"
+      ],
+      "second_best_bundle_ids": [
+        "mainGameOrder145"
+      ],
+      "scenario_id": "mainGameScenario37"
+    },
+    {
+      "best_bundle_ids": [
+        "mainGameOrder149",
+        "mainGameOrder150"
+      ],
+      "ending_city_best": "Berkeley",
+      "scenario_id": "mainGameScenario38",
+      "second_best_bundle_ids": [
+        "mainGameOrder149"
+      ]
+    },
+    {
+      "best_bundle_ids": [
+        "mainGameOrder153",
+        "mainGameOrder154"
+      ],
+      "ending_city_best": "Oakland",
+      "scenario_id": "mainGameScenario39",
+      "second_best_bundle_ids": [
+        "mainGameOrder153",
+        "mainGameOrder154",
+        "mainGameOrder156"
+      ]
+    },
+    {
+      "ending_city_best": "Oakland",
+      "best_bundle_ids": [
+        "mainGameOrder158",
+        "mainGameOrder159"
+      ],
+      "scenario_id": "mainGameScenario40",
+      "second_best_bundle_ids": [
+        "mainGameOrder157",
+        "mainGameOrder158",
+        "mainGameOrder159"
+      ]
+    },
+    {
+      "second_best_bundle_ids": [
+        "mainGameOrder161",
+        "mainGameOrder162"
+      ],
+      "scenario_id": "mainGameScenario41",
+      "ending_city_best": "Oakland",
+      "best_bundle_ids": [
+        "mainGameOrder161"
+      ]
+    },
+    {
+      "best_bundle_ids": [
+        "mainGameOrder167"
+      ],
+      "ending_city_best": "Oakland",
+      "second_best_bundle_ids": [
+        "mainGameOrder165",
+        "mainGameOrder167"
+      ],
+      "scenario_id": "mainGameScenario42"
+    },
+    {
+      "second_best_bundle_ids": [
+        "mainGameOrder170",
+        "mainGameOrder171",
+        "mainGameOrder172"
+      ],
+      "scenario_id": "mainGameScenario43",
+      "ending_city_best": "Emeryville",
+      "best_bundle_ids": [
+        "mainGameOrder171",
+        "mainGameOrder172"
+      ]
+    },
+    {
+      "ending_city_best": "Emeryville",
+      "best_bundle_ids": [
+        "mainGameOrder174",
+        "mainGameOrder176"
+      ],
+      "scenario_id": "mainGameScenario44",
+      "second_best_bundle_ids": [
+        "mainGameOrder174",
+        "mainGameOrder175",
+        "mainGameOrder176"
+      ]
+    },
+    {
+      "scenario_id": "mainGameScenario45",
+      "second_best_bundle_ids": [
+        "mainGameOrder180"
+      ],
+      "best_bundle_ids": [
+        "mainGameOrder177",
+        "mainGameOrder180"
+      ],
+      "ending_city_best": "Emeryville"
+    },
+    {
+      "ending_city_best": "Emeryville",
+      "best_bundle_ids": [
+        "mainGameOrder181",
+        "mainGameOrder184"
+      ],
+      "scenario_id": "mainGameScenario46",
+      "second_best_bundle_ids": [
+        "mainGameOrder181",
+        "mainGameOrder183",
+        "mainGameOrder184"
+      ]
+    },
+    {
+      "second_best_bundle_ids": [
+        "mainGameOrder187",
+        "mainGameOrder188"
+      ],
+      "scenario_id": "mainGameScenario47",
+      "ending_city_best": "Oakland",
+      "best_bundle_ids": [
+        "mainGameOrder185",
+        "mainGameOrder186"
+      ]
+    },
+    {
+      "scenario_id": "mainGameScenario48",
+      "second_best_bundle_ids": [
+        "mainGameOrder190",
+        "mainGameOrder192"
+      ],
+      "ending_city_best": "Oakland",
+      "best_bundle_ids": [
+        "mainGameOrder192"
+      ]
+    },
+    {
+      "ending_city_best": "Piedmont",
+      "best_bundle_ids": [
+        "mainGameOrder194",
+        "mainGameOrder195"
+      ],
+      "scenario_id": "mainGameScenario49",
+      "second_best_bundle_ids": [
+        "mainGameOrder195"
+      ]
+    },
+    {
+      "second_best_bundle_ids": [
+        "mainGameOrder198",
+        "mainGameOrder200"
+      ],
+      "scenario_id": "mainGameScenario50",
+      "best_bundle_ids": [
+        "mainGameOrder197",
+        "mainGameOrder198",
+        "mainGameOrder200"
+      ],
+      "ending_city_best": "Piedmont"
+    }
+  ],
+  "metadata": {
+    "datasetName": "mainGame",
+    "maxBundle": 3,
+    "scenarioSetVersionId": "mainGame_2026_03_20_14_26_36",
+    "payMin": 12,
+    "totalRounds": 50,
+    "payMax": 24
+  }
+}

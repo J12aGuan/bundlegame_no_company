@@ -1,0 +1,5 @@
+store_id,store_name,city,entrance_rc,cell_distance_ms,seconds_per_cell,grid_rows,grid_cols,n_items,items
+Target,Target,Emeryville,"[0, 0]",900,0.9,3,3,5,"[""apple"", ""banana"", ""grape"", ""pineapple"", ""watermelon""]"
+Berkeley Bowl,Berkeley Bowl,Berkeley,"[0, 0]",600,0.6,3,3,5,"[""apple"", ""grape"", ""orange"", ""pineapple"", ""watermelon""]"
+Sprouts Farmers Market,Sprouts Farmers Market,Oakland,"[1, 0]",750,0.75,3,3,7,"[""apple"", ""grape"", ""kiwi"", ""orange"", ""pear"", ""pineapple"", ""watermelon""]"
+Safeway,Safeway,Piedmont,"[0, 0]",700,0.7,3,3,3,"[""apple"", ""orange"", ""watermelon""]"

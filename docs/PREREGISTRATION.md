@@ -2,7 +2,7 @@
 
 **Status:** draft pre-registration for the CHI confirmatory study. Build/validation
 only; no data collected yet. The pilot referenced below is the verified unaided
-dataset exported under `export_for_analysis/`.
+dataset exported under `publishing/export_for_analysis/`.
 
 ## 1. Background and motivation
 Gig delivery workers systematically **under-weight time costs** when bundling
@@ -68,7 +68,7 @@ unaided re-weighting** on a shifted, harder transfer phase. Framing:
 
 ## 5. Statistical analysis plan
 Implemented end-to-end against synthetic-shaped fixtures in
-`analysis/confirmatory_plan.py` (run before real data exists).
+`publishing/analysis/confirmatory_plan.py` (run before real data exists).
 
 - **H1, H2:** mixed-effects model `regret_C ~ arm + diagnosed_bias_strength +
   (1 | worker)`; pre-planned contrasts matched−generic and matched−mismatched,
@@ -86,7 +86,7 @@ Implemented end-to-end against synthetic-shaped fixtures in
   Phase-A baseline regret.
 
 ## 6. Sample size / power
-`analysis/power_analysis.py` (uses pilot regret variability). With a Phase-C
+`publishing/analysis/power_analysis.py` (uses pilot regret variability). With a Phase-C
 within-subjects design (10 rounds, ICC≈0.5) and an assumed matched-vs-mismatched
 effect of 30% of pilot mean regret (d≈0.32): **~155/arm** powers H2 at .80; the
 **bias×arm interaction (H4) is the binding constraint at ~620/arm**. Registered
@@ -123,11 +123,11 @@ and is **not** treatment-aware by this gate.
   is contingent on choosing the recommended bundle.
 
 ## 10. Reproducibility artifacts
-- Diagnosis: `data analysis/analytics_v1/analytics/diagnosis.py` (+ tests).
+- Diagnosis: `publishing/data_analysis/analytics_v1/analytics/diagnosis.py` (+ tests).
 - Scaffolding: `src/lib/scaffolding.js`; arms/protocol: `src/lib/researchStudy.js`
   (`buildChiStudyProtocol`, `validateChiStudyProtocol`).
 - Scenario design: `src/lib/chiScenarioDesign.js` (+ `tests/js/scenario-design.test.mjs`).
-- Power: `analysis/power_analysis.py`; confirmatory plan: `analysis/confirmatory_plan.py`.
+- Power: `publishing/analysis/power_analysis.py`; confirmatory plan: `publishing/analysis/confirmatory_plan.py`.
 - Gate: `analytics/qa/treatment_gate.py`. Decisions/assumptions: `DESIGN_NOTES.md`.
 
 *Any deviation from this plan will be reported with justification in the paper.*

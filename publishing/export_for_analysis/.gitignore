@@ -1,0 +1,38 @@
+# Raw Firestore pull contains restricted, re-identifiable participant data.
+# Never commit it. (See docs/current/DATA_GOVERNANCE.md.)
+_raw_pull/
+
+# The de-identified analysis CSVs are derived from human-subject data. Keep them
+# out of version control by default; share via the approved data pipeline only.
+rounds.csv
+candidates.csv
+scenarios.csv
+participants.csv
+orders.csv
+stores.csv
+travel_matrix.csv
+analysis_outputs/
+
+# Supplementary participant-derived exports (deliberation, survey, sessions, etc.)
+events.csv
+deliberation_round.csv
+round_timing.csv
+scenario_design.csv
+survey.csv
+sessions.csv
+practice_rounds.csv
+
+# Keep the scripts, source-code extracts, survey metadata, and docs tracked
+# (survey_codebook.csv / comprehension_key.csv are instrument metadata, no PII):
+!export.py
+!config_mapping.py
+!firestore_pull.py
+!verify_export.py
+!add_exports.py
+!build_codebook.py
+!scoring_and_oracle.txt
+!pick_time_rule.txt
+!survey_codebook.csv
+!comprehension_key.csv
+!DATA_DICTIONARY.md
+!QUALITY_REPORT.md

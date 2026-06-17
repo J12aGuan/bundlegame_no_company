@@ -104,7 +104,7 @@ async function main() {
   const timestamp = options.timestamp || makeTimestampId(new Date(generatedAt));
   const outputDir = options.out
     ? path.resolve(repoRoot, options.out)
-    : path.join(repoRoot, "data analysis", "firestore_raw_export", timestamp);
+    : path.join(repoRoot, "publishing", "data_analysis", "firestore_raw_export", timestamp);
   const { outputDir: absoluteOutputDir, manifest } = await writeRawExportIncrementally({
     projectId: options.projectId,
     outputDir,

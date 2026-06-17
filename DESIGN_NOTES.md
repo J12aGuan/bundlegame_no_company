@@ -48,8 +48,8 @@ unit tests, using the verified pilot export and clearly-labeled synthetic fixtur
 | D10 | Four between-subjects arms; pre-gameplay stable assignment; diagnosis→slate | **Done** | `researchStudy.js` (`BUNDLEGAME_CHI_SCAFFOLD_ARMS`, `assignScaffoldArm`) | `scaffolding.test.mjs` |
 | E11 | Logging fields + snapshot gate blocking "treatment-aware" | **Done** | `analytics/qa/treatment_gate.py` (+ scaffold log record) | `test_treatment_gate.py` |
 | F12 | Pre-registration | **Done** | `docs/PREREGISTRATION.md` | doc |
-| F13 | Power analysis from pilot effect sizes | **Done** | `analysis/power_analysis.py` | runs on pilot export |
-| F14 | Confirmatory H1–H5 on fixtures | **Done** | `analysis/confirmatory_plan.py` | 5/5 planted effects recovered |
+| F13 | Power analysis from pilot effect sizes | **Done** | `publishing/analysis/power_analysis.py` | runs on pilot export |
+| F14 | Confirmatory H1–H5 on fixtures | **Done** | `publishing/analysis/confirmatory_plan.py` | 5/5 planted effects recovered |
 
 ## Partial / deferred (honest scope)
 - **Runtime wiring into `src/routes/bundlegame.svelte`** (rendering the explanation

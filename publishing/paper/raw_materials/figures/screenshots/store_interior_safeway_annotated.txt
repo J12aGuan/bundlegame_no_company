@@ -1,0 +1,18 @@
+file: store_interior_safeway_annotated.png
+figure_type: store_interior
+store: Safeway
+city: Piedmont
+scenario_set: mainGame_2026_03_20_14_26_36
+round_index: 23
+order_ids: ["mainGameOrder89"]
+shared_items: []
+entrance_rc: [0,0]
+cell_distance_ms: 700
+seconds_per_cell: 0.7
+viewport: 1440x900
+device_pixel_ratio: 2
+rendered_pixels: 2880x1800
+zoom: 1.0
+crop: none (full viewport, identical dimensions across all panels)
+source: rendered from publishing/export_for_analysis/_raw_pull/stores.json (deployed grids); not a live authenticated play-through
+renderer: paper/raw_materials/render_store_figures.mjs

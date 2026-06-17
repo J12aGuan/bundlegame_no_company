@@ -1,0 +1,13 @@
+file: live_store_interior_safeway.png
+figure_type: store_interior (LIVE in-game)
+store: Safeway
+city: Piedmont
+scenario_set: mainGame_2026_03_20_14_26_36
+round_index: 9
+order_ids: ["mainGameOrder33"]
+participant: bobalab
+viewport: 1440x900
+device_pixel_ratio: 2
+rendered_pixels: 2880x1800
+crop: none (full viewport)
+source: genuine authenticated play-through of deployed game

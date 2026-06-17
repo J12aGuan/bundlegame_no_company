@@ -1,0 +1,104 @@
+qualtrics_qid,internal_qid,question_text,response_option_index,response_option_label,note
+Duration (in seconds),,,,,not found in Qualtrics survey definition
+ExternalReference,,,,,not found in Qualtrics survey definition
+Finished,,,,,not found in Qualtrics survey definition
+Progress,,,,,not found in Qualtrics survey definition
+Q42,QID42,Have you ever used a grocery or food delivery platform?,1,"Yes, as a customer",
+Q42,QID42,Have you ever used a grocery or food delivery platform?,4,"Yes, as a delivery driver",
+Q42,QID42,Have you ever used a grocery or food delivery platform?,5,"Yes, as a restaurant/business",
+Q42,QID42,Have you ever used a grocery or food delivery platform?,6,Never,
+Q44,QID44,1. Which order(s) is the best choice starting from Los Angeles? Bundling orders from the same store saves 10 seconds.,1,"A: $10, Los Angeles, Target, Apple x1, 20 sec",
+Q44,QID44,1. Which order(s) is the best choice starting from Los Angeles? Bundling orders from the same store saves 10 seconds.,2,"C: $18, Los Angeles, Safeway, Apple x1, 20 sec",
+Q44,QID44,1. Which order(s) is the best choice starting from Los Angeles? Bundling orders from the same store saves 10 seconds.,3,"B: $17, Los Angeles, Safeway, Apple x1, 20 sec",
+Q44,QID44,1. Which order(s) is the best choice starting from Los Angeles? Bundling orders from the same store saves 10 seconds.,4,"D: $5, Los Angeles, Walmart, Apple x1, 20 sec",
+Q50,QID50,2. Which order(s) is the best choice starting from Los Angeles? Bundling orders from the same store saves 10 seconds.,1,"A: $10, Los Angeles, Target, Apple x2, 20 sec",
+Q50,QID50,2. Which order(s) is the best choice starting from Los Angeles? Bundling orders from the same store saves 10 seconds.,2,"C: $18, Los Angeles, Safeway, Apple x2, 20 sec",
+Q50,QID50,2. Which order(s) is the best choice starting from Los Angeles? Bundling orders from the same store saves 10 seconds.,3,"B: $10, Los Angeles, Target, Grape x3, 20 sec",
+Q50,QID50,2. Which order(s) is the best choice starting from Los Angeles? Bundling orders from the same store saves 10 seconds.,4,"D: $10, Los Angeles, Target, Banana x1, 20 sec",
+Q54,QID54,3. Which order(s) is the best choice starting from Los Angeles? Bundling orders from the same store saves 10 seconds. The estimated time for each order already includes any city travel needed.,1,"A: $14, Los Angeles, Safeway, Apple x2, 20 sec",
+Q54,QID54,3. Which order(s) is the best choice starting from Los Angeles? Bundling orders from the same store saves 10 seconds. The estimated time for each order already includes any city travel needed.,2,"C: $15, Irvine, Target, Apple x2, 25 sec",
+Q54,QID54,3. Which order(s) is the best choice starting from Los Angeles? Bundling orders from the same store saves 10 seconds. The estimated time for each order already includes any city travel needed.,3,"B: $16, Los Angeles, Safeway, Orange x2, 20 sec",
+Q54,QID54,3. Which order(s) is the best choice starting from Los Angeles? Bundling orders from the same store saves 10 seconds. The estimated time for each order already includes any city travel needed.,4,"D: $15, Irvine, Target, Orange x2, 25 sec",
+Status,,,,,not found in Qualtrics survey definition
+UserLanguage,,,,,not found in Qualtrics survey definition
+age,QID63,What is your age?,,,no choice options (free-text or numeric entry)
+bundleGameSaveStatus,,,,,not found in Qualtrics survey definition
+comp1,QID26,How many orders may you select?,1,"1, 2, or 3 orders from the same store",
+comp1,QID26,How many orders may you select?,2,"1, 2, or 3 orders from any store",
+comp1,QID26,How many orders may you select?,3,1–4 orders,
+comp1,QID26,How many orders may you select?,4,Only 1 order,
+comp2,QID28,What are all the ways to travel? Select all that apply.,1,Click a location on the map,
+comp2,QID28,What are all the ways to travel? Select all that apply.,2,Use the travel buttons at the bottom of the screen,
+comp2,QID28,What are all the ways to travel? Select all that apply.,3,Travel happens automatically,
+comp2,QID28,What are all the ways to travel? Select all that apply.,4,There is no traveling,
+comp3,QID29,How much $ does a bundled order earn?,1,The average earnings between the orders,
+comp3,QID29,How much $ does a bundled order earn?,2,The earnings of the highest earning order,
+comp3,QID29,How much $ does a bundled order earn?,3,The earnings of the orders multiplied,
+comp3,QID29,How much $ does a bundled order earn?,4,The sum (total) earnings of the orders,
+comp4,QID60,"Inside a store, if you are at the apple aisle, how do you add an apple to your bag?",1,"Click on the word ""apple"" on the grid, then add to bag",
+comp4,QID60,"Inside a store, if you are at the apple aisle, how do you add an apple to your bag?",2,"Only type the word ""apple"", then add to bag",
+comp4,QID60,"Inside a store, if you are at the apple aisle, how do you add an apple to your bag?",3,"Type ""apple"" in the item box, then select the quantity, and finally add to bag",
+comp4,QID60,"Inside a store, if you are at the apple aisle, how do you add an apple to your bag?",4,Draw an apple,
+comp5,QID31,Uh oh! I added too many apples. How can I remove apples from my bag? Select all that apply.,6,Click the – button next to the item in the bag,
+comp5,QID31,Uh oh! I added too many apples. How can I remove apples from my bag? Select all that apply.,7,Click the red X next to the item in the bag,
+comp5,QID31,Uh oh! I added too many apples. How can I remove apples from my bag? Select all that apply.,8,Click the + button next to the item in the bag,
+comp5,QID31,Uh oh! I added too many apples. How can I remove apples from my bag? Select all that apply.,9,Click the item again in the store,
+education,QID64,What is the highest degree or level of education you have completed?,1,Less than high school,
+education,QID64,What is the highest degree or level of education you have completed?,2,High school graduate,
+education,QID64,What is the highest degree or level of education you have completed?,3,Some college,
+education,QID64,What is the highest degree or level of education you have completed?,4,2 year degree,
+education,QID64,What is the highest degree or level of education you have completed?,5,4 year degree,
+education,QID64,What is the highest degree or level of education you have completed?,6,Master's,
+education,QID64,What is the highest degree or level of education you have completed?,8,Professional degree,
+education,QID64,What is the highest degree or level of education you have completed?,9,Doctorate,
+employment,QID65,What is your current employment status?,1,Employed full time,
+employment,QID65,What is your current employment status?,2,Employed part time,
+employment,QID65,What is your current employment status?,3,Unemployed looking for work,
+employment,QID65,What is your current employment status?,4,Unemployed not looking for work,
+employment,QID65,What is your current employment status?,5,Retired,
+employment,QID65,What is your current employment status?,6,Student,
+gender,QID68,What gender do you identify as?,1,Female,
+gender,QID68,What gender do you identify as?,2,Male,
+gender,QID68,What gender do you identify as?,4,Nonbinary,
+id,,,,,not found in Qualtrics survey definition
+post_difficult,QID37,How difficult did you think it was to perform well in this game?,1,Extremely easy,
+post_difficult,QID37,How difficult did you think it was to perform well in this game?,2,Moderately easy,
+post_difficult,QID37,How difficult did you think it was to perform well in this game?,3,Slightly easy,
+post_difficult,QID37,How difficult did you think it was to perform well in this game?,4,Neither easy nor difficult,
+post_difficult,QID37,How difficult did you think it was to perform well in this game?,5,Slightly difficult,
+post_difficult,QID37,How difficult did you think it was to perform well in this game?,6,Moderately difficult,
+post_difficult,QID37,How difficult did you think it was to perform well in this game?,7,Extremely difficult,
+post_finalstrategy,QID39,How would you describe your final strategy? These are the strategies that you followed after playing the game through substantially. Select all that apply!,1,Bundled orders to save time while earning money for both,
+post_finalstrategy,QID39,How would you describe your final strategy? These are the strategies that you followed after playing the game through substantially. Select all that apply!,2,Did not bundle orders if the orders had many different items (fruit),
+post_finalstrategy,QID39,How would you describe your final strategy? These are the strategies that you followed after playing the game through substantially. Select all that apply!,3,Minimized changing location to save time,
+post_finalstrategy,QID39,How would you describe your final strategy? These are the strategies that you followed after playing the game through substantially. Select all that apply!,4,Spent more time carefully reading through order details to find the optimal choice,
+post_finalstrategy,QID39,How would you describe your final strategy? These are the strategies that you followed after playing the game through substantially. Select all that apply!,7,"Quickly made order choices, spending less time reading through order details to save time",
+post_finalstrategy,QID39,How would you describe your final strategy? These are the strategies that you followed after playing the game through substantially. Select all that apply!,5,Prioritized stores with less travel time in between items,
+post_finalstrategy,QID39,How would you describe your final strategy? These are the strategies that you followed after playing the game through substantially. Select all that apply!,6,Prioritized orders that had food items close to store entrances to save time,
+post_initialstrategy,QID38,How would you describe your initial strategy? These are the strategies you followed at the beginning of the game. Select all that apply!,1,Bundled orders to save time while earning money for both,
+post_initialstrategy,QID38,How would you describe your initial strategy? These are the strategies you followed at the beginning of the game. Select all that apply!,2,Did not bundle orders if the orders had many different items (fruit),
+post_initialstrategy,QID38,How would you describe your initial strategy? These are the strategies you followed at the beginning of the game. Select all that apply!,3,Minimized changing location to save time,
+post_initialstrategy,QID38,How would you describe your initial strategy? These are the strategies you followed at the beginning of the game. Select all that apply!,4,Spent more time carefully reading through order details to find the optimal choice,
+post_initialstrategy,QID38,How would you describe your initial strategy? These are the strategies you followed at the beginning of the game. Select all that apply!,7,"Quickly made order choices, spending less time reading through order details to save time",
+post_initialstrategy,QID38,How would you describe your initial strategy? These are the strategies you followed at the beginning of the game. Select all that apply!,5,Prioritized stores with less travel time in between items,
+post_initialstrategy,QID38,How would you describe your initial strategy? These are the strategies you followed at the beginning of the game. Select all that apply!,6,Prioritized orders that had food items close to store entrances to save time,
+timeincomp_Click Count,,,,,not found in Qualtrics survey definition
+timeincomp_First Click,,,,,not found in Qualtrics survey definition
+timeincomp_Last Click,,,,,not found in Qualtrics survey definition
+timeincomp_Page Submit,,,,,not found in Qualtrics survey definition
+timeingame_Click Count,,,,,not found in Qualtrics survey definition
+timeingame_First Click,,,,,not found in Qualtrics survey definition
+timeingame_Last Click,,,,,not found in Qualtrics survey definition
+timeingame_Page Submit,,,,,not found in Qualtrics survey definition
+timeinquiz_Click Count,,,,,not found in Qualtrics survey definition
+timeinquiz_First Click,,,,,not found in Qualtrics survey definition
+timeinquiz_Last Click,,,,,not found in Qualtrics survey definition
+timeinquiz_Page Submit,,,,,not found in Qualtrics survey definition
+timeinsurvey1_Click Count,,,,,not found in Qualtrics survey definition
+timeinsurvey1_First Click,,,,,not found in Qualtrics survey definition
+timeinsurvey1_Last Click,,,,,not found in Qualtrics survey definition
+timeinsurvey1_Page Submit,,,,,not found in Qualtrics survey definition
+timeintutorial_Click Count,,,,,not found in Qualtrics survey definition
+timeintutorial_First Click,,,,,not found in Qualtrics survey definition
+timeintutorial_Last Click,,,,,not found in Qualtrics survey definition
+timeintutorial_Page Submit,,,,,not found in Qualtrics survey definition

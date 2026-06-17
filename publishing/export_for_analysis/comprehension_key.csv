@@ -1,0 +1,7 @@
+qid,question_text,correct_response,correct_response_source,note
+comp1,How many orders may you select?,1,game_rule,"Bundles are 1-3 orders from the SAME store (maxBundle=3 + single-store legality, src/lib/researchStudy.js / legal_bundle_mask_v1)."
+comp2,What are all the ways to travel? Select all that apply.,,not_recoverable,GradingData empty; the set of valid travel actions is a UI detail not encoded in the QSF or the logged event vocabulary - verify in-app.
+comp3,How much $ does a bundled order earn?,4,game_rule,A bundle's pay is the SUM of its orders' earnings (reward model: earnings = sum(order.earnings)).
+comp4,"Inside a store, if you are at the apple aisle, how do you add an apple to your bag?",3,game_event_log,"Items are added by typing the name, choosing a quantity, then Add to bag (DetailedAction vocab: item entry -> add_item_to_bag)."
+comp5_6,Uh oh! I added too many apples. How can I remove apples from my bag? Select all that apply.,selected,game_event_log,"Correct set for this 'select all that apply' item is {6,7}: the minus button decreases quantity (decrease_item_quantity) - a valid removal."
+comp5_7,Uh oh! I added too many apples. How can I remove apples from my bag? Select all that apply.,selected,game_event_log,"Correct set is {6,7}: the red X removes the item (remove_item_from_bag) - a valid removal. Option 8 (plus) is incorrect (it adds)."
