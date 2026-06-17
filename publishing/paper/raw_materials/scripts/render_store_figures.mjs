@@ -9,6 +9,12 @@
  * viewport 1440x900, deviceScaleFactor 2 (=> 2880x1800 px), full viewport, no crop.
  *
  * Run (no dev server needed): node paper/raw_materials/render_store_figures.mjs
+ *
+ * NOTE: these are schematics, not the live interface. The camera-ready VECTOR
+ * versions (store_interior_*, overlap_pair_*) are now produced natively by
+ * scripts/figures_schematic_pdf.py; this HTML->PNG renderer is kept as a
+ * high-DPI raster cross-check (deviceScaleFactor 4) and is not the source of the
+ * paper PDFs, so it intentionally does not also emit page.pdf().
  */
 import { chromium } from "playwright-core";
 import { fileURLToPath } from "node:url";
@@ -20,7 +26,7 @@ const BUNDLE = path.dirname(HERE);                           // .../raw_material
 const OUT = path.join(BUNDLE, "figures", "screenshots");
 fs.mkdirSync(OUT, { recursive: true });
 const VIEWPORT = { width: 1440, height: 900 };
-const SCALE = 2;
+const SCALE = 4; // high-DPI raster cross-check (was 2); camera-ready vector = figures_schematic_pdf.py
 
 const tm = JSON.parse(fs.readFileSync(path.join(BUNDLE, "data", "time_model.json"), "utf-8"));
 const pairs = JSON.parse(fs.readFileSync(path.join(HERE, "_overlap_pairs.json"), "utf-8"));

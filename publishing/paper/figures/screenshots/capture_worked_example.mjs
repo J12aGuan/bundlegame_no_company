@@ -13,6 +13,10 @@ const OUT = path.dirname(fileURLToPath(import.meta.url));
 const BASE = process.env.BG_URL || "http://localhost:5173";
 const ROUND = 12;                 // mainGameScenario12
 const SELECT_IDS = ["mainGameOrder45", "mainGameOrder47", "mainGameOrder48"];
+const VIEWPORT = { width: 1440, height: 900 };
+const SCALE = 4; // high-DPI raster (was 2)
+// Fixed print viewport so the vector PDF matches the on-screen layout 1:1.
+const PDF_OPTS = { width: `${VIEWPORT.width}px`, height: `${VIEWPORT.height}px`, printBackground: true, pageRanges: "1" };
 const log = (...a) => console.log("[worked]", ...a);
 
 async function main() {
@@ -21,10 +25,16 @@ async function main() {
     args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader",
            "--ignore-gpu-blocklist", "--enable-webgl"],
   });
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE });
   const page = await ctx.newPage();
   page.on("dialog", (d) => d.dismiss().catch(() => {}));
   const shot = (n, o = {}) => page.screenshot({ path: path.join(OUT, `${n}.png`), ...o }).then(() => log("saved", n + ".png"));
+  // Vector PDF of the current full screen (screen media keeps the on-screen layout).
+  const shotPdf = async (n) => {
+    await page.emulateMedia({ media: "screen" });
+    await page.pdf({ path: path.join(OUT, `${n}.pdf`), ...PDF_OPTS });
+    log("saved", n + ".pdf");
+  };
   const cleanChrome = () => page.evaluate(() => {
     for (const el of document.querySelectorAll("section div")) {
       if (el.className && String(el.className).includes("rounded-2xl") && /Study Arm/i.test(el.textContent || "")) {
@@ -69,6 +79,7 @@ async function main() {
 
   // SHOT 1: empty menu
   await shot("menu_worked_example");
+  await shotPdf("menu_worked_example");
 
   // SHOT 2: select orders 45, 47, 48 (DOM order is 45,46,47,48 -> indices 0,2,3)
   const cards = await page.$$("section .grid.grid-cols-2 > div");
@@ -78,6 +89,7 @@ async function main() {
   const confirm = await page.evaluate(() => document.querySelector("#confirmorder")?.textContent?.trim());
   log("confirm summary:", confirm);
   await shot("menu_worked_example_selected");
+  await shotPdf("menu_worked_example_selected");
 
   await browser.close();
 }

@@ -21,7 +21,9 @@ const BASE = "http://localhost:5173";
 const USER = "bobalab";
 const TOKEN = "FC1F-8AA4-564C-2E37";
 const VIEWPORT = { width: 1440, height: 900 };
-const SCALE = 2;
+const SCALE = 4; // high-DPI raster (was 2)
+// Fixed print viewport so the vector PDF matches the on-screen layout 1:1.
+const PDF_OPTS = { width: `${VIEWPORT.width}px`, height: `${VIEWPORT.height}px`, printBackground: true, pageRanges: "1" };
 const log = (...a) => console.log("[live]", ...a);
 
 const bundle = JSON.parse(fs.readFileSync(path.join(HERE, "..", "sources", "scenario_bundle.json"), "utf-8"));
@@ -153,8 +155,16 @@ async function main() {
   page.on("dialog", (d) => { log("DIALOG:", d.message()); d.dismiss().catch(() => {}); });
   await authenticate(page);
 
+  // Vector PDF of the current full screen (screen media keeps the on-screen layout).
+  const pdfShot = async (n) => {
+    await page.emulateMedia({ media: "screen" });
+    await page.pdf({ path: path.join(SHOTS, `${n}.pdf`), ...PDF_OPTS });
+    log(`saved ${n}.pdf`);
+  };
+
   // capture the genuine decision screen + study-arm panel once
   await page.screenshot({ path: path.join(SHOTS, "live_decision_round1.png") });
+  await pdfShot("live_decision_round1");
   log("saved live_decision_round1.png");
 
   for (let step = 0; step < MAX_ROUNDS && captured.size < 4; step++) {
@@ -171,6 +181,7 @@ async function main() {
     if (ok && isNew) {
       const key = STORE_KEY[store];
       await page.screenshot({ path: path.join(SHOTS, `live_store_interior_${key}.png`) });
+      await pdfShot(`live_store_interior_${key}`);
       // sidecar
       fs.writeFileSync(path.join(SHOTS, `live_store_interior_${key}.txt`),
         [`file: live_store_interior_${key}.png`, `figure_type: store_interior (LIVE in-game)`,
