@@ -275,7 +275,11 @@ const AB_CELLS = [
   { overlap: 0, dispersion: 1, stress: "route" },  // stress W2
   { overlap: 1, dispersion: 1, stress: "pick" },   // stress W1+W2
 ];
-const shiftCell = (i) => ({ overlap: i % 2, dispersion: 1, stress: i % 2 ? "pick" : "route", shift: true });
+// The held-out OFF test blocks are calibrated to exercise the COACHED weakness
+// (picking): overlap=1 always (a same-store multi-order bundle is legal, so
+// over-bundling is tempting), dispersion alternating for variety. The transfer
+// block additionally carries the labeled shift (novel stores + heavier pick).
+const pickStressCell = (i, shift) => ({ overlap: 1, dispersion: i % 2, stress: "pick", shift });
 
 /**
  * Build the dynamic counterfactual-feedback scenario set (default 35 rounds):
@@ -311,11 +315,9 @@ export function buildChiScenarioSet({ diagnosticRounds = 15, blockSize = 5, seed
   let onIdx = 0;
   for (const blk of CHI_PHASE_B_BLOCK_LAYOUT) {
     for (let i = 0; i < blockSize; i += 1) {
-      const cell = blk.shift
-        ? shiftCell(i)
-        : blk.kind === "on"
-          ? { ...AB_CELLS[onIdx++ % AB_CELLS.length], shift: false }
-          : { ...AB_CELLS[i % AB_CELLS.length], shift: false };
+      const cell = blk.kind === "on"
+        ? { ...AB_CELLS[onIdx++ % AB_CELLS.length], shift: false } // ON = training, spans 2x2
+        : pickStressCell(i, blk.shift); // OFF = held-out picking probe (retention same-dist / transfer shifted)
       emit("B", cell, {
         block: blk.id,
         block_kind: blk.kind,
@@ -402,17 +404,22 @@ export function validateChiScenarioSet(set, { minPerCell = 2 } = {}) {
     }
   }
 
-  // The transfer block should genuinely stress cross-city travel harder than training.
-  const meanCross = (rows) => {
-    let tot = 0, n = 0;
-    for (const s of rows) for (const o of s.orders) {
-      tot += (CHI_CITY_TRAVEL[CHI_STARTING_CITY]?.[o.city] || 0) * (s.travel_scale || 1);
-      n += 1;
+  // Both held-out blocks must exercise the COACHED weakness (picking): every menu
+  // has a legal same-store multi-order bundle (store_overlap_flag = 1), so
+  // over-bundling is tempting and a pick-neglect correction is measurable.
+  for (const [rows, label] of [[retention, "retention"], [transfer, "transfer"]]) {
+    if (!rows.every((s) => s.store_overlap_flag === 1)) {
+      errors.push(`${label} block must over-sample the picking cell (store_overlap_flag=1 in every menu)`);
     }
+  }
+  // The transfer block is a labeled PICKING shift: heavier pick load than training.
+  const meanPick = (rows) => {
+    let tot = 0, n = 0;
+    for (const s of rows) for (const o of s.orders) { tot += Number(o.pick) || 0; n += 1; }
     return n ? tot / n : 0;
   };
-  if (meanCross(transfer) <= meanCross([...diagnostic, ...onMenus, ...retention])) {
-    errors.push("transfer block does not increase average cross-city travel vs training");
+  if (meanPick(transfer) <= meanPick([...diagnostic, ...onMenus])) {
+    errors.push("transfer block does not increase the average pick load vs training (the labeled picking shift)");
   }
 
   return { ok: errors.length === 0, errors, n_scenarios: scenarios.length };

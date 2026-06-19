@@ -60,6 +60,10 @@ test("transfer OFF block is a labeled shift with novel stores; held-out ids disj
   assert.equal(retention.length, 5);
   assert.ok(transfer.every((s) => s.shift_flag === 1));
   assert.ok(retention.every((s) => s.shift_flag === 0)); // same-distribution
+  // Both OFF blocks over-sample the picking cell (overlap=1) so the coached
+  // weakness is measurable; transfer carries a heavier pick load (the labeled shift).
+  assert.ok(transfer.every((s) => s.store_overlap_flag === 1), "transfer must exercise picking (overlap=1)");
+  assert.ok(retention.every((s) => s.store_overlap_flag === 1), "retention must exercise picking (overlap=1)");
   // validate() also checks novelty + held-out disjointness + harder cross-city.
   const v = validateChiScenarioSet(set);
   assert.ok(v.ok, v.errors.join("; "));
