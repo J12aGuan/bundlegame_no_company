@@ -1,5 +1,16 @@
 # CHI Main-Study Build — Design Notes & Status
 
+> **SUPERSEDED (historical).** This documents the original 30-round A/B/C
+> "diagnosis + tailored scaffolding" design with arms `no_ai/generic/matched/
+> mismatched`. That design has been **dropped** in favor of the **dynamic
+> counterfactual-feedback** study: a 35-round protocol (15 unaided + Phase B
+> blocked ON/OFF/ON/OFF) with arms `marginal/component/oracle/aggregate/control`.
+> The old `src/lib/scaffolding.js` and its test were removed; render-time feedback
+> is now `src/lib/marginalFeedback.js` (`feedbackForArm`) and the diagnosis is
+> `src/lib/chiDiagnosis.js`. See `BUILD_AND_STUDY_PLAN.md` and the live code
+> (`researchStudy.js`, `chiScenarioDesign.js`) for the current design. Kept for
+> history of the decisions below.
+
 Decisions, assumptions, and per–Definition-of-Done status for the CHI
 "diagnosis + tailored scaffolding + transfer" build. The repo code is the source
 of truth; **no participant data was collected or fabricated** — only build +
