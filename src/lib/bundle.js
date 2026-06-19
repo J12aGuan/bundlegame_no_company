@@ -19,6 +19,7 @@ import {
 } from './researchStudy.js';
 
 import { switchJob, setPenaltyTimeout } from './config';
+import { feedbackForDecision } from './chiStudyRuntime.js';
 
 const MAIN_STORE_FILE = 'store.json';
 const MAIN_CITIES_FILE = 'cities.json';
@@ -186,6 +187,26 @@ export const detailedScenarioActions = writable({});
 export const studyProtocol = writable(normalizeResearchStudyProtocol({ enabled: false }));
 export const participantStudyState = writable(normalizeResearchStudyState({}));
 export const researchModels = writable([]);
+
+// CHI dynamic counterfactual-feedback panel state. Default null -> the panel is
+// inert for non-CHI play and for OFF blocks (feedbackForDecision returns ""), so
+// this is additive: if updateChiStudyFeedback is never called, gameplay is unchanged.
+export const chiFeedback = writable(null);
+
+/**
+ * Compute and publish the CHI feedback for the current decision. Call at decision
+ * confirmation in an ON block with the chosen bundle + the round's legal candidate
+ * bundles (each carrying deployed_score / earnings / deployed_total_time_seconds)
+ * and the latest diagnosis. Gating to ON blocks is handled by feedbackForDecision.
+ */
+export function updateChiStudyFeedback({ protocol, round, arm, chosenBundle, legalBundles, diagnosis, labelFor } = {}) {
+	if (!protocol || !arm) { chiFeedback.set(null); return null; }
+	const fb = feedbackForDecision({ protocol, round, arm, chosenBundle, legalBundles, diagnosis, labelFor });
+	chiFeedback.set(fb && fb.text ? fb : null);
+	return fb;
+}
+
+export function clearChiStudyFeedback() { chiFeedback.set(null); }
 
 export const needsAuth = writable(config["auth"])
 

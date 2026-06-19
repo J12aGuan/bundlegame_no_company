@@ -1,6 +1,7 @@
 <script>
     import Bundlegame from "./bundlegame.svelte";
-    import { game, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, completedOrdersCount, createNewUser, needsAuth, loadGame, participantStudyState, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveParticipantStudySurveyResponse, saveProgressAndEndSession, resumeElapsedSeconds, completionState, recordResultCodeVerification, retryFinalResultsSave, resendRecoveryCompletionPayload, resendCompletionHandoff } from "$lib/bundle.js";
+    import ChiFeedbackPanel from "./ChiFeedbackPanel.svelte";
+    import { game, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, completedOrdersCount, createNewUser, needsAuth, loadGame, participantStudyState, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveParticipantStudySurveyResponse, saveProgressAndEndSession, resumeElapsedSeconds, completionState, recordResultCodeVerification, retryFinalResultsSave, resendRecoveryCompletionPayload, resendCompletionHandoff, chiFeedback } from "$lib/bundle.js";
 	import Home from "./home.svelte";
 	import { onMount } from "svelte";
     import { queueNFixedOrders } from "$lib/config.js";
@@ -584,6 +585,11 @@
             
             <div class="min-h-screen bg-slate-50 py-4">
                 {#if inSelect}
+                    {#if $chiFeedback}
+                        <div class="mx-auto max-w-3xl px-4 pb-2">
+                            <ChiFeedbackPanel feedback={$chiFeedback} />
+                        </div>
+                    {/if}
                     <Home />
                 {:else if inStore}
                     <Bundlegame />
