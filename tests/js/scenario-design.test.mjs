@@ -9,15 +9,24 @@ import {
   CHI_STARTING_CITY,
 } from "../../src/lib/chiScenarioDesign.js";
 
-test("default CHI scenario set has 30 rounds in A/B/C (10/10/10)", () => {
+test("default CHI scenario set has 35 rounds: 15 diagnostic (A) + 20 blocked B (5/5/5/5)", () => {
   const set = buildChiScenarioSet();
-  assert.equal(set.scenarios.length, 30);
-  const counts = { A: 0, B: 0, C: 0 };
+  assert.equal(set.scenarios.length, 35);
+  const counts = { A: 0, B: 0 };
   for (const s of set.scenarios) counts[s.phase] += 1;
-  assert.deepEqual(counts, { A: 10, B: 10, C: 10 });
+  assert.deepEqual(counts, { A: 15, B: 20 });
+  // Phase B rounds 16..35 carry blocks B1 on / B2 off / B3 on / B4 off, 5 each.
+  const blocks = set.scenarios.filter((s) => s.phase === "B").map((s) => s.block);
+  const blockCounts = blocks.reduce((m, b) => ((m[b] = (m[b] || 0) + 1), m), {});
+  assert.deepEqual(blockCounts, { B1: 5, B2: 5, B3: 5, B4: 5 });
+  const onOff = ["B1", "B2", "B3", "B4"].map((id) => set.scenarios.find((s) => s.block === id).block_kind);
+  assert.deepEqual(onOff, ["on", "off", "on", "off"]);
+  // Feedback fires only in ON blocks.
+  assert.ok(set.scenarios.filter((s) => s.block_kind === "on").every((s) => s.feedback_enabled === true));
+  assert.ok(set.scenarios.filter((s) => s.block_kind === "off").every((s) => s.feedback_enabled === false));
 });
 
-test("A5: 2x2 of overlap x dispersion is spanned in A and B with >=2 per cell", () => {
+test("2x2 of overlap x dispersion is spanned in the diagnostic battery and ON pool", () => {
   const set = buildChiScenarioSet();
   const v = validateChiScenarioSet(set, { minPerCell: 2 });
   assert.ok(v.ok, `scenario design invalid:\n  - ${v.errors.join("\n  - ")}`);
@@ -43,12 +52,15 @@ test("A5: every menu has a unique oracle and a non-trivial score_gap", () => {
   }
 });
 
-test("A3: Phase C is a labeled shift with novel stores and no reused order ids", () => {
+test("transfer OFF block is a labeled shift with novel stores; held-out ids disjoint from training", () => {
   const set = buildChiScenarioSet();
-  const phaseC = set.scenarios.filter((s) => s.phase === "C");
-  assert.equal(phaseC.length, 10);
-  assert.ok(phaseC.every((s) => s.shift_flag === 1));
-  // validate() also checks novelty + disjoint ids + harder cross-city; assert ok.
+  const transfer = set.scenarios.filter((s) => s.test_set === "transfer_shifted");
+  const retention = set.scenarios.filter((s) => s.test_set === "retention_same_dist");
+  assert.equal(transfer.length, 5);
+  assert.equal(retention.length, 5);
+  assert.ok(transfer.every((s) => s.shift_flag === 1));
+  assert.ok(retention.every((s) => s.shift_flag === 0)); // same-distribution
+  // validate() also checks novelty + held-out disjointness + harder cross-city.
   const v = validateChiScenarioSet(set);
   assert.ok(v.ok, v.errors.join("; "));
 });
@@ -64,8 +76,9 @@ test("overlap menus make multi-order single-store bundles legal (over-bundling p
   }
 });
 
-test("configurable round counts are honored", () => {
-  const set = buildChiScenarioSet({ roundsPerPhase: { A: 8, B: 8, C: 8 }, seed: 7 });
-  assert.equal(set.scenarios.length, 24);
-  assert.ok(validateChiScenarioSet(set, { minPerCell: 2 }).ok);
+test("configurable diagnostic count and block size are honored", () => {
+  const set = buildChiScenarioSet({ diagnosticRounds: 12, blockSize: 4, seed: 7 });
+  assert.equal(set.scenarios.length, 12 + 16); // 12 diagnostic + 4 blocks x 4
+  const v = validateChiScenarioSet(set, { minPerCell: 2 });
+  assert.ok(v.ok, v.errors.join("; "));
 });

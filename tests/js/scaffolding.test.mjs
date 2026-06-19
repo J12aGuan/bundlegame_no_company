@@ -98,22 +98,30 @@ test("mismatch attribute selection is deterministic", () => {
   assert.equal(selectTargetAttribute(SCAFFOLD_TYPES.MATCHED, "W3"), "earnings");
 });
 
-// ---- D10: four-arm randomization + CHI protocol ----
-test("CHI protocol validates: 30 rounds default, A/B/C, four arms, bundle-invariant policy", () => {
+// ---- five-arm randomization + CHI dynamic counterfactual-feedback protocol ----
+test("CHI protocol validates: 35 rounds default, A + blocked B (on/off/on/off), five arms", () => {
   const v = validateChiStudyProtocol(buildChiStudyProtocol());
   assert.ok(v.ok, `expected valid CHI protocol, got: ${v.errors.join("; ")}`);
-  assert.equal(v.expected_total_rounds, 30);
-  assert.deepEqual(v.phase_round_counts, { A: 10, B: 10, C: 10 });
+  assert.equal(v.expected_total_rounds, 35);
+  assert.deepEqual(v.phase_round_counts, { A: 15, B: 20 });
+  assert.deepEqual(
+    v.phase_b_blocks.map((b) => `${b.kind}:${b.rounds}`),
+    ["on:5", "off:5", "on:5", "off:5"],
+  );
+  // OFF block 1 = retention (same dist), OFF block 2 = transfer (shifted).
+  const offs = v.phase_b_blocks.filter((b) => b.kind === "off").map((b) => b.test_set);
+  assert.deepEqual(offs, ["retention_same_dist", "transfer_shifted"]);
 });
 
 test("CHI round counts are configurable and validated", () => {
-  const v = validateChiStudyProtocol(buildChiStudyProtocol({ rounds_per_phase: { A: 8, B: 8, C: 8 } }));
+  const v = validateChiStudyProtocol(buildChiStudyProtocol({ rounds_per_phase: { A: 12, B: 16 } }));
   assert.ok(v.ok, v.errors.join("; "));
-  assert.equal(v.expected_total_rounds, 24);
-  assert.deepEqual(v.phase_round_counts, { A: 8, B: 8, C: 8 });
+  assert.equal(v.expected_total_rounds, 28);
+  assert.deepEqual(v.phase_round_counts, { A: 12, B: 16 });
+  assert.deepEqual(v.phase_b_blocks.map((b) => b.rounds), [4, 4, 4, 4]);
 });
 
-test("assignScaffoldArm returns a stable arm among the four scaffold types", () => {
+test("assignScaffoldArm returns a stable arm among the five scaffold types", () => {
   const protocol = buildChiStudyProtocol();
   const a1 = assignScaffoldArm("participant-123", protocol);
   const a2 = assignScaffoldArm("participant-123", protocol);
@@ -121,10 +129,10 @@ test("assignScaffoldArm returns a stable arm among the four scaffold types", () 
   assert.ok(CHI_SCAFFOLD_TYPES.includes(a1.id));
 });
 
-test("all four arms are reachable across participants", () => {
+test("all five arms are reachable across participants", () => {
   const protocol = buildChiStudyProtocol();
   const seen = new Set();
-  for (let i = 0; i < 400; i += 1) seen.add(assignScaffoldArm(`p-${i}`, protocol).id);
+  for (let i = 0; i < 500; i += 1) seen.add(assignScaffoldArm(`p-${i}`, protocol).id);
   for (const t of CHI_SCAFFOLD_TYPES) assert.ok(seen.has(t), `arm ${t} never assigned`);
 });
 

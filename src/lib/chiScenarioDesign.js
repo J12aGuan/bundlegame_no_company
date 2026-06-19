@@ -261,48 +261,78 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
   return null; // could not satisfy the cell (caller resamples / errors)
 }
 
+// Phase B block layout: ON / OFF(retention, same-dist) / ON / OFF(transfer, shifted).
+export const CHI_PHASE_B_BLOCK_LAYOUT = [
+  { id: "B1", kind: "on", test_set: null, shift: false, feedback_enabled: true },
+  { id: "B2", kind: "off", test_set: "retention_same_dist", shift: false, feedback_enabled: false },
+  { id: "B3", kind: "on", test_set: null, shift: false, feedback_enabled: true },
+  { id: "B4", kind: "off", test_set: "transfer_shifted", shift: true, feedback_enabled: false },
+];
+
+const AB_CELLS = [
+  { overlap: 0, dispersion: 0, stress: "base" },
+  { overlap: 1, dispersion: 0, stress: "pick" },   // stress W1
+  { overlap: 0, dispersion: 1, stress: "route" },  // stress W2
+  { overlap: 1, dispersion: 1, stress: "pick" },   // stress W1+W2
+];
+const shiftCell = (i) => ({ overlap: i % 2, dispersion: 1, stress: i % 2 ? "pick" : "route", shift: true });
+
 /**
- * Build the full CHI scenario set (default 30 rounds: A 1-10, B 11-20, C 21-30).
- * A and B each span the 2x2 of overlap x dispersion. C is the labeled shift.
+ * Build the dynamic counterfactual-feedback scenario set (default 35 rounds):
+ *   rounds 1..15           Phase A unaided diagnostic battery (factor-balanced 2x2)
+ *   Phase B, 4 blocks of `blockSize` (default 5): ON / OFF(retention) / ON / OFF(transfer)
+ * The diagnostic battery + the ON blocks are the training pool; the two OFF blocks
+ * are the COMMON held-out test sets (same-distribution retention, then a shifted
+ * transfer with novel stores), with order ids disjoint from training. The menu
+ * order is fixed here; the runtime randomizes order within Phase A per participant.
  */
-export function buildChiScenarioSet({ roundsPerPhase = { A: 10, B: 10, C: 10 }, seed = 42 } = {}) {
+export function buildChiScenarioSet({ diagnosticRounds = 15, blockSize = 5, seed = 42 } = {}) {
   const rng = createSeededRandom(seed);
   const scenarios = [];
   let round = 0;
 
-  const abCells = [
-    { overlap: 0, dispersion: 0, stress: "base" },
-    { overlap: 1, dispersion: 0, stress: "pick" },   // stress W1
-    { overlap: 0, dispersion: 1, stress: "route" },  // stress W2
-    { overlap: 1, dispersion: 1, stress: "pick" },   // stress W1+W2
-  ];
-
-  const addPhase = (phase, n, shift) => {
-    for (let i = 0; i < n; i += 1) {
-      round += 1;
-      const cell = shift
-        ? { overlap: i % 2, dispersion: 1, stress: i % 2 ? "pick" : "route", shift: true }
-        : { ...abCells[i % abCells.length], shift: false };
-      let menu = null;
-      for (let r = 0; r < 50 && !menu; r += 1) {
-        menu = buildMenu(`chi${phase}Scenario${round}`, round, phase, cell, rng);
-      }
-      if (!menu) throw new Error(`failed to build menu for round ${round} (cell ${JSON.stringify(cell)})`);
-      scenarios.push(menu);
+  const emit = (phase, cell, meta) => {
+    round += 1;
+    let menu = null;
+    for (let r = 0; r < 50 && !menu; r += 1) {
+      menu = buildMenu(`chi${phase}Scenario${round}`, round, phase, cell, rng);
     }
+    if (!menu) throw new Error(`failed to build menu for round ${round} (cell ${JSON.stringify(cell)})`);
+    scenarios.push({ ...menu, ...meta });
   };
 
-  addPhase("A", roundsPerPhase.A, false);
-  addPhase("B", roundsPerPhase.B, false);
-  addPhase("C", roundsPerPhase.C, true);
+  // Phase A: the fixed factor-balanced diagnostic battery (15 menus by default).
+  for (let i = 0; i < diagnosticRounds; i += 1) {
+    emit("A", { ...AB_CELLS[i % AB_CELLS.length], shift: false },
+      { block: null, block_kind: "diagnostic", test_set: null, feedback_enabled: false });
+  }
+
+  // Phase B: ON/OFF/ON/OFF. ON menus cycle the 2x2 continuously (cross-block) for balance.
+  let onIdx = 0;
+  for (const blk of CHI_PHASE_B_BLOCK_LAYOUT) {
+    for (let i = 0; i < blockSize; i += 1) {
+      const cell = blk.shift
+        ? shiftCell(i)
+        : blk.kind === "on"
+          ? { ...AB_CELLS[onIdx++ % AB_CELLS.length], shift: false }
+          : { ...AB_CELLS[i % AB_CELLS.length], shift: false };
+      emit("B", cell, {
+        block: blk.id,
+        block_kind: blk.kind,
+        test_set: blk.test_set,
+        feedback_enabled: blk.feedback_enabled,
+      });
+    }
+  }
 
   return {
     metadata: {
-      scenarioSetVersionId: "chi_diagnose_v1",
-      datasetName: "chiDiagnose",
+      scenarioSetVersionId: "chi_dynamic_v1",
+      datasetName: "chiDynamicCounterfactual",
       totalRounds: scenarios.length,
       maxBundle: 3,
-      protocol_version: "bundlegame_chi_diagnose_30_round_v1",
+      protocol_version: "bundlegame_chi_dynamic_counterfactual_35_round_v1",
+      block_layout: CHI_PHASE_B_BLOCK_LAYOUT.map((b) => ({ id: b.id, kind: b.kind, test_set: b.test_set })),
     },
     starting_city: CHI_STARTING_CITY,
     cities: { startinglocation: CHI_STARTING_CITY, travelTimes: CHI_CITY_TRAVEL },
@@ -311,50 +341,55 @@ export function buildChiScenarioSet({ roundsPerPhase = { A: 10, B: 10, C: 10 }, 
 }
 
 /**
- * Validate the design requirements (A5): both overlap and dispersion vary in
- * A/B with >= minPerCell per 2x2 cell; Phase C is the labeled shift with novel
- * stores; every menu has a unique computable oracle and a non-trivial score_gap;
- * Phase-C order ids are disjoint from earlier phases (no "repeat last bundle").
+ * Validate the dynamic-feedback design: the 2x2 of overlap x dispersion is spanned
+ * in the Phase A diagnostic battery AND in the ON training pool (>= minPerCell per
+ * cell); the two OFF blocks are the common held-out sets (B2 retention same-dist,
+ * B4 transfer shifted with novel stores); held-out order ids are disjoint from the
+ * training pool; every menu has a unique computable oracle and a non-trivial gap;
+ * the transfer block raises average cross-city travel above training.
  */
 export function validateChiScenarioSet(set, { minPerCell = 2 } = {}) {
   const errors = [];
   const scenarios = set?.scenarios || [];
-  const byPhase = { A: [], B: [], C: [] };
-  for (const s of scenarios) (byPhase[s.phase] || (byPhase[s.phase] = [])).push(s);
+  const diagnostic = scenarios.filter((s) => s.phase === "A");
+  const phaseB = scenarios.filter((s) => s.phase === "B");
+  const onMenus = phaseB.filter((s) => s.block_kind === "on");
+  const retention = phaseB.filter((s) => s.test_set === "retention_same_dist");
+  const transfer = phaseB.filter((s) => s.test_set === "transfer_shifted");
 
-  // 2x2 coverage in A and B.
-  for (const phase of ["A", "B"]) {
+  // 2x2 coverage in the diagnostic battery and the ON training pool.
+  const checkCells = (rows, label) => {
     const cells = {};
-    for (const s of byPhase[phase]) {
+    for (const s of rows) {
       const key = `${s.store_overlap_flag}${s.dispersion_flag}`;
       cells[key] = (cells[key] || 0) + 1;
     }
     for (const key of ["00", "01", "10", "11"]) {
       if ((cells[key] || 0) < minPerCell) {
-        errors.push(`Phase ${phase} cell overlap/dispersion=${key} has ${cells[key] || 0} < ${minPerCell} menus`);
+        errors.push(`${label} cell overlap/dispersion=${key} has ${cells[key] || 0} < ${minPerCell} menus`);
       }
     }
-    const overlapVals = new Set(byPhase[phase].map((s) => s.store_overlap_flag));
-    const dispVals = new Set(byPhase[phase].map((s) => s.dispersion_flag));
-    if (overlapVals.size < 2) errors.push(`Phase ${phase} store_overlap_flag does not vary`);
-    if (dispVals.size < 2) errors.push(`Phase ${phase} dispersion_flag does not vary`);
-  }
+    if (new Set(rows.map((s) => s.store_overlap_flag)).size < 2) errors.push(`${label} store_overlap_flag does not vary`);
+    if (new Set(rows.map((s) => s.dispersion_flag)).size < 2) errors.push(`${label} dispersion_flag does not vary`);
+  };
+  checkCells(diagnostic, "diagnostic (A)");
+  checkCells(onMenus, "ON training pool");
 
-  // Phase C is a labeled shift drawn from the novel-store distribution.
+  // The two OFF blocks: retention (same-dist), transfer (labeled shift, novel stores).
+  if (retention.length === 0) errors.push("missing retention (same-distribution) OFF block");
+  if (transfer.length === 0) errors.push("missing transfer (shifted) OFF block");
+  if (retention.some((s) => s.shift_flag !== 0)) errors.push("retention block must be same-distribution (shift_flag 0)");
+  if (transfer.some((s) => s.shift_flag !== 1)) errors.push("transfer block must be the labeled shift (shift_flag 1)");
   const cStoreNames = new Set(CHI_C_STORES.map((s) => s.store));
-  const abStoreNames = new Set(CHI_AB_STORES.map((s) => s.store));
-  for (const s of byPhase.C) {
-    if (s.shift_flag !== 1) errors.push(`Phase C round ${s.round} missing shift_flag`);
-    for (const o of s.orders) {
-      if (!cStoreNames.has(o.store)) errors.push(`Phase C round ${s.round} uses non-shift store ${o.store}`);
-    }
+  for (const s of transfer) for (const o of s.orders) {
+    if (!cStoreNames.has(o.store)) errors.push(`transfer round ${s.round} uses non-shift store ${o.store}`);
   }
 
-  // No Phase-C order id appears in A/B (defeats "repeat last AI bundle").
-  const earlierIds = new Set();
-  for (const s of [...byPhase.A, ...byPhase.B]) for (const id of s.order_ids) earlierIds.add(id);
-  for (const s of byPhase.C) for (const id of s.order_ids) {
-    if (earlierIds.has(id)) errors.push(`Phase C order ${id} reused from earlier phase`);
+  // Held-out OFF order ids disjoint from the training pool (diagnostic + ON).
+  const trainingIds = new Set();
+  for (const s of [...diagnostic, ...onMenus]) for (const id of s.order_ids) trainingIds.add(id);
+  for (const s of [...retention, ...transfer]) for (const id of s.order_ids) {
+    if (trainingIds.has(id)) errors.push(`held-out order ${id} reused from the training pool`);
   }
 
   // Unique oracle + non-trivial gap for every menu.
@@ -367,18 +402,17 @@ export function validateChiScenarioSet(set, { minPerCell = 2 } = {}) {
     }
   }
 
-  // Phase C should genuinely stress the neglected axes harder than A/B.
+  // The transfer block should genuinely stress cross-city travel harder than training.
   const meanCross = (rows) => {
     let tot = 0, n = 0;
     for (const s of rows) for (const o of s.orders) {
-      // proxy: cross-city from starting city to the order city (scaled in C)
       tot += (CHI_CITY_TRAVEL[CHI_STARTING_CITY]?.[o.city] || 0) * (s.travel_scale || 1);
       n += 1;
     }
     return n ? tot / n : 0;
   };
-  if (meanCross(byPhase.C) <= meanCross([...byPhase.A, ...byPhase.B])) {
-    errors.push("Phase C does not increase average cross-city travel vs A/B");
+  if (meanCross(transfer) <= meanCross([...diagnostic, ...onMenus, ...retention])) {
+    errors.push("transfer block does not increase average cross-city travel vs training");
   }
 
   return { ok: errors.length === 0, errors, n_scenarios: scenarios.length };

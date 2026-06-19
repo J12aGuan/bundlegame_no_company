@@ -309,6 +309,47 @@ export const DEFAULT_SURVEY_QUESTIONS = [
   },
 ];
 
+/**
+ * Post-Phase-A strategy and confidence survey (CHI dynamic-feedback study, Task 2).
+ * Administered after round 15, before any feedback: it gives the server a beat to
+ * run the first diagnosis AND sharpens it (the weak link at only 15 rounds). Each
+ * item is a 1..5 Likert; `maps_to` and `reverse` define the weak prior over
+ * W1/W2/W3 that the diagnosis fuses (Task 3). A high score on a non-reverse item
+ * raises that weakness's prior; a high score on a reverse item lowers it.
+ */
+export const CHI_POST_PHASE_A_SURVEY = [
+  {
+    id: "strat_over_inclusion",
+    label: "Took on as many orders as possible",
+    prompt: "I tried to take on as many orders as I could.",
+    min: 1, max: 5, default_value: 3, maps_to: "W1", reverse: false,
+  },
+  {
+    id: "strat_watched_pick_time",
+    label: "Watched added pick time",
+    prompt: "I watched how much extra time each added order would take.",
+    min: 1, max: 5, default_value: 3, maps_to: "W1", reverse: true,
+  },
+  {
+    id: "strat_avoided_cross_city",
+    label: "Avoided cross-city orders",
+    prompt: "I avoided orders that sent me across town.",
+    min: 1, max: 5, default_value: 3, maps_to: "W2", reverse: true,
+  },
+  {
+    id: "strat_chased_payout",
+    label: "Chased highest payout",
+    prompt: "I went for the highest paying orders even if they took longer.",
+    min: 1, max: 5, default_value: 3, maps_to: "W3", reverse: false,
+  },
+  {
+    id: "confidence_rating",
+    label: "Confidence in choices",
+    prompt: "How confident were you in your choices?",
+    min: 1, max: 5, default_value: 3, maps_to: "confidence", reverse: false,
+  },
+];
+
 function removeUndefinedDeep(value) {
   if (Array.isArray(value)) {
     return value.map((entry) => removeUndefinedDeep(entry));
@@ -615,6 +656,23 @@ function normalizeProtocolPhase(phase = {}, index = 0) {
         fallback.round_end,
     ) || 0,
   );
+  // CHI dynamic-feedback extras carried through normalization (Phase B blocks,
+  // post-Phase-A survey/diagnosis schedule). Preserved only when present.
+  const extra = {};
+  if (Array.isArray(phase?.blocks)) {
+    extra.blocks = phase.blocks.map((b = {}) => ({
+      id: normalizeText(b?.id),
+      kind: normalizeText(b?.kind),
+      feedback_enabled: normalizeBoolean(b?.feedback_enabled, b?.kind === "on"),
+      test_set: b?.test_set != null ? normalizeText(b.test_set) : null,
+      rounds: Math.max(0, Number(b?.rounds) || 0),
+      round_start: Math.max(0, Number(b?.round_start) || 0),
+      round_end: Math.max(0, Number(b?.round_end) || 0),
+      ...(b?.rediagnose_after != null ? { rediagnose_after: normalizeBoolean(b.rediagnose_after, false) } : {}),
+    }));
+  }
+  if (phase?.survey_after !== undefined) extra.survey_after = normalizeBoolean(phase.survey_after, false);
+  if (phase?.diagnose_after !== undefined) extra.diagnose_after = normalizeBoolean(phase.diagnose_after, false);
   return {
     id: normalizeText(
       phase?.id ?? phase?.phase ?? fallback.id ?? `phase_${index + 1}`,
@@ -627,6 +685,7 @@ function normalizeProtocolPhase(phase = {}, index = 0) {
       phase?.recommendations_enabled,
       fallback.recommendations_enabled,
     ),
+    ...extra,
   };
 }
 
@@ -698,6 +757,9 @@ export function normalizeStudyPolicyArm(arm = {}, index = 0) {
       arm?.training_provenance ?? arm?.trainingProvenance,
       { ...fallback, ...arm },
     ),
+    // CHI dynamic-feedback arm metadata (feedback form + whether it re-targets).
+    feedback_kind: normalizeText(arm?.feedback_kind, fallback.feedback_kind || ""),
+    dynamic: normalizeBoolean(arm?.dynamic, fallback.dynamic ?? false),
     notes: normalizeText(arm?.notes),
   };
 }
@@ -745,6 +807,12 @@ function normalizeRecommendationExposure(value = {}, fallback = {}) {
 
 function normalizeSurveyQuestion(question = {}, index = 0) {
   const fallback = DEFAULT_SURVEY_QUESTIONS[index] || {};
+  // Preserve CHI strategy-survey fields (full prompt text + the W1/W2/W3 mapping
+  // the diagnosis fuses) when present, so they survive into the runtime protocol.
+  const extra = {};
+  if (question?.prompt != null) extra.prompt = normalizeText(question.prompt);
+  if (question?.maps_to != null) extra.maps_to = normalizeText(question.maps_to);
+  if (question?.reverse != null) extra.reverse = normalizeBoolean(question.reverse, false);
   return {
     id: normalizeText(question?.id, fallback.id || `survey_${index + 1}`),
     label: normalizeText(question?.label, fallback.label || `Question ${index + 1}`),
@@ -757,6 +825,7 @@ function normalizeSurveyQuestion(question = {}, index = 0) {
       1,
       Number(question?.default_value ?? fallback.default_value ?? 4) || 4,
     ),
+    ...extra,
   };
 }
 
@@ -1661,62 +1730,132 @@ export function resolveRecommendationSlate({
  * `fixed_recommendation_policy`). Arm id == scaffold_type.
  * ========================================================================== */
 
-export const CHI_STUDY_PROTOCOL_ID = "bundlegame_chi_diagnose_v1";
-export const CHI_STUDY_PROTOCOL_VERSION = "bundlegame_chi_diagnose_30_round_v1";
-export const CHI_DEFAULT_ROUNDS_PER_PHASE = { A: 10, B: 10, C: 10 };
+export const CHI_STUDY_PROTOCOL_ID = "bundlegame_chi_dynamic_v1";
+export const CHI_STUDY_PROTOCOL_VERSION = "bundlegame_chi_dynamic_counterfactual_35_round_v1";
+// Dynamic counterfactual-feedback study: 15 unaided diagnostic rounds, then 20
+// rounds of Phase B split into four blocks of 5 (ON / OFF / ON / OFF).
+export const CHI_DEFAULT_ROUNDS_PER_PHASE = { A: 15, B: 20 };
+export const CHI_PHASE_B_BLOCK_SIZE = 5;
 // Single fixed recommendation policy shared by every treated arm (bundle invariance).
 export const CHI_FIXED_RECOMMENDATION_POLICY = "oracle_optimal";
 
-export const CHI_SCAFFOLD_TYPES = ["no_ai", "generic", "matched", "mismatched"];
-export const CHI_TREATED_SCAFFOLD_TYPES = ["generic", "matched", "mismatched"];
+// Arm ids. `control` is unaided throughout; the other four show feedback (ON
+// blocks only). `marginal` and `component` re-target each block (dynamic).
+export const CHI_SCAFFOLD_TYPES = ["marginal", "component", "oracle", "aggregate", "control"];
+export const CHI_TREATED_SCAFFOLD_TYPES = ["marginal", "component", "oracle", "aggregate"];
+export const CHI_DYNAMIC_SCAFFOLD_TYPES = ["marginal", "component"];
+
+// The two COMMON held-out OFF test sets (identical for every participant/arm,
+// disjoint from the training pool). OFF block 1 = retention (same distribution);
+// OFF block 2 = transfer (shifted: novel stores, longer travel) — primary outcome.
+export const CHI_OFF_TEST_SETS = {
+  off1: { id: "retention_same_dist", shift: false, label: "Retention (same distribution)" },
+  off2: { id: "transfer_shifted", shift: true, label: "Transfer (shifted distribution)" },
+};
 
 export const BUNDLEGAME_CHI_SCAFFOLD_ARMS = [
   {
-    id: "no_ai",
-    label: "No AI (unaided control)",
+    id: "marginal",
+    label: "Marginal (counterfactual best one-step move, $ + time deltas)",
+    feedback_kind: "marginal",
+    dynamic: true,
+    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
+    policy_version: "v1",
+    show_recommendations: true,
+    active_phases: ["B"],
+    assignment_weight: 1,
+  },
+  {
+    id: "component",
+    label: "Component (current dominant misweighted attribute, named, no numbers)",
+    feedback_kind: "component",
+    dynamic: true,
+    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
+    policy_version: "v1",
+    show_recommendations: true,
+    active_phases: ["B"],
+    assignment_weight: 1,
+  },
+  {
+    id: "oracle",
+    label: "Oracle (best bundle, no reasoning — deskilling control)",
+    feedback_kind: "oracle",
+    dynamic: false,
+    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
+    policy_version: "v1",
+    show_recommendations: true,
+    active_phases: ["B"],
+    assignment_weight: 1,
+  },
+  {
+    id: "aggregate",
+    label: "Aggregate (scalar $/min rate only — ambiguity control)",
+    feedback_kind: "aggregate",
+    dynamic: false,
+    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
+    policy_version: "v1",
+    show_recommendations: true,
+    active_phases: ["B"],
+    assignment_weight: 1,
+  },
+  {
+    id: "control",
+    label: "Control (unaided throughout)",
+    feedback_kind: "none",
+    dynamic: false,
     policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
     policy_version: "v1",
     show_recommendations: false,
-    active_phases: ["B"],
-    assignment_weight: 1,
-  },
-  {
-    id: "generic",
-    label: "Generic explanation",
-    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
-    policy_version: "v1",
-    show_recommendations: true,
-    active_phases: ["B"],
-    assignment_weight: 1,
-  },
-  {
-    id: "matched",
-    label: "Matched (targets diagnosed weakness)",
-    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
-    policy_version: "v1",
-    show_recommendations: true,
-    active_phases: ["B"],
-    assignment_weight: 1,
-  },
-  {
-    id: "mismatched",
-    label: "Mismatched (targets non-diagnosed attribute)",
-    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
-    policy_version: "v1",
-    show_recommendations: true,
-    active_phases: ["B"],
+    active_phases: [],
     assignment_weight: 1,
   },
 ];
 
+/**
+ * Phase B's four blocks of size `blockSize` (default 5): ON / OFF / ON / OFF.
+ * ON blocks draw training menus and fire feedback; OFF blocks use a COMMON
+ * held-out test set and fire no feedback. `roundOffset` = Phase A's round_end.
+ */
+export function buildChiPhaseBBlocks(totalBRounds, blockSize = CHI_PHASE_B_BLOCK_SIZE, roundOffset = 0) {
+  const layout = [
+    { id: "B1", kind: "on", feedback_enabled: true, test_set: null },
+    { id: "B2", kind: "off", feedback_enabled: false, test_set: CHI_OFF_TEST_SETS.off1.id, rediagnose_after: true },
+    { id: "B3", kind: "on", feedback_enabled: true, test_set: null },
+    { id: "B4", kind: "off", feedback_enabled: false, test_set: CHI_OFF_TEST_SETS.off2.id, rediagnose_after: true },
+  ];
+  const per = Math.max(1, Math.floor(totalBRounds / layout.length) || blockSize);
+  let cursor = roundOffset + 1;
+  return layout.map((blk, i) => {
+    const rounds = i === layout.length - 1 ? totalBRounds - per * (layout.length - 1) : per;
+    const block = { ...blk, rounds, round_start: cursor, round_end: cursor + rounds - 1 };
+    cursor += rounds;
+    return block;
+  });
+}
+
 export function buildChiPhasePlan(roundsPerPhase = CHI_DEFAULT_ROUNDS_PER_PHASE) {
   const a = Math.max(1, Number(roundsPerPhase?.A ?? CHI_DEFAULT_ROUNDS_PER_PHASE.A) || 0);
   const b = Math.max(1, Number(roundsPerPhase?.B ?? CHI_DEFAULT_ROUNDS_PER_PHASE.B) || 0);
-  const c = Math.max(1, Number(roundsPerPhase?.C ?? CHI_DEFAULT_ROUNDS_PER_PHASE.C) || 0);
   return [
-    { id: "A", label: "Phase A (unaided diagnosis)", round_start: 1, round_end: a, rounds: a, recommendations_enabled: false },
-    { id: "B", label: "Phase B (scaffolded)", round_start: a + 1, round_end: a + b, rounds: b, recommendations_enabled: true },
-    { id: "C", label: "Phase C (unaided shifted transfer)", round_start: a + b + 1, round_end: a + b + c, rounds: c, recommendations_enabled: false },
+    {
+      id: "A",
+      label: "Phase A (unaided diagnostic battery)",
+      round_start: 1,
+      round_end: a,
+      rounds: a,
+      recommendations_enabled: false,
+      survey_after: true, // post-Phase-A survey + first diagnosis
+      diagnose_after: true,
+    },
+    {
+      id: "B",
+      label: "Phase B (blocked ON/OFF/ON/OFF, dynamic feedback)",
+      round_start: a + 1,
+      round_end: a + b,
+      rounds: b,
+      recommendations_enabled: true,
+      blocks: buildChiPhaseBBlocks(b, CHI_PHASE_B_BLOCK_SIZE, a),
+    },
   ];
 }
 
@@ -1727,18 +1866,27 @@ export function buildChiStudyProtocol(overrides = {}) {
   return {
     protocol_id: CHI_STUDY_PROTOCOL_ID,
     protocol_version: CHI_STUDY_PROTOCOL_VERSION,
-    title: "BundleGame CHI diagnosis + tailored scaffolding study",
+    title: "BundleGame CHI dynamic counterfactual-feedback study",
     expected_total_rounds: totalRounds,
     enabled: true,
     phase_plan: phasePlan,
     policy_arms: BUNDLEGAME_CHI_SCAFFOLD_ARMS.map((arm) => ({ ...arm })),
     recommendation_exposure: {
       active_phase_ids: ["B"],
-      treatment_arm_ids: ["generic", "matched", "mismatched"],
-      control_arm_ids: ["no_ai"],
+      // Feedback fires only in Phase B ON blocks; OFF blocks are unaided tests.
+      on_block_ids: ["B1", "B3"],
+      off_block_ids: ["B2", "B4"],
+      treatment_arm_ids: ["marginal", "component", "oracle", "aggregate"],
+      control_arm_ids: ["control"],
+      dynamic_arm_ids: CHI_DYNAMIC_SCAFFOLD_TYPES.slice(),
       default_ranked_bundles_shown: 1,
       expected_shown_bundle_size: 2,
     },
+    off_test_sets: { ...CHI_OFF_TEST_SETS },
+    // Conventional top-level survey_questions flow through normalization (runtime
+    // survey screen); the schedule lives on Phase A (survey_after) + this marker.
+    survey_questions: CHI_POST_PHASE_A_SURVEY.map((q) => ({ ...q })),
+    survey: { administered_after_phase: "A", before_first_feedback: true },
     fixed_recommendation_policy: CHI_FIXED_RECOMMENDATION_POLICY,
     legal_action_mask_version: DEFAULT_ACTION_MASK_VERSION,
     ...(overrides && typeof overrides === "object" ? overrides : {}),
@@ -1767,7 +1915,7 @@ export function validateChiStudyProtocol(protocol = buildChiStudyProtocol()) {
 
   const phases = normalized.phase_plan;
   const ids = phases.map((p) => p.id).join(",");
-  if (ids !== "A,B,C") errors.push(`phase ids must be A,B,C, got ${ids}`);
+  if (ids !== "A,B") errors.push(`phase ids must be A,B, got ${ids}`);
   const total = phases.reduce((sum, p) => sum + Math.max(0, Number(p.rounds) || 0), 0);
   if (total !== normalized.expected_total_rounds) {
     errors.push(`phase rounds total ${total} != expected_total_rounds ${normalized.expected_total_rounds}`);
@@ -1786,18 +1934,59 @@ export function validateChiStudyProtocol(protocol = buildChiStudyProtocol()) {
     }
   }
 
+  // Phase A is followed by the survey + first diagnosis (before any feedback).
+  const phaseA = phases.find((p) => p.id === "A");
+  if (phaseA && (!phaseA.survey_after || !phaseA.diagnose_after)) {
+    errors.push("Phase A must schedule the survey and first diagnosis before Phase B");
+  }
+
+  // Phase B = four blocks ON/OFF/ON/OFF; feedback ONLY in ON blocks; the two OFF
+  // blocks carry the two COMMON held-out test sets (retention, then shifted).
+  const phaseB = phases.find((p) => p.id === "B");
+  const blocks = Array.isArray(phaseB?.blocks) ? phaseB.blocks : [];
+  const kinds = blocks.map((b) => b.kind).join(",");
+  if (kinds !== "on,off,on,off") {
+    errors.push(`Phase B blocks must be on,off,on,off, got ${kinds || "(none)"}`);
+  }
+  let bCursor = phaseB ? phaseB.round_start : NaN;
+  for (const blk of blocks) {
+    if (blk.round_start !== bCursor) {
+      errors.push(`block ${blk.id} must start at round ${bCursor}, got ${blk.round_start}`);
+    }
+    bCursor = blk.round_end + 1;
+    const wantFeedback = blk.kind === "on";
+    if (Boolean(blk.feedback_enabled) !== wantFeedback) {
+      errors.push(`block ${blk.id} feedback_enabled must be ${wantFeedback} (feedback only in ON blocks)`);
+    }
+    if (blk.kind === "off" && !blk.test_set) {
+      errors.push(`OFF block ${blk.id} must reference a common held-out test set`);
+    }
+  }
+  const offSets = blocks.filter((b) => b.kind === "off").map((b) => b.test_set);
+  if (offSets.length === 2) {
+    if (offSets[0] !== CHI_OFF_TEST_SETS.off1.id) errors.push(`OFF block 1 must be ${CHI_OFF_TEST_SETS.off1.id}`);
+    if (offSets[1] !== CHI_OFF_TEST_SETS.off2.id) errors.push(`OFF block 2 (transfer) must be ${CHI_OFF_TEST_SETS.off2.id}`);
+    if (offSets[0] === offSets[1]) errors.push("the two OFF test sets must be distinct");
+  }
+
   const armIds = normalized.policy_arms.map((a) => a.id).sort().join(",");
-  if (armIds !== "generic,matched,mismatched,no_ai") {
-    errors.push(`arms must be exactly the four scaffold arms, got ${armIds}`);
+  if (armIds !== "aggregate,component,control,marginal,oracle") {
+    errors.push(`arms must be exactly marginal,component,oracle,aggregate,control; got ${armIds}`);
   }
   const armById = new Map(normalized.policy_arms.map((a) => [a.id, a]));
-  if (armById.get("no_ai")?.show_recommendations) {
-    errors.push("no_ai must not show recommendations");
+  if (armById.get("control")?.show_recommendations) {
+    errors.push("control must not show recommendations (unaided throughout)");
   }
   for (const id of CHI_TREATED_SCAFFOLD_TYPES) {
     const arm = armById.get(id);
     if (arm && !arm.show_recommendations) {
       errors.push(`treated arm ${id} must show recommendations`);
+    }
+  }
+  // marginal + component are the dynamic (re-targeting) arms.
+  for (const id of CHI_DYNAMIC_SCAFFOLD_TYPES) {
+    if (armById.get(id) && !armById.get(id).dynamic) {
+      errors.push(`arm ${id} must be dynamic (re-targets each block)`);
     }
   }
   // Bundle-invariance: all treated arms must use the same fixed policy.
@@ -1816,6 +2005,7 @@ export function validateChiStudyProtocol(protocol = buildChiStudyProtocol()) {
     protocol: normalized,
     expected_total_rounds: normalized.expected_total_rounds,
     phase_round_counts: Object.fromEntries(phases.map((p) => [p.id, p.rounds])),
+    phase_b_blocks: blocks.map((b) => ({ id: b.id, kind: b.kind, rounds: b.rounds, test_set: b.test_set })),
   };
 }
 
