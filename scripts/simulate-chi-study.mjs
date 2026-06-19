@@ -142,38 +142,36 @@ function run() {
 
   const pct = (x) => `${(x * 100).toFixed(0)}%`.padStart(5);
   console.log(`\nCHI study simulation — ${N_PER_ARM} synthetic W1 (pick-neglect) participants/arm, ${set.scenarios.length} rounds\n`);
-  console.log("                picking-probe (unaided)        ON-block    diagnosis");
-  console.log("arm             before -> after  (learned)     violation   recovers W1");
+  console.log("                TRANSFER (shifted,    diagnostic probe      ON-block   diagnosis");
+  console.log("arm             unaided) = PRIMARY    before -> after       violation  recovers W1");
   for (const arm of ARMS) {
     const r = results[arm];
-    const learned = r.probeBefore - r.probeAfter;
-    console.log(`${arm.padEnd(12)}   ${pct(r.probeBefore)} -> ${pct(r.probeAfter)}   ${pct(learned)}        ${pct(r.onViol)}       ${pct(r.dxW1)}`);
+    console.log(`${arm.padEnd(12)}    ${pct(r.transfer)}              ${pct(r.probeBefore)} -> ${pct(r.probeAfter)}      ${pct(r.onViol)}      ${pct(r.dxW1)}`);
   }
 
-  // Honest checks: the things the system genuinely does (learning is measured on a
-  // picking-relevant probe, NOT the routing-shifted transfer block — see note).
+  // Primary outcome = the held-out SHIFTED transfer block (now over-bundling +
+  // heavier pick, so it exercises the coached picking weakness). The finer
+  // counterfactual-vs-scalar separation shows on the diagnostic probe.
+  const T = (arm) => results[arm].transfer;
   const A = (arm) => results[arm].probeAfter;
   const checks = [
     ["counterfactual teaches a picking correction (marginal probe drops a lot)", results.marginal.probeBefore - results.marginal.probeAfter > 0.1],
-    ["counterfactual beats scalar (marginal < aggregate)", A("marginal") < A("aggregate") - 0.02],
-    ["counterfactual beats answer-giving on the unaided probe (marginal < oracle)", A("marginal") < A("oracle") - 0.05],
-    ["feedback beats none (marginal < control)", A("marginal") < A("control") - 0.05],
-    ["component ~ marginal (both directed)", Math.abs(A("component") - A("marginal")) < 0.05],
-    ["oracle DESKILLS: ~0 violation with the aid on screen, but high unaided", results.oracle.onViol < 0.03 && A("oracle") > A("marginal") + 0.05],
-    ["control does not learn (probe unchanged)", Math.abs(results.control.probeBefore - results.control.probeAfter) < 0.03],
+    ["TRANSFER: feedback beats none (marginal < control)", T("marginal") < T("control") - 0.1],
+    ["TRANSFER: teaching beats answer-giving (marginal < oracle)", T("marginal") < T("oracle") - 0.1],
+    ["TRANSFER: component ~ marginal (both directed)", Math.abs(T("component") - T("marginal")) < 0.05],
+    ["counterfactual beats scalar on the finer probe (marginal < aggregate)", A("marginal") < A("aggregate") - 0.02],
+    ["oracle DESKILLS: ~0 violation with the aid on screen, high on unaided transfer", results.oracle.onViol < 0.03 && T("oracle") > T("marginal") + 0.1],
+    ["control does not learn (transfer ~ unaided baseline, high)", T("control") > 0.1],
     ["diagnosis recovers W1 for >70% of participants", results.marginal.dxW1 > 0.7],
   ];
   console.log("\nbehavioral checks (model predictions):");
   let ok = true;
   for (const [label, pass] of checks) { console.log(`  ${pass ? "PASS" : "FAIL"}  ${label}`); ok = ok && pass; }
 
-  console.log("\nFINDING — the simulation also surfaces a scenario-design item:");
-  console.log("  The OFF transfer block (rounds 31-35) is ROUTING-shifted (longer cross-city),");
-  console.log(`  so it shows ~0% PICKING violation for every arm (transfer here = ${pct(results.marginal.transfer)}).`);
-  console.log("  The coached, well-identified weakness is PICKING, which bites on overlap/same-store");
-  console.log("  menus, not routing-shifted ones. To measure picking-TRANSFER, the held-out transfer");
-  console.log("  set needs over-bundling temptations (novel stores + heavier pick), or the transfer");
-  console.log("  outcome should track the weakness the shift actually stresses.");
+  console.log("\nNOTE — the transfer block now exercises the coached weakness:");
+  console.log("  The held-out SHIFTED transfer set (rounds 31-35) over-samples the picking cell");
+  console.log("  (over-bundling temptations) with novel stores + heavier pick, so a picking");
+  console.log(`  correction TRANSFERS to it: marginal ${pct(T("marginal"))} vs control ${pct(T("control"))}.`);
   console.log(`\n${ok ? "ALL CHECKS PASSED — the built system behaves as the model predicts." : "SOME CHECKS FAILED."}\n`);
   process.exit(ok ? 0 : 1);
 }

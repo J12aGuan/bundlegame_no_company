@@ -145,16 +145,18 @@ function run() {
   const phaseA = (d) => d.phase === "A";        // unaided baseline (identical across arms)
   const onB3 = (d) => d.block === "B3";          // ON block 2, after coaching
 
+  const transfer = (d) => d.test_set === "transfer_shifted"; // unaided shifted picking probe
   console.log(`\nCHI gameplay sandbox — ${N_PER_ARM} participants/arm (50% W1, 30% W3, 20% unbiased), noisy choices\n`);
-  console.log("arm           optimal-rate  bonus   ON fire   PhaseA -> ON-2 (learning)");
-  const learn = {};
+  console.log("arm           optimal-rate  bonus   ON fire   PhaseA->ON-2   TRANSFER-opt (W1 subgrp)");
+  const learn = {}; const transferW1 = {};
   for (const arm of ARMS) {
     const ps = all[arm];
     const optRate = mean(ps.map((p) => p.record.optimal_rate));
     const bonus = mean(ps.map((p) => p.record.optimal_rate_bonus));
     const fireRate = mean(ps.flatMap((p) => p.decisions.filter((d) => d.block_kind === "on").map((d) => (d.feedback_text ? 1 : 0))));
     const base = segOpt(ps, phaseA); const b3 = segOpt(ps, onB3); learn[arm] = b3 - base;
-    console.log(`${arm.padEnd(12)}   ${pct(optRate).padStart(6)}     ${bonus.toFixed(2)}   ${pct(fireRate).padStart(5)}    ${pct(base)} -> ${pct(b3)}  (${learn[arm] >= 0 ? "+" : ""}${pct(learn[arm])})`);
+    transferW1[arm] = segOpt(ps.filter((p) => p.type === "W1"), transfer); // the subgroup the picking shift tests
+    console.log(`${arm.padEnd(12)}   ${pct(optRate).padStart(6)}     ${bonus.toFixed(2)}   ${pct(fireRate).padStart(5)}    ${pct(base)}->${pct(b3)}        ${pct(transferW1[arm]).padStart(5)}`);
   }
 
   // diagnosis recovery confusion (initial dominant vs planted)
@@ -177,23 +179,24 @@ function run() {
   addCheck("is_optimal / score_ratio self-consistent (modeled-time scoring)", scoreInconsistent === 0);
   addCheck("every participant has 3 diagnoses at rounds 15/25/35", dxCount === ARMS.length * N_PER_ARM);
   addCheck("diagnosis recovers planted bias for >70% of biased participants", dxOk / (Object.values(all).flat().filter((p) => p.type !== "none").length) > 0.7);
-  // Within-study learning, NET of control (control's PhaseA->ON-2 gain is a pure
-  // menu-difficulty baseline: ON-block training menus are easier than the Phase A
-  // diagnostic battery, so an unchanged participant scores higher there).
-  addCheck("counterfactual learns ABOVE the no-feedback baseline (marginal gain > control gain)", learn.marginal - learn.control > 0.02);
-  addCheck("component learns above baseline too (directed feedback)", learn.component - learn.control > 0.02);
-  addCheck("control's gain is just menu-difficulty (smallest learning of all arms)", learn.control < learn.marginal && learn.control < learn.component && learn.control < learn.aggregate);
+  // PRIMARY outcome = the held-out unaided SHIFTED transfer block (W1 subgroup, the
+  // population the picking shift tests). The in-study Phase A->ON-2 column is shown
+  // for context but NOT asserted: it is confounded by menu difficulty (the ON-block
+  // menus differ from the diagnostic battery) and by oracle answer-copying.
+  addCheck("TRANSFER (held-out shifted): marginal beats control for W1 participants", transferW1.marginal > transferW1.control + 0.1);
+  addCheck("TRANSFER: marginal beats answer-giving oracle for W1 (deskilling)", transferW1.marginal > transferW1.oracle + 0.1);
+  addCheck("TRANSFER: component (directed) also beats control for W1", transferW1.component > transferW1.control + 0.1);
   addCheck("oracle's in-study optimal-rate is copy-inflated (ON-2 near-perfect) - deskilling caveat", segOpt(all.oracle, onB3) > 0.95);
 
   console.log("\ndata-integrity & works-as-intended checks:");
   let ok = true; for (const [label, pass] of integrity) { console.log(`  ${pass ? "PASS" : "FAIL"}  ${label}`); ok = ok && pass; }
   console.log("\nNOTES:");
-  console.log(`  - Within-study learning is shown NET of control: control gains +${pct(learn.control)} Phase A -> ON-2`);
-  console.log("    with NO feedback (the ON-block training menus are easier than the diagnostic battery),");
-  console.log("    so that is the menu-difficulty baseline; feedback arms gain above it.");
-  console.log("  - The clean counterfactual-vs-scalar separation (marginal << aggregate) shows on the");
-  console.log("    UNAIDED picking probe in simulate-chi-study.mjs; in-study optimal-rate is diluted by");
-  console.log("    the identical 15-round Phase A and inflated for oracle by answer-copying.");
+  console.log(`  - PRIMARY outcome is the held-out unaided TRANSFER block (W1 subgroup): marginal ${pct(transferW1.marginal)}`);
+  console.log(`    vs control ${pct(transferW1.control)} vs oracle ${pct(transferW1.oracle)} (deskilled). The picking correction transfers.`);
+  console.log(`  - The in-study Phase A -> ON-2 column is NOT a clean learning signal: control gains +${pct(learn.control)}`);
+  console.log("    with NO feedback (menu-difficulty: ON-block menus differ from the diagnostic battery),");
+  console.log("    and oracle's ON-2 is answer-copying. Read learning from the unaided transfer block instead.");
+  console.log("  - The finer counterfactual-vs-scalar separation shows on the unaided probe in simulate-chi-study.mjs.");
   console.log(`\n${ok ? "ALL CHECKS PASSED — the logged study data is well-formed and shows the intended effects." : "SOME CHECKS FAILED."}\n`);
   process.exit(ok ? 0 : 1);
 }
