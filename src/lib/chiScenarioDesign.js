@@ -68,14 +68,28 @@ const PHASE_C_PICK_SCALE = 1.5;           // heavier pick loads in the shift
 // optimal is the faster lower-paying b1, and a same-store over-bundle {b1,b2} is
 // tempting only to a pick-neglecter. So W3 chases H while W1 over-bundles {b1,b2}
 // — different choices, so the two biases become separately identifiable.
-// H is deliberately LOW-pick (comparable to b1) but slow via LOCAL travel, so it is
-// sub-optimal WITHOUT loading the pick-time feature: choosing H over the optimal b1
-// is then a pure earnings (W3) decision, not a pick-neglect (W1) one — which keeps
-// the two biases cleanly separable. b2 carries the high pick (the W1 bundling bait).
+// b1 (optimal) is fast; b2 carries the high pick (the W1 bundling bait).
 const TRAP_ROLE_RANGES = {
   fast: { pick: [5, 7], local: [2, 3], earn: [18, 24] },    // b1 = the score-optimal singleton (fast)
   bait: { pick: [15, 19], local: [2, 4], earn: [8, 12] },   // b2 = high-PICK, low-pay over-bundle bait
-  pay: { pick: [5, 8], local: [12, 16], earn: [38, 44] },   // H  = max-earnings, low pick, slow via LOCAL travel
+};
+// The high-pay singleton H is the trap. CRUCIAL identifiability point: H must be made
+// sub-optimal via DIFFERENT cost axes across the trap menus, NOT always the same one.
+// If H were always slow-via-local, then earnings and local co-move on H in every menu,
+// so a participant who merely under-weights LOCAL (a cost axis the model does not coach)
+// always takes H and is MISDIAGNOSED as payout-overweighting (W3) — earnings is the
+// modeled axis that co-moves with H. By rotating H's slow axis (local / cross-city /
+// pick), earnings is the ONLY signal consistent with always choosing H; neglecting a
+// single cost axis only explains H on the menus where THAT axis is the slow one. So the
+// pooled conditional logit attributes consistent-H-choosing to earnings (W3) and a
+// single-axis cost-neglecter to that axis (local/cross/pick), not to W3. This is the
+// theorem's menu-span condition made concrete: the trap action set must span the
+// earnings x {each cost axis} subspace, not just earnings x pick.
+const TRAP_PAY_EARN = [38, 44];
+const TRAP_PAY_AXES = {
+  local: { pick: [5, 8], local: [12, 16] },   // slow via LOCAL travel (low pick, same city -> no cross)
+  pick: { pick: [14, 18], local: [2, 4] },    // slow via PICK time (high pick, low local)
+  cross: { pick: [5, 8], local: [2, 4] },     // slow via CROSS-CITY travel (placed in a far city)
 };
 
 export function createSeededRandom(seed = 1) {
@@ -231,42 +245,57 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
         localTravelTime: Math.round(local * 10) / 10,
       };
     };
-    // A calibrated payout-trap order in one of three roles (see TRAP_ROLE_RANGES).
-    const mkRole = (storeObj, role) => {
-      const r = TRAP_ROLE_RANGES[role];
-      const span = (a, b) => a + (b - a) * rng();
-      const basePick = span(r.pick[0], r.pick[1]) * pickScale;
-      const local = span(r.local[0], r.local[1]);
-      const estimatedTime = Math.round((basePick + local) * 10) / 10;
+    const span = (a, b) => a + (b - a) * rng();
+    const mkAt = (storeObj, basePickRaw, localRaw, earn) => {
+      const basePick = basePickRaw * pickScale;
+      const estimatedTime = Math.round((basePick + localRaw) * 10) / 10;
       idx += 1;
       return {
         id: `${scenarioId}o${idx}`,
         store: storeObj.store,
         city: storeObj.city,
-        earnings: Math.round(span(r.earn[0], r.earn[1])),
+        earnings: Math.round(earn),
         estimatedTime,
         pick: Math.round(basePick * 10) / 10,
-        localTravelTime: Math.round(local * 10) / 10,
+        localTravelTime: Math.round(localRaw * 10) / 10,
       };
+    };
+    // b1 / b2 (fast optimal, high-pick bait).
+    const mkRole = (storeObj, role) => {
+      const r = TRAP_ROLE_RANGES[role];
+      return mkAt(storeObj, span(r.pick[0], r.pick[1]), span(r.local[0], r.local[1]), span(r.earn[0], r.earn[1]));
+    };
+    // H (the high-pay trap), made slow via the given cost axis (local / pick / cross).
+    const mkPay = (storeObj, axis) => {
+      const r = TRAP_PAY_AXES[axis] || TRAP_PAY_AXES.local;
+      return mkAt(storeObj, span(r.pick[0], r.pick[1]), span(r.local[0], r.local[1]), span(TRAP_PAY_EARN[0], TRAP_PAY_EARN[1]));
     };
 
     if (cell.stress === "trap") {
-      // S1 hosts the fast optimal singleton b1 + the slow low-pay bait b2 (a legal
-      // same-store over-bundle); S2 hosts the high-pay singleton H. S2 is a 2nd
-      // store in the same city (dispersion 0) when available, else a 2nd city
-      // (dispersion 1 — required for the shifted C-layout's one-store-per-city map).
-      const homeCity = cities[Math.floor(rng() * cities.length)];
-      const s1 = byCity[homeCity][0];
-      let s2;
-      if (cell.dispersion === 0 && byCity[homeCity][1]) {
-        s2 = byCity[homeCity][1];
+      // S1 hosts the fast optimal singleton b1 + the high-pick bait b2 (a legal same-store
+      // over-bundle). S2 hosts the high-pay singleton H, made sub-optimal via cell.trapAxis:
+      //  - local/pick: H is a 2nd store in the SAME city (dispersion 0) -> no cross, the
+      //    slowness is purely local or pick (a single isolated cost axis);
+      //  - cross: b1/b2 sit in the city NEAREST the start and H in the city FARTHEST from
+      //    it (dispersion 1), so H's slowness is cross-city travel.
+      const axis = cell.trapAxis || "local";
+      let homeCity, s1, s2;
+      if (axis === "cross") {
+        const sorted = cities.slice().sort((a, b) => crossCity(CHI_STARTING_CITY, a) - crossCity(CHI_STARTING_CITY, b));
+        homeCity = sorted[0];
+        const farCity = sorted[sorted.length - 1] !== homeCity ? sorted[sorted.length - 1] : (sorted[1] ?? homeCity);
+        s1 = byCity[homeCity][0];
+        s2 = byCity[farCity][0];
       } else {
-        const otherCity = cities.find((c) => c !== homeCity) ?? homeCity;
-        s2 = byCity[otherCity][0];
+        homeCity = cities[Math.floor(rng() * cities.length)];
+        s1 = byCity[homeCity][0];
+        s2 = (cell.dispersion === 0 && byCity[homeCity][1])
+          ? byCity[homeCity][1]
+          : byCity[cities.find((c) => c !== homeCity) ?? homeCity][0];
       }
       orders.push(mkRole(s1, "fast"));  // b1 — the score-optimal (faster, lower-paying)
       orders.push(mkRole(s1, "bait"));  // b2 — slow, low-pay over-bundle bait
-      orders.push(mkRole(s2, "pay"));   // H  — max-earnings, sub-optimal (the trap)
+      orders.push(mkPay(s2, axis));     // H  — max-earnings, sub-optimal via cell.trapAxis (the trap)
     } else if (cell.overlap === 1) {
       // A store hosting >=2 orders (makes large single-store bundles legal).
       const homeCity = cities[Math.floor(rng() * cities.length)];
@@ -343,6 +372,7 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
       shift_flag: cell.shift ? 1 : 0,
       stress: cell.stress,
       is_payout_trap: cell.stress === "trap" ? 1 : 0,
+      trap_axis: cell.stress === "trap" ? (cell.trapAxis || "local") : null,
       oracle_bundle_ids: best.bundle_ids,
       second_best_bundle_ids: second.bundle_ids,
       max_earnings_bundle_ids: maxEarn.bundle_ids,
@@ -376,41 +406,53 @@ const AB_CELLS = [
   { overlap: 1, dispersion: 1, stress: "pick" },   // stress W1+W2
 ];
 // The Phase A diagnostic battery interleaves picking-stress menus (identify W1 /
-// over-bundling) with PAYOUT-TRAP menus (identify W3 / payout-overweighting,
-// where the max-earnings bundle is NOT optimal) — both are overlap=1 — plus the
-// base/route cells that span the 2x2 and exercise W2. ~half the overlap menus are
-// picking-stress and ~half are payout-trap, so the conditional logit can separate
-// the earnings weight from the pick-time weight (they are confounded on overlap-
-// only menus). Cycled to `diagnosticRounds`; the runtime randomizes the order.
+// over-bundling) with PAYOUT-TRAP menus (identify W3 / payout-overweighting) — both
+// overlap=1 — plus base/route cells that span the 2x2 and exercise W2. The trap menus
+// rotate H's slow axis (local / cross / pick) so W3 is identified independent of any
+// single cost-axis neglect (see TRAP_PAY_AXES). local/pick traps are same-city
+// (dispersion 0, no cross); cross traps are dispersion 1. Cycled to `diagnosticRounds`;
+// the runtime randomizes the order.
 const DIAGNOSTIC_CELLS = [
   { overlap: 0, dispersion: 0, stress: "base" },
-  { overlap: 1, dispersion: 0, stress: "pick" },   // W1 (over-bundling)
-  { overlap: 1, dispersion: 0, stress: "trap" },   // W3 (payout trap)
-  { overlap: 0, dispersion: 1, stress: "route" },  // W2 (cross-city)
-  { overlap: 1, dispersion: 1, stress: "pick" },   // W1+W2
-  { overlap: 1, dispersion: 1, stress: "trap" },   // W3 across cities
+  { overlap: 1, dispersion: 0, stress: "pick" },                      // W1 (over-bundling)
+  { overlap: 1, dispersion: 0, stress: "trap", trapAxis: "local" },   // W3, H slow via local
+  { overlap: 0, dispersion: 1, stress: "route" },                     // W2 (cross-city)
+  { overlap: 1, dispersion: 1, stress: "pick" },                      // W1+W2
+  { overlap: 1, dispersion: 1, stress: "trap", trapAxis: "cross" },   // W3, H slow via cross-city
+  { overlap: 1, dispersion: 0, stress: "trap", trapAxis: "pick" },    // W3, H slow via pick
 ];
-// The held-out OFF test blocks stay overlap=1 (a same-store over-bundle is always
-// legal). Retention (same-dist, the re-tune that drives dynamic re-targeting) is
-// ALL payout-trap: on a picking-stress menu a residual payout-overweighting (W3)
-// re-manifests as over-bundling (W1/W3 collinear), which would re-pollute the
-// post-coaching read with false W1 — so the re-tune block must be pure traps to
-// expose the residual payout leak cleanly. Transfer keeps the labeled picking-shift
-// primary outcome (pick-heavy, novel stores, heavier pick) plus traps to probe
-// payout transfer. Trap menus need a 2nd same-city store (dispersion 0); the
-// shifted C-layout has one store per city so its traps are cross-city (dispersion 1).
-const OFF_STRESS = {
-  retention_same_dist: ["trap", "trap", "trap", "trap", "trap"],
-  transfer_shifted: ["pick", "trap", "pick", "trap", "pick"],
+// The held-out OFF blocks stay overlap=1 (a same-store over-bundle is always legal).
+// Retention (same-dist, the re-tune that drives dynamic re-targeting) is ALL payout-trap
+// with a HETEROGENEOUS slow axis (local / cross / pick), because this block dominates
+// the recency-weighted re-diagnosis: rotating the slow axis is what lets the re-tune
+// recover a residual PAYOUT leak (W3) without misreading a single cost-axis neglect as
+// W3. Transfer keeps the labeled picking-shift primary outcome (pick-heavy, novel
+// stores, heavier pick) plus cross-axis traps (the shifted C-layout is one-store-per-city).
+// The re-tune block rotates H's slow axis over the two UNCOACHABLE cost axes (local,
+// cross-city). That is exactly what separates a residual payout leak (W3) from a
+// local/cross neglecter — the misdiagnosis risk. It deliberately omits a PICK-axis trap:
+// pick-neglect is itself the coachable W1, so a pick-axis trap would (a) be redundant
+// for adversarial robustness and (b) inflate a genuine W3/MIX participant's W1 (they eat
+// the high pick to chase earnings), muddying the very re-targeting this block drives. The
+// pick-axis trap still lives in Phase A for the full menu-span / adversarial pooling.
+const OFF_TRAP_SEQ = {
+  retention_same_dist: [
+    { axis: "local", dispersion: 0 },
+    { axis: "cross", dispersion: 1 },
+    { axis: "local", dispersion: 0 },
+    { axis: "cross", dispersion: 1 },
+    { axis: "local", dispersion: 0 },
+  ],
 };
-const offCell = (i, blk, overrides = {}) => {
-  const pattern = overrides[blk.test_set] || OFF_STRESS[blk.test_set] || ["pick", "trap", "pick", "trap", "pick"];
-  const stress = pattern[i % pattern.length];
-  // Same-dist retention traps stay same-city (dispersion 0) so the re-tune payout
-  // read is clean (no cross-city confound); the shifted C-layout forces cross-city
-  // traps (one store per city). Picking menus alternate dispersion for variety.
-  const dispersion = stress === "trap" ? (blk.shift ? 1 : 0) : i % 2;
-  return { overlap: 1, dispersion, stress, shift: blk.shift };
+const offCell = (i, blk) => {
+  if (blk.test_set === "retention_same_dist") {
+    const seq = OFF_TRAP_SEQ.retention_same_dist;
+    const c = seq[i % seq.length];
+    return { overlap: 1, dispersion: c.dispersion, stress: "trap", trapAxis: c.axis, shift: blk.shift };
+  }
+  // transfer: 3 picking-stress + 2 cross-axis traps (i = 0,2,4 pick; 1,3 trap).
+  if (i % 2 === 1) return { overlap: 1, dispersion: 1, stress: "trap", trapAxis: "cross", shift: blk.shift };
+  return { overlap: 1, dispersion: i % 2, stress: "pick", shift: blk.shift };
 };
 
 /**
@@ -422,7 +464,7 @@ const offCell = (i, blk, overrides = {}) => {
  * transfer with novel stores), with order ids disjoint from training. The menu
  * order is fixed here; the runtime randomizes order within Phase A per participant.
  */
-export function buildChiScenarioSet({ diagnosticRounds = 15, blockSize = 5, seed = 42, offStress = {} } = {}) {
+export function buildChiScenarioSet({ diagnosticRounds = 15, blockSize = 5, seed = 42 } = {}) {
   const rng = createSeededRandom(seed);
   const scenarios = [];
   let round = 0;
@@ -451,7 +493,7 @@ export function buildChiScenarioSet({ diagnosticRounds = 15, blockSize = 5, seed
     for (let i = 0; i < blockSize; i += 1) {
       const cell = blk.kind === "on"
         ? { ...AB_CELLS[onIdx++ % AB_CELLS.length], shift: false } // ON = training, spans 2x2
-        : offCell(i, blk, offStress); // OFF = held-out picking + payout-trap probe (retention / transfer)
+        : offCell(i, blk); // OFF = held-out picking + payout-trap probe (retention / transfer)
       emit("B", cell, {
         block: blk.id,
         block_kind: blk.kind,
@@ -601,6 +643,14 @@ export function validateChiScenarioSet(set, { minPerCell = 2, minTrap = 3 } = {}
   for (const [rows, label] of [[retention, "retention"], [transfer, "transfer"]]) {
     if (!rows.some((s) => s.is_payout_trap === 1)) errors.push(`${label} OFF block has no payout-trap menu (cannot re-diagnose a residual payout leak)`);
   }
+
+  // HETEROGENEITY: the trap menus must make H sub-optimal via DIFFERENT cost axes, else
+  // earnings co-moves with one fixed axis on every trap and a single-axis cost-neglecter
+  // is misdiagnosed as W3. Require >=2 distinct slow axes in the diagnostic battery AND
+  // in the retention re-tune block (the block that dominates the recency-weighted re-diagnosis).
+  const axesOf = (rows) => new Set(rows.filter((s) => s.is_payout_trap === 1).map((s) => s.trap_axis));
+  if (axesOf(diagnostic).size < 2) errors.push(`diagnostic battery traps use only ${[...axesOf(diagnostic)]} (need >=2 distinct slow axes so W3 != single-axis neglect)`);
+  if (axesOf(retention).size < 2) errors.push(`retention block traps use only ${[...axesOf(retention)]} (need >=2 distinct slow axes for a robust re-tune)`);
 
   // Every payout-trap menu actually decouples earnings from optimality: the
   // max-earnings legal bundle is NOT the oracle, the oracle is faster + lower-paying,

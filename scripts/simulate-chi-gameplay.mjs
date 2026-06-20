@@ -165,12 +165,18 @@ function run() {
   for (const arm of ARMS) for (const p of all[arm]) { const init = p.record.diagnosis_history[0]?.dominant_weakness ?? "none"; (conf[p.type] ||= {}); conf[p.type][init] = (conf[p.type][init] || 0) + 1; }
   for (const t of ["W1", "W3", "none"]) console.log(`  planted ${t.padEnd(4)} -> ${JSON.stringify(conf[t] || {})}`);
 
-  // a sample logged record
-  const sample = all.marginal.find((p) => p.type === "W1");
-  const onFb = sample.decisions.find((d) => d.block_kind === "on" && d.feedback_text);
+  // a sample logged record (pick a W1 participant that actually got ON-block feedback,
+  // else any W1 participant; guard the printout so a missing sample never crashes the run)
+  const sample = all.marginal.find((p) => p.type === "W1" && p.decisions.some((d) => d.block_kind === "on" && d.feedback_text))
+    || all.marginal.find((p) => p.type === "W1");
+  const onFb = sample?.decisions.find((d) => d.block_kind === "on" && d.feedback_text);
   console.log("\nsample marginal/W1 participant — one ON-block decision record:");
-  console.log("  " + JSON.stringify({ round: onFb.round, block: onFb.block, is_optimal: onFb.is_optimal, score_ratio: Number(onFb.score_ratio?.toFixed(2)), violation_label: onFb.violation_label, feedback_text: onFb.feedback_text }, null, 0));
-  console.log("  diagnosis history:", JSON.stringify(sample.record.diagnosis_history.map((h) => ({ trigger: h.trigger, round: h.round, dom: h.dominant_weakness, target: h.learning_target }))));
+  if (onFb) {
+    console.log("  " + JSON.stringify({ round: onFb.round, block: onFb.block, is_optimal: onFb.is_optimal, score_ratio: Number(onFb.score_ratio?.toFixed(2)), violation_label: onFb.violation_label, feedback_text: onFb.feedback_text }, null, 0));
+  } else {
+    console.log("  (no ON-block feedback decision for the sampled participant)");
+  }
+  if (sample) console.log("  diagnosis history:", JSON.stringify(sample.record.diagnosis_history.map((h) => ({ trigger: h.trigger, round: h.round, dom: h.dominant_weakness, target: h.learning_target }))));
 
   // ---- integrity + works-as-intended checks ----
   addCheck("no undefined/NaN fields in any decision record", badField === 0);

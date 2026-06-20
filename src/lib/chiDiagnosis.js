@@ -58,6 +58,11 @@ export const DEFAULT_COACHABLE = ["W1", "W3"];
 export const DEFAULT_RIDGE = 1.0;
 export const DEFAULT_MIN_ROUNDS = 3;
 export const DEFAULT_PRIOR_WEIGHT = 0.5;
+// Abstention thresholds (see diagnose()): the smallest fused leak worth coaching, and
+// how much an uncoachable dominant (cross-city) must exceed the best coachable leak
+// before we abstain rather than coach a side-signal.
+export const ABSTAIN_MIN_LEAK = 0.2;
+export const ABSTAIN_DOMINANCE_MARGIN = 1.5;
 
 // --------------------------------------------------------------------------- //
 // Small linear algebra (K is tiny: the 5 feature columns).                     //
@@ -137,8 +142,8 @@ function applyRecencyWeights(sets, currentRound, halfLife) {
 // --------------------------------------------------------------------------- //
 function fitConditionalLogit(sets, k, ridge = DEFAULT_RIDGE, maxIter = 50) {
   let beta = new Array(k).fill(0);
-  if (!sets.length) return beta;
-  for (let iter = 0; iter < maxIter; iter += 1) {
+  let lastH = null;
+  for (let iter = 0; iter < maxIter && sets.length; iter += 1) {
     const g = beta.map((b) => ridge * b);
     const H = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => (i === j ? ridge : 0)));
     for (const { X, chosenIndex, weight = 1 } of sets) {
@@ -152,11 +157,19 @@ function fitConditionalLogit(sets, k, ridge = DEFAULT_RIDGE, maxIter = 50) {
       }
       for (let i = 0; i < k; i += 1) for (let j = 0; j < k; j += 1) H[i][j] -= weight * meanX[i] * meanX[j];
     }
+    lastH = H;
     const step = solveLinear(H, g);
     beta = beta.map((b, j) => b - step[j]);
     if (norm(step) < 1e-8) break;
   }
-  return beta;
+  // Per-axis data INFORMATION = the regularized-logit Hessian diagonal minus the ridge
+  // prior: the choice-probability-weighted within-menu variance of each feature over the
+  // (recency-weighted) rounds. Low information => that axis is poorly identified (the
+  // menus/choices barely constrain its weight), which the diagnosis uses to abstain
+  // rather than coach a possibly-misread axis.
+  const info = new Array(k).fill(0);
+  if (lastH) for (let j = 0; j < k; j += 1) info[j] = Math.max(0, lastH[j][j] - ridge);
+  return { beta, info };
 }
 
 function direction(beta) {
@@ -173,13 +186,20 @@ export function behavioralBias(choiceSets, { ridge = DEFAULT_RIDGE, cols = FEATU
   applyRecencyWeights(chosenSets, currentRound, recencyHalfLife);
   applyRecencyWeights(oracleSets, currentRound, recencyHalfLife);
   const k = cols.length;
-  const dirW = direction(fitConditionalLogit(chosenSets, k, ridge));
-  const dirO = direction(fitConditionalLogit(oracleSets, k, ridge));
+  const fitW = fitConditionalLogit(chosenSets, k, ridge);
+  const fitO = fitConditionalLogit(oracleSets, k, ridge);
+  const dirW = direction(fitW.beta);
+  const dirO = direction(fitO.beta);
   const bias = {};
   cols.forEach((c, i) => { bias[c] = dirW[i] - dirO[i]; });
   const strengths = {};
-  for (const [w, feat] of Object.entries(WEAKNESS_FEATURE)) strengths[w] = bias[feat] ?? 0;
-  return { bias, strengths, n_rounds: chosenSets.length };
+  // Per-weakness identifiability from the PARTICIPANT fit's per-axis information.
+  const identifiability = {};
+  for (const [w, feat] of Object.entries(WEAKNESS_FEATURE)) {
+    strengths[w] = bias[feat] ?? 0;
+    identifiability[w] = fitW.info[cols.indexOf(feat)] ?? 0;
+  }
+  return { bias, strengths, identifiability, n_rounds: chosenSets.length };
 }
 
 // --------------------------------------------------------------------------- //
@@ -227,18 +247,42 @@ export function fuseDiagnosis(strengths = {}, prior = {}, { priorWeight = DEFAUL
   };
 }
 
+// Per-attribute IMPORTANCE (realized-loss weight), separated from identifiability.
+// Picking and payout are equally important to the rate; the cross-city weight matters
+// less under the game's menu distribution. When MEASURED identifiability is supplied,
+// the effective weight is importance x identifiability (so a now well-identified payout
+// leak competes fairly with picking); without it, the fixed prior weights are used.
+export const DEFAULT_IMPORTANCE = { W1: 1.0, W2: 0.4, W3: 1.0 };
+
 // --------------------------------------------------------------------------- //
-// Diagnostic-learning index G_ik(n): teach the component with the largest       //
-// importance-weighted squared residual error. Deployable proxy for v11's        //
-// G_ik(n) = W_k (a_k - h_ik,0)^2 [phi_k(n)^2 - phi_k(n+1)^2]: importance x       //
-// identifiability folds into DEFAULT_LEARNING_WEIGHTS, the squared current bias  //
-// stands in for (a_k - h)^2, so picking is favored and cross-city de-prioritized.
+// Diagnostic-learning index G_ik(n): teach the coachable component with the     //
+// largest importance x identifiability-weighted squared leak. Deployable proxy  //
+// for v11's G_ik(n) = W_k (a_k - h_ik,0)^2 [phi_k(n)^2 - phi_k(n+1)^2]: the      //
+// squared current bias stands in for (a_k - h)^2; W_k = importance x phi (the    //
+// measured per-axis identifiability), so a leak the data cannot pin is not       //
+// chased. See docs/MODEL_NOTES.md for the approximation and its limits.          //
 // --------------------------------------------------------------------------- //
-export function learningIndex(strengths = {}, { weights = DEFAULT_LEARNING_WEIGHTS, coachable = DEFAULT_COACHABLE } = {}) {
+export function learningIndex(strengths = {}, {
+  weights = DEFAULT_LEARNING_WEIGHTS,
+  coachable = DEFAULT_COACHABLE,
+  identifiability = null,
+  importance = DEFAULT_IMPORTANCE,
+} = {}) {
+  // Effective per-axis weight. With measured identifiability: importance x normalized
+  // identifiability (normalized over coachable axes). Without it: the fixed prior weights
+  // (backward compatible — callers that pass only strengths are unaffected).
+  let eff;
+  if (identifiability) {
+    const maxId = Math.max(1e-9, ...coachable.map((w) => identifiability[w] ?? 0));
+    eff = {};
+    for (const w of ["W1", "W2", "W3"]) eff[w] = (importance[w] ?? 0) * ((identifiability[w] ?? 0) / maxId);
+  } else {
+    eff = weights;
+  }
   const G = {};
   for (const w of ["W1", "W2", "W3"]) {
     const s = Math.max(0, strengths[w] ?? 0); // only positive (under-weighting) leaks are teachable
-    G[w] = (weights[w] ?? 0) * s * s;
+    G[w] = (eff[w] ?? 0) * s * s;
   }
   // The feedback target is the largest learning index among coachable attributes;
   // the poorly-identified cross-city weight is excluded from candidacy.
@@ -284,7 +328,30 @@ export function diagnose({
   }
 
   const fused = fuseDiagnosis(behavioral.strengths, prior, { priorWeight });
-  const learning = learningIndex(fused.strengths_fused);
+  const learning = learningIndex(fused.strengths_fused, { identifiability: behavioral.identifiability });
+
+  // ABSTENTION GATE — do not coach a possibly-misidentified axis; fall back to the
+  // UNtargeted marginal move (learning_target "none" leaves the marginal arm showing
+  // the true best one-step move and the component arm a generic message). Abstain when:
+  //  (a) the best coachable leak is below the noise floor (near-zero real leak), or
+  //  (b) the dominant leak is an UNCOACHABLE axis (cross-city W2) that clearly exceeds
+  //      the best coachable leak (a single-axis cost neglect that should not be read as
+  //      payout-overweighting). This is what stops the heterogeneous traps from
+  //      occasionally coaching a local/cross-neglecter on payout.
+  let learning_target = learning.target;
+  let abstained = false;
+  let abstain_reason = null;
+  if (learning_target !== "none") {
+    const dom = fused.dominant_weakness;
+    const bestLeak = Math.max(0, fused.strengths_fused[learning_target] ?? 0);
+    const domLeak = Math.max(0, fused.strengths_fused[dom] ?? 0);
+    if (bestLeak < ABSTAIN_MIN_LEAK) { abstained = true; abstain_reason = "leak_below_noise_floor"; }
+    else if (!DEFAULT_COACHABLE.includes(dom) && domLeak > bestLeak * ABSTAIN_DOMINANCE_MARGIN) {
+      abstained = true; abstain_reason = "dominant_leak_is_uncoachable";
+    }
+    if (abstained) learning_target = "none";
+  }
+
   return {
     signed_bias: behavioral.bias,
     strengths: fused.strengths_fused,
@@ -292,10 +359,13 @@ export function diagnose({
     dominant_label: fused.dominant_label,
     residual: fused.residual,
     residual_strength: fused.residual_strength,
-    // The feedback coaches the learning target (well-identified), which may differ
-    // from the raw dominant when the dominant is the poorly-identified cross-city.
-    learning_target: learning.target,
+    // The feedback coaches the learning target (well-identified + above the noise
+    // floor); "none" means the diagnosis abstained and the feedback stays untargeted.
+    learning_target,
     learning_index: learning.G,
+    identifiability: behavioral.identifiability,
+    abstained,
+    abstain_reason,
     confidence: fused.confidence,
     survey_confidence: surveyConfidence,
     n_rounds: behavioral.n_rounds,

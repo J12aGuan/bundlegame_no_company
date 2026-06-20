@@ -141,6 +141,10 @@ function run() {
   // (The r35 final read often round-trips off W3 once B3 has ALSO coached payout and
   // the participant is fully corrected, so it is not the right place to read the shift.)
   const mixReTuneW1toW3 = cohorts.MIX.filter((p) => p.diagnoses[0]?.learning_target === "W1" && p.diagnoses[1]?.learning_target === "W3").length / N;
+  // After the robustness hardening, the re-tune either confidently flips to W3 OR ABSTAINS
+  // (target "none" -> untargeted marginal move) rather than misfire. Both are "moved off
+  // the coached W1"; abstention is the safe outcome when the residual is ambiguous.
+  const mixReTuneAbstain = cohorts.MIX.filter((p) => p.diagnoses[0]?.learning_target === "W1" && p.diagnoses[1]?.learning_target === "none").length / N;
   // Pure-W1 must NOT spuriously re-target to payout when picking is fully corrected.
   const w1FalseReTarget = cohorts.W1.filter((p) => p.diagnoses.slice(1).some((d) => d.learning_target === "W3")).length / N;
 
@@ -159,7 +163,8 @@ function run() {
   console.log(`\nMEASURED property - DYNAMIC re-targeting (two-weakness MIX cohort): ${mixReTargeted > 0.4 ? "YES" : "NO"} (${(mixReTargeted * 100).toFixed(0)}%)`);
 
   console.log("\nDYNAMIC re-targeting detail (MIX = both picking + payout biased):");
-  console.log(`  FULL-accumulation re-diagnosis: re-targeted ${(mixReTargeted * 100).toFixed(0)}%, re-tune flip W1->W3 @r25 ${(mixReTuneW1toW3 * 100).toFixed(0)}%`);
+  console.log(`  FULL-accumulation re-diagnosis: re-targeted (off W1) ${(mixReTargeted * 100).toFixed(0)}%`);
+  console.log(`    of which @r25: confident W1->W3 flip ${(mixReTuneW1toW3 * 100).toFixed(0)}%, safe abstain W1->none ${(mixReTuneAbstain * 100).toFixed(0)}%`);
   // Probe: behavioral-only (NO survey prior) target on the post-coaching OFF block.
   // This is the identifiability test the payout-trap menus fix: once picking is
   // corrected, the residual payout leak is read behaviorally as W3 (not W1).
@@ -171,12 +176,14 @@ function run() {
   const behavW3 = offBehav.filter((x) => x.target === "W3").length / N;
   console.log(`  behavioral-only target on the corrected OFF block:   W3 ${(behavW3 * 100).toFixed(0)}%  (mean W1=${mean(offBehav.map((x) => x.W1)).toFixed(2)}, W3=${mean(offBehav.map((x) => x.W3)).toFixed(2)})`);
   console.log(`  pure-W1 spurious re-target to payout (must stay low): ${(w1FalseReTarget * 100).toFixed(0)}%`);
-  console.log("  => RESOLVED: the diagnostic + retention OFF menus now include PAYOUT-TRAP menus");
-  console.log("     (a high-pay, low-pick singleton whose max earnings is NOT the optimal, vs a");
-  console.log("     slow over-bundle), so over-bundling (W1) and payout-chasing (W3) pick DIFFERENT");
-  console.log("     bundles and the conditional logit separates them. The re-diagnosis then");
-  console.log("     recency-weights the post-coaching block and down-weights the (stale) survey");
-  console.log("     prior, so a corrected-picking MIX participant re-targets to payout (W3).");
+  console.log("  => HOW: the diagnostic + retention OFF menus are PAYOUT-TRAP menus whose high-pay H");
+  console.log("     is made sub-optimal via DIFFERENT cost axes (local / cross-city), so earnings is the");
+  console.log("     only signal consistent with always choosing H -> a single-axis cost neglecter is NOT");
+  console.log("     misread as payout (it ABSTAINS), and a true residual payout leak reads W3. The");
+  console.log("     re-diagnosis recency-weights the post-coaching block, down-weights the stale survey,");
+  console.log("     and weights each axis by its MEASURED identifiability; when the residual is ambiguous");
+  console.log("     it abstains (untargeted move) rather than misfire. Robustness trades some confident");
+  console.log("     W1->W3 flips for safe abstentions; finalize the constants on the human pilot.");
   console.log("\nVERDICT:");
   console.log(`  PERSONALIZED: ${ok ? "YES" : "NO"} - different participants get different diagnosed targets.`);
   console.log(`  LEARNING:     ${ok ? "YES" : "NO"} - the coached attribute's bias drops under feedback.`);

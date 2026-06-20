@@ -22,7 +22,7 @@ import { buildChiScenarioSet } from "./chiScenarioDesign.js";
 // these directly, so they must survive a save -> load round-trip.
 export const CHI_SCENARIO_FIELDS = [
   "block", "block_kind", "test_set", "feedback_enabled", "stress",
-  "store_overlap_flag", "dispersion_flag", "shift_flag", "is_payout_trap",
+  "store_overlap_flag", "dispersion_flag", "shift_flag", "is_payout_trap", "trap_axis",
   "oracle_bundle_ids", "second_best_bundle_ids", "max_earnings_bundle_ids",
   "travel_scale", "relative_gap", "score_gap", "classification",
   "candidate_bundles", "orders",
