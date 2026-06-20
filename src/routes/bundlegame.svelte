@@ -1,7 +1,9 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, getScenarioStudyRecommendation, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, notifyTutorialRoundProgress, finalizeMainGameSession, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction } from "$lib/bundle.js"
+    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, getScenarioStudyRecommendation, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, notifyTutorialRoundProgress, finalizeMainGameSession, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction, participantStudyState, studyProtocol, updateChiStudyFeedback, clearChiStudyFeedback, getCandidatesForScenario } from "$lib/bundle.js"
+    import { WEAKNESS_LABEL } from "$lib/chiDiagnosis.js"
+    import { decisionLogRecord } from "$lib/chiStudyRuntime.js"
     import { scoreBundle } from "$lib/analysis/engine.js";
     import { storeConfig, getActiveCitiesDataset, getActiveStoreDataset, getCityTravelInfo } from "$lib/config.js";
     
@@ -81,6 +83,13 @@
     function normalizeBundleIds(value) {
         if (!Array.isArray(value)) return [];
         return value.map((entry) => String(entry ?? '').trim()).filter(Boolean);
+    }
+
+    // Order-id-set equality (order-insensitive) for matching a chosen bundle to a candidate.
+    function sortedIdsEqual(a, b) {
+        const x = normalizeBundleIds(a).slice().sort();
+        const y = normalizeBundleIds(b).slice().sort();
+        return x.length === y.length && x.every((id, i) => id === y[i]);
     }
 
     function buildOrdersById(scenario) {
@@ -206,6 +215,7 @@
     }
 
     onMount(() => {
+        clearChiStudyFeedback(); // clear last round's coaching when a new round's active phase starts
         setScenarioInProgress(activeScenarioId);
         const selOrders = get(orders);
         const primaryOrder = selOrders[0];
@@ -806,7 +816,35 @@
         }
         const totalRounds = get(scenarios).length;
         const completedGame = success && totalRounds > 0 && $currentRound >= totalRounds;
-        
+
+        // --- CHI dynamic counterfactual feedback (lean pilot: marginal arm) ---
+        // feedbackForDecision/decisionLogRecord gate on the protocol's block layout, so
+        // these no-op (empty feedback) outside Phase B ON blocks and for non-CHI play.
+        const chiProtocol = get(studyProtocol);
+        const chiArm = get(participantStudyState).assigned_arm;
+        const chiCandidates = getCandidatesForScenario(scenarioId);
+        const chiChosen = chiCandidates.find((c) => sortedIdsEqual(c.bundle_ids, chosenOrderIds)) || null;
+        const chiOracle = chiCandidates.find((c) => sortedIdsEqual(c.bundle_ids, optimal?.best_bundle_ids)) || null;
+        const chiDiagnosis = (get(participantStudyState).diagnosis_history ?? []).at(-1) ?? null;
+        const chiFeedbackResult = updateChiStudyFeedback({
+            protocol: chiProtocol,
+            round: get(currentRound),
+            arm: chiArm,
+            chosenBundle: chiChosen,
+            legalBundles: chiCandidates,
+            diagnosis: chiDiagnosis,
+            labelFor: WEAKNESS_LABEL,
+        });
+        const chiDecision = decisionLogRecord({
+            protocol: chiProtocol,
+            round: get(currentRound),
+            arm: chiArm,
+            chosenBundle: chiChosen,
+            oracleBundle: chiOracle,
+            candidateSetId: scenarioId,
+            feedback: chiFeedbackResult,
+        });
+
         saveScenarioProgress({
             scenarioId,
             roundIndex: $currentRound,
@@ -839,7 +877,16 @@
             scoreRatioToBest: success ? outcomeMetrics.scoreRatioToBest : 0,
             percentRegret: success ? outcomeMetrics.percentRegret : null,
             isExactOptimal: success ? outcomeMetrics.isExactOptimal : 0,
-            isNearOptimal: success ? outcomeMetrics.isNearOptimal : 0
+            isNearOptimal: success ? outcomeMetrics.isNearOptimal : 0,
+            // CHI decision log (W4): empty/none outside Phase B ON blocks. Score from
+            // chiStudyRuntime.roundScore (modeled deployed time) via decisionLogRecord.
+            block: chiDecision.block,
+            test_set: chiDecision.test_set,
+            violation_label: chiDecision.violation_label,
+            best_improving_move: chiDecision.best_improving_move,
+            feedback_text: chiDecision.feedback_text,
+            chi_deployed_score: chiDecision.deployed_score,
+            chi_score_ratio: chiDecision.score_ratio
         });
 
         if (success && !completedGame) currentRound.update(r => r + 1);
