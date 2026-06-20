@@ -162,13 +162,18 @@ export function participantLogRecord({ participantId, arm, survey = null, diagno
 // coaching?" — so it (a) recency-weights the accumulated unaided choices, so the
 // post-coaching OFF block dominates the long Phase A battery, and (b) down-weights
 // the (now stale, pre-intervention) survey prior, letting fresh behavior re-target.
+// FIXED, pre-registered re-diagnosis constants. Chosen on principle (the recent
+// ~5-round OFF block should dominate the long Phase A battery; the stale survey is a
+// small anchor, not a driver) and for ROBUSTNESS, not to hit a target metric: in the
+// sensitivity sweep (scripts/sweep-chi-rediagnosis.mjs, half-life 2..6 x prior
+// .10..30) this point sits INTERIOR to the contiguous region where a two-weakness
+// participant re-targets W1->W3 (~73%) while a corrected pure-W1 does NOT spuriously
+// flip to payout (~0%) — its neighbours on both axes also pass, unlike the knife-edge
+// short-half-life/tiny-prior or long-half-life corners. Finalize on the human pilot.
 export const CHI_REDIAGNOSIS = {
-  recency_half_life_rounds: 4, // ~one 5-round OFF block dominates the accumulated fit
-  initial_prior_weight: 0.5, // = DEFAULT_PRIOR_WEIGHT
-  // Small but non-zero at re-diagnosis: enough that a participant's own survey sign
-  // (e.g. "I did NOT chase payout") anchors a fully-corrected reading against the
-  // payout-trap oracle asymmetry, without re-pinning a genuine leak to the prior.
-  retune_prior_weight: 0.15,
+  recency_half_life_rounds: 3, // the recent OFF block dominates the accumulated fit
+  initial_prior_weight: 0.5, // = DEFAULT_PRIOR_WEIGHT (initial read leans on the survey)
+  retune_prior_weight: 0.2, // a small survey anchor at re-diagnosis (sign disambiguates), not a driver
 };
 
 /**
