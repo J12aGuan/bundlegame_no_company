@@ -6,8 +6,15 @@ import {
   validateChiScenarioSet,
   enumerateLegalBundles,
   scoreBundle,
+  sortedIdsEqual,
   CHI_STARTING_CITY,
 } from "../../src/lib/chiScenarioDesign.js";
+import { marginalFeedbackMessage } from "../../src/lib/marginalFeedback.js";
+
+const FEATURE_COLS = [
+  "earnings", "effective_pick_time_seconds", "cross_city_travel_time_seconds",
+  "local_travel_time_seconds", "shared_item_savings_seconds",
+];
 
 test("default CHI scenario set has 35 rounds: 15 diagnostic (A) + 20 blocked B (5/5/5/5)", () => {
   const set = buildChiScenarioSet();
@@ -85,4 +92,54 @@ test("configurable diagnostic count and block size are honored", () => {
   assert.equal(set.scenarios.length, 12 + 16); // 12 diagnostic + 4 blocks x 4
   const v = validateChiScenarioSet(set, { minPerCell: 2 });
   assert.ok(v.ok, v.errors.join("; "));
+});
+
+test("gap#3: every scenario carries candidate_bundles with the five feature columns + oracle", () => {
+  const set = buildChiScenarioSet();
+  assert.ok(validateChiScenarioSet(set).ok, validateChiScenarioSet(set).errors.join("; "));
+  for (const s of set.scenarios) {
+    const cb = s.candidate_bundles;
+    assert.ok(Array.isArray(cb) && cb.length >= 2, `round ${s.round} needs >=2 candidates`);
+    for (const c of cb) {
+      for (const col of FEATURE_COLS) assert.ok(Number.isFinite(Number(c[col])), `round ${s.round} candidate missing ${col}`);
+      assert.ok(Number.isFinite(Number(c.score)), "candidate has a score");
+    }
+    const oracles = cb.filter((c) => c.is_oracle === 1);
+    assert.equal(oracles.length, 1, `round ${s.round} exactly one is_oracle`);
+    assert.ok(sortedIdsEqual(oracles[0].bundle_ids, s.oracle_bundle_ids), "is_oracle == oracle_bundle_ids");
+    assert.equal(oracles[0].score, Math.max(...cb.map((c) => c.score)), "oracle has the max score");
+  }
+});
+
+test("gap#3: candidates derive at runtime from orders even WITHOUT an explicit pick field", () => {
+  // Mirrors getCandidatesForScenario's runtime derive path on deployed orders
+  // (which carry estimatedTime/localTravelTime/city but no `pick`).
+  const set = buildChiScenarioSet();
+  const s = set.scenarios.find((x) => x.store_overlap_flag === 1); // an over-bundling menu
+  const ordersNoPick = s.orders.map(({ pick, ...rest }) => rest);
+  const byId = Object.fromEntries(ordersNoPick.map((o) => [o.id, o]));
+  const legal = enumerateLegalBundles(s.order_ids, byId, s.max_bundle);
+  const scored = legal.map((ids) => scoreBundle(ids, byId, CHI_STARTING_CITY, s.travel_scale));
+  assert.ok(scored.length >= 2, ">=2 derived candidates");
+  assert.ok(scored.every((c) => Number.isFinite(c.effective_pick_time_seconds) && c.effective_pick_time_seconds >= 0));
+  // The derived oracle (max score) is preserved: pick = estimatedTime - localTravelTime
+  // differs from the stored pick only by per-order rounding (savings term), which is
+  // far below the >=3% score gap, so the ordering and the oracle are unchanged.
+  const derivedOracle = scored.reduce((b, c) => (c.score > b.score ? c : b), scored[0]);
+  assert.ok(sortedIdsEqual(derivedOracle.bundle_ids, s.oracle_bundle_ids), "derived oracle == oracle_bundle_ids");
+  const byKey = new Map(s.candidate_bundles.map((c) => [c.bundle_ids.join(), c.score]));
+  for (const c of scored) assert.ok(Math.abs(byKey.get(c.bundle_ids.join()) - c.score) < 0.02, "derived score ~= stored score");
+});
+
+test("gap#3: marginal feedback renders for a sub-optimal bundle and is empty for the oracle", () => {
+  const set = buildChiScenarioSet();
+  const s = set.scenarios.find((x) => x.store_overlap_flag === 1);
+  const cb = s.candidate_bundles;
+  const oracle = cb.find((c) => c.is_oracle === 1);
+  // Oracle is one-step-optimal -> nothing to show.
+  assert.equal(marginalFeedbackMessage(oracle, cb).text, "");
+  // At least one sub-optimal bundle has a true counterfactual one-step move.
+  const withMove = cb.find((c) => c.is_oracle !== 1 && marginalFeedbackMessage(c, cb).text.length > 0);
+  assert.ok(withMove, "some sub-optimal candidate yields a counterfactual message");
+  assert.match(marginalFeedbackMessage(withMove, cb).text, /\$\d/);
 });

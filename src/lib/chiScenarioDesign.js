@@ -76,6 +76,13 @@ function ordersById(orders) {
   return map;
 }
 
+/** Order-id-set equality (order-insensitive). */
+export function sortedIdsEqual(a, b) {
+  const x = (Array.isArray(a) ? a : []).map((v) => String(v ?? "").trim()).sort();
+  const y = (Array.isArray(b) ? b : []).map((v) => String(v ?? "").trim()).sort();
+  return x.length === y.length && x.every((v, i) => v === y[i]);
+}
+
 /** Single-store legal bundles of size 1..maxBundle (the legal action mask). */
 export function enumerateLegalBundles(orderIds, byId, maxBundle = 3) {
   const out = [];
@@ -99,19 +106,30 @@ export function enumerateLegalBundles(orderIds, byId, maxBundle = 3) {
   return out;
 }
 
+// Item-pick seconds for one order. Deployed order data stores `estimatedTime`
+// (= item pick + local travel) and `localTravelTime` but NOT an explicit `pick`,
+// so derive pick = estimatedTime - localTravelTime when `pick` is absent.
+export function orderPickSeconds(o = {}) {
+  if (o.pick != null) return Number(o.pick) || 0;
+  return Math.max(0, (Number(o.estimatedTime) || 0) - (Number(o.localTravelTime) || 0));
+}
+
 export function scoreBundle(bundleIds, byId, startCity, travelScale = 1) {
   let simCity = startCity;
   let earnings = 0;
   let rawTime = 0;
-  const storeCounts = {};
   let pickTotal = 0;
+  let localTotal = 0;
+  let crossTotal = 0;
   for (const id of bundleIds) {
     const o = byId[id];
+    const cross = crossCity(simCity, o.city, travelScale);
     earnings += o.earnings;
-    rawTime += o.estimatedTime + crossCity(simCity, o.city, travelScale);
+    rawTime += o.estimatedTime + cross;
+    crossTotal += cross;
+    localTotal += Number(o.localTravelTime) || 0;
+    pickTotal += orderPickSeconds(o);
     if (o.city) simCity = o.city;
-    storeCounts[o.store] = (storeCounts[o.store] || 0) + 1;
-    pickTotal += o.pick;
   }
   // Shared-store savings when >=2 orders share a store (over-bundling temptation).
   let savings = 0;
@@ -124,7 +142,7 @@ export function scoreBundle(bundleIds, byId, startCity, travelScale = 1) {
   for (const store of Object.keys(grouped)) {
     const g = grouped[store];
     if (g.length >= 2) {
-      const groupPick = g.reduce((s, o) => s + o.pick, 0);
+      const groupPick = g.reduce((s, o) => s + orderPickSeconds(o), 0);
       savings += groupPick * SHARED_STORE_PICK_SAVE_RATE;
     }
   }
@@ -132,6 +150,12 @@ export function scoreBundle(bundleIds, byId, startCity, travelScale = 1) {
   return {
     bundle_ids: bundleIds,
     earnings,
+    // The five FEATURE_COLUMNS the diagnosis consumes (marginalFeedback reads
+    // earnings / total_time_seconds / score; the diagnosis reads all five).
+    effective_pick_time_seconds: pickTotal,
+    cross_city_travel_time_seconds: crossTotal,
+    local_travel_time_seconds: localTotal,
+    shared_item_savings_seconds: savings,
     total_time_seconds: time,
     score: earnings / time,
     ending_city: simCity,
@@ -252,6 +276,12 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
       stress: cell.stress,
       oracle_bundle_ids: best.bundle_ids,
       second_best_bundle_ids: second.bundle_ids,
+      // The full scored legal action set (CHI feedback + diagnosis read this).
+      candidate_bundles: scored.map((s) => ({
+        ...s,
+        legal: 1,
+        is_oracle: sortedIdsEqual(s.bundle_ids, best.bundle_ids) ? 1 : 0,
+      })),
       score_gap: Math.round((best.score - second.score) * 1e4) / 1e4,
       relative_gap: Math.round(gap * 1e4) / 1e4,
       classification: gap < 0.08 ? "hard" : gap < 0.2 ? "medium" : "easy",
@@ -401,6 +431,40 @@ export function validateChiScenarioSet(set, { minPerCell = 2 } = {}) {
     }
     if (!(s.relative_gap >= NONTRIVIAL_SCORE_GAP)) {
       errors.push(`round ${s.round} relative_gap ${s.relative_gap} below ${NONTRIVIAL_SCORE_GAP}`);
+    }
+  }
+
+  // Every scenario carries the legal candidate action set the CHI feedback + diagnosis
+  // read: >= 2 candidates, each with the five FEATURE_COLUMNS + a score, and exactly
+  // one is_oracle that equals oracle_bundle_ids and has the maximum score.
+  const FEATURE_COLS = [
+    "earnings", "effective_pick_time_seconds", "cross_city_travel_time_seconds",
+    "local_travel_time_seconds", "shared_item_savings_seconds",
+  ];
+  for (const s of scenarios) {
+    const cb = s.candidate_bundles;
+    if (!Array.isArray(cb) || cb.length < 2) {
+      errors.push(`round ${s.round} has < 2 candidate_bundles`);
+      continue;
+    }
+    for (const c of cb) {
+      if (!Array.isArray(c.bundle_ids) || c.bundle_ids.length === 0) errors.push(`round ${s.round} candidate missing bundle_ids`);
+      for (const col of FEATURE_COLS) {
+        if (!Number.isFinite(Number(c[col]))) errors.push(`round ${s.round} candidate missing feature ${col}`);
+      }
+      if (!Number.isFinite(Number(c.score))) errors.push(`round ${s.round} candidate missing score`);
+    }
+    const oracles = cb.filter((c) => c.is_oracle === 1);
+    if (oracles.length !== 1) {
+      errors.push(`round ${s.round} must have exactly one is_oracle candidate (got ${oracles.length})`);
+    } else {
+      if (!sortedIdsEqual(oracles[0].bundle_ids, s.oracle_bundle_ids)) {
+        errors.push(`round ${s.round} is_oracle candidate != oracle_bundle_ids`);
+      }
+      const maxScore = Math.max(...cb.map((c) => Number(c.score) || 0));
+      if (Number(oracles[0].score) < maxScore - 1e-9) {
+        errors.push(`round ${s.round} is_oracle candidate is not the max-score bundle`);
+      }
     }
   }
 
