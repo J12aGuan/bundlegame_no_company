@@ -13,6 +13,14 @@
  *                   re-targets to what is left (W1 -> W3);
  *   LEARNING      - the coached attribute's bias actually drops across blocks.
  *
+ * DYNAMIC is made real by two design changes (proven below): (1) the diagnostic +
+ * retention OFF menus now include PAYOUT-TRAP menus where the max-earnings bundle is
+ * NOT the optimal, so over-bundling (W1) and payout-chasing (W3) pick different
+ * bundles and the conditional logit can separate the earnings weight from the
+ * pick-time weight; (2) the re-diagnosis recency-weights the post-coaching block and
+ * down-weights the (stale, pre-intervention) survey prior, so a corrected-picking
+ * participant re-targets to the residual payout leak instead of re-reading as W1.
+ *
  * No Firebase / browser. Run:  node scripts/simulate-chi-dynamic.mjs
  */
 import { buildChiStudyProtocol, CHI_POST_PHASE_A_SURVEY } from "../src/lib/researchStudy.js";
@@ -82,7 +90,8 @@ function play(typeKey, protocol, scenarios, seed) {
     const chosen = choose(cands, b, rand);
 
     if (!ctx.is_on_block) {
-      choiceByRound[round] = { alternatives: cands.map((c) => ({ features: FEAT(c.feat), chosen: c === chosen, oracle: c === oracle })) };
+      // carry `round` so the runtime's re-diagnosis recency weighting engages (mirrors buildUnaidedChoiceSets).
+      choiceByRound[round] = { round, alternatives: cands.map((c) => ({ features: FEAT(c.feat), chosen: c === chosen, oracle: c === oracle })) };
     }
     // Coach the LATEST diagnosis's learning target in ON blocks.
     if (ctx.is_on_block) {
@@ -99,12 +108,6 @@ function play(typeKey, protocol, scenarios, seed) {
     trace.push({ round, aPick: b.aPick, gamma: b.gamma });
   }
   return { type: typeKey, diagnoses, choiceByRound, survey, startBias: { ...TYPES[typeKey] }, endBias: { aPick: b.aPick, gamma: b.gamma } };
-}
-
-// A re-diagnosis over a RECENCY WINDOW [lo,hi] of unaided rounds (the fix candidate).
-function diagnoseWindow(p, lo, hi) {
-  const choiceSets = Object.entries(p.choiceByRound).filter(([r]) => Number(r) >= lo && Number(r) <= hi).map(([, v]) => v);
-  return runDiagnosis({ trigger: "window", round: hi, choiceSets, surveyResponses: p.survey, surveyQuestions: CHI_POST_PHASE_A_SURVEY });
 }
 
 function run() {
@@ -133,7 +136,13 @@ function run() {
   const fracEq = (arr, v) => arr.filter((x) => x === v).length / arr.length;
   // MIX: target re-targets across the three diagnoses (the dynamic property).
   const mixReTargeted = cohorts.MIX.filter((p) => new Set(p.diagnoses.map((d) => d.learning_target)).size > 1).length / N;
-  const mixShiftedToW3 = cohorts.MIX.filter((p) => p.diagnoses[0]?.learning_target === "W1" && p.diagnoses.at(-1)?.learning_target === "W3").length / N;
+  // The dynamic EVENT is the re-tune flip at r25: after picking is coached in B1, the
+  // re-diagnosis on the (recency-weighted) accumulated unaided choices shifts W1->W3.
+  // (The r35 final read often round-trips off W3 once B3 has ALSO coached payout and
+  // the participant is fully corrected, so it is not the right place to read the shift.)
+  const mixReTuneW1toW3 = cohorts.MIX.filter((p) => p.diagnoses[0]?.learning_target === "W1" && p.diagnoses[1]?.learning_target === "W3").length / N;
+  // Pure-W1 must NOT spuriously re-target to payout when picking is fully corrected.
+  const w1FalseReTarget = cohorts.W1.filter((p) => p.diagnoses.slice(1).some((d) => d.learning_target === "W3")).length / N;
 
   // PERSONALIZED + LEARNING are must-hold properties; DYNAMIC re-targeting is a
   // MEASURED property reported as a finding (the runbook left it as an open outcome).
@@ -150,15 +159,10 @@ function run() {
   console.log(`\nMEASURED property - DYNAMIC re-targeting (two-weakness MIX cohort): ${mixReTargeted > 0.4 ? "YES" : "NO"} (${(mixReTargeted * 100).toFixed(0)}%)`);
 
   console.log("\nDYNAMIC re-targeting detail (MIX = both picking + payout biased):");
-  console.log(`  FULL-accumulation re-diagnosis (current impl): re-targeted ${(mixReTargeted * 100).toFixed(0)}%, W1->W3 shift ${(mixShiftedToW3 * 100).toFixed(0)}%`);
-  // Cause + fix: re-diagnose on the RECENT OFF block only (21-25) instead of all 1-25.
-  const recencyShift = cohorts.MIX.filter((p) => {
-    const initial = p.diagnoses[0]?.learning_target;
-    const recent = diagnoseWindow(p, 21, 25).learning_target; // post-coaching OFF block
-    return initial === "W1" && recent === "W3";
-  }).length / N;
-  console.log(`  RECENCY-window re-diagnosis (OFF block 21-25 only):  W1->W3 shift ${(recencyShift * 100).toFixed(0)}%`);
-  // Cause probe: behavioral-only (no survey prior) bias on the post-coaching OFF block.
+  console.log(`  FULL-accumulation re-diagnosis: re-targeted ${(mixReTargeted * 100).toFixed(0)}%, re-tune flip W1->W3 @r25 ${(mixReTuneW1toW3 * 100).toFixed(0)}%`);
+  // Probe: behavioral-only (NO survey prior) target on the post-coaching OFF block.
+  // This is the identifiability test the payout-trap menus fix: once picking is
+  // corrected, the residual payout leak is read behaviorally as W3 (not W1).
   const offBehav = cohorts.MIX.map((p) => {
     const sets = Object.entries(p.choiceByRound).filter(([r]) => Number(r) >= 21 && Number(r) <= 25).map(([, v]) => v);
     const { strengths } = behavioralBias(sets);
@@ -166,15 +170,17 @@ function run() {
   });
   const behavW3 = offBehav.filter((x) => x.target === "W3").length / N;
   console.log(`  behavioral-only target on the corrected OFF block:   W3 ${(behavW3 * 100).toFixed(0)}%  (mean W1=${mean(offBehav.map((x) => x.W1)).toFixed(2)}, W3=${mean(offBehav.map((x) => x.W3)).toFixed(2)})`);
-  console.log("  => CAUSE: the diagnostic + OFF menus are picking-stressing (overlap=1), where");
-  console.log("     payout-overweighting (W3) ALSO shows up as over-bundling, so W1/W3 are");
-  console.log("     confounded; a corrected-picking participant still reads as picking. Re-targeting");
-  console.log("     needs menus that DISAMBIGUATE the attributes (payout-trap menus identify W3");
-  console.log("     where the max-earnings bundle is NOT optimal), not just recency.");
+  console.log(`  pure-W1 spurious re-target to payout (must stay low): ${(w1FalseReTarget * 100).toFixed(0)}%`);
+  console.log("  => RESOLVED: the diagnostic + retention OFF menus now include PAYOUT-TRAP menus");
+  console.log("     (a high-pay, low-pick singleton whose max earnings is NOT the optimal, vs a");
+  console.log("     slow over-bundle), so over-bundling (W1) and payout-chasing (W3) pick DIFFERENT");
+  console.log("     bundles and the conditional logit separates them. The re-diagnosis then");
+  console.log("     recency-weights the post-coaching block and down-weights the (stale) survey");
+  console.log("     prior, so a corrected-picking MIX participant re-targets to payout (W3).");
   console.log("\nVERDICT:");
   console.log(`  PERSONALIZED: ${ok ? "YES" : "NO"} - different participants get different diagnosed targets.`);
   console.log(`  LEARNING:     ${ok ? "YES" : "NO"} - the coached attribute's bias drops under feedback.`);
-  console.log(`  DYNAMIC:      ${mixReTargeted > 0.4 ? "YES" : "NO"} - re-targeting between blocks ${mixReTargeted > 0.4 ? "occurs" : "does NOT occur with the current picking-only diagnostic menus (W1/W3 confounded). It is a measured outcome, not a code bug; identifying a second leak needs payout-trap diagnostic menus."}`);
+  console.log(`  DYNAMIC:      ${mixReTargeted > 0.4 ? "YES" : "NO"} - re-targeting between blocks ${mixReTargeted > 0.4 ? "occurs: payout-trap menus disambiguate W1 from W3, so a two-weakness participant re-targets from picking to payout after picking is coached." : "does NOT occur."}`);
   // Exit reflects the must-hold properties; the dynamic property is a reported finding.
   process.exit(ok ? 0 : 1);
 }

@@ -156,12 +156,37 @@ export function participantLogRecord({ participantId, arm, survey = null, diagno
   };
 }
 
+// Re-diagnosis tuning. The INITIAL diagnosis (after Phase A) reads the whole
+// diagnostic battery uniformly and leans on the survey to disambiguate at only 15
+// rounds. A RE-diagnosis (retune/final) instead asks "what leak is LEFT after
+// coaching?" — so it (a) recency-weights the accumulated unaided choices, so the
+// post-coaching OFF block dominates the long Phase A battery, and (b) down-weights
+// the (now stale, pre-intervention) survey prior, letting fresh behavior re-target.
+export const CHI_REDIAGNOSIS = {
+  recency_half_life_rounds: 4, // ~one 5-round OFF block dominates the accumulated fit
+  initial_prior_weight: 0.5, // = DEFAULT_PRIOR_WEIGHT
+  // Small but non-zero at re-diagnosis: enough that a participant's own survey sign
+  // (e.g. "I did NOT chase payout") anchors a fully-corrected reading against the
+  // payout-trap oracle asymmetry, without re-pinning a genuine leak to the prior.
+  retune_prior_weight: 0.15,
+};
+
 /**
  * Re-export the diagnosis entry-point shape the runtime persists per block. The
  * caller accumulates the unaided choice sets and calls this after each trigger.
  */
 export function runDiagnosis({ trigger, round, choiceSets, surveyResponses, surveyQuestions }) {
-  const d = diagnose({ choiceSets, surveyResponses, surveyQuestions });
+  const isInitial = trigger === "initial";
+  const d = diagnose({
+    choiceSets,
+    surveyResponses,
+    surveyQuestions,
+    currentRound: round,
+    // Recency + survey decay apply only when RE-diagnosing; the initial read stays
+    // uniform + survey-informed (unchanged from the lean pilot).
+    recencyHalfLife: isInitial ? Infinity : CHI_REDIAGNOSIS.recency_half_life_rounds,
+    priorWeight: isInitial ? CHI_REDIAGNOSIS.initial_prior_weight : CHI_REDIAGNOSIS.retune_prior_weight,
+  });
   return {
     trigger,
     round,

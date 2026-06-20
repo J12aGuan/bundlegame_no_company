@@ -112,6 +112,28 @@ test("e2e smoke: a marginal-arm participant through all 35 rounds", () => {
   assert.ok(record.optimal_rate > 0 && record.optimal_rate <= 1);
 });
 
+test("re-diagnosis recency-weights recent rounds; the initial read stays uniform", () => {
+  const protocol = buildChiStudyProtocol();
+  const overEarnRound = () => {
+    const base = { earnings: 12, effective_pick_time_seconds: 15, cross_city_travel_time_seconds: 0, local_travel_time_seconds: 5, shared_item_savings_seconds: 0 };
+    const alt = (earn, chosen, oracle) => ({ features: { ...base, earnings: earn }, chosen, oracle });
+    return { alternatives: [alt(34, true, false), alt(22, false, false), alt(12, false, true)] };
+  };
+  // Phase A: a long stale over-picking (W1) battery. Post-coaching OFF block: over-earning (W3).
+  const stale = Array.from({ length: 12 }, (_, i) => ({ ...overPickRound(), round: i + 1 }));
+  const recent = Array.from({ length: 4 }, (_, i) => ({ ...overEarnRound(), round: 21 + i }));
+
+  // Initial diagnosis (round 15) sees only Phase A and reads it uniformly -> W1.
+  const initial = runDiagnosis({ trigger: "initial", round: 15, choiceSets: stale, surveyResponses: {}, surveyQuestions: CHI_POST_PHASE_A_SURVEY });
+  assert.equal(initial.dominant_weakness, "W1");
+
+  // Re-tune (round 25) accumulates Phase A + the recent OFF block but recency-weights
+  // it, so the recent payout (W3) block re-targets the diagnosis off the coached W1.
+  const retune = runDiagnosis({ trigger: "retune", round: 25, choiceSets: [...stale, ...recent], surveyResponses: {}, surveyQuestions: CHI_POST_PHASE_A_SURVEY });
+  assert.equal(retune.dominant_weakness, "W3");
+  assert.equal(retune.learning_target, "W3");
+});
+
 test("marginal feedback fires only in ON blocks (empty in Phase A and OFF blocks)", () => {
   const protocol = buildChiStudyProtocol();
   // A suboptimal (over-included) chosen bundle so the marginal arm has a move to show.

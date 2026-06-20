@@ -144,6 +144,61 @@ test("gap#3: marginal feedback renders for a sub-optimal bundle and is empty for
   assert.match(marginalFeedbackMessage(withMove, cb).text, /\$\d/);
 });
 
+test("payout-trap menus disambiguate W3: present in Phase A (~half of overlap menus) and both OFF blocks", () => {
+  const set = buildChiScenarioSet();
+  const diag = set.scenarios.filter((s) => s.phase === "A");
+  const traps = diag.filter((s) => s.is_payout_trap === 1);
+  const picks = diag.filter((s) => s.stress === "pick");
+  // The battery keeps BOTH signals: ~half the overlap menus are picking-stress (W1)
+  // and ~half are payout-trap (W3), so the logit can separate earnings from pick.
+  assert.ok(traps.length >= 3, `Phase A needs payout-trap menus, got ${traps.length}`);
+  assert.ok(picks.length >= 3, `Phase A keeps picking-stress menus, got ${picks.length}`);
+  assert.ok(traps.every((s) => s.store_overlap_flag === 1), "traps keep a legal same-store over-bundle");
+  // Both held-out OFF blocks include a trap so a residual payout leak is re-diagnosable.
+  const retention = set.scenarios.filter((s) => s.test_set === "retention_same_dist");
+  const transfer = set.scenarios.filter((s) => s.test_set === "transfer_shifted");
+  assert.ok(retention.some((s) => s.is_payout_trap === 1), "retention OFF block has a payout trap");
+  assert.ok(transfer.some((s) => s.is_payout_trap === 1), "transfer OFF block has a payout trap");
+});
+
+test("payout-trap invariant: the max-earnings bundle is sub-optimal; the optimal is faster + lower-paying", () => {
+  const set = buildChiScenarioSet();
+  const traps = set.scenarios.filter((s) => s.is_payout_trap === 1);
+  assert.ok(traps.length > 0);
+  for (const s of traps) {
+    const byId = Object.fromEntries(s.orders.map((o) => [o.id, o]));
+    const legal = enumerateLegalBundles(s.order_ids, byId, s.max_bundle);
+    const scored = legal.map((ids) => scoreBundle(ids, byId, CHI_STARTING_CITY, s.travel_scale));
+    const oracle = scored.reduce((b, c) => (c.score > b.score ? c : b), scored[0]);
+    const maxEarn = scored.reduce((b, c) => (c.earnings > b.earnings ? c : b), scored[0]);
+    // The highest-paying legal bundle is NOT the score-optimal (so chasing payout is a trap).
+    assert.ok(!sortedIdsEqual(maxEarn.bundle_ids, oracle.bundle_ids), `round ${s.round}: max-earnings IS optimal`);
+    // ...and the optimal is the faster, lower-paying option.
+    assert.ok(oracle.total_time_seconds < maxEarn.total_time_seconds, `round ${s.round}: optimal not faster`);
+    assert.ok(oracle.earnings < maxEarn.earnings, `round ${s.round}: optimal not lower-paying`);
+    // A sub-optimal same-store over-bundle exists (the W1 over-bundling bait), distinct
+    // from the optimal, so over-bundling (W1) and payout-chasing (W3) pick DIFFERENT bundles.
+    assert.ok(
+      scored.some((c) => c.bundle_ids.length >= 2 && !sortedIdsEqual(c.bundle_ids, oracle.bundle_ids)),
+      `round ${s.round}: no sub-optimal over-bundle`,
+    );
+    assert.deepEqual([...maxEarn.bundle_ids].sort(), [...s.max_earnings_bundle_ids].sort(), `round ${s.round} max-earn tag`);
+  }
+});
+
+test("validateChiScenarioSet flags a battery that has lost its payout-trap menus", () => {
+  const set = buildChiScenarioSet();
+  // Strip the trap tag from every menu: the validator must complain that W3 is no
+  // longer separately identifiable (and that the OFF blocks cannot re-diagnose payout).
+  const stripped = {
+    ...set,
+    scenarios: set.scenarios.map((s) => ({ ...s, is_payout_trap: 0, stress: s.stress === "trap" ? "pick" : s.stress })),
+  };
+  const v = validateChiScenarioSet(stripped);
+  assert.ok(!v.ok, "a trap-less battery must be rejected");
+  assert.ok(v.errors.some((e) => /payout-trap/.test(e)), v.errors.join("; "));
+});
+
 test("W3 diagnosis choiceSet shape: five features, exactly one oracle, one chosen", () => {
   const set = buildChiScenarioSet();
   const s = set.scenarios.find((x) => x.phase === "A"); // an unaided round
