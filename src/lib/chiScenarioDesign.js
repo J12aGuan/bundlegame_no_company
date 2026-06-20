@@ -428,13 +428,20 @@ const DIAGNOSTIC_CELLS = [
 // recover a residual PAYOUT leak (W3) without misreading a single cost-axis neglect as
 // W3. Transfer keeps the labeled picking-shift primary outcome (pick-heavy, novel
 // stores, heavier pick) plus cross-axis traps (the shifted C-layout is one-store-per-city).
+// The re-tune block rotates H's slow axis over the two UNCOACHABLE cost axes (local,
+// cross-city). That is exactly what separates a residual payout leak (W3) from a
+// local/cross neglecter — the misdiagnosis risk. It deliberately omits a PICK-axis trap:
+// pick-neglect is itself the coachable W1, so a pick-axis trap would (a) be redundant
+// for adversarial robustness and (b) inflate a genuine W3/MIX participant's W1 (they eat
+// the high pick to chase earnings), muddying the very re-targeting this block drives. The
+// pick-axis trap still lives in Phase A for the full menu-span / adversarial pooling.
 const OFF_TRAP_SEQ = {
   retention_same_dist: [
     { axis: "local", dispersion: 0 },
     { axis: "cross", dispersion: 1 },
-    { axis: "pick", dispersion: 0 },
     { axis: "local", dispersion: 0 },
     { axis: "cross", dispersion: 1 },
+    { axis: "local", dispersion: 0 },
   ],
 };
 const offCell = (i, blk) => {
