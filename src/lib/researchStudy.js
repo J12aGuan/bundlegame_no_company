@@ -1296,6 +1296,14 @@ export function normalizeResearchStudyState(state = {}, fallback = {}) {
         )
       ? fallbackSource.survey_responses ?? fallbackSource.surveyResponses
       : [];
+  // CHI dynamic-feedback state: the post-Phase-A strategy survey and the per-block
+  // diagnosis history (preserved through normalize so they persist + restore).
+  const phaseASurvey = (source?.phase_a_survey ?? fallbackSource?.phase_a_survey) || null;
+  const diagnosisHistory = Array.isArray(source?.diagnosis_history)
+    ? source.diagnosis_history
+    : Array.isArray(fallbackSource?.diagnosis_history)
+      ? fallbackSource.diagnosis_history
+      : [];
   return removeUndefinedDeep({
     protocol_id: normalizeText(
       source?.protocol_id ?? source?.study_protocol_id,
@@ -1343,6 +1351,8 @@ export function normalizeResearchStudyState(state = {}, fallback = {}) {
     survey_responses: surveyResponses.map((response) =>
       normalizeResearchStudySurveyResponse(response),
     ),
+    phase_a_survey: phaseASurvey ? { ...phaseASurvey } : undefined,
+    diagnosis_history: diagnosisHistory.map((entry) => ({ ...entry })),
   });
 }
 

@@ -119,3 +119,12 @@ test("feedbackForArm dispatches and always returns a uniform record", () => {
   const marginal = feedbackForArm("marginal", { chosenBundle, legalBundles: cands, diagnosis: {} });
   assert.ok(marginal.best_improving_move);
 });
+
+test("feedback coaches the learning_target, not the raw dominant (W2 cross-city never coached)", () => {
+  // dominant is W2 (cross-city, poorly identified) but the coachable learning_target is W1.
+  const dx = { dominant_weakness: "W2", learning_target: "W1" };
+  const comp = componentFeedbackMessage(dx);
+  assert.match(comp.text, /pick time/, "names the coachable picking target");
+  assert.doesNotMatch(comp.text, /cross-city|routing/);
+  assert.equal(comp.target_weakness, "W1");
+});
