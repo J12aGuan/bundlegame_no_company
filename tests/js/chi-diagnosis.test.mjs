@@ -90,6 +90,26 @@ test("dynamic re-estimation: after picking is corrected, the dominant shifts off
   assert.equal(d2.dominant_weakness, "W3");
 });
 
+test("recency weighting re-targets to a recent block over a long stale battery", () => {
+  // A long stale W1 battery (rounds 1-12) followed by a short recent W3 block (21-24).
+  const stale = overPickRounds(12).map((r, i) => ({ ...r, round: i + 1 }));
+  const recent = overEarnRounds(4).map((r, i) => ({ ...r, round: 21 + i }));
+  const sets = [...stale, ...recent];
+  // Uniform (default, no currentRound): the long W1 block dominates the fit.
+  assert.equal(diagnose({ choiceSets: sets }).dominant_weakness, "W1");
+  // Recency-weighted at round 24 with a short half-life: the recent W3 block wins.
+  const d = diagnose({ choiceSets: sets, currentRound: 24, recencyHalfLife: 3 });
+  assert.equal(d.dominant_weakness, "W3");
+  assert.equal(d.learning_target, "W3");
+});
+
+test("recency weighting with an infinite half-life is identical to uniform", () => {
+  const sets = overPickRounds(8).map((r, i) => ({ ...r, round: i + 1 }));
+  const a = behavioralBias(sets);
+  const b = behavioralBias(sets, { currentRound: 8, recencyHalfLife: Infinity });
+  assert.deepEqual(a.strengths, b.strengths);
+});
+
 test("learning index never targets the poorly-identified cross-city weight (W2)", () => {
   // Even when W2's raw bias is the largest, the coaching target stays W1/W3.
   const { target, G } = learningIndex({ W1: 0.2, W2: 0.9, W3: 0.15 });

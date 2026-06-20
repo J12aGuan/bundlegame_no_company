@@ -115,9 +115,21 @@ function toMatrixSets(choiceSets, target, cols) {
     let chosenIndex = alts.findIndex((a) => a[target]);
     if (chosenIndex < 0) continue; // target not in the legal set -> skip the round
     const X = alts.map((a) => cols.map((c, j) => ((Number(a.features?.[c]) || 0) - mean[j]) / std[j]));
-    sets.push({ X, chosenIndex });
+    sets.push({ X, chosenIndex, round: cs.round });
   }
   return sets;
+}
+
+// Recency weight per choice set: an exponential half-life over the round index, so a
+// re-diagnosis emphasizes the most recent (post-coaching) unaided rounds rather than
+// letting the long Phase A diagnostic battery dominate the accumulated fit. With an
+// infinite half-life (the default) every set has weight 1 (uniform, unchanged).
+function applyRecencyWeights(sets, currentRound, halfLife) {
+  if (!Number.isFinite(halfLife) || halfLife <= 0 || !Number.isFinite(Number(currentRound))) return;
+  for (const s of sets) {
+    const r = Number(s.round);
+    s.weight = Number.isFinite(r) ? Math.pow(0.5, Math.max(0, Number(currentRound) - r) / halfLife) : 1;
+  }
 }
 
 // --------------------------------------------------------------------------- //
@@ -129,16 +141,16 @@ function fitConditionalLogit(sets, k, ridge = DEFAULT_RIDGE, maxIter = 50) {
   for (let iter = 0; iter < maxIter; iter += 1) {
     const g = beta.map((b) => ridge * b);
     const H = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => (i === j ? ridge : 0)));
-    for (const { X, chosenIndex } of sets) {
+    for (const { X, chosenIndex, weight = 1 } of sets) {
       const v = X.map((row) => dot(row, beta));
       const p = softmax(v);
       const meanX = new Array(k).fill(0);
       for (let a = 0; a < X.length; a += 1) for (let j = 0; j < k; j += 1) meanX[j] += p[a] * X[a][j];
-      for (let j = 0; j < k; j += 1) g[j] -= X[chosenIndex][j] - meanX[j];
+      for (let j = 0; j < k; j += 1) g[j] -= weight * (X[chosenIndex][j] - meanX[j]);
       for (let a = 0; a < X.length; a += 1) {
-        for (let i = 0; i < k; i += 1) for (let j = 0; j < k; j += 1) H[i][j] += p[a] * X[a][i] * X[a][j];
+        for (let i = 0; i < k; i += 1) for (let j = 0; j < k; j += 1) H[i][j] += weight * p[a] * X[a][i] * X[a][j];
       }
-      for (let i = 0; i < k; i += 1) for (let j = 0; j < k; j += 1) H[i][j] -= meanX[i] * meanX[j];
+      for (let i = 0; i < k; i += 1) for (let j = 0; j < k; j += 1) H[i][j] -= weight * meanX[i] * meanX[j];
     }
     const step = solveLinear(H, g);
     beta = beta.map((b, j) => b - step[j]);
@@ -155,9 +167,11 @@ function direction(beta) {
 // --------------------------------------------------------------------------- //
 // Behavioral bias = direction(participant) - direction(oracle).                //
 // --------------------------------------------------------------------------- //
-export function behavioralBias(choiceSets, { ridge = DEFAULT_RIDGE, cols = FEATURE_COLUMNS } = {}) {
+export function behavioralBias(choiceSets, { ridge = DEFAULT_RIDGE, cols = FEATURE_COLUMNS, currentRound = null, recencyHalfLife = Infinity } = {}) {
   const chosenSets = toMatrixSets(choiceSets, "chosen", cols);
   const oracleSets = toMatrixSets(choiceSets, "oracle", cols);
+  applyRecencyWeights(chosenSets, currentRound, recencyHalfLife);
+  applyRecencyWeights(oracleSets, currentRound, recencyHalfLife);
   const k = cols.length;
   const dirW = direction(fitConditionalLogit(chosenSets, k, ridge));
   const dirO = direction(fitConditionalLogit(oracleSets, k, ridge));
@@ -246,8 +260,10 @@ export function diagnose({
   priorWeight = DEFAULT_PRIOR_WEIGHT,
   ridge = DEFAULT_RIDGE,
   minRounds = DEFAULT_MIN_ROUNDS,
+  currentRound = null,
+  recencyHalfLife = Infinity,
 } = {}) {
-  const behavioral = behavioralBias(choiceSets, { ridge });
+  const behavioral = behavioralBias(choiceSets, { ridge, currentRound, recencyHalfLife });
   const { prior, confidence: surveyConfidence } = surveyPrior(surveyResponses, surveyQuestions);
 
   if (behavioral.n_rounds < minRounds) {
