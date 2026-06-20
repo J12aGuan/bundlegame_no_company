@@ -13,6 +13,7 @@ import {
     normalizeResearchStudySurveyResponse
 } from './researchStudy.js';
 import { normalizeQualtricsResponseDocument } from './qualtrics.js';
+import { sanitizeScenarioForPersistence } from './chiSeed.js';
 import { buildResearchExport, validatePublicationExport } from './adminScores.js';
 import { normalizeCentralConfigForRuntime } from './config.js';
 
@@ -1810,23 +1811,12 @@ export const getExperimentScenarios = async (scenariosId = 'experiment') => {
 }
 
 export const saveExperimentScenarios = async (scenariosData, scenariosId = 'experiment') => {
-    const toOrderId = (order) => {
-        if (typeof order === 'string') return order.trim();
-        return String(order?.id ?? '').trim();
-    };
-    const sanitizedScenarios = (scenariosData || []).map((scenario = {}) => ({
-        round: Number(scenario.round) || 1,
-        phase: scenario.phase ?? '',
-        scenario_id: scenario.scenario_id ?? '',
-        max_bundle: Number(scenario.max_bundle) || 3,
-        order_ids: (
-            Array.isArray(scenario.order_ids)
-                ? scenario.order_ids
-                : (scenario.orders || [])
-        )
-            .map((order) => toOrderId(order))
-            .filter((id) => id.length > 0)
-    }));
+    // Shared persistence shape: always emits {round,phase,scenario_id,max_bundle,order_ids}
+    // and ADDITIVELY preserves CHI scenario-level fields (block_kind/test_set/overlap+
+    // dispersion flags/oracle/candidate_bundles/embedded orders) when present, so the
+    // CHI dynamic dataset survives a save -> load round-trip. Legacy 'experiment'
+    // scenarios have none of those fields, so their persisted shape is unchanged.
+    const sanitizedScenarios = (scenariosData || []).map((scenario) => sanitizeScenarioForPersistence(scenario));
     try {
         const { root, entry } = await readDatasetEntry(scenariosId);
         const next = {
