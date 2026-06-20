@@ -143,3 +143,23 @@ test("gap#3: marginal feedback renders for a sub-optimal bundle and is empty for
   assert.ok(withMove, "some sub-optimal candidate yields a counterfactual message");
   assert.match(marginalFeedbackMessage(withMove, cb).text, /\$\d/);
 });
+
+test("W3 diagnosis choiceSet shape: five features, exactly one oracle, one chosen", () => {
+  const set = buildChiScenarioSet();
+  const s = set.scenarios.find((x) => x.phase === "A"); // an unaided round
+  const candidates = s.candidate_bundles;
+  const chosenIds = candidates[1].bundle_ids; // pretend the participant chose candidate #1
+  const alternatives = candidates.map((c) => ({
+    features: {
+      earnings: c.earnings, effective_pick_time_seconds: c.effective_pick_time_seconds,
+      cross_city_travel_time_seconds: c.cross_city_travel_time_seconds,
+      local_travel_time_seconds: c.local_travel_time_seconds,
+      shared_item_savings_seconds: c.shared_item_savings_seconds,
+    },
+    chosen: sortedIdsEqual(c.bundle_ids, chosenIds),
+    oracle: c.is_oracle === 1 || sortedIdsEqual(c.bundle_ids, s.oracle_bundle_ids),
+  }));
+  assert.equal(alternatives.filter((a) => a.oracle).length, 1, "exactly one oracle");
+  assert.equal(alternatives.filter((a) => a.chosen).length, 1, "exactly one chosen");
+  for (const a of alternatives) for (const col of FEATURE_COLS) assert.ok(Number.isFinite(a.features[col]));
+});

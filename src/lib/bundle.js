@@ -5,10 +5,11 @@ import {
     getCentralConfig, getTutorialConfig, getExperimentScenarios, getOrdersData, getStoresData, getCitiesData, getEmojisData,
     getScenarioDatasetBundle, initializeUserProgress, saveUserProgressSummary,
     getScenarioSetProgress, saveScenarioSetProgress, getActionSummaries, saveActionSummaries, getDetailedActionSummaries, saveDetailedActionSummaries, getUserSummary,
-    getActiveLiveSession, listResearchModels, listResearchProtocols, saveParticipantStudySurveyResponse as persistParticipantStudySurveyResponse, upsertLiveSessionParticipant, saveRoundSummaryAction
+    getActiveLiveSession, listResearchModels, listResearchProtocols, saveParticipantStudySurveyResponse as persistParticipantStudySurveyResponse, saveParticipantResearchStudyState, upsertLiveSessionParticipant, saveRoundSummaryAction
 } from './firebaseDB';
 import {
     DEFAULT_ACTION_MASK_VERSION,
+    CHI_POST_PHASE_A_SURVEY,
     assertValidResearchProtocolSnapshot,
     assignStudyArm,
     mergeResearchStudyState,
@@ -19,7 +20,7 @@ import {
 } from './researchStudy.js';
 
 import { switchJob, setPenaltyTimeout } from './config';
-import { feedbackForDecision } from './chiStudyRuntime.js';
+import { feedbackForDecision, roundContext, diagnoseTrigger, runDiagnosis } from './chiStudyRuntime.js';
 import { enumerateLegalBundles, scoreBundle, sortedIdsEqual, CHI_STARTING_CITY } from './chiScenarioDesign.js';
 
 const MAIN_STORE_FILE = 'store.json';
@@ -257,6 +258,99 @@ export function getCandidatesForScenario(scenarioId) {
 		}
 	}
 	return getOptimalForScenario(id)?.candidate_bundles ?? [];
+}
+
+/**
+ * Build the diagnosis choiceSets from every COMPLETED UNAIDED round up to
+ * `uptoRound` (Phase A 1-15 and the OFF blocks; NEVER ON blocks 16-20 / 26-30).
+ * Each set is { round, alternatives: [{ features:{5 cols}, chosen, oracle }] }.
+ */
+export function buildUnaidedChoiceSets(uptoRound = Infinity) {
+	const protocol = get(studyProtocol);
+	const actions = get(scenarioActions) || {};
+	const sets = [];
+	for (const scenario of get(scenarios)) {
+		const round = Number(scenario?.round);
+		if (!Number.isFinite(round) || round > uptoRound) continue;
+		if (roundContext(protocol, round).is_on_block) continue; // exclude aided rounds
+		const scenarioId = String(scenario?.scenario_id ?? '').trim();
+		const chosenIds = actions[scenarioId]?.orderSummary;
+		if (!Array.isArray(chosenIds) || chosenIds.length === 0) continue; // round not completed
+		const candidates = getCandidatesForScenario(scenarioId);
+		if (!candidates.length) continue;
+		const oracleIds = Array.isArray(scenario?.oracle_bundle_ids) ? scenario.oracle_bundle_ids : [];
+		const alternatives = candidates.map((c) => ({
+			features: {
+				earnings: Number(c.earnings) || 0,
+				effective_pick_time_seconds: Number(c.effective_pick_time_seconds) || 0,
+				cross_city_travel_time_seconds: Number(c.cross_city_travel_time_seconds) || 0,
+				local_travel_time_seconds: Number(c.local_travel_time_seconds) || 0,
+				shared_item_savings_seconds: Number(c.shared_item_savings_seconds) || 0
+			},
+			chosen: sortedIdsEqual(c.bundle_ids, chosenIds),
+			oracle: c.is_oracle === 1 || sortedIdsEqual(c.bundle_ids, oracleIds)
+		}));
+		if (!alternatives.some((a) => a.chosen)) continue; // chosen set not a legal candidate here
+		sets.push({ round, alternatives });
+	}
+	return sets;
+}
+
+/** Persist the post-Phase-A strategy survey (W2) onto the study state + Firestore. */
+export async function saveChiPhaseASurvey(responses = {}) {
+	const userId = String(get(id) ?? '').trim();
+	const versionId = String(get(scenarioSetVersionId) ?? '').trim();
+	const phase_a_survey = { responses: { ...responses }, submitted_at: new Date().toISOString() };
+	const currentState = normalizeResearchStudyState(get(participantStudyState), buildDefaultStudyState(userId));
+	participantStudyState.set(mergeResearchStudyState(currentState, { phase_a_survey }));
+	if (get(gameMode) === 'tutorial' || !userId || !versionId) return phase_a_survey;
+	try {
+		await saveParticipantResearchStudyState(userId, versionId, { phase_a_survey });
+	} catch (error) {
+		console.warn('Unable to persist Phase-A strategy survey:', error);
+	}
+	return phase_a_survey;
+}
+
+/** Append a diagnosis record to diagnosis_history (study state + Firestore). */
+export async function saveChiDiagnosis(record = {}) {
+	const userId = String(get(id) ?? '').trim();
+	const versionId = String(get(scenarioSetVersionId) ?? '').trim();
+	const currentState = normalizeResearchStudyState(get(participantStudyState), buildDefaultStudyState(userId));
+	const diagnosis_history = [
+		...(Array.isArray(currentState.diagnosis_history) ? currentState.diagnosis_history : []),
+		{ ...record }
+	];
+	participantStudyState.set(mergeResearchStudyState(currentState, { diagnosis_history }));
+	if (get(gameMode) === 'tutorial' || !userId || !versionId) return record;
+	try {
+		await saveParticipantResearchStudyState(userId, versionId, { diagnosis_history });
+	} catch (error) {
+		console.warn('Unable to persist CHI diagnosis:', error);
+	}
+	return record;
+}
+
+/**
+ * Run + persist the diagnosis for a COMPLETED trigger round (15/25/35), idempotently
+ * (skips if not a trigger or already recorded). The initial (r15) runs on survey
+ * submit; the re-tune (r25) and final (r35) fire as the OFF blocks finish.
+ */
+export async function runChiDiagnosisForRound(completedRound) {
+	const protocol = get(studyProtocol);
+	const trigger = diagnoseTrigger(protocol, Number(completedRound));
+	if (!trigger) return null;
+	const history = get(participantStudyState)?.diagnosis_history;
+	if (Array.isArray(history) && history.some((h) => Number(h?.round) === Number(completedRound))) return null;
+	const surveyResponses = get(participantStudyState)?.phase_a_survey?.responses ?? {};
+	const record = runDiagnosis({
+		trigger,
+		round: Number(completedRound),
+		choiceSets: buildUnaidedChoiceSets(Number(completedRound)),
+		surveyResponses,
+		surveyQuestions: CHI_POST_PHASE_A_SURVEY
+	});
+	return await saveChiDiagnosis(record);
 }
 
 function getDatasetRoot() {

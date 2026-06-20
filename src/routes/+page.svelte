@@ -1,7 +1,7 @@
 <script>
     import Bundlegame from "./bundlegame.svelte";
     import ChiFeedbackPanel from "./ChiFeedbackPanel.svelte";
-    import { game, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, completedOrdersCount, createNewUser, needsAuth, loadGame, participantStudyState, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveParticipantStudySurveyResponse, saveProgressAndEndSession, resumeElapsedSeconds, completionState, recordResultCodeVerification, retryFinalResultsSave, resendRecoveryCompletionPayload, resendCompletionHandoff, chiFeedback } from "$lib/bundle.js";
+    import { game, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, completedOrdersCount, createNewUser, needsAuth, loadGame, participantStudyState, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveParticipantStudySurveyResponse, saveProgressAndEndSession, resumeElapsedSeconds, completionState, recordResultCodeVerification, retryFinalResultsSave, resendRecoveryCompletionPayload, resendCompletionHandoff, chiFeedback, studyProtocol, saveChiPhaseASurvey, runChiDiagnosisForRound } from "$lib/bundle.js";
 	import Home from "./home.svelte";
 	import { onMount } from "svelte";
     import { queueNFixedOrders } from "$lib/config.js";
@@ -305,6 +305,50 @@
                 authResolved = true;
             });
     })
+
+    // --- CHI dynamic-feedback: Phase-A survey gate + diagnosis triggers (W2/W3) ---
+    let chiSurveyResponses = {};
+    let chiSurveySubmitting = false;
+    $: chiPhaseA = ($studyProtocol?.phase_plan || []).find((p) => p.id === 'A') || null;
+    $: chiSurveyQuestions = Array.isArray($studyProtocol?.survey_questions) ? $studyProtocol.survey_questions : [];
+    // The strategy survey is due once Phase A is complete and not yet submitted (CHI
+    // only: gated on Phase A's survey_after flag + the W1/W2/W3-mapped items).
+    $: chiSurveyDue = started && !$GameOver
+        && Boolean(chiPhaseA?.survey_after)
+        && chiSurveyQuestions.some((q) => q && q.maps_to)
+        && Number($currentRound) > Number(chiPhaseA?.round_end || 0)
+        && !($participantStudyState?.phase_a_survey);
+    // Pre-fill the Likert with each item's default so submit is always valid.
+    $: if (chiSurveyDue && chiSurveyQuestions.length && Object.keys(chiSurveyResponses).length === 0) {
+        chiSurveyResponses = Object.fromEntries(
+            chiSurveyQuestions.map((q) => [q.id, Number(q.default_value) || Math.round((Number(q.min || 1) + Number(q.max || 5)) / 2)])
+        );
+    }
+    // OFF-block end rounds (e.g. 25, 35): re-diagnose after each completes.
+    $: chiOffEnds = (($studyProtocol?.phase_plan || []).find((p) => p.id === 'B')?.blocks || [])
+        .filter((b) => b.kind === 'off').map((b) => Number(b.round_end));
+
+    function chiSetSurvey(qid, value) {
+        chiSurveyResponses = { ...chiSurveyResponses, [qid]: value };
+    }
+    async function submitChiSurvey() {
+        if (chiSurveySubmitting) return;
+        chiSurveySubmitting = true;
+        try {
+            await saveChiPhaseASurvey(chiSurveyResponses);
+            // Initial diagnosis uses the survey prior (Phase A choices are already recorded).
+            await runChiDiagnosisForRound(Number(chiPhaseA?.round_end || 15));
+        } finally {
+            chiSurveySubmitting = false;
+        }
+    }
+    // Re-tune (r25) and final (r35) diagnoses fire as the OFF blocks finish; idempotent,
+    // so re-running the reactive is safe. Game-over keeps currentRound at the last round.
+    $: if (started) {
+        const r = Number($currentRound);
+        if (chiOffEnds.includes(r - 1)) runChiDiagnosisForRound(r - 1);
+        else if ($GameOver && chiOffEnds.includes(r)) runChiDiagnosisForRound(r);
+    }
 </script>
 
 {#if !started && !$GameOver}
@@ -554,6 +598,34 @@
                 {/if}
             </div>
         </div>
+    {:else if chiSurveyDue}
+        <!-- W2: post-Phase-A strategy survey (blocks entry to Phase B until submitted) -->
+        <main class="min-h-screen bg-slate-950 flex items-center justify-center px-4 py-8">
+            <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg space-y-5">
+                <h2 class="text-xl font-semibold text-slate-900">A few quick questions</h2>
+                <p class="text-sm text-slate-600">Before the next part, tell us how you approached the orders. There are no right answers.</p>
+                {#each chiSurveyQuestions as q}
+                    <div class="space-y-2">
+                        <p class="text-sm font-medium text-slate-800">{q.prompt || q.label}</p>
+                        <div class="flex gap-2">
+                            {#each Array.from({ length: Number(q.max || 5) - Number(q.min || 1) + 1 }) as _unused, i}
+                                <button
+                                    type="button"
+                                    class="flex-1 rounded-lg border px-3 py-2 text-sm transition {chiSurveyResponses[q.id] === (Number(q.min || 1) + i) ? 'border-green-500 bg-green-50 text-green-700 font-semibold' : 'border-slate-200 text-slate-600 hover:border-slate-300'}"
+                                    on:click={() => chiSetSurvey(q.id, Number(q.min || 1) + i)}
+                                >{Number(q.min || 1) + i}</button>
+                            {/each}
+                        </div>
+                    </div>
+                {/each}
+                <button
+                    type="button"
+                    class="w-full rounded-xl bg-green-600 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                    disabled={chiSurveySubmitting}
+                    on:click={submitChiSurvey}
+                >{chiSurveySubmitting ? 'Preparing your session…' : 'Continue'}</button>
+            </div>
+        </main>
     {:else}
         <!-- Main Game View with sticky header -->
         <div class="min-h-screen bg-slate-50">

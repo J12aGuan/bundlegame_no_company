@@ -218,7 +218,10 @@ export function marginalFeedbackMessage(chosenBundle, legalBundles = [], options
 /** The `component` arm: name the current dominant weakness, no numbers. */
 export function componentFeedbackMessage(diagnosis, options = {}) {
   const dx = diagnosis || {};
-  const w = dx.dominant_weakness || dx.diagnosed_weakness || "none";
+  // Coach the COACHABLE attribute: prefer the learning target (W1/W3) over the raw
+  // dominant, so a cross-city-dominant (W2, poorly identified) participant is still
+  // coached on picking/payout rather than named on the un-coachable weakness.
+  const w = dx.learning_target || dx.dominant_weakness || dx.diagnosed_weakness || "none";
   const tip = COMPONENT_TIP[w] || COMPONENT_TIP.none;
   const text =
     w === "none"
@@ -259,7 +262,8 @@ export function controlFeedbackMessage() {
 export function feedbackForArm(armId, ctx = {}) {
   const { chosenBundle, legalBundles = [], labelFor } = ctx;
   const dx = ctx.diagnosis || {}; // diagnosis may be null in the lean pilot
-  const targetWeakness = dx.dominant_weakness || dx.diagnosed_weakness || null;
+  // Emphasis targets the coachable learning target (W1/W3) over the raw dominant.
+  const targetWeakness = dx.learning_target || dx.dominant_weakness || dx.diagnosed_weakness || null;
   switch (armId) {
     case "marginal":
       return marginalFeedbackMessage(chosenBundle, legalBundles, { labelFor, targetWeakness });
