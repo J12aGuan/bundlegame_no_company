@@ -20,6 +20,7 @@ import {
 
 import { switchJob, setPenaltyTimeout } from './config';
 import { feedbackForDecision } from './chiStudyRuntime.js';
+import { enumerateLegalBundles, scoreBundle, sortedIdsEqual, CHI_STARTING_CITY } from './chiScenarioDesign.js';
 
 const MAIN_STORE_FILE = 'store.json';
 const MAIN_CITIES_FILE = 'cities.json';
@@ -228,9 +229,34 @@ export function getOptimalForScenario(scenarioId) {
 	return optimalByScenarioId.get(id) ?? null;
 }
 
-/** Legal candidate bundles for a scenario (the CHI feedback/diagnosis action set). */
+/**
+ * Legal candidate bundles for a scenario (the CHI feedback/diagnosis action set).
+ * Prefers candidate_bundles stored on the scenario (reseeded/generated CHI sets);
+ * otherwise DERIVES the scored legal action set at runtime from the scenario's
+ * orders (the currently deployed CHI dataset has no candidate_bundles, but its
+ * orders carry estimatedTime/localTravelTime/city, enough to score every legal
+ * bundle from the canonical CHI start city) - so no dataset reseed is required.
+ * Falls back to the optimal entry for generateScenarios-produced datasets.
+ */
 export function getCandidatesForScenario(scenarioId) {
-	return getOptimalForScenario(scenarioId)?.candidate_bundles ?? [];
+	const id = String(scenarioId ?? '').trim();
+	const sc = get(scenarios).find((s) => String(s?.scenario_id ?? '').trim() === id);
+	if (Array.isArray(sc?.candidate_bundles) && sc.candidate_bundles.length) return sc.candidate_bundles;
+	if (sc && Array.isArray(sc.orders) && sc.orders.length) {
+		const byId = Object.fromEntries(
+			sc.orders.map((o) => [String(o?.id ?? '').trim(), o]).filter(([key]) => key)
+		);
+		const orderIds = Array.isArray(sc.order_ids) && sc.order_ids.length
+			? sc.order_ids
+			: sc.orders.map((o) => o.id);
+		const legal = enumerateLegalBundles(orderIds, byId, Number(sc.max_bundle) || 3);
+		if (legal.length) {
+			const scored = legal.map((ids) => scoreBundle(ids, byId, CHI_STARTING_CITY, Number(sc.travel_scale) || 1));
+			const best = scored.reduce((b, c) => (c.score > b.score ? c : b), scored[0]);
+			return scored.map((s) => ({ ...s, legal: 1, is_oracle: sortedIdsEqual(s.bundle_ids, best.bundle_ids) ? 1 : 0 }));
+		}
+	}
+	return getOptimalForScenario(id)?.candidate_bundles ?? [];
 }
 
 function getDatasetRoot() {
