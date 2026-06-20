@@ -228,6 +228,11 @@ export function getOptimalForScenario(scenarioId) {
 	return optimalByScenarioId.get(id) ?? null;
 }
 
+/** Legal candidate bundles for a scenario (the CHI feedback/diagnosis action set). */
+export function getCandidatesForScenario(scenarioId) {
+	return getOptimalForScenario(scenarioId)?.candidate_bundles ?? [];
+}
+
 function getDatasetRoot() {
 	return String(config.scenario_set || 'experiment').trim() || 'experiment';
 }

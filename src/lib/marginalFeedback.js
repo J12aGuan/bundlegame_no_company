@@ -32,30 +32,33 @@
 // --------------------------------------------------------------------------- //
 // Tolerant field accessors (the only three attributes Task 4 may read).        //
 // --------------------------------------------------------------------------- //
-export function bundleIds(bundle = {}) {
-  const ids = bundle.bundle_ids ?? bundle.order_ids ?? [];
+export function bundleIds(bundle) {
+  const b = bundle || {};
+  const ids = b.bundle_ids ?? b.order_ids ?? [];
   return Array.isArray(ids) ? ids.map((x) => String(x)) : [];
 }
 
-export function earningsOf(bundle = {}) {
-  return Number(bundle.earnings) || 0;
+export function earningsOf(bundle) {
+  return Number((bundle || {}).earnings) || 0;
 }
 
-export function timeOf(bundle = {}) {
-  const t = bundle.deployed_total_time_seconds ?? bundle.total_time_seconds;
+export function timeOf(bundle) {
+  const b = bundle || {};
+  const t = b.deployed_total_time_seconds ?? b.total_time_seconds;
   const v = Number(t);
   return Number.isFinite(v) && v > 0 ? v : 0;
 }
 
-export function scoreOf(bundle = {}) {
-  const s = bundle.deployed_score ?? bundle.score;
+export function scoreOf(bundle) {
+  const b = bundle || {};
+  const s = b.deployed_score ?? b.score;
   if (Number.isFinite(Number(s))) return Number(s);
-  const t = timeOf(bundle);
-  return t > 0 ? earningsOf(bundle) / t : 0;
+  const t = timeOf(b);
+  return t > 0 ? earningsOf(b) / t : 0;
 }
 
 /** Rate in game-$ per minute (the unit the marginal message reports). */
-export function ratePerMin(bundle = {}) {
+export function ratePerMin(bundle) {
   const t = timeOf(bundle);
   return t > 0 ? earningsOf(bundle) / (t / 60) : 0;
 }
@@ -181,7 +184,15 @@ const COMPONENT_TIP = {
  * choice is one-step-optimal (show nothing).
  */
 export function marginalFeedbackMessage(chosenBundle, legalBundles = [], options = {}) {
-  const { labelFor = (id) => `order ${id}`, targetWeakness = null } = options;
+  const { targetWeakness = null } = options;
+  // labelFor labels ORDER ids; tolerate a non-function (e.g. a weakness-label map
+  // passed by mistake) by falling back to the default order labeler.
+  const labelFor = typeof options.labelFor === "function" ? options.labelFor : (id) => `order ${id}`;
+  // No usable chosen bundle (e.g. the chosen orders did not match a legal candidate)
+  // -> show nothing rather than throw.
+  if (!chosenBundle || !Array.isArray(legalBundles) || legalBundles.length === 0) {
+    return { text: "", violation_label: "none", best_improving_move: null };
+  }
   const move = bestImprovingMove(chosenBundle, legalBundles, { targetWeakness });
   if (!move) {
     return { text: "", violation_label: "none", best_improving_move: null };
@@ -205,8 +216,9 @@ export function marginalFeedbackMessage(chosenBundle, legalBundles = [], options
 }
 
 /** The `component` arm: name the current dominant weakness, no numbers. */
-export function componentFeedbackMessage(diagnosis = {}, options = {}) {
-  const w = diagnosis.dominant_weakness || diagnosis.diagnosed_weakness || "none";
+export function componentFeedbackMessage(diagnosis, options = {}) {
+  const dx = diagnosis || {};
+  const w = dx.dominant_weakness || dx.diagnosed_weakness || "none";
   const tip = COMPONENT_TIP[w] || COMPONENT_TIP.none;
   const text =
     w === "none"
@@ -223,7 +235,7 @@ export function aggregateFeedbackMessage(chosenBundle, options = {}) {
 
 /** The `oracle` arm: the best bundle, no reasoning (deskilling control). */
 export function oracleFeedbackMessage(legalBundles = [], options = {}) {
-  const { labelFor = (id) => `order ${id}` } = options;
+  const labelFor = typeof options.labelFor === "function" ? options.labelFor : (id) => `order ${id}`;
   let best = null;
   for (const b of legalBundles) {
     if (best === null || scoreOf(b) > scoreOf(best)) best = b;
@@ -245,13 +257,14 @@ export function controlFeedbackMessage() {
  * logs a uniform record regardless of arm.
  */
 export function feedbackForArm(armId, ctx = {}) {
-  const { chosenBundle, legalBundles = [], diagnosis = {}, labelFor } = ctx;
-  const targetWeakness = diagnosis.dominant_weakness || diagnosis.diagnosed_weakness || null;
+  const { chosenBundle, legalBundles = [], labelFor } = ctx;
+  const dx = ctx.diagnosis || {}; // diagnosis may be null in the lean pilot
+  const targetWeakness = dx.dominant_weakness || dx.diagnosed_weakness || null;
   switch (armId) {
     case "marginal":
       return marginalFeedbackMessage(chosenBundle, legalBundles, { labelFor, targetWeakness });
     case "component":
-      return componentFeedbackMessage(diagnosis, { labelFor });
+      return componentFeedbackMessage(dx, { labelFor });
     case "aggregate":
       return aggregateFeedbackMessage(chosenBundle);
     case "oracle":

@@ -111,3 +111,26 @@ test("e2e smoke: a marginal-arm participant through all 35 rounds", () => {
   assert.equal(record.optimal_rate_bonus, optimalRateBonus(decisions));
   assert.ok(record.optimal_rate > 0 && record.optimal_rate <= 1);
 });
+
+test("marginal feedback fires only in ON blocks (empty in Phase A and OFF blocks)", () => {
+  const protocol = buildChiStudyProtocol();
+  // A suboptimal (over-included) chosen bundle so the marginal arm has a move to show.
+  const cands = [
+    { bundle_ids: ["o1"], earnings: 20, deployed_total_time_seconds: 30, deployed_score: 20 / 30 },
+    { bundle_ids: ["o1", "o2"], earnings: 30, deployed_total_time_seconds: 75, deployed_score: 30 / 75 },
+  ];
+  const chosen = cands[1];
+  // diagnosis is null in the lean pilot — must not throw.
+  const call = (round) => feedbackForDecision({ protocol, round, arm: "marginal", chosenBundle: chosen, legalBundles: cands, diagnosis: null });
+
+  // ON blocks B1 (16-20) and B3 (26-30): non-empty counterfactual feedback.
+  assert.ok(call(16).text.length > 0, "ON block B1 must show feedback");
+  assert.ok(call(28).text.length > 0, "ON block B3 must show feedback");
+  assert.match(call(16).text, /Dropping order o2/);
+  assert.equal(call(16).violation_label, "over_inclusion");
+
+  // Phase A (1-15) and OFF blocks B2 (21-25) / B4 (31-35): empty.
+  assert.equal(call(5).text, "", "Phase A is unaided");
+  assert.equal(call(23).text, "", "OFF retention is unaided");
+  assert.equal(call(33).text, "", "OFF transfer is unaided");
+});
