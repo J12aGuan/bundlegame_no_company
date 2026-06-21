@@ -531,7 +531,22 @@ function normalizeRoundSummaryAction(existing = {}, payload = {}) {
         pre_state: preState ?? existing?.pre_state,
         post_state: postState ?? existing?.post_state,
         state_snapshot: stateSnapshot ?? existing?.state_snapshot,
-        outcome_snapshot: outcomeSnapshot ?? existing?.outcome_snapshot
+        outcome_snapshot: outcomeSnapshot ?? existing?.outcome_snapshot,
+        // CHI per-decision counterfactual feedback (additive; from decisionLogRecord, threaded
+        // via saveScenarioProgress.chiDecisionLog). Captures the feedback actually shown + the
+        // modeled-time score so analysis can reconstruct them (previously display-only). Null
+        // block/test_set (e.g. Phase A) strip via ??; ON-block values persist. Absent for play
+        // that does not produce a decision log (removeUndefinedDeep drops the undefined fields).
+        block: payload?.block ?? existing?.block,
+        block_kind: payload?.block_kind ?? existing?.block_kind,
+        test_set: payload?.test_set ?? existing?.test_set,
+        feedback_enabled: payload?.feedback_enabled ?? existing?.feedback_enabled,
+        violation_label: payload?.violation_label ?? existing?.violation_label,
+        best_improving_move: payload?.best_improving_move ?? existing?.best_improving_move,
+        feedback_text: payload?.feedback_text ?? existing?.feedback_text,
+        deployed_score: optionalNumber(payload?.deployed_score, existing?.deployed_score),
+        score_ratio: optionalNumber(payload?.score_ratio, existing?.score_ratio),
+        is_optimal: payload?.is_optimal ?? existing?.is_optimal
     });
 }
 

@@ -2201,6 +2201,22 @@ export const saveScenarioProgress = (progress) => {
 			recommendation_source: String(
 				progress?.recommendationSource ?? recommendationContext?.recommendation_source ?? ''
 			).trim(),
+			// CHI per-decision counterfactual feedback log (additive; from decisionLogRecord).
+			// Present (non-empty) only for CHI Phase-B ON-block decisions; "none"/empty otherwise.
+			// recommendation_source above is kept; these capture the feedback actually shown + the
+			// modeled-time score so analysis can recover them (they were previously display-only).
+			...(progress?.chiDecisionLog && typeof progress.chiDecisionLog === 'object' ? {
+				block: progress.chiDecisionLog.block ?? null,
+				block_kind: progress.chiDecisionLog.block_kind ?? null,
+				test_set: progress.chiDecisionLog.test_set ?? null,
+				feedback_enabled: progress.chiDecisionLog.feedback_enabled ?? null,
+				violation_label: progress.chiDecisionLog.violation_label ?? 'none',
+				best_improving_move: progress.chiDecisionLog.best_improving_move ?? null,
+				feedback_text: progress.chiDecisionLog.feedback_text ?? '',
+				deployed_score: progress.chiDecisionLog.deployed_score ?? null,
+				score_ratio: progress.chiDecisionLog.score_ratio ?? null,
+				is_optimal: progress.chiDecisionLog.is_optimal ?? null,
+			} : {}),
 			current_city: String(progress?.currentCity ?? '').trim(),
 			final_location: String(progress?.finalLocation ?? '').trim(),
 			chosen_orders: chosenOrders,

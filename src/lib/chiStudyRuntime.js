@@ -201,5 +201,15 @@ export function runDiagnosis({ trigger, round, choiceSets, surveyResponses, surv
     residual: d.residual,
     confidence: d.confidence,
     n_rounds: d.n_rounds,
+    // Widened analysis fields (additive): the per-axis signed strengths, the measured
+    // per-axis identifiability (Fisher information), the abstention state, and which
+    // observable subspace the read used. These let analysis reconstruct WHY the target
+    // was chosen (or abstained), not just the final dominant_weakness/learning_target.
+    strengths: d.strengths,
+    identifiability: d.identifiability ?? null,
+    abstained: d.abstained ?? false,
+    abstain_reason: d.abstain_reason ?? null,
+    spanning_used: d.spanning_used ?? null,
+    spanning_n: d.spanning_n ?? null,
   };
 }
