@@ -53,7 +53,10 @@ async function main() {
   console.log(`  validate (rehydrated): ${vOut.ok ? "OK" : "FAIL"}${vOut.ok ? "" : "\n    - " + vOut.errors.join("\n    - ")}`);
   if (!vIn.ok || !vOut.ok) { console.error("\nABORT: payload did not validate; not seeding."); process.exit(1); }
 
-  // Always write the artifact (an operator can import it via the admin masterdata UI).
+  // Always write the artifact (a JSON snapshot of orders + scenarios for inspection / a
+  // manual masterdata import). To load it into a LOCAL emulator, use the Admin-SDK seeder
+  // that bypasses rules and targets the emulator: `node scripts/seed-emulator.mjs`
+  // (docs/EMULATOR_SMOKE.md). The --commit path below targets the project in .env.
   const outDir = path.join(ROOT, "build");
   mkdirSync(outDir, { recursive: true });
   const artifact = path.join(outDir, `${VERSION_ID}.seed.json`);
