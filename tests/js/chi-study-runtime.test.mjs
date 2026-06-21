@@ -134,6 +134,38 @@ test("re-diagnosis recency-weights recent rounds; the initial read stays uniform
   assert.equal(retune.learning_target, "W3");
 });
 
+test("runDiagnosis persists the WIDENED analysis record (per-axis strengths, identifiability, abstention, spanning)", () => {
+  const sets = Array.from({ length: 9 }, (_, i) => ({ ...overPickRound(), round: i + 1 }));
+  const d = runDiagnosis({ trigger: "initial", round: 15, choiceSets: sets, surveyResponses: {}, surveyQuestions: CHI_POST_PHASE_A_SURVEY });
+  // the actionable fields are still there
+  assert.ok(["W1", "W2", "W3", "none"].includes(d.dominant_weakness));
+  assert.ok("learning_target" in d);
+  // the widened fields the analysis needs
+  assert.ok(d.strengths && typeof d.strengths === "object", "per-axis strengths persisted");
+  for (const w of ["W1", "W2", "W3"]) assert.equal(typeof d.strengths[w], "number", `strengths.${w} is numeric`);
+  assert.ok(d.identifiability && typeof d.identifiability === "object", "per-axis identifiability (Fisher info) persisted");
+  for (const w of ["W1", "W2", "W3"]) assert.equal(typeof d.identifiability[w], "number", `identifiability.${w} is numeric`);
+  assert.equal(typeof d.abstained, "boolean", "abstained flag persisted");
+  assert.ok("spanning_used" in d && "spanning_n" in d, "observable-subspace fields persisted");
+  // an over-picker reads W1
+  assert.equal(d.dominant_weakness, "W1");
+});
+
+test("decisionLogRecord carries the per-decision feedback fields that the Action record persists", () => {
+  const protocol = buildChiStudyProtocol();
+  const cands = [
+    { bundle_ids: ["o1"], earnings: 20, deployed_total_time_seconds: 30, deployed_score: 20 / 30 },
+    { bundle_ids: ["o1", "o2"], earnings: 30, deployed_total_time_seconds: 75, deployed_score: 30 / 75 },
+  ];
+  const fb = feedbackForDecision({ protocol, round: 16, arm: "marginal", chosenBundle: cands[1], legalBundles: cands, diagnosis: null });
+  const rec = decisionLogRecord({ protocol, round: 16, arm: "marginal", chosenBundle: cands[1], oracleBundle: cands[0], candidateSetId: "s16", feedback: fb });
+  for (const k of ["block", "block_kind", "test_set", "feedback_enabled", "violation_label", "best_improving_move", "feedback_text", "deployed_score", "score_ratio", "is_optimal"]) {
+    assert.ok(k in rec, `decisionLogRecord must expose ${k} for the Action log`);
+  }
+  assert.equal(rec.feedback_enabled, true, "round 16 is an ON block");
+  assert.equal(typeof rec.deployed_score, "number");
+});
+
 test("marginal feedback fires only in ON blocks (empty in Phase A and OFF blocks)", () => {
   const protocol = buildChiStudyProtocol();
   // A suboptimal (over-included) chosen bundle so the marginal arm has a move to show.

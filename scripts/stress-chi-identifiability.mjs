@@ -34,7 +34,7 @@ import {
   buildChiScenarioSet, enumerateLegalBundles, scoreBundle,
   CHI_STARTING_CITY, CHI_CITY_TRAVEL,
 } from "../src/lib/chiScenarioDesign.js";
-import { diagnose } from "../src/lib/chiDiagnosis.js";
+import { diagnose, behavioralBias } from "../src/lib/chiDiagnosis.js";
 
 // --------------------------------------------------------------------------- //
 // args                                                                         //
@@ -236,6 +236,94 @@ function run() {
   // ------------------------------------------------------------------------- //
   // Findings — where recovery / abstention DEGRADE.                            //
   // ------------------------------------------------------------------------- //
+  // ------------------------------------------------------------------------- //
+  // PART 3 — V-MISSPECIFICATION (the ICML gate). Does the SIGN of a planted     //
+  // payout (W3) leak survive a WRONG value function, and does abstention stop    //
+  // false coaching of an UNBIASED participant? Pooled vs SPANNING read.          //
+  // ------------------------------------------------------------------------- //
+  const lowNoise = NOISE.find((n) => n.tag === "low");
+  const w3Bias = (sets, spanningRead) => behavioralBias(sets, { spanningRead }).strengths.W3;
+  const SIGN_FLOOR = 0.2; // |earnings-bias| below this = no reliable sign
+  const targetOf = (sets, spanningRead) => diagnose({ choiceSets: sets, surveyResponses: {}, surveyQuestions: [], spanningRead }).learning_target;
+  const coachesW3W1 = (sets, spanningRead) => { const t = targetOf(sets, spanningRead); return t === "W1" || t === "W3"; };
+  console.log("PART 3 — sign-recovery + false-coaching under each misspecified V (noise=low)");
+  console.log("  W3sign = P(earnings-bias sign>0 | planted W3)    FP@none = P(coach W1/W3 | UNBIASED)\n");
+  console.log("  shape          W3sign:pool span    FP@none:pool span");
+  for (const shapeKey of Object.keys(SHAPES)) {
+    const w3 = cohortSets(shapeKey, "W3", lowNoise);
+    const non = cohortSets(shapeKey, "none", lowNoise);
+    const signP = frac(w3, (s) => w3Bias(s, false) > SIGN_FLOOR);
+    const signS = frac(w3, (s) => w3Bias(s, true) > SIGN_FLOOR);
+    const fpP = frac(non, (s) => coachesW3W1(s, false));
+    const fpS = frac(non, (s) => coachesW3W1(s, true));
+    console.log(`  ${shapeKey.padEnd(13)} ${pct(signP)} ${pct(signS)}       ${pct(fpP)} ${pct(fpS)}`);
+  }
+  console.log("");
+
+  // ------------------------------------------------------------------------- //
+  // PART 4 — BOUNDARY: how far can the concave-time misspecification go before   //
+  // the W3 sign dies / false coaching explodes? (rho 1.0 correct -> 0.4 strong.) //
+  // ------------------------------------------------------------------------- //
+  console.log("PART 4 — boundary vs concave-time misspecification (spanning read, noise=low)");
+  console.log("  rho  |1-rho|  W3sign(span)  FP@none(span)   (rho<1 under-penalises time)");
+  const seedR = (rho, typeKey, i) => 41 + i * 13 + Math.round(rho * 1000) * 131 + Object.keys(TYPES).indexOf(typeKey) * 7919;
+  for (const rho of [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4]) {
+    const shape = { form: "ratio", eExp: 1.0, rho, kappa: 1 };
+    const w3 = Array.from({ length: N }, (_, i) => playSets(pool, TYPES.W3, shape, lowNoise, seedR(rho, "W3", i)));
+    const non = Array.from({ length: N }, (_, i) => playSets(pool, TYPES.none, shape, lowNoise, seedR(rho, "none", i)));
+    const sign = frac(w3, (s) => w3Bias(s, true) > SIGN_FLOOR);
+    const fp = frac(non, (s) => coachesW3W1(s, true));
+    console.log(`  ${rho.toFixed(1)}   ${Math.abs(1 - rho).toFixed(1)}     ${pct(sign)}          ${pct(fp)}`);
+  }
+  console.log("");
+
+  // ------------------------------------------------------------------------- //
+  // PART 5 — V-ROBUST read prototype. Re-estimate the earnings bias against a    //
+  // FAMILY of plausible MONOTONE value functions (the analyst's V-uncertainty).  //
+  // The bias is REAL only if its sign is consistent across the family; if it      //
+  // FLIPS across V it is a value-model artifact -> abstain. Compares to the       //
+  // single-V spanning read on W3-coaching (P(target=W3)).                         //
+  // ------------------------------------------------------------------------- //
+  const Dof = (f) => Math.max(0.1, (f.effective_pick_time_seconds || 0) + (f.cross_city_travel_time_seconds || 0) + (f.local_travel_time_seconds || 0) - (f.shared_item_savings_seconds || 0));
+  const mkFamily = (eExps, rhos) => { const fam = []; for (const eExp of eExps) for (const rho of rhos) fam.push((f) => eExp * Math.log(Math.max(1e-6, f.earnings)) - rho * Math.log(Dof(f))); return fam; };
+  // WIDE = broad V-uncertainty (strong concave..strong convex); NARROW = plausible-only (near
+  // the deployed reward). The earnings bias under each family member's oracle.
+  const V_WIDE = mkFamily([0.7, 1.0], [0.6, 0.8, 1.0, 1.2, 1.4]);
+  const V_NARROW = mkFamily([0.85, 1.0], [0.8, 0.9, 1.0, 1.1, 1.2]);
+  const reflagOracle = (sets, V) => sets.map((s) => {
+    const vals = s.alternatives.map((a) => V(a.features));
+    let oi = 0; for (let i = 1; i < vals.length; i += 1) if (vals[i] > vals[oi]) oi = i;
+    return { round: s.round, is_trap: s.is_trap, alternatives: s.alternatives.map((a, i) => ({ ...a, oracle: i === oi })) };
+  });
+  const VR_FLOOR = 0.2;
+  // Coach the earnings axis only if its sign is robustly positive across the family with NO
+  // strong sign-flip (a flip => value-model artifact, not a real leak).
+  const vRobustCoachesW3 = (sets, family) => {
+    const signs = family.map((V) => behavioralBias(reflagOracle(sets, V), { spanningRead: true }).strengths.W3);
+    const pos = signs.filter((s) => s > VR_FLOOR).length;
+    const neg = signs.filter((s) => s < -VR_FLOOR).length;
+    return neg === 0 && pos === family.length;
+  };
+  console.log("PART 5 — V-ROBUST read (abstain when the earnings-bias sign is not robust across a V-family).");
+  console.log("  P(coach W3): single-V spanning vs V-robust over a WIDE vs a NARROW monotone V-family.\n");
+  console.log("  cell                                         single-V    VR-wide   VR-narrow");
+  for (const [label, shapeKey, typeKey, want] of [
+    ["WELL-SPECIFIED ratio, planted W3 (want HIGH)", "ratio", "W3", "high"],
+    ["MISSPEC concaveTime, UNBIASED (want LOW)", "concaveTime", "none", "low"],
+    ["MISSPEC additive,   UNBIASED (want LOW)", "additive", "none", "low"],
+    ["MISSPEC concaveTime, planted W3 (want HIGH)", "concaveTime", "W3", "high"],
+  ]) {
+    const sets = cohortSets(shapeKey, typeKey, lowNoise);
+    const single = frac(sets, (s) => targetOf(s, true) === "W3");
+    const vrW = frac(sets, (s) => vRobustCoachesW3(s, V_WIDE));
+    const vrN = frac(sets, (s) => vRobustCoachesW3(s, V_NARROW));
+    console.log(`  ${label.padEnd(44)} ${pct(single)}       ${pct(vrW)}      ${pct(vrN)}   [${want}]`);
+  }
+  console.log("  => the WIDE family cuts false coaching but also abstains genuine leaks; the NARROW family");
+  console.log("     keeps recovery but no longer discriminates — payout-overweight is CONFOUNDED with");
+  console.log("     time-value-concavity. No V-family read achieves both: identifiable only for near-correct V.");
+  console.log("");
+
   const C = (shape, noise, k) => cells[shape][noise][k];
   console.log("FINDINGS (where the identifiability hook degrades):");
   console.log(`  pooling:   under CORRECT V (ratio) + CLEAN choices, the naive pool recovers W3 only ${pct(C("ratio", "clean", "W3rec"))},`);

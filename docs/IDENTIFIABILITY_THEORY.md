@@ -171,6 +171,39 @@ principled information-weighted read is the cleanest closure.
   all. That is the marginal-arm pilot's job (`docs/PREREGISTRATION_DYNAMIC.md`), and it is
   the only thing that turns this theorem about a simulated learner into a claim about humans.
 
+## 8. Identifiability is V-relative (the boundary of the claim)
+
+The observability result is stated *relative to the deployed value function* `V = earnings /
+time`: the oracle direction `β*`, against which the bias is read, is `V`'s. If the
+participant's true value `Ṽ` differs from `V`, an *unbiased* participant (faithfully
+maximising `Ṽ`) already deviates from `β*`, and that deviation is read as a bias. The stress
+test (`stress-chi-identifiability.mjs` Parts 3–5) bounds this precisely:
+
+- **The cost-axis identification is robust; the value/payout axis is not.** Whether a leak is
+  on `pick`, `cross`, or `local` is read against `V`'s cost structure and survives moderate
+  misspecification. But the **payout (W3) axis is confounded with the curvature of `V` in
+  time**: under-penalising time (a concave `Ṽ`) and over-weighting earnings both produce
+  "prefers the high-pay slow bundle." The traps decouple `earnings` from each *cost axis* but
+  not from the *time-curvature* of `Ṽ`, so on the trap subspace an unbiased-under-concave-`Ṽ`
+  participant is observationally a payout-overweighter.
+- **What survives vs what does not.** The *sign* of a genuine payout leak survives a wrong `Ṽ`
+  (≥98% even at strong concavity). What does not survive is the *false-positive rate*: coaching
+  an unbiased participant as payout-biased rises with the misspecification magnitude (≈48% at
+  the correct `V` to ≈97% at a strongly concave `Ṽ`).
+- **No V-robust read escapes the confound.** Re-estimating against a family of monotone `Ṽ`
+  and abstaining on a sign-flip either over-abstains (a wide family kills genuine recovery
+  ~79%→~13%) or fails to discriminate (a narrow plausible family keeps recovery but leaves
+  FP ~89–97%). Separating payout-overweight from time-value-curvature would require menus that
+  vary earnings and time *independently of each other's curvature* — a design the current
+  traps do not provide.
+
+**Honest framing for the venue.** The theorem identifies *which cost axis* is misweighted
+under the deployed reward, observably and with a sample-complexity bound. The payout/value
+axis is identifiable only when the participant's value function is approximately the deployed
+one; under a materially wrong value model the payout read is not separable from value
+curvature, and abstention trades recovery for safety rather than resolving it. Do not state
+the identifiability result without this qualifier.
+
 ## Reproduce
 
     node scripts/demo-observability.mjs          # the three claims, numerically

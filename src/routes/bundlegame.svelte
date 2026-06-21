@@ -878,15 +878,11 @@
             percentRegret: success ? outcomeMetrics.percentRegret : null,
             isExactOptimal: success ? outcomeMetrics.isExactOptimal : 0,
             isNearOptimal: success ? outcomeMetrics.isNearOptimal : 0,
-            // CHI decision log (W4): empty/none outside Phase B ON blocks. Score from
-            // chiStudyRuntime.roundScore (modeled deployed time) via decisionLogRecord.
-            block: chiDecision.block,
-            test_set: chiDecision.test_set,
-            violation_label: chiDecision.violation_label,
-            best_improving_move: chiDecision.best_improving_move,
-            feedback_text: chiDecision.feedback_text,
-            chi_deployed_score: chiDecision.deployed_score,
-            chi_score_ratio: chiDecision.score_ratio
+            // CHI decision log (W4): empty/none outside Phase B ON blocks. The full
+            // decisionLogRecord (block/block_kind/test_set, feedback_enabled, violation_label,
+            // best_improving_move, feedback_text, deployed_score/score_ratio/is_optimal from
+            // chiStudyRuntime.roundScore) is persisted into the Action record by saveScenarioProgress.
+            chiDecisionLog: chiDecision
         });
 
         if (success && !completedGame) currentRound.update(r => r + 1);
