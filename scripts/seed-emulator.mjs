@@ -55,6 +55,12 @@ if (!/^(127\.0\.0\.1|localhost|0\.0\.0\.0|::1)$/.test(HOST)) {
 // (loadResearchRuntime fallback), and a ResearchProtocols collection entry.
 function buildMasterData(root) {
   const protocol = buildChiStudyProtocol();
+  // Force the MARGINAL pilot arm: restrict policy_arms to marginal only, so assignStudyArm
+  // (stable-hash over the weighted arms) returns marginal for EVERY participant and the
+  // counterfactual feedback renders in the ON blocks. This is the legitimate marginal-pilot
+  // configuration ("pilot = marginal only"), not a test hack.
+  const marginalArms = protocol.policy_arms.filter((a) => a.id === "marginal");
+  protocol.policy_arms = marginalArms.length ? marginalArms : protocol.policy_arms;
   const protocolEntry = {
     ...protocol,
     dataset_root: root,
@@ -62,11 +68,22 @@ function buildMasterData(root) {
     updated_at: new Date().toISOString(),
   };
   const centralConfig = {
-    game: { timeLimit: 1200, thinkTime: 0, gridSize: 3, auth: false, ordersShown: 4, roundTimeLimit: 600, penaltyTimeout: 0, tips: false, waiting: false, refresh: false, expire: false },
+    // auth:true so needsAuth gates ON the participant persistence (saveRoundSummaryAction +
+    // the CHI saves require needsAuth + a real id). The driver authenticates with
+    // generateAuthToken(id), which authenticateUser validates (Auth/<token> doc).
+    game: { timeLimit: 1200, thinkTime: 0, gridSize: 3, auth: true, ordersShown: 4, roundTimeLimit: 600, penaltyTimeout: 0, tips: false, waiting: false, refresh: false, expire: false },
     scenario_set: root,
     research_protocol: protocol,
   };
-  const stores = [...CHI_AB_STORES, ...CHI_C_STORES].map((s, i) => ({ store: s.store, city: s.city, id: `store_${i}`, locations: [] }));
+  // Each store needs a pickable aisle grid: an Entrance + the default item cells (orders with
+  // empty items get {Apple:1, Banana:2} from home.svelte). Firestore can't nest arrays, so each
+  // grid row is encoded {cells:[...]} (getStoresData.decodeStore reverses it). Small cellDistance
+  // keeps the aisle-travel countdown fast for the headless drive.
+  const STORE_GRID = [{ cells: ["Entrance", "Apple", "Banana"] }];
+  const stores = [...CHI_AB_STORES, ...CHI_C_STORES].map((s, i) => ({
+    store: s.store, city: s.city, id: `store_${i}`,
+    Entrance: [0, 0], cellDistance: 30, locations: STORE_GRID,
+  }));
   const cities = { startinglocation: CHI_STARTING_CITY, travelTimes: CHI_CITY_TRAVEL };
   return { protocol, protocolEntry, centralConfig, stores, cities };
 }
@@ -105,8 +122,8 @@ async function main() {
       await db.doc("MasterData/cities").set(md.cities, { merge: true });
       await db.doc("MasterData/emojis").set({ emojis: {} }, { merge: true });
       await db.doc(`ResearchProtocols/${md.protocol.protocol_id}`).set(md.protocolEntry, { merge: true });
-      console.log(`  WROTE (--full) centralConfig(scenario_set=${root}, auth=false), ${md.stores.length} stores, cities(${Object.keys(md.cities.travelTimes).length}), emojis, ResearchProtocols/${md.protocol.protocol_id}`);
-      console.log(`  protocol: ${md.protocol.protocol_version} / ${md.protocol.expected_total_rounds} rounds, enabled=${md.protocol.enabled}, arms=[${(md.protocol.arms || []).map((a) => a.id).join(",")}]`);
+      console.log(`  WROTE (--full) centralConfig(scenario_set=${root}, auth=true), ${md.stores.length} stores, cities(${Object.keys(md.cities.travelTimes).length}), emojis, ResearchProtocols/${md.protocol.protocol_id}`);
+      console.log(`  protocol: ${md.protocol.protocol_version} / ${md.protocol.expected_total_rounds} rounds, enabled=${md.protocol.enabled}, policy_arms=[${(md.protocol.policy_arms || []).map((a) => a.id).join(",")}]`);
     }
     console.log("\nNext: run the dev app with VITE_USE_FIREBASE_EMULATOR=true and play the real game.");
     if (!md) console.log("      (use --full to also seed centralConfig/protocol/stores/cities so the production game boots.)\n");

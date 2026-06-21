@@ -110,9 +110,22 @@ VITE_USE_FIREBASE_EMULATOR=true npm run dev
 ```
 
 `seed-emulator.mjs --full` additionally seeds `MasterData/centralConfig`
-(`scenario_set=chi_dynamic_v1`, `auth=false`, game settings), the 35-round CHI
-`research_protocol` (embedded three ways: central config, dataset `metadata.researchStudy`,
-and a `ResearchProtocols` entry), plus `store`/`cities`/`emojis`.
+(`scenario_set=chi_dynamic_v1`, **`auth=true`** so participant persistence is enabled, game
+settings), the 35-round CHI `research_protocol` with **`policy_arms` restricted to `marginal`**
+(the marginal-pilot config, so every participant is assigned the feedback arm — embedded three
+ways: central config, dataset `metadata.researchStudy`, and a `ResearchProtocols` entry), plus
+`cities`/`emojis` and **`store` docs with a pickable aisle grid** (`locations: [{cells:
+["Entrance","Apple","Banana"]}]`, small `cellDistance`) — orders with empty items get the
+default `{Apple:1, Banana:2}` from `home.svelte`, so the store must contain those item cells or
+picking cannot complete.
+
+**Authenticated drive.** With `auth=true`, enter via the User ID + Token form: the token is
+`generateAuthToken(id)` (`src/lib/authToken.js`), which `authenticateUser` validates and then
+creates the `Auth/<token>` doc — no Firebase-Auth user needed. The driver
+(`scripts/drive-emulator-game.mjs <id> <bias>`) authenticates, plays 35 rounds (select per
+bias → confirm → grid-pick Apple/Banana → checkout → deliver), answers the r15 survey at the
+midpoint (so `diagnosis_history` reflects BEHAVIOUR + the live spanning estimator), and
+`scripts/readback-emulator.mjs <id>` dumps the persisted records.
 
 **Namespace gotcha.** The Firestore emulator keys data by projectId even with
 `singleProjectMode`. The browser app uses `VITE_FIREBASE_PROJECT_ID` from `.env`; the seeder
@@ -134,12 +147,47 @@ defaults to `demo-bundlegame`. If they differ, the app reads an empty namespace
    validator still encode the old design. A clean production deployment should decide whether
    to make the CHI 35-round protocol canonical or keep the skip-flag path. (Not changed here:
    it is a study-definition decision with blast radius across analysis + tests.)
-3. **Persistence requires an authenticated participant.** The no-auth entry
-   (`startNoAuth`) sets no participant id, so arm assignment is "unassigned · control" (no
-   feedback renders) and `saveChiDiagnosis`/`saveChiPhaseASurvey` skip Firestore (empty id) —
-   a 35-round no-auth play persisted **0** docs. Verifying live persistence of
-   `phase_a_survey` / `diagnosis_history` / per-decision logs needs the authenticated
-   participant flow (an auth-emulator user + an `Auth/<token>` doc) and a non-control arm.
+3. **RESOLVED — persistence requires an authenticated participant.** The no-auth entry
+   (`startNoAuth`) sets no participant id, so persistence is gated off (`saveRoundSummaryAction`
+   needs `needsAuth` + id; the CHI saves skip on empty id). With `auth=true` + the
+   `generateAuthToken` entry above, a full 35-round authenticated play persists correctly.
+
+### Live algorithm verification (authenticated 35-round walkthroughs)
+
+Four scripted participants (survey answered neutrally, so the read is behavioural) played the
+real game to completion; `readback-emulator.mjs` confirmed persistence at
+`Users/<id>/Summary/summary → summaryByScenarioSetVersionId.chi_dynamic_v1.researchStudy`
+(`phase_a_survey`, `diagnosis_history`) and 35 `Users/<id>/Actions/*` round docs (each with
+`round_index`, `scenario_id`, `phase` A/B, `policy_arm=marginal`, `chosen_orders`, `earnings`,
+`exact_optimal`/`near_optimal`). The diagnosis fired at r15/r25/r35 every time; the
+`diagnosis_history` progression:
+
+| participant (planted) | r15 | r25 | r35 |
+|---|---|---|---|
+| pick-neglecter | W1 | W1 | W1 |
+| **payout-chaser (takes H)** | **W3** | **W3** | none |
+| payout-chaser (over-bundles for $) | W1 | W1 | W1 |
+| MIX (scripted, keeps over-bundling) | W1 | W1 | W1 |
+
+This is the **Task-1 spanning estimator verified live in production**: an H-taking
+payout-overweighter is recovered as **W3 from behaviour** (the case the pooled read misdiagnosed
+W1). The planting-sensitivity is real and expected: over-bundling *for earnings* is
+observationally pick-neglect, so it reads W1; MIX only re-targets to W3 if the participant
+actually corrects picking under coaching, which the scripted driver does not.
+
+### Two further production-path findings (logging, not blocking)
+
+4. **The persisted diagnosis record is trimmed.** `runDiagnosis` (chiStudyRuntime) persists only
+   `{trigger, round, dominant_weakness, dominant_label, learning_target, residual, confidence,
+   n_rounds}` — it drops `strengths`, `identifiability`, `abstained`, and `spanning_used`.
+   `abstained` is inferrable (`learning_target === "none"`), but the per-axis strengths and the
+   observability flag are not captured for analysis. Consider widening the persisted record.
+5. **The CHI counterfactual feedback is display-only.** `updateChiStudyFeedback` sets the
+   `chiFeedback` store (→ `ChiFeedbackPanel`), correctly gated to Phase B ON blocks for the
+   marginal arm using the latest diagnosis, but does NOT persist what was shown. The round
+   Action log carries only the legacy `recommendation_source` (= `oracle_fallback`, with empty
+   `shown_recommendation_bundle_ids`) across Phase B — so the actual `feedback_text` /
+   `violation_label` / `best_improving_move` shown to participants is not logged to Firestore.
 
 ## Going to staging / production (track A — your trigger)
 
