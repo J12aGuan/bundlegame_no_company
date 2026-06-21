@@ -59,6 +59,71 @@ export function marginalVectorsForMenu(menu, axes = SPAN_AXES) {
 }
 
 /**
+ * Spectrum of the Gram (observability/Fisher) matrix G = R^T R of a linear observation
+ * map whose rows are the observation vectors `rows` (each an equal-length numeric array).
+ * Returns the eigenvalues (descending), lambda_min / lambda_max, condition number, and
+ * rank (eigenvalues above a relative tol). This is the central object of the
+ * identifiability theorem: a latent state restricted to these coordinates is OBSERVABLE
+ * (locally identifiable) iff lambda_min(G) > 0, and the sample complexity to estimate it
+ * scales with 1 / lambda_min. A rank-deficient G (lambda_min = 0) means an entire
+ * null-space of states is indistinguishable from the data — unobservable.
+ */
+export function gramSpectrum(rows, { relTol = 1e-9 } = {}) {
+  const k = rows[0]?.length || 0;
+  if (!k || rows.length === 0) {
+    return { k, n_rows: rows.length, eigenvalues: [], lambda_min: 0, lambda_max: 0, condition: Infinity, rank: 0, matrix: [] };
+  }
+  const gram = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) =>
+    rows.reduce((s, r) => s + (Number(r[i]) || 0) * (Number(r[j]) || 0), 0)));
+  const eig = symmetricEigenvalues(gram).map((e) => Math.max(0, e));
+  const lambda_max = eig[0] || 0;
+  const lambda_min = eig[eig.length - 1] || 0;
+  const tol = relTol * (lambda_max || 1);
+  const rank = eig.filter((e) => e > tol).length;
+  const condition = lambda_min > tol ? lambda_max / lambda_min : Infinity;
+  return { k, n_rows: rows.length, eigenvalues: eig, lambda_min, lambda_max, condition, rank, matrix: gram };
+}
+
+/**
+ * Observability Gramian of the CHOICE-MARGINAL observation map for a set of menus over
+ * `axes`. Each row is a candidate-minus-optimal marginal vector (the per-attribute
+ * counterfactual signal); the Gram spectrum says whether the bias on those axes is
+ * observable. With `projectOnto` (a direction in axis-space, e.g. the reward/value
+ * direction), each row is replaced by its rank-1 projection onto that single direction —
+ * the SCALAR / regret channel, which observes only the aggregate value gap and is
+ * therefore rank-1 (lambda_min = 0 over >= 2 axes: the per-axis bias is unobservable).
+ * Columns are scaled to unit standard deviation by default so the spectrum reflects
+ * collinearity, not feature units (the projection is applied AFTER scaling, in the same
+ * space, so the scalar-vs-counterfactual contrast is apples-to-apples).
+ */
+export function observabilityGramian(menus, { axes = SPAN_AXES, projectOnto = null, standardize = true, relTol = 1e-9 } = {}) {
+  let rows = [];
+  for (const m of menus) for (const v of marginalVectorsForMenu(m, axes)) rows.push(v);
+  const k = axes.length;
+  if (rows.length === 0) return { ...gramSpectrum([], { relTol }), n_vectors: 0, channel: projectOnto ? "scalar" : "counterfactual" };
+  if (standardize) {
+    const std = axes.map((_, j) => {
+      const mean = rows.reduce((s, r) => s + r[j], 0) / rows.length;
+      const v = rows.reduce((s, r) => s + (r[j] - mean) ** 2, 0) / rows.length;
+      return Math.sqrt(v) || 1;
+    });
+    rows = rows.map((r) => r.map((x, j) => x / std[j]));
+  }
+  if (projectOnto) {
+    // Scalar channel: observe only <row, u> along the single direction u (rank-1 map).
+    const u = projectOnto.slice(0, k);
+    const un = Math.sqrt(u.reduce((s, x) => s + x * x, 0)) || 1;
+    const uhat = u.map((x) => x / un);
+    rows = rows.map((r) => {
+      const proj = r.reduce((s, x, j) => s + x * uhat[j], 0);
+      return uhat.map((x) => proj * x);
+    });
+  }
+  const spec = gramSpectrum(rows, { relTol });
+  return { ...spec, n_vectors: rows.length, channel: projectOnto ? "scalar" : "counterfactual" };
+}
+
+/**
  * Span diagnostics for a set of menus over `axes`: the standardized marginal-vector
  * matrix's rank (count of singular values above a relative tol) and condition number.
  * rank === axes.length means the block jointly identifies every axis.
