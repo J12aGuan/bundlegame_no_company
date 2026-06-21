@@ -2373,7 +2373,14 @@ export async function loadGame(mode = 'main') {
 		activeScenarioSetVersionId = String(datasetBundle?.metadata?.scenarioSetVersionId || '').trim();
 		scenarioSetVersionId.set(activeScenarioSetVersionId);
 		const researchRuntime = await loadResearchRuntime(datasetBundle || {});
-		if (mode !== 'tutorial') {
+		// Honor the dataset's skip_protocol_validation flag here, consistently with the WRITE
+		// path (firebaseDB.shouldValidateResearchScenarioDataset). The canonical snapshot
+		// validation is pinned to the 50-round A/B/C design; a dataset that opts out (the CHI
+		// dynamic 35-round study, which carries its own validator) must still load. Without this,
+		// loadGame rejected any non-canonical protocol — a production-path failure /chi-play-dev
+		// cannot surface because it never calls loadGame.
+		const skipProtocolValidation = datasetBundle?.metadata?.skip_protocol_validation === true;
+		if (mode !== 'tutorial' && !skipProtocolValidation) {
 			assertValidResearchProtocolSnapshot({
 				centralConfig: {
 					scenario_set: datasetId,

@@ -91,6 +91,56 @@ What this proves: the browser wiring (reactive diagnosis triggers, Firestore per
 feedback gating) works against real Firestore semantics. It is NOT efficacy evidence — that
 is the human pilot (`docs/PREREGISTRATION_DYNAMIC.md`).
 
+## Verified procedure (2026-06-21) and what it caught
+
+The boot path was driven end to end against the emulator (msedge headless via
+`playwright-core`). The reproducible steps:
+
+```
+# 1. emulator with permissive local rules (never used for deploy)
+./node_modules/.bin/firebase emulators:start --only firestore,auth \
+    --config firebase.emulator.json --project demo-bundlegame
+
+# 2. seed the CHI dataset + the minimal masterdata the production game boots on,
+#    UNDER THE APP'S projectId namespace (see the gotcha below)
+node scripts/seed-emulator.mjs --full --project=<VITE_FIREBASE_PROJECT_ID>
+
+# 3. run the app in emulator mode and open the production route '/'
+VITE_USE_FIREBASE_EMULATOR=true npm run dev
+```
+
+`seed-emulator.mjs --full` additionally seeds `MasterData/centralConfig`
+(`scenario_set=chi_dynamic_v1`, `auth=false`, game settings), the 35-round CHI
+`research_protocol` (embedded three ways: central config, dataset `metadata.researchStudy`,
+and a `ResearchProtocols` entry), plus `store`/`cities`/`emojis`.
+
+**Namespace gotcha.** The Firestore emulator keys data by projectId even with
+`singleProjectMode`. The browser app uses `VITE_FIREBASE_PROJECT_ID` from `.env`; the seeder
+defaults to `demo-bundlegame`. If they differ, the app reads an empty namespace
+("Central config not found", 0 scenarios). Seed with `--project=<the app's projectId>`.
+
+### Production-path gaps this caught (the dev harness `/chi-play-dev` cannot)
+
+1. **FIXED — `loadGame` rejected the CHI study.** The production game-load path
+   (`bundle.js`) called `assertValidResearchProtocolSnapshot` unconditionally; that validator
+   is pinned to the canonical 50-round A/B/C design (`bundlegame_abc_50_round_v1`) and threw
+   on the 35-round CHI protocol ("must contain 50 scenarios … missing round 36…50"). The fix
+   honors the dataset's `skip_protocol_validation` flag here, consistently with the WRITE path
+   (`firebaseDB.shouldValidateResearchScenarioDataset`). After the fix the real game boots to
+   "Round 1 / 35, Phase A" with the CHI orders. `/chi-play-dev` never calls `loadGame`, so it
+   could not surface this.
+2. **Canonical protocol still pinned to 50-round A/B/C.** The skip flag lets the CHI dataset
+   through, but `BUNDLEGAME_STUDY_PROTOCOL_VERSION` / `…_TOTAL_ROUNDS` and the snapshot
+   validator still encode the old design. A clean production deployment should decide whether
+   to make the CHI 35-round protocol canonical or keep the skip-flag path. (Not changed here:
+   it is a study-definition decision with blast radius across analysis + tests.)
+3. **Persistence requires an authenticated participant.** The no-auth entry
+   (`startNoAuth`) sets no participant id, so arm assignment is "unassigned · control" (no
+   feedback renders) and `saveChiDiagnosis`/`saveChiPhaseASurvey` skip Firestore (empty id) —
+   a 35-round no-auth play persisted **0** docs. Verifying live persistence of
+   `phase_a_survey` / `diagnosis_history` / per-decision logs needs the authenticated
+   participant flow (an auth-emulator user + an `Auth/<token>` doc) and a non-control arm.
+
 ## Going to staging / production (track A — your trigger)
 
 Same dataset, real project: seed via the project's writer path (not `seed-emulator.mjs`,
