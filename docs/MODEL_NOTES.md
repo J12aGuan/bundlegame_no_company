@@ -74,13 +74,38 @@ So the deployed menus **span** the earnings × {each cost axis} subspace: the
 identifiability theorem's menu-span condition holds numerically, not by assertion.
 Tested in `tests/js/chi-menu-span.test.mjs`.
 
-**Limit / open item.** This shows the *menus* are adequate under the deployed scorer.
-It does not yet stress the theorem under (a) measurement noise on the choice data and
-(b) a **misspecified aggregation V** (the participant's true value function differing
-from `earnings / time`). Those are the conditions under which the identifiability hook
-is load-bearing; pressure-testing them (and reporting where recovery degrades) is an
-open analysis item before committing the ICML framing. The human pilot is the real test
-of whether people carry separable leaks at all.
+**Stress test (`scripts/stress-chi-identifiability.mjs`, C1).** The span result above is
+under near-argmax choices and the correct scorer. The stress test pressure-tests the two
+conditions that span check does NOT cover — (a) **measurement noise** (finite logit
+temperature + a uniform lapse rate) and (b) a **misspecified aggregation V** (the
+participant's true value differs from `earnings / time`: convex/concave time, diminishing
+returns on pay, or a non-ratio additive utility) — and reports where recovery degrades.
+Findings (`node scripts/stress-chi-identifiability.mjs`, design-adequacy on planted biases,
+NOT human evidence):
+
+- **Identifiability is subspace-dependent — the headline.** At the clean + correctly
+  specified corner the *naive pooled* estimator recovers a planted payout leak (W3) only
+  ~40%, but restricting the read to the **spanning (payout-trap) subspace** recovers ~90%.
+  The non-trap picking-stress menus inject a W1 confound (taking the high-pay slow bundle
+  also over-bundles) and can even flip the earnings bias negative, so a uniform pool *loses*
+  W3. The leak is still **observable where the menus span** (positive earnings strength,
+  non-zero Fisher information): the loss is an **estimator/pooling** artifact, not
+  unobservability. This is the empirical hook for the C2 observability formalisation (read
+  the latent bias on the information-bearing subspace) and is the concrete form of the
+  "picking-menu re-confound."
+- **Noise** degrades trap-subspace W3 recovery ~90% → ~38% (clean → severe) and W1 recovery
+  100% → ~76%. **Caveat for the C2 bound:** the *empirical* per-axis Fisher info RISES under
+  noise (the Hessian inflates as the fitted weights shrink and choice probabilities flatten
+  toward uniform), so the raw Hessian-diagonal proxy is **non-monotone** with recoverability
+  — a sample-complexity bound must use information at a calibrated operating point (or
+  hold-out recovery), not the inflated empirical Hessian.
+- **Misspecification** is the worst case for *safety*: a non-ratio **additive** aggregation
+  (or a strongly **concave-time** one) makes an *unbiased* participant's choices genuinely
+  differ from the ratio oracle, so the diagnosis coaches them as biased up to ~88% of the
+  time — a false positive the abstention gate cannot catch because the apparent leak is real
+  relative to the deployed reward.
+
+The human pilot is the real test of whether people carry separable leaks at all.
 
 ## 3. The learning index as a proxy for v11's G_ik (P4)
 
