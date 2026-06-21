@@ -178,11 +178,52 @@ function direction(beta) {
 }
 
 // --------------------------------------------------------------------------- //
-// Behavioral bias = direction(participant) - direction(oracle).                //
+// Spanning-subspace (observability) restriction — the C2 estimator fix.         //
+// The pooled read pools picking-stress menus where the highest-PAYING bundle is  //
+// also the most pick-COSTLY (the over-bundle), so a payout-overweighter's choice  //
+// is observationally identical to a pick-neglecter's: earnings is collinear with  //
+// pick and the W3 leak is mis-read as W1 (see docs/IDENTIFIABILITY_THEORY.md §6   //
+// and scripts/demo-observability.mjs). A menu IDENTIFIES the earnings axis (spans  //
+// earnings x pick) exactly when its highest-paying candidate is NOT its most       //
+// pick-costly one — true on the payout traps (the high-pay bundle is a fast        //
+// singleton), false on the picking-stress over-bundle menus. Reading the bias on   //
+// the identifying subset recovers a payout leak as W3 from BEHAVIOR alone.        //
+const PICK_FEATURE = "effective_pick_time_seconds";
+function medianOf(xs) {
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+export function menuIdentifiesEarnings(alternatives = []) {
+  if (!Array.isArray(alternatives) || alternatives.length < 2) return false;
+  const picks = alternatives.map((a) => Number(a.features?.[PICK_FEATURE]) || 0);
+  let eMax = -Infinity, eIdx = 0;
+  alternatives.forEach((a, i) => { const e = Number(a.features?.earnings) || 0; if (e > eMax) { eMax = e; eIdx = i; } });
+  // Earnings is identified (decoupled from pick) when the highest-PAYING option is NOT among
+  // the high-PICK options — its pick is at or below the menu median. On a payout trap the
+  // top-payer is a fast singleton (low pick); on a picking-stress over-bundle menu the
+  // top-payer is the most pick-costly (above median, so earnings is confounded with pick).
+  // Constant pick (no over-bundle confound) is trivially identifying (pick == median).
+  return picks[eIdx] <= medianOf(picks) + 1e-9;
+}
+
 // --------------------------------------------------------------------------- //
-export function behavioralBias(choiceSets, { ridge = DEFAULT_RIDGE, cols = FEATURE_COLUMNS, currentRound = null, recencyHalfLife = Infinity } = {}) {
-  const chosenSets = toMatrixSets(choiceSets, "chosen", cols);
-  const oracleSets = toMatrixSets(choiceSets, "oracle", cols);
+// Behavioral bias = direction(participant) - direction(oracle).                //
+// With `spanningRead`, the fit is restricted to the earnings-identifying        //
+// (observable) menus when enough exist, so a payout leak is not confounded with  //
+// picking; otherwise it falls back to the full pool (back-compat / small n).     //
+// --------------------------------------------------------------------------- //
+export function behavioralBias(choiceSets, { ridge = DEFAULT_RIDGE, cols = FEATURE_COLUMNS, currentRound = null, recencyHalfLife = Infinity, spanningRead = false, minSpanning = DEFAULT_MIN_ROUNDS } = {}) {
+  let usedSets = choiceSets;
+  let spanning_n = null;
+  let spanning_used = false;
+  if (spanningRead && Array.isArray(choiceSets)) {
+    const identifying = choiceSets.filter((cs) => menuIdentifiesEarnings(cs?.alternatives));
+    spanning_n = identifying.length;
+    if (identifying.length >= minSpanning) { usedSets = identifying; spanning_used = true; }
+  }
+  const chosenSets = toMatrixSets(usedSets, "chosen", cols);
+  const oracleSets = toMatrixSets(usedSets, "oracle", cols);
   applyRecencyWeights(chosenSets, currentRound, recencyHalfLife);
   applyRecencyWeights(oracleSets, currentRound, recencyHalfLife);
   const k = cols.length;
@@ -199,7 +240,7 @@ export function behavioralBias(choiceSets, { ridge = DEFAULT_RIDGE, cols = FEATU
     strengths[w] = bias[feat] ?? 0;
     identifiability[w] = fitW.info[cols.indexOf(feat)] ?? 0;
   }
-  return { bias, strengths, identifiability, n_rounds: chosenSets.length };
+  return { bias, strengths, identifiability, n_rounds: chosenSets.length, spanning_n, spanning_used };
 }
 
 // --------------------------------------------------------------------------- //
@@ -306,8 +347,11 @@ export function diagnose({
   minRounds = DEFAULT_MIN_ROUNDS,
   currentRound = null,
   recencyHalfLife = Infinity,
+  spanningRead = true,
 } = {}) {
-  const behavioral = behavioralBias(choiceSets, { ridge, currentRound, recencyHalfLife });
+  // Read the bias on the earnings-identifying (observable) subspace so a payout leak is
+  // recovered as W3 from behavior rather than confounded with picking (C2 estimator fix).
+  const behavioral = behavioralBias(choiceSets, { ridge, currentRound, recencyHalfLife, spanningRead });
   const { prior, confidence: surveyConfidence } = surveyPrior(surveyResponses, surveyQuestions);
 
   if (behavioral.n_rounds < minRounds) {
@@ -369,6 +413,10 @@ export function diagnose({
     confidence: fused.confidence,
     survey_confidence: surveyConfidence,
     n_rounds: behavioral.n_rounds,
+    // Observability transparency: how many menus identified the earnings axis and whether
+    // the read was restricted to that spanning subspace (vs the full pool).
+    spanning_n: behavioral.spanning_n,
+    spanning_used: behavioral.spanning_used,
     from_survey_only: false,
   };
 }
