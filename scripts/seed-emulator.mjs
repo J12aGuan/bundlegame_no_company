@@ -19,7 +19,10 @@
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { buildChiSeedPayload, buildSeededEntry, rehydrateScenariosFromEntry } from "../src/lib/chiSeed.js";
-import { validateChiScenarioSet } from "../src/lib/chiScenarioDesign.js";
+import { validateChiScenarioSet, CHI_CITY_TRAVEL, CHI_STARTING_CITY, CHI_AB_STORES, CHI_C_STORES } from "../src/lib/chiScenarioDesign.js";
+import { buildChiStudyProtocol } from "../src/lib/researchStudy.js";
+
+const FULL = process.argv.slice(2).includes("--full");
 
 const arg = (name, dflt) => {
   const hit = process.argv.slice(2).find((a) => a.startsWith(`--${name}=`));
@@ -46,12 +49,36 @@ if (!/^(127\.0\.0\.1|localhost|0\.0\.0\.0|::1)$/.test(HOST)) {
   process.exit(2);
 }
 
+// Minimal masterdata the production +page.svelte boots on (only seeded with --full). The
+// CHI protocol is 35-round; the protocol is embedded three ways so whichever path the app
+// resolves it from finds it: central config research_protocol, the dataset metadata
+// (loadResearchRuntime fallback), and a ResearchProtocols collection entry.
+function buildMasterData(root) {
+  const protocol = buildChiStudyProtocol();
+  const protocolEntry = {
+    ...protocol,
+    dataset_root: root,
+    scenario_set_version_id: root,
+    updated_at: new Date().toISOString(),
+  };
+  const centralConfig = {
+    game: { timeLimit: 1200, thinkTime: 0, gridSize: 3, auth: false, ordersShown: 4, roundTimeLimit: 600, penaltyTimeout: 0, tips: false, waiting: false, refresh: false, expire: false },
+    scenario_set: root,
+    research_protocol: protocol,
+  };
+  const stores = [...CHI_AB_STORES, ...CHI_C_STORES].map((s, i) => ({ store: s.store, city: s.city, id: `store_${i}`, locations: [] }));
+  const cities = { startinglocation: CHI_STARTING_CITY, travelTimes: CHI_CITY_TRAVEL };
+  return { protocol, protocolEntry, centralConfig, stores, cities };
+}
+
 async function main() {
   const payload = buildChiSeedPayload({});
   payload.versionId = VERSION;
 
   // Validate in-memory AND after a rehydrate round-trip (same as the dry-run seeder).
   const entry = buildSeededEntry(payload);
+  const md = FULL ? buildMasterData(resolveDatasetRoot(VERSION)) : null;
+  if (md) entry.metadata = { ...(entry.metadata || {}), researchStudy: md.protocol }; // loadResearchRuntime fallback
   const vIn = validateChiScenarioSet({ scenarios: payload.scenarios });
   const vOut = validateChiScenarioSet({ scenarios: rehydrateScenariosFromEntry(entry) });
   console.log(`\nCHI emulator seed — version '${VERSION}'  (Firestore emulator ${HOST}:${PORT}, project '${PROJECT_ID}')`);
@@ -72,8 +99,17 @@ async function main() {
       throw new Error("read-back mismatch (is the emulator running and the port correct?)");
     }
     console.log(`  WROTE MasterData/datasets -> datasets.${root} (${back.scenarios.length} scenarios, ${back.orders?.length ?? 0} orders).`);
-    console.log("\nNext: in the running dev app (VITE_USE_FIREBASE_EMULATOR=true), set central config scenario_set");
-    console.log(`      to '${VERSION}', then play the real game. The default scenario_set is NOT changed here.\n`);
+    if (md) {
+      await db.doc("MasterData/centralConfig").set(md.centralConfig, { merge: true });
+      await db.doc("MasterData/store").set({ stores: md.stores }, { merge: true });
+      await db.doc("MasterData/cities").set(md.cities, { merge: true });
+      await db.doc("MasterData/emojis").set({ emojis: {} }, { merge: true });
+      await db.doc(`ResearchProtocols/${md.protocol.protocol_id}`).set(md.protocolEntry, { merge: true });
+      console.log(`  WROTE (--full) centralConfig(scenario_set=${root}, auth=false), ${md.stores.length} stores, cities(${Object.keys(md.cities.travelTimes).length}), emojis, ResearchProtocols/${md.protocol.protocol_id}`);
+      console.log(`  protocol: ${md.protocol.protocol_version} / ${md.protocol.expected_total_rounds} rounds, enabled=${md.protocol.enabled}, arms=[${(md.protocol.arms || []).map((a) => a.id).join(",")}]`);
+    }
+    console.log("\nNext: run the dev app with VITE_USE_FIREBASE_EMULATOR=true and play the real game.");
+    if (!md) console.log("      (use --full to also seed centralConfig/protocol/stores/cities so the production game boots.)\n");
   } catch (err) {
     console.error("\nSEED FAILED:", err?.message || err);
     console.error("Start the emulator first:  firebase emulators:start   (see docs/EMULATOR_SMOKE.md)\n");
