@@ -105,6 +105,32 @@ NOT human evidence):
   time — a false positive the abstention gate cannot catch because the apparent leak is real
   relative to the deployed reward.
 
+**Identifiability is V-relative (the ICML gate, `stress-chi-identifiability.mjs` Parts 3–5).**
+Pressing the misspecification further (the spanning estimator + abstention evaluated under
+each wrong `V`, then a boundary sweep, then a V-robust prototype) gives an honest, sharply
+bounded result:
+
+- **The SIGN of a genuine payout leak survives.** A planted W3 over-weighter's earnings-bias
+  sign is recovered ≥98% by the spanning read even at a strong concave-time misspecification
+  (rho 0.4). So "this person over-weights pay" is robust to a wrong `V`.
+- **But false coaching of an UNBIASED participant explodes with the misspecification
+  magnitude.** Spanning FP@none climbs ~48% (correct `V`) → ~78% (rho 0.8) → ~97% (rho 0.4);
+  additive ~98%. The reason is a **confound**: under-penalising time (concave `V`) and
+  over-weighting earnings BOTH manifest as "prefers the high-pay slow bundle," and the trap
+  menus — which decouple earnings from each *cost axis* — do **not** decouple earnings from
+  the *time-curvature* of `V`. So an unbiased-under-concave-`V` participant is observationally
+  a payout-overweighter.
+- **A V-robust read cannot escape the confound.** Re-estimating the earnings bias against a
+  family of monotone `V` and abstaining on a sign-flip: a **wide** family cuts FP@none
+  (~85%→~9%) but also abstains genuine leaks (well-specified recovery ~79%→~13%); a **narrow**
+  (plausible-only) family keeps recovery (~91%) but no longer discriminates (FP ~89–97%). No
+  V-family read achieves both. The bias is identifiable only for **near-correct `V`**
+  (specifically, near-correct time-curvature); separating it from value-curvature would need
+  menus that vary earnings and time *independently of each other's curvature*, which the
+  current traps do not. This bounds the ICML claim: counterfactual feedback identifies *which
+  cost axis* is misweighted under the deployed reward, but the payout/value-curvature axis is
+  identifiable only when the value model is approximately right.
+
 The human pilot is the real test of whether people carry separable leaks at all.
 
 ## 3. The learning index as a proxy for v11's G_ik (P4)
