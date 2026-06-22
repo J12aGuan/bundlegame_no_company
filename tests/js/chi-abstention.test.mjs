@@ -18,9 +18,16 @@ const perceived = (f, b) => Math.pow(f.earnings, b.gamma) / Math.max(
   - f.shared_item_savings_seconds,
 );
 
-function trapChoiceSets(bias) {
-  const traps = buildChiScenarioSet().scenarios.filter((s) => s.is_payout_trap === 1);
-  return traps.map((s) => {
+function unaidedChoiceSets(bias) {
+  // The diagnosis is ALWAYS fit on the full UNAIDED battery (Phase A + the two OFF blocks), not
+  // on the trap menus in isolation. That matters here: the redesign's clean shift trap needs a
+  // large local penalty to clear the 12% floor, which correlates local with earnings ON THE
+  // TRAP MENUS, so a trap-only pool can leak local-neglect into a false W3. The full battery
+  // (which also contains route/base menus that vary local INDEPENDENTLY of earnings) breaks that
+  // correlation, which is exactly why the production diagnosis abstains. So play the full unaided
+  // battery -- what the diagnosis really sees -- matching chi-spanning-read's fullBatteryChoiceSets.
+  const pool = buildChiScenarioSet().scenarios.filter((s) => s.phase === "A" || s.test_set);
+  return pool.map((s) => {
     const cands = s.candidate_bundles;
     let best = cands[0];
     for (const c of cands) if (perceived(c, bias) > perceived(best, bias)) best = c;
@@ -49,32 +56,36 @@ const B = {
 };
 
 test("ACTIONABLE: a true payout-overweighter is coached W3", () => {
-  const d = diagnose({ choiceSets: trapChoiceSets(B.trueW3) });
+  const d = diagnose({ choiceSets: unaidedChoiceSets(B.trueW3) });
   assert.equal(d.learning_target, "W3");
   assert.equal(d.abstained, false);
 });
 
 test("ACTIONABLE: a LOCAL-only neglecter is NOT coached W3 — the diagnosis abstains", () => {
-  const d = diagnose({ choiceSets: trapChoiceSets(B.localNeglect) });
+  const d = diagnose({ choiceSets: unaidedChoiceSets(B.localNeglect) });
   assert.notEqual(d.learning_target, "W3");
   assert.equal(d.learning_target, "none");
   assert.equal(d.abstained, true);
 });
 
-test("ACTIONABLE: a CROSS-only neglecter is NOT coached W3 — abstains (uncoachable dominant)", () => {
-  const d = diagnose({ choiceSets: trapChoiceSets(B.crossNeglect) });
+test("ACTIONABLE: a CROSS-only neglecter is NOT coached W3 — abstains, loads its own (uncoachable) axis", () => {
+  const d = diagnose({ choiceSets: unaidedChoiceSets(B.crossNeglect) });
+  // The core guarantee: a cross-neglecter is NOT coached (it loads its OWN uncoachable axis W2,
+  // not a false payout signal). It may abstain either because the coachable leaks sit below the
+  // noise floor or because the dominant leak is uncoachable; both are correct "do not coach".
   assert.equal(d.learning_target, "none");
-  assert.equal(d.abstain_reason, "dominant_leak_is_uncoachable");
+  assert.equal(d.dominant_weakness, "W2", "cross-neglect must load its own axis (W2), not W3");
+  assert.ok(["dominant_leak_is_uncoachable", "leak_below_noise_floor"].includes(d.abstain_reason), d.abstain_reason);
 });
 
 test("ACTIONABLE: a PICK-only neglecter is coached W1 (its own coachable axis)", () => {
-  const d = diagnose({ choiceSets: trapChoiceSets(B.pickNeglect) });
+  const d = diagnose({ choiceSets: unaidedChoiceSets(B.pickNeglect) });
   assert.equal(d.learning_target, "W1");
   assert.equal(d.abstained, false);
 });
 
 test("diagnose surfaces per-axis identifiability", () => {
-  const d = diagnose({ choiceSets: trapChoiceSets(B.trueW3) });
+  const d = diagnose({ choiceSets: unaidedChoiceSets(B.trueW3) });
   for (const w of ["W1", "W2", "W3"]) assert.ok(Number.isFinite(d.identifiability[w]), `identifiability.${w}`);
   // earnings (W3) is the most-probed axis on the traps for a payout-chaser.
   assert.ok(d.identifiability.W3 >= d.identifiability.W1, "W3 should be at least as identified as W1 for trueW3");
