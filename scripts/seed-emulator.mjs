@@ -20,9 +20,13 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { buildChiSeedPayload, buildSeededEntry, rehydrateScenariosFromEntry } from "../src/lib/chiSeed.js";
 import { validateChiScenarioSet, CHI_CITY_TRAVEL, CHI_STARTING_CITY, CHI_AB_STORES, CHI_C_STORES } from "../src/lib/chiScenarioDesign.js";
-import { buildChiStudyProtocol } from "../src/lib/researchStudy.js";
+import { buildChiStudyProtocol, buildChiFoundationalStudyProtocol } from "../src/lib/researchStudy.js";
 
 const FULL = process.argv.slice(2).includes("--full");
+// Foundational mode: seed the redesigned set under chi_foundational_v1 with the NON-personalized
+// foundational protocol (arms control/counterfactual/aggregate, diagnosis dormant). Default mode
+// remains the dynamic marginal pilot under chi_dynamic_v1.
+const FOUNDATIONAL = process.argv.slice(2).includes("--foundational");
 
 const arg = (name, dflt) => {
   const hit = process.argv.slice(2).find((a) => a.startsWith(`--${name}=`));
@@ -30,7 +34,7 @@ const arg = (name, dflt) => {
 };
 const HOST = arg("host", process.env.VITE_FIREBASE_EMULATOR_HOST || "127.0.0.1");
 const PORT = Number(arg("port", process.env.VITE_FIREBASE_EMULATOR_FIRESTORE_PORT || 8080));
-const VERSION = arg("version", process.env.CHI_SEED_VERSION || "chi_dynamic_v1");
+const VERSION = arg("version", process.env.CHI_SEED_VERSION || (FOUNDATIONAL ? "chi_foundational_v1" : "chi_dynamic_v1"));
 const PROJECT_ID = arg("project", process.env.VITE_FIREBASE_PROJECT_ID || "demo-bundlegame");
 
 // Same root-id resolution the app loader uses (firebaseDB.resolveDatasetRootFromId), so the
@@ -70,13 +74,20 @@ if (LIVE) {
 // resolves it from finds it: central config research_protocol, the dataset metadata
 // (loadResearchRuntime fallback), and a ResearchProtocols collection entry.
 function buildMasterData(root) {
-  const protocol = buildChiStudyProtocol();
-  // Force the MARGINAL pilot arm: restrict policy_arms to marginal only, so assignStudyArm
-  // (stable-hash over the weighted arms) returns marginal for EVERY participant and the
-  // counterfactual feedback renders in the ON blocks. This is the legitimate marginal-pilot
-  // configuration ("pilot = marginal only"), not a test hack.
-  const marginalArms = protocol.policy_arms.filter((a) => a.id === "marginal");
-  protocol.policy_arms = marginalArms.length ? marginalArms : protocol.policy_arms;
+  let protocol;
+  if (FOUNDATIONAL) {
+    // Foundational study: the non-personalized protocol (diagnosis dormant). Keep ALL arms so
+    // assignStudyArm randomly assigns control / counterfactual / aggregate across participants.
+    protocol = buildChiFoundationalStudyProtocol();
+  } else {
+    protocol = buildChiStudyProtocol();
+    // Force the MARGINAL pilot arm: restrict policy_arms to marginal only, so assignStudyArm
+    // (stable-hash over the weighted arms) returns marginal for EVERY participant and the
+    // counterfactual feedback renders in the ON blocks. This is the legitimate marginal-pilot
+    // configuration ("pilot = marginal only"), not a test hack.
+    const marginalArms = protocol.policy_arms.filter((a) => a.id === "marginal");
+    protocol.policy_arms = marginalArms.length ? marginalArms : protocol.policy_arms;
+  }
   const protocolEntry = {
     ...protocol,
     dataset_root: root,
@@ -105,8 +116,8 @@ function buildMasterData(root) {
 }
 
 async function main() {
-  const payload = buildChiSeedPayload({});
-  payload.versionId = VERSION;
+  // versionId stamps the dataset metadata.scenarioSetVersionId so records are separable by id.
+  const payload = buildChiSeedPayload({ versionId: VERSION });
 
   // Validate in-memory AND after a rehydrate round-trip (same as the dry-run seeder).
   const entry = buildSeededEntry(payload);
@@ -140,6 +151,23 @@ async function main() {
       await db.doc(`ResearchProtocols/${md.protocol.protocol_id}`).set(md.protocolEntry, { merge: true });
       console.log(`  WROTE (--full) centralConfig(scenario_set=${root}, auth=true), ${md.stores.length} stores, cities(${Object.keys(md.cities.travelTimes).length}), emojis, ResearchProtocols/${md.protocol.protocol_id}`);
       console.log(`  protocol: ${md.protocol.protocol_version} / ${md.protocol.expected_total_rounds} rounds, enabled=${md.protocol.enabled}, policy_arms=[${(md.protocol.policy_arms || []).map((a) => a.id).join(",")}]`);
+      // Self-verify the repoint + protocol link took, so this one command is confirmable on a
+      // live project: the active studyProtocol resolves from this ResearchProtocols entry, and
+      // arm assignment + phase recognition follow from its policy_arms + phase_plan.
+      const cc = (await db.doc("MasterData/centralConfig").get()).data() || {};
+      const rp = (await db.doc(`ResearchProtocols/${md.protocol.protocol_id}`).get()).data() || {};
+      const armIds = (rp.policy_arms || []).map((a) => a.id).join(",");
+      const phases = (rp.phase_plan || []).map((p) => p.id).join("");
+      // Dormancy fingerprint for the foundational protocol: no survey/diagnose/rediagnose triggers.
+      const phaseA = (rp.phase_plan || []).find((p) => p.id === "A") || {};
+      const offBlocks = ((rp.phase_plan || []).find((p) => p.id === "B")?.blocks || []);
+      const diagnosisDormant = !phaseA.diagnose_after && !phaseA.survey_after && offBlocks.every((b) => !b.rediagnose_after);
+      const expectArm = FOUNDATIONAL ? "counterfactual" : "marginal";
+      const ok = cc.scenario_set === root && rp.enabled === true && armIds.includes(expectArm) && rp.dataset_root === root
+        && (FOUNDATIONAL ? diagnosisDormant : true);
+      console.log(`  CONFIRM: centralConfig.scenario_set=${cc.scenario_set} | ResearchProtocols enabled=${rp.enabled}, dataset_root=${rp.dataset_root}, arms=[${armIds}], phases=${phases}${FOUNDATIONAL ? `, diagnosis_dormant=${diagnosisDormant}` : ""} -> ${ok ? "OK" : "CHECK THE ABOVE"}`);
+      const armDesc = FOUNDATIONAL ? "randomly assigned a foundational arm (control / counterfactual / aggregate)" : "assigned the marginal arm";
+      console.log(`\n  DONE: project '${PROJECT_ID}' is now set to '${root}'. A fresh authenticated participant will be ${armDesc} and boot into Round 1/35, Phase A (CHI trap menus)${FOUNDATIONAL ? " with the diagnosis DORMANT" : ""}. Other datasets in the project are untouched (merge-only).`);
     }
     console.log("\nNext: run the dev app with VITE_USE_FIREBASE_EMULATOR=true and play the real game.");
     if (!md) console.log("      (use --full to also seed centralConfig/protocol/stores/cities so the production game boots.)\n");
