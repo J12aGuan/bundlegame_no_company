@@ -1913,6 +1913,174 @@ export function assignScaffoldArm(participantId = "", protocol = buildChiStudyPr
   return assignStudyArm(participantId, protocol);
 }
 
+/* ========================================================================== *
+ * CHI FOUNDATIONAL study: NON-PERSONALIZED between-subjects arms.
+ *
+ * The foundational study runs the SAME 35-round A/B1/B2/B3/B4 schedule on the
+ * redesigned `chi_foundational_v1` menu set, but the diagnosis is DORMANT: the
+ * phase plan carries NO survey_after / diagnose_after / rediagnose_after, so
+ * diagnoseTrigger() and shouldShowSurvey() return nothing and chiDiagnosis is
+ * never constructed. The arms vary the ON-block feedback FORM only; none of them
+ * read the diagnosis (Sigma_t / spanning are never called):
+ *   - control       : no feedback in the ON blocks.
+ *   - counterfactual: the best one-step add/drop/swap on the chosen bundle with
+ *                     signed ($, time) deltas (marginalFeedback, NO diagnosed-target
+ *                     tie-break) -- exactly the `counterfactual` arm in feedbackForArm.
+ *   - aggregate     : ONLY the scalar $/min rate of the chosen trip, no move.
+ *   - oracle        : OPTIONAL, behind includeOracle, before-choice b* (not wired by
+ *                     default; the renderer is the after-choice oracle message today).
+ * ========================================================================== */
+export const CHI_FOUNDATIONAL_PROTOCOL_ID = "bundlegame_chi_foundational_v1";
+export const CHI_FOUNDATIONAL_PROTOCOL_VERSION = "bundlegame_chi_foundational_35_round_v1";
+export const CHI_FOUNDATIONAL_SCENARIO_SET_VERSION_ID = "chi_foundational_v1";
+// Default (non-oracle) foundational arms; `oracle` is added only when includeOracle is set.
+export const CHI_FOUNDATIONAL_ARM_TYPES = ["control", "counterfactual", "aggregate"];
+
+export const BUNDLEGAME_CHI_FOUNDATIONAL_ARMS = [
+  {
+    id: "control",
+    label: "Control (unaided throughout)",
+    feedback_kind: "none",
+    dynamic: false,
+    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
+    policy_version: "v1",
+    show_recommendations: false,
+    active_phases: [],
+    assignment_weight: 1,
+  },
+  {
+    id: "counterfactual",
+    label: "Counterfactual (best one-step move on the chosen bundle, signed $ + time deltas)",
+    feedback_kind: "counterfactual",
+    dynamic: false,
+    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
+    policy_version: "v1",
+    show_recommendations: true,
+    active_phases: ["B"],
+    assignment_weight: 1,
+  },
+  {
+    id: "aggregate",
+    label: "Aggregate (scalar $/min rate of the chosen trip only)",
+    feedback_kind: "aggregate",
+    dynamic: false,
+    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
+    policy_version: "v1",
+    show_recommendations: true,
+    active_phases: ["B"],
+    assignment_weight: 1,
+  },
+];
+
+// The optional before-choice oracle arm (deskilling control). Included ONLY behind the
+// includeOracle flag; the before-choice b* DISPLAY is a UI step to add when requested.
+export const BUNDLEGAME_CHI_FOUNDATIONAL_ORACLE_ARM = {
+  id: "oracle",
+  label: "Oracle (before-choice best bundle b*, no reasoning — optional, behind a flag)",
+  feedback_kind: "oracle",
+  dynamic: false,
+  policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
+  policy_version: "v1",
+  show_recommendations: true,
+  active_phases: ["B"],
+  assignment_weight: 1,
+};
+
+/** Foundational phase plan: same A/B layout, but NO diagnosis/survey triggers (dormant). */
+export function buildChiFoundationalPhasePlan(roundsPerPhase = CHI_DEFAULT_ROUNDS_PER_PHASE) {
+  const plan = buildChiPhasePlan(roundsPerPhase);
+  return plan.map((phase) => {
+    if (phase.id === "A") {
+      // Drop the diagnosis-feeding survey and the post-Phase-A diagnosis.
+      const { survey_after, diagnose_after, ...rest } = phase;
+      return rest;
+    }
+    if (phase.id === "B" && Array.isArray(phase.blocks)) {
+      // Drop the per-OFF-block re-diagnosis so diagnoseTrigger never fires.
+      return { ...phase, blocks: phase.blocks.map(({ rediagnose_after, ...blk }) => blk) };
+    }
+    return phase;
+  });
+}
+
+export function buildChiFoundationalStudyProtocol(overrides = {}) {
+  const { includeOracle = false, rounds_per_phase, ...rest } = overrides || {};
+  const roundsPerPhase = rounds_per_phase || CHI_DEFAULT_ROUNDS_PER_PHASE;
+  const phasePlan = buildChiFoundationalPhasePlan(roundsPerPhase);
+  const totalRounds = phasePlan.reduce((sum, p) => sum + p.rounds, 0);
+  const arms = includeOracle
+    ? [...BUNDLEGAME_CHI_FOUNDATIONAL_ARMS, { ...BUNDLEGAME_CHI_FOUNDATIONAL_ORACLE_ARM }]
+    : BUNDLEGAME_CHI_FOUNDATIONAL_ARMS.map((arm) => ({ ...arm }));
+  const treatmentArmIds = arms.filter((a) => a.id !== "control").map((a) => a.id);
+  return {
+    protocol_id: CHI_FOUNDATIONAL_PROTOCOL_ID,
+    protocol_version: CHI_FOUNDATIONAL_PROTOCOL_VERSION,
+    title: "BundleGame CHI foundational study (non-personalized arms)",
+    expected_total_rounds: totalRounds,
+    enabled: true,
+    // Marker: this protocol does NOT personalize, so the diagnosis stays dormant. Dormancy is
+    // enforced structurally by the phase plan (no diagnose_after / rediagnose_after / survey_after).
+    personalized: false,
+    scenario_set_version_id: CHI_FOUNDATIONAL_SCENARIO_SET_VERSION_ID,
+    dataset_root: CHI_FOUNDATIONAL_SCENARIO_SET_VERSION_ID,
+    phase_plan: phasePlan,
+    policy_arms: arms,
+    recommendation_exposure: {
+      active_phase_ids: ["B"],
+      on_block_ids: ["B1", "B3"],
+      off_block_ids: ["B2", "B4"],
+      treatment_arm_ids: treatmentArmIds,
+      control_arm_ids: ["control"],
+      dynamic_arm_ids: [], // NONE re-target; the diagnosis is dormant
+      default_ranked_bundles_shown: 0,
+      expected_shown_bundle_size: 2,
+    },
+    off_test_sets: { ...CHI_OFF_TEST_SETS },
+    // No post-Phase-A survey (it feeds the diagnosis, which is dormant here).
+    survey: { administered_after_phase: null, before_first_feedback: false },
+    fixed_recommendation_policy: CHI_FIXED_RECOMMENDATION_POLICY,
+    legal_action_mask_version: DEFAULT_ACTION_MASK_VERSION,
+    ...(rest && typeof rest === "object" ? rest : {}),
+  };
+}
+
+export function getChiFoundationalStudyProtocol(overrides = {}) {
+  const base = buildChiFoundationalStudyProtocol(overrides);
+  return normalizeResearchStudyProtocol(base, base);
+}
+
+/**
+ * Validate a foundational protocol: A/B contiguous, the non-personalized arms with control
+ * unaided, and -- the point of the foundational study -- the diagnosis stays DORMANT (no
+ * survey_after / diagnose_after / rediagnose_after anywhere, and no dynamic arm).
+ */
+export function validateChiFoundationalStudyProtocol(protocol = buildChiFoundationalStudyProtocol()) {
+  const normalized = normalizeResearchStudyProtocol(protocol, protocol);
+  const errors = [];
+  const phases = normalized.phase_plan || [];
+  if (phases.map((p) => p.id).join(",") !== "A,B") errors.push(`phase ids must be A,B`);
+  const phaseA = phases.find((p) => p.id === "A");
+  const phaseB = phases.find((p) => p.id === "B");
+  if (phaseA?.survey_after) errors.push("foundational phase A must NOT administer the survey (diagnosis is dormant)");
+  if (phaseA?.diagnose_after) errors.push("foundational phase A must NOT diagnose (diagnosis is dormant)");
+  for (const blk of phaseB?.blocks || []) {
+    if (blk.rediagnose_after) errors.push(`foundational block ${blk.id} must NOT re-diagnose (diagnosis is dormant)`);
+  }
+  const armIds = (normalized.policy_arms || []).map((a) => a.id);
+  for (const required of CHI_FOUNDATIONAL_ARM_TYPES) {
+    if (!armIds.includes(required)) errors.push(`missing foundational arm "${required}"`);
+  }
+  if ((normalized.policy_arms || []).some((a) => a.dynamic)) errors.push("no foundational arm may be dynamic (none re-targets)");
+  const control = (normalized.policy_arms || []).find((a) => a.id === "control");
+  if (control && control.show_recommendations) errors.push("control arm must be unaided (show_recommendations false)");
+  return { ok: errors.length === 0, errors };
+}
+
+/** Stable, participant-level foundational-arm assignment (random across a random id). */
+export function assignFoundationalArm(participantId = "", protocol = buildChiFoundationalStudyProtocol()) {
+  return assignStudyArm(participantId, protocol);
+}
+
 /**
  * Validate a CHI protocol: configurable totals, phases A/B/C contiguous,
  * recommendations only in Phase B, exactly the four scaffold arms, control

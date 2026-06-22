@@ -267,6 +267,13 @@ export function feedbackForArm(armId, ctx = {}) {
   switch (armId) {
     case "marginal":
       return marginalFeedbackMessage(chosenBundle, legalBundles, { labelFor, targetWeakness });
+    case "counterfactual":
+      // Foundational (non-personalized) counterfactual arm: the SAME exact best one-step
+      // add/drop/swap as `marginal`, rendered with signed earnings + time deltas, but with NO
+      // diagnosed-target tie-break (targetWeakness is deliberately omitted). It therefore never
+      // reads the diagnosis (dx is ignored here) — the move is purely the true best neighbour of
+      // the chosen bundle. This keeps the foundational study's diagnosis path dormant.
+      return marginalFeedbackMessage(chosenBundle, legalBundles, { labelFor });
     case "component":
       return componentFeedbackMessage(dx, { labelFor });
     case "aggregate":

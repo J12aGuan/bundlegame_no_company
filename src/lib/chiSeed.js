@@ -70,13 +70,20 @@ export function orderForPersistence(order = {}) {
 }
 
 /**
- * Build the seed payload for the CHI dynamic dataset: the orders pool (deduped) + the
- * scenario records in their persisted shape + the metadata. `versionId` defaults to the
- * generator's metadata.scenarioSetVersionId ('chi_dynamic_v1').
+ * Build the seed payload for a CHI dataset: the orders pool (deduped) + the scenario records
+ * in their persisted shape + the metadata.
+ *
+ * `options.versionId` writes the SAME redesigned set under a different scenario_set id (e.g.
+ * 'chi_foundational_v1') so its participant records are separable from 'chi_dynamic_v1': the
+ * override is stamped into BOTH the returned `versionId` AND `metadata.scenarioSetVersionId`,
+ * which is the field the app reads (datasetBundle.metadata.scenarioSetVersionId) to tag every
+ * persisted record. Generator options (seed/diagnosticRounds/blockSize) and an optional
+ * `datasetName` pass through. Defaults to the generator's id ('chi_dynamic_v1').
  */
 export function buildChiSeedPayload(options = {}) {
-  const set = buildChiScenarioSet(options);
-  const versionId = String(set?.metadata?.scenarioSetVersionId || "chi_dynamic_v1").trim();
+  const { versionId: versionOverride, datasetName: nameOverride, ...genOptions } = options || {};
+  const set = buildChiScenarioSet(genOptions);
+  const versionId = String(versionOverride || set?.metadata?.scenarioSetVersionId || "chi_dynamic_v1").trim();
   const scenarios = set.scenarios.map(sanitizeScenarioForPersistence);
   const ordersById = new Map();
   for (const s of set.scenarios) {
@@ -89,10 +96,17 @@ export function buildChiSeedPayload(options = {}) {
     versionId,
     scenarios,
     orders: [...ordersById.values()],
-    // Mark the dataset so the writer's research-protocol validation is skipped: the
-    // protocol + central-config linkage (and flipping the default scenario_set) is a
-    // separate, deliberate deploy step, not part of seeding the menus.
-    metadata: { ...(set.metadata || {}), skip_protocol_validation: true },
+    // Stamp the chosen versionId (and optional name) into the dataset metadata so a foundational
+    // seed's records carry scenario_set_version_id=<versionId>, separable from chi_dynamic_v1.
+    // Mark skip_protocol_validation so the writer's research-protocol validation is skipped: the
+    // protocol + central-config linkage (and flipping the default scenario_set) is a separate,
+    // deliberate deploy step, not part of seeding the menus.
+    metadata: {
+      ...(set.metadata || {}),
+      scenarioSetVersionId: versionId,
+      ...(nameOverride ? { datasetName: nameOverride } : {}),
+      skip_protocol_validation: true,
+    },
   };
 }
 
