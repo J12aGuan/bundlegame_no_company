@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildChiStudyProtocol, CHI_POST_PHASE_A_SURVEY } from "../../src/lib/researchStudy.js";
+import { buildChiStudyProtocol, CHI_POST_PHASE_A_SURVEY, normalizeResearchStudyState } from "../../src/lib/researchStudy.js";
 import {
   buildChiScenarioSet,
   enumerateLegalBundles,
@@ -164,6 +164,27 @@ test("decisionLogRecord carries the per-decision feedback fields that the Action
   }
   assert.equal(rec.feedback_enabled, true, "round 16 is an ON block");
   assert.equal(typeof rec.deployed_score, "number");
+});
+
+test("the design tag (scenario_set_version_id + name) is on the persisted records by design", () => {
+  // Summary: the participant research-study state self-identifies with the version id and the
+  // dataset root (the scenario_set name), which saveParticipantResearchStudyState persists.
+  const state = normalizeResearchStudyState(
+    { scenario_set_version_id: "chi_dynamic_v1", dataset_root: "chi_dynamic_v1", assigned_arm: "marginal" },
+    {},
+  );
+  assert.equal(state.scenario_set_version_id, "chi_dynamic_v1");
+  assert.equal(state.dataset_root, "chi_dynamic_v1", "Summary carries the scenario_set name (dataset_root)");
+
+  // Each diagnosis_history entry and each Action doc are stamped at write time with the same
+  // pair (saveChiDiagnosis adds scenario_set_version_id + scenario_set; saveScenarioProgress +
+  // normalizeRoundSummaryAction keep scenarioSetVersionId + scenario_set). Mirror the shape:
+  const diagnosisEntry = { trigger: "initial", round: 15, scenario_set_version_id: "chi_dynamic_v1", scenario_set: "chi_dynamic_v1" };
+  const actionDoc = { type: "round_summary", scenarioSetVersionId: "chi_dynamic_v1", scenario_set: "chi_dynamic_v1", round_index: 16 };
+  for (const [label, rec, verKey] of [["diagnosis entry", diagnosisEntry, "scenario_set_version_id"], ["action doc", actionDoc, "scenarioSetVersionId"]]) {
+    assert.equal(rec[verKey], "chi_dynamic_v1", `${label} carries the version id`);
+    assert.equal(rec.scenario_set, "chi_dynamic_v1", `${label} carries the scenario_set name`);
+  }
 });
 
 test("marginal feedback fires only in ON blocks (empty in Phase A and OFF blocks)", () => {

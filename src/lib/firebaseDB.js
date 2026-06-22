@@ -485,6 +485,8 @@ function normalizeRoundSummaryAction(existing = {}, payload = {}) {
     return removeUndefinedDeep({
         type: 'round_summary',
         scenarioSetVersionId: String(payload?.scenarioSetVersionId ?? existing?.scenarioSetVersionId ?? '').trim(),
+        // scenario_set name (dataset root), kept alongside the version id for data segregation.
+        scenario_set: String(payload?.scenario_set ?? existing?.scenario_set ?? '').trim(),
         round_index: Math.max(1, Number(payload?.round_index ?? existing?.round_index) || 1),
         scenario_id: String(payload?.scenario_id ?? existing?.scenario_id ?? '').trim(),
         phase: String(payload?.phase ?? existing?.phase ?? '').trim(),
