@@ -317,9 +317,12 @@ export async function saveChiDiagnosis(record = {}) {
 	const userId = String(get(id) ?? '').trim();
 	const versionId = String(get(scenarioSetVersionId) ?? '').trim();
 	const currentState = normalizeResearchStudyState(get(participantStudyState), buildDefaultStudyState(userId));
+	// Stamp the design tag on EVERY diagnosis entry so the record is self-identifying by
+	// design (data segregation): which scenario_set version + name produced it.
+	const tagged = { ...record, scenario_set_version_id: versionId, scenario_set: getDatasetRoot() };
 	const diagnosis_history = [
 		...(Array.isArray(currentState.diagnosis_history) ? currentState.diagnosis_history : []),
-		{ ...record }
+		tagged
 	];
 	participantStudyState.set(mergeResearchStudyState(currentState, { diagnosis_history }));
 	if (get(gameMode) === 'tutorial' || !userId || !versionId) return record;
@@ -2176,6 +2179,9 @@ export const saveScenarioProgress = (progress) => {
 		const liveSessionMetadata = getLiveSessionMetadata(new Date().toISOString());
 		void saveRoundSummaryAction(String(get(id) ?? '').trim(), {
 			scenarioSetVersionId: String(get(scenarioSetVersionId) ?? '').trim(),
+			// scenario_set name (the dataset root the app loaded) alongside the version id, so
+			// every Action doc is self-identifying for data segregation.
+			scenario_set: getDatasetRoot(),
 			round_index: Math.max(1, Number(progress?.roundIndex) || 1),
 			scenario_id: scenarioId,
 			phase: String(progress?.phase ?? '').trim(),

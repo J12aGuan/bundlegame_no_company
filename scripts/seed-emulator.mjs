@@ -40,13 +40,29 @@ const resolveDatasetRoot = (id = "") => String(id || "").trim().replace(/\.json$
   .replace(/(_scenarios|_orders|_optimal)$/i, "")
   .replace(/__+/g, "_").replace(/^_|_$/g, "").trim();
 
-// SAFETY: route the Admin SDK to the LOCAL emulator before it initializes. Without this the
-// admin SDK would try real Firestore; with it, every call is local. Refuse to run if the
-// host does not look local (a guard against ever pointing this at prod).
-process.env.FIRESTORE_EMULATOR_HOST = `${HOST}:${PORT}`;
-if (!/^(127\.0\.0\.1|localhost|0\.0\.0\.0|::1)$/.test(HOST)) {
-  console.error(`REFUSED: emulator host '${HOST}' is not local. This script only seeds a LOCAL emulator.`);
-  process.exit(2);
+// Target selection. DEFAULT is the LOCAL emulator: route the Admin SDK to it before init, and
+// refuse any non-local host. --live targets the REAL project and is strongly guarded so it
+// cannot run by accident (see docs/DEPLOY.md): it requires CHI_SEED_LIVE=1, a non-demo
+// --project, and ambient admin credentials (gcloud application-default login, or
+// GOOGLE_APPLICATION_CREDENTIALS). In --live mode FIRESTORE_EMULATOR_HOST is left unset so the
+// admin SDK writes to the real project.
+const LIVE = process.argv.slice(2).includes("--live");
+if (LIVE) {
+  if (process.env.CHI_SEED_LIVE !== "1") {
+    console.error("REFUSED: --live requires CHI_SEED_LIVE=1 (guard against accidental live seeding).");
+    process.exit(2);
+  }
+  if (!PROJECT_ID || /^demo-/.test(PROJECT_ID)) {
+    console.error(`REFUSED: --live needs a real --project=<id> (got '${PROJECT_ID}').`);
+    process.exit(2);
+  }
+  delete process.env.FIRESTORE_EMULATOR_HOST; // write to the REAL project, not an emulator
+} else {
+  process.env.FIRESTORE_EMULATOR_HOST = `${HOST}:${PORT}`;
+  if (!/^(127\.0\.0\.1|localhost|0\.0\.0\.0|::1)$/.test(HOST)) {
+    console.error(`REFUSED: emulator host '${HOST}' is not local. Use --live to seed a real project.`);
+    process.exit(2);
+  }
 }
 
 // Minimal masterdata the production +page.svelte boots on (only seeded with --full). The
@@ -98,7 +114,7 @@ async function main() {
   if (md) entry.metadata = { ...(entry.metadata || {}), researchStudy: md.protocol }; // loadResearchRuntime fallback
   const vIn = validateChiScenarioSet({ scenarios: payload.scenarios });
   const vOut = validateChiScenarioSet({ scenarios: rehydrateScenariosFromEntry(entry) });
-  console.log(`\nCHI emulator seed — version '${VERSION}'  (Firestore emulator ${HOST}:${PORT}, project '${PROJECT_ID}')`);
+  console.log(`\nCHI seed — version '${VERSION}'  (${LIVE ? `LIVE project '${PROJECT_ID}'` : `emulator ${HOST}:${PORT}, project '${PROJECT_ID}'`})`);
   console.log(`  scenarios: ${payload.scenarios.length}  orders: ${payload.orders.length}`);
   console.log(`  validate (in-memory):  ${vIn.ok ? "OK" : "FAIL\n    - " + vIn.errors.join("\n    - ")}`);
   console.log(`  validate (rehydrated): ${vOut.ok ? "OK" : "FAIL\n    - " + vOut.errors.join("\n    - ")}`);
