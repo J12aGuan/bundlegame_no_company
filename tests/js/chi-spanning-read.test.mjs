@@ -68,9 +68,13 @@ test("the spanning read partitions the real battery: every trap identifies earni
 
 test("HEADLINE: a pure payout-overweighter is recovered as W3 from behaviour on the full battery", () => {
   const d = behaviourDiag(BIASES.trueW3);
-  assert.equal(d.dominant_weakness, "W3", `payout-chaser should be dominant W3, got ${d.dominant_weakness}`);
+  // The full battery now includes over-bundling-regret menus in the same-support retention block,
+  // on which a payout-chaser ALSO over-bundles (the W1/W3 collinearity). So the RAW dominant axis
+  // can be the W1 symptom; the point of the spanning read is that it still recovers W3 as the
+  // coachable ROOT (the learning target). That recovery is the headline guarantee.
   assert.equal(d.learning_target, "W3", `payout-chaser should be coached W3, got ${d.learning_target}`);
   assert.ok(d.spanning_used, "the read should have restricted to the spanning subspace");
+  assert.equal(d.strengths.W3 > 0.4, true, `the spanning W3 signal should be substantial, got ${d.strengths.W3.toFixed(2)}`);
 });
 
 test("the pooled read MISDIAGNOSES the same payout-overweighter as W1 (the confound the fix resolves)", () => {

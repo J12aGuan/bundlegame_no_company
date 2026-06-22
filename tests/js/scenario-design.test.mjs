@@ -67,10 +67,18 @@ test("transfer OFF block is a labeled shift with novel stores; held-out ids disj
   assert.equal(retention.length, 5);
   assert.ok(transfer.every((s) => s.shift_flag === 1));
   assert.ok(retention.every((s) => s.shift_flag === 0)); // same-distribution
-  // Both OFF blocks over-sample the picking cell (overlap=1) so the coached
-  // weakness is measurable; transfer carries a heavier pick load (the labeled shift).
+  // The transfer block over-samples the picking cell (overlap=1) and carries a heavier pick
+  // load (the labeled shift). Retention is now drawn from the SAME mixed support as B1/B3 (it
+  // includes base/route overlap-0 menus), so it is no longer overlap=1 in every menu; it must
+  // still PRESENT both errors (an over-bundling round and a payout trap).
   assert.ok(transfer.every((s) => s.store_overlap_flag === 1), "transfer must exercise picking (overlap=1)");
-  assert.ok(retention.every((s) => s.store_overlap_flag === 1), "retention must exercise picking (overlap=1)");
+  assert.ok(retention.some((s) => s.over_bundling_coachable === 1), "retention keeps an over-bundling-coachable round");
+  assert.ok(retention.some((s) => s.is_payout_trap === 1), "retention keeps a payout trap");
+  // The transfer block must contain a CLEAN single-axis payout trap that clears the 12% floor.
+  assert.ok(
+    transfer.some((s) => s.is_payout_trap === 1 && s.trap_clean === 1 && s.relative_gap >= 0.12),
+    "transfer must contain a clean single-axis payout trap with relative_gap >= 0.12",
+  );
   // validate() also checks novelty + held-out disjointness + harder cross-city.
   const v = validateChiScenarioSet(set);
   assert.ok(v.ok, v.errors.join("; "));
