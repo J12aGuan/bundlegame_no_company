@@ -39,6 +39,8 @@ service cloud.firestore {
       return hasOnly([
         'type',
         'scenarioSetVersionId',
+        // dataset root name kept alongside the version id for data segregation.
+        'scenario_set',
         'round_index',
         'scenario_id',
         'phase',
@@ -62,6 +64,14 @@ service cloud.firestore {
         'duration',
         'earnings',
         'reward',
+        // optimality / regret summary emitted by normalizeRoundSummaryAction.
+        'score_ratio_to_best',
+        'percent_regret',
+        'regret',
+        'exact_optimal',
+        'is_exact_optimal',
+        'near_optimal',
+        'is_near_optimal',
         'trust_rating',
         'usefulness_rating',
         'workload_rating',
@@ -71,6 +81,18 @@ service cloud.firestore {
         'post_state',
         'state_snapshot',
         'outcome_snapshot',
+        // CHI per-decision counterfactual feedback (the feedback actually shown + modeled score).
+        // Without these the round-action write is rejected (hasOnly) and no decision log persists.
+        'block',
+        'block_kind',
+        'test_set',
+        'feedback_enabled',
+        'violation_label',
+        'best_improving_move',
+        'feedback_text',
+        'deployed_score',
+        'score_ratio',
+        'is_optimal',
         'createdAt',
         'updatedAt'
       ]);
