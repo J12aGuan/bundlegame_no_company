@@ -13,6 +13,7 @@
  */
 import { feedbackForArm } from "./marginalFeedback.js";
 import { diagnose } from "./chiDiagnosis.js";
+import { signSurvivalGate, gateDecisionForLog } from "./signSurvivalGate.js";
 
 // --------------------------------------------------------------------------- //
 // Task 6 — scoring & incentive (speed-confound fixes).                         //
@@ -117,11 +118,25 @@ export function diagnoseTrigger(protocol, round) {
 export function feedbackForDecision({ protocol, round, arm, chosenBundle, legalBundles, diagnosis, labelFor }) {
   const ctx = roundContext(protocol, round);
   if (!ctx.feedback_enabled) return { text: "", violation_label: "none", best_improving_move: null };
+  // The sign-survival gate is the authority on the personalized (marginal) arm's coaching target.
+  // It coaches the gate's robust target (overriding the diagnosis's learning_target for the
+  // renderer); on no_target it falls back DETERMINISTICALLY to the non-personalized counterfactual
+  // rendering (Piece 5). Other arms (and play with no gate) are unaffected.
+  if (arm === "marginal" && diagnosis && "gate_target" in diagnosis) {
+    const gt = diagnosis.gate_target;
+    if (gt === "no_target") return feedbackForArm("counterfactual", { chosenBundle, legalBundles, labelFor });
+    return feedbackForArm("marginal", {
+      chosenBundle,
+      legalBundles,
+      diagnosis: { ...diagnosis, learning_target: gt },
+      labelFor,
+    });
+  }
   return feedbackForArm(arm, { chosenBundle, legalBundles, diagnosis, labelFor });
 }
 
 /** Per-decision log record (Task 7). */
-export function decisionLogRecord({ protocol, round, arm, chosenBundle, oracleBundle, candidateSetId, feedback }) {
+export function decisionLogRecord({ protocol, round, arm, chosenBundle, oracleBundle, candidateSetId, feedback, diagnosis }) {
   const ctx = roundContext(protocol, round);
   const score = oracleBundle ? roundScore(chosenBundle, oracleBundle) : { deployed_score: scoreOf(chosenBundle), score_ratio: null, is_optimal: null };
   return {
@@ -140,6 +155,9 @@ export function decisionLogRecord({ protocol, round, arm, chosenBundle, oracleBu
     violation_label: feedback?.violation_label ?? "none",
     best_improving_move: feedback?.best_improving_move ?? null,
     feedback_text: feedback?.text ?? "",
+    // The sign-survival gate decision in force for this block (carried from the latest
+    // runDiagnosis). Persisted so analysis can reconstruct WHY the arm coached (or fell back).
+    sign_survival_gate: diagnosis?.sign_survival_gate ?? null,
   };
 }
 
@@ -192,12 +210,23 @@ export function runDiagnosis({ trigger, round, choiceSets, surveyResponses, surv
     recencyHalfLife: isInitial ? Infinity : CHI_REDIAGNOSIS.recency_half_life_rounds,
     priorWeight: isInitial ? CHI_REDIAGNOSIS.initial_prior_weight : CHI_REDIAGNOSIS.retune_prior_weight,
   });
+  // Sign-survival gate (dynamic-protocol robustness layer): re-score the same diagnostic-block
+  // choices under the frozen scoring grid and coach only a sign-stable, floor-clearing component.
+  // The diagnosis keeps its own (recency-aware) learning_target for analysis; the gate's decision
+  // is what the FEEDBACK actually consults (see feedbackForDecision): it coaches gate_target, or on
+  // no_target the marginal arm falls back to the non-personalized counterfactual rendering.
+  const gate = signSurvivalGate(choiceSets);
   return {
     trigger,
     round,
     dominant_weakness: d.dominant_weakness,
     dominant_label: d.dominant_label,
+    // The diagnosis's own coaching proposal (pre-gate; recency-aware at re-diagnosis).
     learning_target: d.learning_target,
+    // The robustness gate's decision: the component the feedback coaches, or "no_target".
+    gate_target: gate.chosen_target,
+    // Per-component beta(nominal)/worst-case/pass + the frozen grid (logged per decision).
+    sign_survival_gate: gateDecisionForLog(gate),
     residual: d.residual,
     confidence: d.confidence,
     n_rounds: d.n_rounds,

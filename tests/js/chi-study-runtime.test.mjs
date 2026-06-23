@@ -166,6 +166,47 @@ test("decisionLogRecord carries the per-decision feedback fields that the Action
   assert.equal(typeof rec.deployed_score, "number");
 });
 
+test("runDiagnosis attaches the sign-survival gate decision (gate_target + per-component log)", () => {
+  const sets = Array.from({ length: 9 }, (_, i) => ({ ...overPickRound(), round: i + 1 }));
+  const d = runDiagnosis({ trigger: "initial", round: 15, choiceSets: sets, surveyResponses: {}, surveyQuestions: CHI_POST_PHASE_A_SURVEY });
+  assert.ok("gate_target" in d, "the gate decision is attached");
+  assert.ok(["W1", "W3", "no_target"].includes(d.gate_target));
+  assert.ok(d.sign_survival_gate && d.sign_survival_gate.components, "the per-component gate log is attached");
+  assert.deepEqual(d.sign_survival_gate.grid.gamma, [0.25, 0.5, 1.0], "the frozen grid is logged");
+  // A strong over-picker: the gate coaches W1; the diagnosis's own learning_target is preserved too.
+  assert.equal(d.gate_target, "W1");
+  assert.equal(d.learning_target, "W1");
+});
+
+test("no_target fallback: the marginal arm renders the non-personalized counterfactual deterministically", () => {
+  const protocol = buildChiStudyProtocol();
+  const cands = [
+    { bundle_ids: ["o1"], earnings: 20, deployed_total_time_seconds: 30, deployed_score: 20 / 30 },
+    { bundle_ids: ["o1", "o2"], earnings: 30, deployed_total_time_seconds: 75, deployed_score: 30 / 75 },
+  ];
+  const ctx = { protocol, round: 16, chosenBundle: cands[1], legalBundles: cands, labelFor: (id) => `order ${id}` };
+  // gate no_target -> identical to the plain counterfactual arm (no diagnosed-target tie-break).
+  const gated = feedbackForDecision({ ...ctx, arm: "marginal", diagnosis: { gate_target: "no_target", learning_target: "W1" } });
+  const counterfactual = feedbackForDecision({ ...ctx, arm: "counterfactual", diagnosis: null });
+  assert.deepEqual(gated, counterfactual, "no_target marginal == the non-personalized counterfactual rendering");
+  // gate with a robust target still coaches (an improving move is shown when one exists).
+  const coached = feedbackForDecision({ ...ctx, arm: "marginal", diagnosis: { gate_target: "W1", learning_target: "W3" } });
+  assert.ok("best_improving_move" in coached);
+});
+
+test("decisionLogRecord carries sign_survival_gate (the field the round-action allowlist must permit)", () => {
+  const protocol = buildChiStudyProtocol();
+  const cands = [
+    { bundle_ids: ["o1"], earnings: 20, deployed_total_time_seconds: 30, deployed_score: 20 / 30 },
+    { bundle_ids: ["o1", "o2"], earnings: 30, deployed_total_time_seconds: 75, deployed_score: 30 / 75 },
+  ];
+  const diagnosis = { gate_target: "W1", sign_survival_gate: { chosen_target: "W1", components: {}, grid: {} } };
+  const fb = feedbackForDecision({ protocol, round: 16, arm: "marginal", chosenBundle: cands[1], legalBundles: cands, diagnosis });
+  const rec = decisionLogRecord({ protocol, round: 16, arm: "marginal", chosenBundle: cands[1], oracleBundle: cands[0], candidateSetId: "s16", feedback: fb, diagnosis });
+  assert.ok("sign_survival_gate" in rec, "decisionLogRecord exposes sign_survival_gate for the Action log");
+  assert.equal(rec.sign_survival_gate.chosen_target, "W1");
+});
+
 test("the design tag (scenario_set_version_id + name) is on the persisted records by design", () => {
   // Summary: the participant research-study state self-identifies with the version id and the
   // dataset root (the scenario_set name), which saveParticipantResearchStudyState persists.
