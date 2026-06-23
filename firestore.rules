@@ -93,6 +93,9 @@ service cloud.firestore {
         'deployed_score',
         'score_ratio',
         'is_optimal',
+        // Sign-survival gate decision (dynamic-protocol robustness layer). Without this key the
+        // round-action write is rejected by hasOnly and the decision log silently fails to persist.
+        'sign_survival_gate',
         'createdAt',
         'updatedAt'
       ]);

@@ -548,7 +548,12 @@ function normalizeRoundSummaryAction(existing = {}, payload = {}) {
         feedback_text: payload?.feedback_text ?? existing?.feedback_text,
         deployed_score: optionalNumber(payload?.deployed_score, existing?.deployed_score),
         score_ratio: optionalNumber(payload?.score_ratio, existing?.score_ratio),
-        is_optimal: payload?.is_optimal ?? existing?.is_optimal
+        is_optimal: payload?.is_optimal ?? existing?.is_optimal,
+        // Sign-survival gate decision (dynamic-protocol robustness layer): chosen target +
+        // per-component beta(nominal)/worst-case/pass + the frozen grid/floor/alpha. Must also be
+        // on the participantRoundActionWrite allowlist (firestore.rules) or hasOnly rejects the
+        // whole write and the decision log silently fails to persist.
+        sign_survival_gate: payload?.sign_survival_gate ?? existing?.sign_survival_gate
     });
 }
 

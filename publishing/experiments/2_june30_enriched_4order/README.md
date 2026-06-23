@@ -6,14 +6,18 @@ The near-term study on the **redesigned, transfer-first menus**. Canonical detai
 | field | value |
 |---|---|
 | Timeline | **June 30 deadline** |
-| Protocol id / arms | **UNIDENTIFIED (TBD)** |
+| Protocol id / arms | `bundlegame_chi_dynamic_v1` **+ sign-survival gate** (diagnosis-driven; marginal / component / oracle / aggregate / control) |
 | Menus | enriched `buildChiScenarioSet` (seed 42), >= 4 orders per round |
-| Status | generator + tests on `main` (commit `1102fc1`); **NOT seeded** to Firestore |
+| Status | code on `main`; **NOT seeded** to Firestore |
 
-> The protocol/arm binding for this study is **not yet decided**. The non-personalized foundational
-> protocol (`bundlegame_chi_foundational_v1` / `chi_foundational_v1`) exists and is what is currently
-> live, but whether the June 30 study reuses it or gets a new id is TBD. See the open questions in the
-> canonical experiments map.
+> **Binding (resolved 2026-06-24):** the dynamic protocol plus the **sign-survival gate**
+> (`src/lib/signSurvivalGate.js`), a server-side robustness layer on the diagnosis. It re-scores the
+> diagnostic-block choices under a frozen grid (gamma in {0.25,0.5,1.0}, rho in {0,0.2,0.4}; nominal
+> 1.0,0) and coaches a component only if its standardized signed attribution is sign-stable across the
+> grid AND its bootstrap (B=120) worst-case clears +/- floor (0.15 SD units, pilot-calibrated then
+> frozen); otherwise `no_target` -> the marginal arm falls back to the counterfactual rendering. The
+> per-decision gate decision persists as `sign_survival_gate` (on the round-action allowlist). See the
+> canonical [experiments map](../../../docs/current/EXPERIMENTS.md).
 
 ## The enrichment (what changed)
 

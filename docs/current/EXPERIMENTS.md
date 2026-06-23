@@ -8,19 +8,25 @@ other doc disagrees, this one wins. Last reconciled against live Firestore (`bun
 | # | Experiment | Timeline | Protocol id | Scenario set | Personalized? | Status |
 |---|---|---|---|---|---|---|
 | 1 | **Live recommendation (mainGame)** | already run | `bundlegame_abc_recommendation_v1` | `mainGame_2026_03_20_14_26_36` | no (A/B/C recommendation) | **has real data** |
-| 2 | **Enriched 4-order** | **June 30 deadline** | **UNIDENTIFIED (TBD)** | enriched `buildChiScenarioSet` (seed 42), not yet seeded | TBD | generator on `main`, **not seeded** |
+| 2 | **Enriched 4-order + sign-survival gate** | **June 30 deadline** | `bundlegame_chi_dynamic_v1` **+ sign-survival gate** | enriched `buildChiScenarioSet` (seed 42), not yet seeded | yes (diagnosis-driven, gated) | code on `main`, **not seeded** |
 | 3 | **CHI personalization (dynamic)** | **CHI September** | `bundlegame_chi_dynamic_v1` | `chi_dynamic_v1` (from `buildChiScenarioSet`) | yes (diagnosis-driven) | defined in code, **not live** |
 
-> **Which is current?** Experiment 2 (the enriched 4-order menus) is the **current/active instrument**
-> the team is building toward. Note the seeding nuance: the enriched generator is on `main`, but it is
-> **not yet the seeded live set**, so a participant still boots the older `chi_foundational_v1` until a
-> deliberate reseed. "Current in code" and "current for participants" are not the same thing yet.
+> **Which is current?** Experiment 2 (the enriched 4-order menus run under the dynamic protocol with
+> the sign-survival gate) is the **current/active instrument** the team is building toward. Seeding
+> nuance: the enriched generator + gate are on `main`, but **not yet the seeded live set**, so a
+> participant still boots the older `chi_foundational_v1` until a deliberate reseed. "Current in code"
+> and "current for participants" are not the same thing yet.
 
-> **Unresolved binding (intentional).** Experiment 2's protocol/arm binding is **not yet decided**.
-> The non-personalized foundational protocol (`bundlegame_chi_foundational_v1` / scenario set
-> `chi_foundational_v1`) currently EXISTS in code and is what `centralConfig.scenario_set` points to
-> live, but whether the June 30 study reuses it, gets a new id, or is something else is **TBD**. Do
-> not assume `chi_foundational_v1` == the June 30 study until this line is updated.
+> **Binding (resolved 2026-06-24).** Experiment 2 is the **dynamic protocol (`bundlegame_chi_dynamic_v1`)
+> plus the sign-survival gate** (`src/lib/signSurvivalGate.js`) on the enriched 4-order menus. The gate
+> is a server-side robustness layer on the diagnosis: it re-scores the diagnostic-block choices under a
+> frozen grid (gamma in {0.25,0.5,1.0}, rho in {0,0.2,0.4}; nominal (1.0,0)) and coaches a component
+> only if its standardized signed attribution keeps the same sign across the whole grid AND its
+> bootstrap (B=120) worst-case interval clears +/- floor (0.15 SD units, pilot-calibrated then frozen).
+> Otherwise it emits `no_target` and the personalized (marginal) arm falls back to the non-personalized
+> counterfactual rendering for that block. The earlier foundational protocol
+> (`bundlegame_chi_foundational_v1` / `chi_foundational_v1`) is the un-gated, non-personalized variant
+> that is currently live; Experiment 2 does NOT reuse it.
 
 ## What is actually live right now (verified)
 
@@ -46,14 +52,29 @@ other doc disagrees, this one wins. Last reconciled against live Firestore (`bun
   (gitignored). Pull a fresh copy with `node scripts/export-firestore-research.mjs --project-id bundling-63c10`.
 - **Artifacts/index**: `publishing/experiments/1_live_recommendation_mainGame/README.md`.
 
-## Experiment 2 — Enriched 4-order (June 30)
+## Experiment 2 — Enriched 4-order + sign-survival gate (June 30)
 
-- **Purpose**: the near-term (June 30) study on the redesigned menus.
-- **Protocol/arms**: **UNIDENTIFIED / TBD** (see the note above).
+- **Purpose**: the near-term (June 30) study on the redesigned menus under the dynamic protocol, made
+  robust by the sign-survival gate.
+- **Protocol/arms**: `bundlegame_chi_dynamic_v1` (diagnosis-driven; arms marginal / component /
+  oracle / aggregate / control) **plus the sign-survival gate** as a server-side robustness layer on
+  the diagnosis.
 - **Menus**: the transfer-first enriched `buildChiScenarioSet` (seed 42): every menu >= 4 distinct
   orders; balanced oracle mix (13 single / 12 bundling-correct / 10 over-bundle); clean single-axis
   payout traps preserved; bundling-correct rounds appear transfer-first. Generator + tests on `main`.
-- **Status**: code merged (`1102fc1`), **not seeded** to Firestore.
+- **Sign-survival gate** (`src/lib/signSurvivalGate.js`, `SIGN_SURVIVAL_GATE`): re-scores the
+  diagnostic-block choices under the frozen grid `pick_gamma = raw_pick - gamma*savings`,
+  `score = earnings/(pick_gamma+local+cross)`, `V = score^(1-rho)` for gamma in {0.25,0.5,1.0}, rho in
+  {0,0.2,0.4} (nominal 1.0,0). It coaches a coachable component (pick = W1, earnings = W3; cross = W2
+  is logged, never coached) only if its standardized signed attribution `beta_k(V)` keeps the same
+  sign across the whole grid AND its bootstrap (B=120) worst-case 95% interval clears +/- floor
+  (0.15 SD units; pilot-calibrated then frozen). It picks the passing component with the largest
+  robust magnitude, else emits `no_target` and the marginal arm falls back to the counterfactual
+  rendering for the block. Wired in `chiStudyRuntime.runDiagnosis` (the decision is logged as
+  `sign_survival_gate` on each round-action; the field is on the `participantRoundActionWrite`
+  allowlist) and `chiStudyRuntime.feedbackForDecision` (the fallback). Tests:
+  `tests/js/sign-survival-gate.test.mjs` (the four planted-worker acceptance tests).
+- **Status**: code merged, **not seeded** to Firestore.
 - **Design artifacts**: `publishing/experiments/2_june30_enriched_4order/design/` (the per-round
   tables, CSVs, JSON, deep-dive, frozen numbers, analysis zip). Regenerate with
   `node scripts/dump-chi-scenarios.mjs` and `node scripts/print_frozen_numbers.mjs`.
@@ -75,15 +96,20 @@ other doc disagrees, this one wins. Last reconciled against live Firestore (`bun
 ## Shared infrastructure (not experiment-specific)
 
 - **Generator**: `src/lib/chiScenarioDesign.js` (`buildChiScenarioSet`, seed 42) feeds both CHI sets.
-- **Diagnosis**: `src/lib/chiDiagnosis.js` (used live by Experiment 3; dormant in the foundational
+- **Diagnosis**: `src/lib/chiDiagnosis.js` (used by Experiments 2 and 3; dormant in the foundational
   protocol).
+- **Sign-survival gate**: `src/lib/signSurvivalGate.js` (Experiment 2's robustness layer on the
+  diagnosis; inert unless the dynamic protocol runs the diagnosis).
 - **Analysis pipeline**: `publishing/data_analysis/`, `publishing/export_for_analysis/`.
 - **Paper**: `publishing/paper/`, `publishing/paper_artifacts/`.
 - **Seeding**: `scripts/seed-emulator.mjs` (Admin SDK; `--live` + `CHI_SEED_LIVE=1` for production).
 
 ## Open questions to resolve
 
-1. **Experiment 2 protocol binding** (the load-bearing TBD): which protocol + arms does the June 30
-   study use? Update the table and this file once decided.
-2. Whether Experiments 2 and 3 share one seeded menu set or get separate `scenario_set` ids.
-3. Re-seed plan: nothing is reseeded yet; live stays on `chi_foundational_v1` until a deliberate step.
+1. ~~Experiment 2 protocol binding~~ **RESOLVED (2026-06-24):** dynamic protocol + sign-survival gate
+   on the enriched 4-order menus.
+2. Whether Experiments 2 and 3 share one seeded menu set or get separate `scenario_set` ids (both run
+   the dynamic protocol; Experiment 2 adds the gate).
+3. **Floor calibration**: the gate floor starts at 0.15 SD units. Calibrate it on the June 30 pilot,
+   then FREEZE. Do not tune it (or the grid) on real data before then.
+4. Re-seed plan: nothing is reseeded yet; live stays on `chi_foundational_v1` until a deliberate step.
