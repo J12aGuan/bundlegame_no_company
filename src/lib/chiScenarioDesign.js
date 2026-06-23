@@ -90,6 +90,17 @@ const TRAP_ROLE_RANGES = {
 // A modest singleton dropped into a SECOND city to add dispersion to an over-bundle menu
 // (o1d1) without ever becoming the oracle or the max-earnings bundle: low-ish pay, mid speed.
 const OVERBUNDLE_DISTRACTOR = { pick: [6, 9], local: [3, 5], earn: [13, 18] };
+// A NEUTRAL filler singleton used to raise every menu to >= 4 distinct orders. Low pay + a
+// moderate pick so its score sits BELOW the design's key alternative (the trap's H, the
+// over-bundle's b1, the bundle's best single), so padding never changes the oracle, the trap
+// axis/cleanliness, or the over-bundle regret. Placed at an UNUSED store so it cannot bundle.
+const DISTRACTOR_ROLE = { pick: [8, 12], local: [3, 5], earn: [9, 14] };
+// A BALANCED order where bundling PAYS: good earnings, moderate pick, so a same-store pair/triple
+// (the shared-pick saving + the amortized start->store cross leg) is the highest-scoring feasible
+// trip and any single order is a strictly worse UNDER-bundling choice. The building block of the
+// bundling-correct rounds that fix the single-order-oracle dominance.
+const BUNDLE_ROLE = { pick: [6, 9], local: [2, 4], earn: [22, 30] };
+const BUNDLE_MIN_SINGLE_REGRET = 0.12; // the best single order must be >= 12% worse than the bundle
 // The high-pay singleton H is the trap. CRUCIAL identifiability point: H must be made
 // sub-optimal via DIFFERENT cost axes across the trap menus, NOT always the same one.
 // If H were always slow-via-local, then earnings and local co-move on H in every menu,
@@ -296,13 +307,31 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
       return mkAt(storeObj, span(r.pick[0], r.pick[1]), span(localRange[0], localRange[1]), span(TRAP_PAY_EARN[0], TRAP_PAY_EARN[1]));
     };
 
+    // Neutral filler + bundling-correct building blocks.
+    const mkDistractor = (storeObj) => mkAt(storeObj, span(DISTRACTOR_ROLE.pick[0], DISTRACTOR_ROLE.pick[1]), span(DISTRACTOR_ROLE.local[0], DISTRACTOR_ROLE.local[1]), span(DISTRACTOR_ROLE.earn[0], DISTRACTOR_ROLE.earn[1]));
+    const mkBundleOrder = (storeObj) => mkAt(storeObj, span(BUNDLE_ROLE.pick[0], BUNDLE_ROLE.pick[1]), span(BUNDLE_ROLE.local[0], BUNDLE_ROLE.local[1]), span(BUNDLE_ROLE.earn[0], BUNDLE_ROLE.earn[1]));
+    const allStores = cities.flatMap((c) => byCity[c]);
+    // Raise the menu to >= 4 distinct orders with neutral filler singletons at UNUSED stores
+    // (so they can never bundle). Prefer the host city first (keeps dispersion low where the
+    // layout allows it), then other cities. The filler scores BELOW the design's key alternative
+    // (the trap's H, the over-bundle's b1, the bundle's best single), so it never changes the
+    // oracle, the trap axis/cleanliness, or the over-bundling regret.
+    const padToFour = (hostCity) => {
+      for (let guard = 0; orders.length < 4 && guard < 12; guard += 1) {
+        const used = new Set(orders.map((o) => o.store));
+        const free = allStores.filter((s) => !used.has(s.store));
+        if (!free.length) break;
+        const inHost = free.filter((s) => s.city === hostCity);
+        orders.push(mkDistractor(inHost[0] || free[0]));
+      }
+    };
+
     if (cell.stress === "trap") {
       // S1 hosts the fast optimal singleton b1 + the high-pick bait b2 (a legal same-store
-      // over-bundle). S2 hosts the high-pay singleton H, made sub-optimal via cell.trapAxis:
-      //  - local/pick: H is a 2nd store in the SAME city (dispersion 0) -> no cross, the
-      //    slowness is purely local or pick (a single isolated cost axis);
-      //  - cross: b1/b2 sit in the city NEAREST the start and H in the city FARTHEST from
-      //    it (dispersion 1), so H's slowness is cross-city travel.
+      // over-bundle). S2 hosts the high-pay singleton H, made sub-optimal via cell.trapAxis
+      // (local/pick keep H in b1's city -> dCross 0; cross places H in the farthest city). The
+      // pad distractor is a far singleton that never touches the H-vs-b1 delta, so the single
+      // slow axis and its cleanliness are preserved (only the menu's dispersion flag may flip).
       const axis = cell.trapAxis || "local";
       let homeCity, s1, s2;
       if (axis === "cross") {
@@ -312,13 +341,6 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
         s1 = byCity[homeCity][0];
         s2 = byCity[farCity][0];
       } else {
-        // local / pick: keep b1, b2 AND H in the SAME city so there is no cross-city leg
-        // between them (dCross = 0) and H is slow via local or pick alone. Draw a city that
-        // hosts >= 2 stores (so H is a 2nd store, not bundleable with b1); the start->city leg
-        // then applies equally to b1 and H and cancels in the H-vs-oracle delta. In A/B both
-        // cities have two stores, so this draw is identical to a draw over all cities (the
-        // original battery is preserved); in the shift only Albany qualifies, which is exactly
-        // what makes the LOCAL trap clean (one store per city would force H to another city).
         const twoStoreCities = cities.filter((c) => byCity[c].length >= 2);
         const pool = twoStoreCities.length ? twoStoreCities : cities;
         homeCity = pool[Math.floor(rng() * pool.length)];
@@ -328,64 +350,49 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
       orders.push(mkRole(s1, "fast"));  // b1 — the score-optimal (faster, lower-paying)
       orders.push(mkRole(s1, "bait"));  // b2 — slow, low-pay over-bundle bait
       orders.push(mkPay(s2, axis));     // H  — max-earnings, sub-optimal via cell.trapAxis (the trap)
+      padToFour(homeCity);
     } else if (cell.stress === "overbundle") {
       // Guaranteed over-bundling REGRET: a fast high-value anchor b1 plus (count-1) high-pick
-      // low-pay baits, ALL at one store. The full same-store bundle pays the MOST (each bait
-      // adds earnings) but is sub-optimal because the baits' pick time sinks its rate; the
-      // oracle is a strict subset (b1). A pick-neglecter over-bundles to the max-pay bundle
-      // and loses real money. An optional modest distractor in a 2nd city adds dispersion (o1d1)
-      // without ever becoming the oracle or the max-earnings bundle.
+      // low-pay baits, ALL at one store. The full same-store bundle pays the MOST but is
+      // sub-optimal (the baits' pick sinks the rate); the oracle is a strict subset (b1).
       const count = cell.count || 2;
       const hostCity = (cell.hostCity && byCity[cell.hostCity])
         ? cell.hostCity
         : cities.slice().sort((a, b) => crossCity(CHI_STARTING_CITY, a) - crossCity(CHI_STARTING_CITY, b))[0];
       const hostStore = byCity[hostCity][0];
-      orders.push(mkRole(hostStore, "fast"));                                 // b1 — the oracle subset anchor
+      orders.push(mkRole(hostStore, "fast"));                                  // b1 — the oracle subset anchor
       for (let k = 1; k < count; k += 1) orders.push(mkRole(hostStore, "bait")); // baits — more $, lots of pick
-      if (cell.dispersion === 1) {
-        const otherCity = cities.find((c) => c !== hostCity) ?? hostCity;
-        const r = OVERBUNDLE_DISTRACTOR;
-        orders.push(mkAt(byCity[otherCity][0], span(r.pick[0], r.pick[1]), span(r.local[0], r.local[1]), span(r.earn[0], r.earn[1])));
-      }
-    } else if (cell.overlap === 1) {
-      // A store hosting >=2 orders (makes large single-store bundles legal).
-      const homeCity = cities[Math.floor(rng() * cities.length)];
-      const homeStore = byCity[homeCity][0];
-      orders.push(mkOrder(homeStore, cell.stress === "pick"));
-      orders.push(mkOrder(homeStore, cell.stress === "pick"));
-      if (cell.dispersion === 1) {
-        const otherCity = cities.find((c) => c !== homeCity);
-        orders.push(mkOrder(byCity[otherCity][0], false));
-      } else {
-        const sameCityOther = byCity[homeCity][1] || byCity[homeCity][0];
-        orders.push(mkOrder(sameCityOther, false));
-      }
+      padToFour(hostCity);
+    } else if (cell.stress === "bundle") {
+      // Bundling-CORRECT (the under-bundling test): `count` BALANCED orders at ONE store. The
+      // shared-pick saving plus the start->store cross leg amortized over the bundle make the
+      // same-store pair/triple the highest-scoring feasible trip AND the max-earnings bundle, so
+      // bundling is the right call and every single order is a strictly worse UNDER-bundling
+      // choice with real regret. Host in the city FARTHEST from the start so the amortized cross
+      // gives the bundle its edge (and a triple strictly beats its pairs). Pad with worse singles.
+      const count = cell.count || 2;
+      const farFirst = cities.slice().sort((a, b) => crossCity(CHI_STARTING_CITY, b) - crossCity(CHI_STARTING_CITY, a));
+      const hostCity = (cell.hostCity && byCity[cell.hostCity]) ? cell.hostCity : farFirst[0];
+      const hostStore = byCity[hostCity][0];
+      for (let k = 0; k < count; k += 1) orders.push(mkBundleOrder(hostStore));
+      padToFour(hostCity);
     } else {
-      // No store repeated -> overlap 0 (only singletons are legal).
-      if (cell.dispersion === 1) {
-        // Distinct stores across >=2 cities (works whether a city has 1 or 2
-        // stores -> robust for the Phase-C novel layout with 1 store/city).
-        const c1 = cities[0];
-        const c2 = cities.find((c) => c !== c1);
-        const sel = [byCity[c1][0], byCity[c2][0]];
-        if (byCity[c2][1]) {
-          sel.push(byCity[c2][1]); // A/B: a 2nd distinct store in the other city
-        } else {
-          const c3 = cities.find((c) => c !== c1 && c !== c2);
-          if (c3) sel.push(byCity[c3][0]); // C: a 3rd distinct city
-        }
-        for (const s of sel) orders.push(mkOrder(s, false));
-      } else {
-        // Single city, two distinct stores -> overlap 0, dispersion 0.
-        const c1 = cities.find((c) => byCity[c].length >= 2) || cities[0];
-        orders.push(mkOrder(byCity[c1][0], false));
-        orders.push(mkOrder(byCity[c1][1] || byCity[c1][0], false));
-      }
+      // route: distinct-store singletons spanning >= 2 cities (W2 / cross-city), >= 4 orders, no
+      // store overlap. One store per city first (max dispersion), then fill to four distinct stores.
+      const chosen = [];
+      for (const c of cities) if (byCity[c][0] && chosen.length < 4) chosen.push(byCity[c][0]);
+      for (const c of cities) if (byCity[c][1] && chosen.length < 4) chosen.push(byCity[c][1]);
+      for (const s of allStores) if (chosen.length < 4 && !chosen.includes(s)) chosen.push(s);
+      for (const s of chosen.slice(0, 4)) orders.push(mkOrder(s, false));
     }
 
-    // Distinct store assignment can collapse overlap; verify the realized flags.
-    if (storeOverlapFlag(orders) !== cell.overlap) continue;
-    if (dispersionFlag(orders) !== cell.dispersion) continue;
+    if (orders.length < 4) continue; // every menu carries >= 4 distinct orders (no binary picks)
+    const realizedOverlap = storeOverlapFlag(orders);
+    const realizedDispersion = dispersionFlag(orders);
+    // bundle/over-bundle/trap host a same-store bundle (overlap 1); route is distinct stores
+    // (overlap 0). Reject if the construction collapsed against its intent.
+    const wantOverlap = cell.stress === "route" ? 0 : 1;
+    if (realizedOverlap !== wantOverlap) continue;
 
     const byId = ordersById(orders);
     const orderIds = orders.map((o) => o.id);
@@ -435,8 +442,26 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
       if (!best.bundle_ids.every((id) => maxEarn.bundle_ids.map(String).includes(String(id)))) continue;
       if (!(best.earnings < maxEarn.earnings)) continue;
     }
+    if (cell.stress === "bundle") {
+      // Bundling is CORRECT: the oracle is a genuine pair/triple that is ALSO the max-earnings
+      // bundle, and the best single order is a strictly worse UNDER-bundling choice with real
+      // (>= 12%) regret. So a "never bundle" heuristic loses here.
+      if (!(best.bundle_ids.length >= 2)) continue;                                 // oracle is a pair or triple
+      if (!sortedIdsEqual(best.bundle_ids, maxEarn.bundle_ids)) continue;           // and the highest-paying bundle
+      const singles = scored.filter((c) => c.bundle_ids.length === 1);
+      const bestSingle = singles.reduce((a, c) => (a && a.score >= c.score ? a : c), null);
+      if (!bestSingle) continue;
+      if (!(bestSingle.score <= best.score * (1 - BUNDLE_MIN_SINGLE_REGRET))) continue; // real under-bundling regret
+    }
 
+    // Oracle CATEGORY (the fix's target axis): an over-bundling trap (max-pay is a bigger bundle
+    // than the oracle), a bundling-correct round (the oracle IS a pair/triple), or a single-order
+    // oracle (route / payout trap). Stored so the integrity check can balance the mix ~1/3 each.
+    const oracleSize = best.bundle_ids.length;
+    const oracleCategory = maxEarn.bundle_ids.length > oracleSize ? "over_bundle"
+      : oracleSize >= 2 ? "bundle_correct" : "single";
     const overBundlingCoachable = maxEarn.bundle_ids.length > best.bundle_ids.length ? 1 : 0;
+    const underBundlingCoachable = oracleCategory === "bundle_correct" ? 1 : 0;
     const payoutCoachable = !sortedIdsEqual(maxEarn.bundle_ids, best.bundle_ids) ? 1 : 0;
 
     return {
@@ -446,15 +471,20 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
       order_ids: orderIds,
       orders,
       max_bundle: 3,
-      store_overlap_flag: cell.overlap,
-      dispersion_flag: cell.dispersion,
+      store_overlap_flag: realizedOverlap,
+      dispersion_flag: realizedDispersion,
       shift_flag: cell.shift ? 1 : 0,
       stress: cell.stress,
       is_payout_trap: cell.stress === "trap" ? 1 : 0,
       trap_axis: cell.stress === "trap" ? (cell.trapAxis || "local") : null,
+      // Oracle size + category (the single-order-dominance fix reads these to balance the mix).
+      oracle_size: oracleSize,
+      oracle_category: oracleCategory,
       // Coachability tags the integrity check reads: over-bundling = the max-pay choice is a
-      // bigger bundle than the oracle; payout = the max-pay choice is simply not the oracle.
+      // bigger bundle than the oracle; under-bundling = the oracle IS a pair/triple (bundling
+      // correct); payout = the max-pay choice is simply not the oracle.
       over_bundling_coachable: overBundlingCoachable,
+      under_bundling_coachable: underBundlingCoachable,
       payout_coachable: payoutCoachable,
       // Realized H-vs-oracle cost decomposition + the clean-single-axis flag (traps only).
       trap_clean: cell.stress === "trap" && cleanSingleAxis ? 1 : 0,
@@ -487,74 +517,72 @@ export const CHI_PHASE_B_BLOCK_LAYOUT = [
   { id: "B4", kind: "off", test_set: "transfer_shifted", shift: true, feedback_enabled: false },
 ];
 
-// The Phase A diagnostic battery interleaves picking-stress menus (identify W1 /
-// over-bundling) with PAYOUT-TRAP menus (identify W3 / payout-overweighting) — both
-// overlap=1 — plus base/route cells that span the 2x2 and exercise W2. The trap menus
-// rotate H's slow axis (local / cross / pick) so W3 is identified independent of any
-// single cost-axis neglect (see TRAP_PAY_AXES). local/pick traps are same-city
-// (dispersion 0, no cross); cross traps are dispersion 1. Cycled to `diagnosticRounds`;
-// the runtime randomizes the order.
+// The Phase A diagnostic battery now spans THREE oracle types so the set is not blind to
+// under-bundling: payout TRAPS (W3, single-order oracle, rotating slow axis local/cross/pick),
+// OVER-bundle rounds (W1, oracle a strict subset of the max-pay bundle: over-bundling is wrong),
+// BUNDLE-correct rounds (W1, oracle a genuine pair/triple: under-bundling is wrong), and ROUTE
+// (W2). Every menu carries >= 4 distinct orders. Cycled to `diagnosticRounds`; the runtime
+// randomizes the order. (overlap/dispersion are realized from the orders, not declared.)
 const DIAGNOSTIC_CELLS = [
-  { overlap: 0, dispersion: 0, stress: "base" },
-  { overlap: 1, dispersion: 0, stress: "pick" },                      // W1 (over-bundling)
-  { overlap: 1, dispersion: 0, stress: "trap", trapAxis: "local" },   // W3, H slow via local
-  { overlap: 0, dispersion: 1, stress: "route" },                     // W2 (cross-city)
-  { overlap: 1, dispersion: 1, stress: "pick" },                      // W1+W2
-  { overlap: 1, dispersion: 1, stress: "trap", trapAxis: "cross" },   // W3, H slow via cross-city
-  { overlap: 1, dispersion: 0, stress: "trap", trapAxis: "pick" },    // W3, H slow via pick
+  { stress: "trap", trapAxis: "local" },   // W3 single-order oracle, H slow via local
+  { stress: "bundle", count: 2 },          // bundling correct — a PAIR oracle (under-bundling wrong)
+  { stress: "overbundle", count: 3 },      // over-bundling regret (oracle a strict subset)
+  { stress: "trap", trapAxis: "cross" },   // W3, H slow via cross-city
+  { stress: "bundle", count: 3 },          // bundling correct — a TRIPLE oracle
+  { stress: "overbundle", count: 2 },      // over-bundling regret
+  { stress: "route" },                     // W2 cross-city, single-order oracle
+  { stress: "trap", trapAxis: "pick" },    // W3, H slow via pick
+  { stress: "bundle", count: 2 },          // bundling correct — pair
+  { stress: "overbundle", count: 3 },      // over-bundling regret
+  { stress: "bundle", count: 3 },          // bundling correct — triple
+  { stress: "trap", trapAxis: "local" },   // W3, H slow via local
+  { stress: "route" },                     // W2 cross-city
+  { stress: "bundle", count: 2 },          // bundling correct — pair
+  { stress: "overbundle", count: 2 },      // over-bundling regret
 ];
 // The SHIFTED transfer trap (B4): a clean single-axis LOCAL payout trap. H is the 2nd Albany
-// store, slow via local travel alone (dCross = 0, low pick). The fixed start->city cross leg
-// helps the high-pay H, so it needs a larger local penalty (payLocal) to stay sub-optimal,
-// banded to [12%, 30%] so it has real power (>= 12%, the contract floor) without becoming
-// trivially easy. This replaces the old cross-axis transfer traps (confounded with pick, 4-6%).
+// store, slow via local travel alone (dCross = 0, low pick); a larger local penalty (payLocal)
+// keeps it sub-optimal under the fixed start->city cross leg, banded to [12%, 30%].
 const SHIFT_LOCAL_TRAP = {
-  overlap: 1, dispersion: 0, stress: "trap", trapAxis: "local", clean: true,
+  stress: "trap", trapAxis: "local", clean: true,
   minGap: CLEAN_TRAP_MIN_GAP, maxGap: CLEAN_TRAP_MAX_GAP, payLocal: [26, 36],
 };
 
 // The training support, shared by the ON coaching blocks (B1, B3) AND the same-distribution
-// retention block (B2). Five cells that PRESENT BOTH errors and span the 2x2 of overlap x
-// dispersion: base (00) and route (01) for the span and W2; two over-bundling-regret rounds
-// (overbundle, max-pay = the bigger bundle, oracle a strict subset -> W1 coachable); and a
-// payout trap (oracle != max-pay -> W3 coachable). The trap's slow AXIS rotates by block
-// (B1 local, B2/B3 cross) so the pooled trap battery still spans earnings x {local,cross,pick}
-// and a single-axis cost-neglecter (e.g. someone who just ignores local travel) is NOT
-// misdiagnosed as a payout-overweighter -- the menu-span identifiability condition. The trap's
-// dispersion follows its axis (local 0, cross 1) and the two over-bundle rounds take the
-// complementary then matching dispersion, so the FIRST FOUR cells always span the 2x2 (the
-// design stays valid for smaller block sizes too).
-const trainingSequence = (axis) => {
-  const trapD = axis === "cross" ? 1 : 0;
-  return [
-    { overlap: 0, dispersion: 0, stress: "base" },                          // 00 — 2x2 span anchor
-    { overlap: 0, dispersion: 1, stress: "route" },                         // 01 — cross-city span (W2)
-    { overlap: 1, dispersion: trapD, stress: "trap", trapAxis: axis },      // payout trap (W3 coachable)
-    { overlap: 1, dispersion: 1 - trapD, stress: "overbundle" },            // over-bundling regret (W1 coachable)
-    { overlap: 1, dispersion: trapD, stress: "overbundle" },                // over-bundling regret
-  ];
-};
+// retention block (B2). Five cells presenting ALL THREE errors so coaching covers them and the
+// held-out blocks can re-diagnose any residual: a payout TRAP (W3, axis rotates by block for
+// identifiability), an OVER-bundle round (W1 over), a BUNDLE-correct round (W1 under), plus a
+// ROUTE (W2 / overlap-0 span). The ON blocks lean bundle-heavy; retention adds an extra
+// over-bundle so both leak directions stay re-diagnosable.
+const trainingSequence = (axis, bundleHeavy) => [
+  { stress: "route" },
+  { stress: "trap", trapAxis: axis },
+  { stress: "overbundle", count: 3 },
+  { stress: "bundle", count: 2 },
+  bundleHeavy ? { stress: "bundle", count: 3 } : { stress: "overbundle", count: 2 },
+];
 // B1 presents the LOCAL payout trap (the clean direction the transfer block tests); B2 and B3
-// present a CROSS-axis trap. Across the blocks the trap battery is local 5 / cross 4 / pick 2
-// (Phase A 2/2/2 + B1 local + B2/B3 cross + B4 local x2), which keeps the unaided diagnosis
-// pool (Phase A + B2 + B4) axis-balanced so W3 stays separable from local/cross neglect.
-const BLOCK_TRAP_AXIS = { B1: "local", B2: "cross", B3: "cross" };
+// present a CROSS-axis trap (keeps the pooled trap battery axis-balanced so W3 stays separable
+// from a single-axis cost-neglecter). B1/B3 are bundle-heavy; B2 is over-bundle-heavy.
+const BLOCK_TRAINING = { B1: { axis: "local", bundleHeavy: true }, B2: { axis: "cross", bundleHeavy: false }, B3: { axis: "cross", bundleHeavy: true } };
 
-// TRANSFER-FIRST: the held-out shifted transfer block (B4) is designed first and tests BOTH
-// errors cleanly. Three over-bundling-regret rounds on novel single-store C-cities (oracle a
-// strict subset of the max-pay over-bundle) plus TWO clean single-axis LOCAL payout traps
-// (H slow via local alone, >= 12% gap) hosted at the 2-store shift city (Albany).
+// TRANSFER-FIRST: the held-out shifted transfer block (B4) is designed first and tests all three
+// errors. Two over-bundling-regret rounds (oracle a strict subset of the max-pay over-bundle) +
+// ONE clean single-axis LOCAL payout trap (>= 12%) + TWO bundling-CORRECT rounds (a genuine
+// pair/triple is the highest-scoring trip, so the transfer also probes WHEN TO BUNDLE). All on
+// novel single-store C-cities; order ids are disjoint from training.
 const TRANSFER_SUPPORT = [
-  { overlap: 1, dispersion: 0, stress: "overbundle", count: 3, hostCity: "Emeryville" },
-  { ...SHIFT_LOCAL_TRAP },                                                           // clean local trap (Albany), >= 12%
-  { overlap: 1, dispersion: 0, stress: "overbundle", count: 3, hostCity: "Richmond" },
-  { ...SHIFT_LOCAL_TRAP },                                                           // clean local trap (Albany), >= 12%
-  { overlap: 1, dispersion: 0, stress: "overbundle", count: 3, hostCity: "Piedmont" },
+  { stress: "overbundle", count: 3, hostCity: "Emeryville" },
+  { stress: "bundle", count: 2, hostCity: "Richmond" },   // bundling correct on a far novel store
+  { ...SHIFT_LOCAL_TRAP },                                 // clean local trap (Albany), >= 12%
+  { stress: "overbundle", count: 3, hostCity: "Piedmont" },
+  { stress: "bundle", count: 3, hostCity: "Richmond" },   // bundling correct — a TRIPLE
 ];
 
 const blockSequence = (blk) => {
   if (blk.test_set === "transfer_shifted") return TRANSFER_SUPPORT.map((c) => ({ ...c, shift: true }));
-  return trainingSequence(BLOCK_TRAP_AXIS[blk.id] || "local").map((c) => ({ ...c, shift: false }));
+  const t = BLOCK_TRAINING[blk.id] || { axis: "local", bundleHeavy: true };
+  return trainingSequence(t.axis, t.bundleHeavy).map((c) => ({ ...c, shift: false }));
 };
 
 /**
@@ -645,23 +673,31 @@ export function validateChiScenarioSet(set, { minPerCell = 2, minTrap = 3 } = {}
   const retention = phaseB.filter((s) => s.test_set === "retention_same_dist");
   const transfer = phaseB.filter((s) => s.test_set === "transfer_shifted");
 
-  // 2x2 coverage in the diagnostic battery and the ON training pool.
-  const checkCells = (rows, label) => {
-    const cells = {};
-    for (const s of rows) {
-      const key = `${s.store_overlap_flag}${s.dispersion_flag}`;
-      cells[key] = (cells[key] || 0) + 1;
-    }
-    for (const key of ["00", "01", "10", "11"]) {
-      if ((cells[key] || 0) < minPerCell) {
-        errors.push(`${label} cell overlap/dispersion=${key} has ${cells[key] || 0} < ${minPerCell} menus`);
-      }
-    }
-    if (new Set(rows.map((s) => s.store_overlap_flag)).size < 2) errors.push(`${label} store_overlap_flag does not vary`);
+  // FLOOR: every menu carries >= 4 DISTINCT orders (no 2-order binary picks).
+  for (const s of scenarios) {
+    if ((s.orders?.length ?? 0) < 4) errors.push(`round ${s.round} has ${s.orders?.length ?? 0} < 4 orders`);
+    if (new Set(s.order_ids).size < 4) errors.push(`round ${s.round} has < 4 distinct order ids`);
+  }
+
+  // Overlap (W1 bundling) and dispersion (W2 cross-city) both vary in the diagnostic battery and
+  // the ON pool. The old o0d0 anchor is dropped: a 4-order single-city distinct-store menu is
+  // infeasible with 2 stores per A/B city, so the W1/W2 separation comes from the reachable cells
+  // (overlap-0 route vs overlap-1 bundle/over/trap; dispersion 0 vs 1).
+  const checkSpan = (rows, label) => {
+    if (new Set(rows.map((s) => s.store_overlap_flag)).size < 2) errors.push(`${label} store_overlap_flag does not vary (need an overlap-0 route + overlap-1 bundle/trap)`);
     if (new Set(rows.map((s) => s.dispersion_flag)).size < 2) errors.push(`${label} dispersion_flag does not vary`);
   };
-  checkCells(diagnostic, "diagnostic (A)");
-  checkCells(onMenus, "ON training pool");
+  checkSpan(diagnostic, "diagnostic (A)");
+  checkSpan(onMenus, "ON training pool");
+
+  // ORACLE-TYPE MIX (the single-order-dominance fix): the study tests all three errors with a
+  // roughly balanced mix so a "never bundle" heuristic does NOT score well -- ~1/3 single-order
+  // oracles (route / payout trap), ~1/3 bundling-CORRECT pair/triple oracles (UNDER-bundling is
+  // the leak), ~1/3 over-bundling traps (oracle a strict subset of the max-pay bundle).
+  const catCount = (rows, cat) => rows.filter((s) => s.oracle_category === cat).length;
+  for (const cat of ["single", "bundle_correct", "over_bundle"]) {
+    if (catCount(scenarios, cat) < 8) errors.push(`oracle-category "${cat}" has only ${catCount(scenarios, cat)} rounds (< 8; the ~1/3 mix is too lopsided)`);
+  }
 
   // The two OFF blocks: retention (same-dist), transfer (labeled shift, novel stores).
   if (retention.length === 0) errors.push("missing retention (same-distribution) OFF block");
@@ -724,16 +760,16 @@ export function validateChiScenarioSet(set, { minPerCell = 2, minTrap = 3 } = {}
     }
   }
 
-  // BOTH ERRORS PER BLOCK. Every coaching block (B1, B3), the retention block (B2), and the
-  // transfer block (B4) must PRESENT BOTH errors the study coaches: at least one
-  // over-bundling-coachable round (the max-pay choice is a strictly bigger bundle than the
-  // oracle, so over-bundling is the leak) AND at least one payout trap (oracle != max-pay).
-  // This is what lets the coaching cover both leaks and the held-out blocks re-diagnose either
-  // residual leak. (It also fixes the old B3, where 4 of 5 rounds had oracle = max-pay = the
-  // biggest bundle, so there was nothing to coach.)
+  // ALL THREE ERRORS PER BLOCK. Every coaching block (B1, B3), the retention block (B2), and the
+  // transfer block (B4) must PRESENT all three errors the study probes: an OVER-bundling round
+  // (max-pay is a strictly bigger bundle than the oracle), a BUNDLING-CORRECT round (the oracle
+  // IS a pair/triple, so under-bundling is the leak), and a PAYOUT trap (oracle != max-pay). The
+  // bundling-correct round is the fix for under-bundling blindness and must appear transfer-first
+  // (in B4) and be covered in B1, B2, B3.
   const onBlocks = [...new Set(onMenus.map((s) => s.block))].map((id) => [onMenus.filter((s) => s.block === id), `ON block ${id}`]);
   for (const [rows, label] of [...onBlocks, [retention, "retention (B2)"], [transfer, "transfer (B4)"]]) {
-    if (!rows.some((s) => s.over_bundling_coachable === 1)) errors.push(`${label} has no over-bundling-coachable round (oracle smaller than the max-pay bundle)`);
+    if (!rows.some((s) => s.over_bundling_coachable === 1)) errors.push(`${label} has no over-bundling round (oracle smaller than the max-pay bundle)`);
+    if (!rows.some((s) => s.under_bundling_coachable === 1)) errors.push(`${label} has no bundling-correct round (a pair/triple oracle; cannot test/coach UNDER-bundling)`);
     if (!rows.some((s) => s.is_payout_trap === 1)) errors.push(`${label} has no payout trap (oracle != max-pay; cannot coach / re-diagnose payout)`);
   }
 
@@ -768,12 +804,19 @@ export function validateChiScenarioSet(set, { minPerCell = 2, minTrap = 3 } = {}
     errors.push(`transfer block has no CLEAN single-axis payout trap with relative_gap >= ${CLEAN_TRAP_MIN_GAP} (got ${got.join(", ") || "no traps"})`);
   }
 
-  // Payout-trap coverage: the diagnostic battery must keep BOTH a picking signal (W1) and a
-  // payout-trap signal (W3) so the earnings/pick weights are not collinear and W1/W3 separate.
+  // The transfer block must also test WHEN TO BUNDLE: at least one bundling-correct round (a
+  // genuine pair/triple oracle) so transfer is not blind to under-bundling either.
+  if (!transfer.some((s) => s.oracle_category === "bundle_correct")) {
+    errors.push("transfer block has no bundling-correct round (cannot test when-to-bundle on transfer)");
+  }
+
+  // Signal coverage in the diagnostic battery: a payout-trap signal (W3) AND a bundling-decision
+  // signal (W1) -- the W1 signal is now the over-bundle AND bundling-correct rounds (both turn on
+  // whether to add same-store orders), so earnings/pick are not collinear and W1/W3 separate.
   const diagTraps = diagnostic.filter((s) => s.is_payout_trap === 1);
-  const diagPick = diagnostic.filter((s) => s.stress === "pick");
+  const diagBundleDecision = diagnostic.filter((s) => s.stress === "overbundle" || s.stress === "bundle");
   if (diagTraps.length < minTrap) errors.push(`diagnostic battery has ${diagTraps.length} < ${minTrap} payout-trap menus (W3 not separately identifiable)`);
-  if (diagPick.length < minTrap) errors.push(`diagnostic battery has ${diagPick.length} < ${minTrap} picking-stress menus (lost the W1 signal)`);
+  if (diagBundleDecision.length < minTrap) errors.push(`diagnostic battery has ${diagBundleDecision.length} < ${minTrap} bundling-decision menus (over/bundle; lost the W1 signal)`);
 
   // HETEROGENEITY in the diagnostic battery: its traps must make H sub-optimal via DIFFERENT
   // cost axes (>= 2 distinct), else earnings co-moves with one fixed axis on every trap and a
@@ -794,6 +837,34 @@ export function validateChiScenarioSet(set, { minPerCell = 2, minTrap = 3 } = {}
     if (!(Number(opt.total_time_seconds) < Number(maxEarn.total_time_seconds))) errors.push(`payout-trap round ${s.round}: the optimal is not faster than the max-earnings bundle`);
     if (!(Number(opt.earnings) < Number(maxEarn.earnings))) errors.push(`payout-trap round ${s.round}: the optimal is not lower-paying than the max-earnings bundle`);
     if (!cb.some((c) => Array.isArray(c.bundle_ids) && c.bundle_ids.length >= 2 && c.is_oracle !== 1)) errors.push(`payout-trap round ${s.round}: no sub-optimal over-bundle present`);
+  }
+
+  // Bundling-CORRECT invariant: the oracle is a genuine pair/triple that is ALSO the max-earnings
+  // bundle, and the best single order is a strictly worse UNDER-bundling choice (>= 12% regret).
+  for (const s of scenarios.filter((x) => x.oracle_category === "bundle_correct")) {
+    const cb = s.candidate_bundles || [];
+    const opt = cb.find((c) => c.is_oracle === 1);
+    const maxEarn = cb.reduce((a, c) => (a && Number(a.earnings) >= Number(c.earnings) ? a : c), null);
+    if (!opt || !maxEarn) { errors.push(`bundle-correct round ${s.round} missing candidate_bundles`); continue; }
+    if (!(opt.bundle_ids.length >= 2)) errors.push(`bundle-correct round ${s.round}: oracle is not a pair/triple`);
+    if (!sortedIdsEqual(opt.bundle_ids, maxEarn.bundle_ids)) errors.push(`bundle-correct round ${s.round}: the oracle bundle is not also the max-earnings bundle`);
+    const singles = cb.filter((c) => Array.isArray(c.bundle_ids) && c.bundle_ids.length === 1);
+    const bestSingle = singles.reduce((a, c) => (a && Number(a.score) >= Number(c.score) ? a : c), null);
+    if (!bestSingle) errors.push(`bundle-correct round ${s.round}: no single-order alternative present`);
+    else if (!(Number(bestSingle.score) <= Number(opt.score) * (1 - BUNDLE_MIN_SINGLE_REGRET))) {
+      errors.push(`bundle-correct round ${s.round}: the best single order is not >= ${Math.round(BUNDLE_MIN_SINGLE_REGRET * 100)}% worse (no real under-bundling regret)`);
+    }
+  }
+
+  // Over-bundling invariant: the oracle is a STRICT SUBSET of the max-pay bundle (so over-bundling
+  // is the leak with real regret -- "drop the excess orders").
+  for (const s of scenarios.filter((x) => x.oracle_category === "over_bundle")) {
+    const cb = s.candidate_bundles || [];
+    const opt = cb.find((c) => c.is_oracle === 1);
+    const maxEarn = cb.reduce((a, c) => (a && Number(a.earnings) >= Number(c.earnings) ? a : c), null);
+    if (!opt || !maxEarn) { errors.push(`over-bundle round ${s.round} missing candidate_bundles`); continue; }
+    if (!(maxEarn.bundle_ids.length > opt.bundle_ids.length)) errors.push(`over-bundle round ${s.round}: the max-pay bundle is not bigger than the oracle`);
+    if (!opt.bundle_ids.every((id) => maxEarn.bundle_ids.map(String).includes(String(id)))) errors.push(`over-bundle round ${s.round}: the oracle is not a strict subset of the max-pay bundle`);
   }
 
   return { ok: errors.length === 0, errors, n_scenarios: scenarios.length };

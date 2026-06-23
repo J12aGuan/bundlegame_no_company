@@ -152,15 +152,16 @@ test("gap#3: marginal feedback renders for a sub-optimal bundle and is empty for
   assert.match(marginalFeedbackMessage(withMove, cb).text, /\$\d/);
 });
 
-test("payout-trap menus disambiguate W3: present in Phase A (~half of overlap menus) and both OFF blocks", () => {
+test("payout-trap menus disambiguate W3: present in Phase A and both OFF blocks; W1 bundling signal kept", () => {
   const set = buildChiScenarioSet();
   const diag = set.scenarios.filter((s) => s.phase === "A");
   const traps = diag.filter((s) => s.is_payout_trap === 1);
-  const picks = diag.filter((s) => s.stress === "pick");
-  // The battery keeps BOTH signals: ~half the overlap menus are picking-stress (W1)
-  // and ~half are payout-trap (W3), so the logit can separate earnings from pick.
+  // The W1 (bundling-decision) signal is now the over-bundle AND bundling-correct rounds (both
+  // turn on whether to add same-store orders), kept alongside the payout traps so the logit can
+  // separate earnings from pick.
+  const bundleDecision = diag.filter((s) => s.stress === "overbundle" || s.stress === "bundle");
   assert.ok(traps.length >= 3, `Phase A needs payout-trap menus, got ${traps.length}`);
-  assert.ok(picks.length >= 3, `Phase A keeps picking-stress menus, got ${picks.length}`);
+  assert.ok(bundleDecision.length >= 3, `Phase A keeps bundling-decision menus, got ${bundleDecision.length}`);
   assert.ok(traps.every((s) => s.store_overlap_flag === 1), "traps keep a legal same-store over-bundle");
   // Both held-out OFF blocks include a trap so a residual payout leak is re-diagnosable.
   const retention = set.scenarios.filter((s) => s.test_set === "retention_same_dist");
