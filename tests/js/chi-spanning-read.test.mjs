@@ -77,9 +77,14 @@ test("HEADLINE: a pure payout-overweighter is recovered as W3 from behaviour on 
   assert.equal(d.strengths.W3 > 0.4, true, `the spanning W3 signal should be substantial, got ${d.strengths.W3.toFixed(2)}`);
 });
 
-test("the pooled read MISDIAGNOSES the same payout-overweighter as W1 (the confound the fix resolves)", () => {
+test("the pooled read FAILS to recover the payout-overweighter as W3 (the confound the spanning fix resolves)", () => {
   const pooled = behaviourDiag(BIASES.trueW3, { spanningRead: false });
-  assert.equal(pooled.learning_target, "W1", `pooled read should misfire to W1, got ${pooled.learning_target}`);
+  const spanning = behaviourDiag(BIASES.trueW3);
+  // The pooled read CANNOT recover the payout leak as W3 on the confounded battery: it either
+  // misfires to the W1 over-bundling symptom or abstains (after the B2/B4 rebalance it abstains).
+  // Either way it gets the wrong (or no) coachable target; only the spanning read recovers W3.
+  assert.notEqual(pooled.learning_target, "W3", `pooled read must NOT recover W3, got ${pooled.learning_target}`);
+  assert.equal(spanning.learning_target, "W3", "the spanning read recovers W3");
 });
 
 test("a pure pick-neglecter still reads W1 on the full battery", () => {

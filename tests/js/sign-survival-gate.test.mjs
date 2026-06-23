@@ -39,6 +39,7 @@ function choiceSets(chooser) {
           cross_city_travel_time_seconds: c.cross_city_travel_time_seconds,
           local_travel_time_seconds: c.local_travel_time_seconds,
           shared_item_savings_seconds: c.shared_item_savings_seconds,
+          shared_store_local_seconds: c.shared_store_local_seconds,
         },
         chosen: c === chosen,
       })),
@@ -58,9 +59,14 @@ const payout = biasedChooser({ gamma: 3.0, aPick: 1, aCross: 1, aLocal: 1 });
 // Weak bias: a mild payout lean that deviates on a few menus but never robustly clears the floor.
 const weak = biasedChooser({ gamma: 1.3, aPick: 1, aCross: 1, aLocal: 1 });
 
-test("frozen grid: nominal (gamma 1.0, rho 0) is a grid point", () => {
-  assert.ok(SIGN_SURVIVAL_GATE.grid.gamma.includes(SIGN_SURVIVAL_GATE.nominal.gamma));
+test("frozen grid: the nominal (savings 0.25, local 0, rho 0) is a grid point and equals the study rule", () => {
+  assert.ok(SIGN_SURVIVAL_GATE.grid.savings.includes(SIGN_SURVIVAL_GATE.nominal.savings));
+  assert.ok(SIGN_SURVIVAL_GATE.grid.local.includes(SIGN_SURVIVAL_GATE.nominal.local));
   assert.ok(SIGN_SURVIVAL_GATE.grid.rho.includes(SIGN_SURVIVAL_GATE.nominal.rho));
+  assert.deepEqual(SIGN_SURVIVAL_GATE.grid.savings, [0.25, 0.5, 1.0]);
+  assert.deepEqual(SIGN_SURVIVAL_GATE.grid.local, [0, 0.25]);
+  assert.equal(SIGN_SURVIVAL_GATE.nominal.savings, 1.0); // full credit on the baked study saving == scoreBundle
+  assert.equal(SIGN_SURVIVAL_GATE.nominal.local, 0);
 });
 
 test("planted worker: unbiased -> no_target", () => {
@@ -108,5 +114,6 @@ test("the log view carries the fields the Firestore allowlist needs", () => {
   assert.ok(log.components.W1 && log.components.W3 && log.components.W2);
   assert.ok(Array.isArray(log.components.W3.worst_case) && log.components.W3.worst_case.length === 2);
   assert.equal(log.grid.floor, SIGN_SURVIVAL_GATE.floor);
-  assert.deepEqual(log.grid.gamma, [0.25, 0.5, 1.0]);
+  assert.deepEqual(log.grid.savings, [0.25, 0.5, 1.0]);
+  assert.deepEqual(log.grid.local, [0, 0.25]);
 });

@@ -11,7 +11,7 @@ import {
 } from "../../src/lib/researchStudy.js";
 
 // ---- five-arm randomization + CHI dynamic counterfactual-feedback protocol ----
-test("CHI protocol validates: 35 rounds default, A + blocked B (on/off/on/off), five arms", () => {
+test("CHI protocol validates: 35 rounds default, A + blocked B (on/off/on/off), four arms", () => {
   const v = validateChiStudyProtocol(buildChiStudyProtocol());
   assert.ok(v.ok, `expected valid CHI protocol, got: ${v.errors.join("; ")}`);
   assert.equal(v.expected_total_rounds, 35);
@@ -33,7 +33,7 @@ test("CHI round counts are configurable and validated", () => {
   assert.deepEqual(v.phase_b_blocks.map((b) => b.rounds), [4, 4, 4, 4]);
 });
 
-test("assignScaffoldArm returns a stable arm among the five scaffold types", () => {
+test("assignScaffoldArm returns a stable arm among the four scaffold types", () => {
   const protocol = buildChiStudyProtocol();
   const a1 = assignScaffoldArm("participant-123", protocol);
   const a2 = assignScaffoldArm("participant-123", protocol);
@@ -41,7 +41,7 @@ test("assignScaffoldArm returns a stable arm among the five scaffold types", () 
   assert.ok(CHI_SCAFFOLD_TYPES.includes(a1.id));
 });
 
-test("all five arms are reachable across participants", () => {
+test("all four arms are reachable across participants", () => {
   const protocol = buildChiStudyProtocol();
   const seen = new Set();
   for (let i = 0; i < 500; i += 1) seen.add(assignScaffoldArm(`p-${i}`, protocol).id);

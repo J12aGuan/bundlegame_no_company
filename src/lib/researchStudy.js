@@ -1759,11 +1759,12 @@ export const CHI_PHASE_B_BLOCK_SIZE = 5;
 // Single fixed recommendation policy shared by every treated arm (bundle invariance).
 export const CHI_FIXED_RECOMMENDATION_POLICY = "oracle_optimal";
 
-// Arm ids. `control` is unaided throughout; the other four show feedback (ON
-// blocks only). `marginal` and `component` re-target each block (dynamic).
-export const CHI_SCAFFOLD_TYPES = ["marginal", "component", "oracle", "aggregate", "control"];
-export const CHI_TREATED_SCAFFOLD_TYPES = ["marginal", "component", "oracle", "aggregate"];
-export const CHI_DYNAMIC_SCAFFOLD_TYPES = ["marginal", "component"];
+// Arm ids (four-arm dynamic study, equal assignment, ~100 per arm / ~400 total). `control` is
+// unaided throughout; the other three show feedback (ON blocks only). `marginal` re-targets each
+// block (dynamic), gated by the sign-survival gate. The `component` arm was dropped.
+export const CHI_SCAFFOLD_TYPES = ["marginal", "oracle", "aggregate", "control"];
+export const CHI_TREATED_SCAFFOLD_TYPES = ["marginal", "oracle", "aggregate"];
+export const CHI_DYNAMIC_SCAFFOLD_TYPES = ["marginal"];
 
 // The two COMMON held-out OFF test sets (identical for every participant/arm,
 // disjoint from the training pool). OFF block 1 = retention (same distribution);
@@ -1778,17 +1779,6 @@ export const BUNDLEGAME_CHI_SCAFFOLD_ARMS = [
     id: "marginal",
     label: "Marginal (counterfactual best one-step move, $ + time deltas)",
     feedback_kind: "marginal",
-    dynamic: true,
-    policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
-    policy_version: "v1",
-    show_recommendations: true,
-    active_phases: ["B"],
-    assignment_weight: 1,
-  },
-  {
-    id: "component",
-    label: "Component (current dominant misweighted attribute, named, no numbers)",
-    feedback_kind: "component",
     dynamic: true,
     policy_name: CHI_FIXED_RECOMMENDATION_POLICY,
     policy_version: "v1",
@@ -1896,7 +1886,7 @@ export function buildChiStudyProtocol(overrides = {}) {
       // Feedback fires only in Phase B ON blocks; OFF blocks are unaided tests.
       on_block_ids: ["B1", "B3"],
       off_block_ids: ["B2", "B4"],
-      treatment_arm_ids: ["marginal", "component", "oracle", "aggregate"],
+      treatment_arm_ids: ["marginal", "oracle", "aggregate"],
       control_arm_ids: ["control"],
       dynamic_arm_ids: CHI_DYNAMIC_SCAFFOLD_TYPES.slice(),
       default_ranked_bundles_shown: 1,
@@ -1909,6 +1899,8 @@ export function buildChiStudyProtocol(overrides = {}) {
     survey: { administered_after_phase: "A", before_first_feedback: true },
     fixed_recommendation_policy: CHI_FIXED_RECOMMENDATION_POLICY,
     legal_action_mask_version: DEFAULT_ACTION_MASK_VERSION,
+    // Four arms, equal weights, target ~100 per arm (~400 total) for the main study.
+    main_target_n: 400,
     ...(overrides && typeof overrides === "object" ? overrides : {}),
   };
 }
@@ -2163,8 +2155,8 @@ export function validateChiStudyProtocol(protocol = buildChiStudyProtocol()) {
   }
 
   const armIds = normalized.policy_arms.map((a) => a.id).sort().join(",");
-  if (armIds !== "aggregate,component,control,marginal,oracle") {
-    errors.push(`arms must be exactly marginal,component,oracle,aggregate,control; got ${armIds}`);
+  if (armIds !== "aggregate,control,marginal,oracle") {
+    errors.push(`arms must be exactly marginal,oracle,aggregate,control; got ${armIds}`);
   }
   const armById = new Map(normalized.policy_arms.map((a) => [a.id, a]));
   if (armById.get("control")?.show_recommendations) {

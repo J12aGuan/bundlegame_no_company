@@ -201,6 +201,7 @@ export function scoreBundle(bundleIds, byId, startCity, travelScale = 1) {
   }
   // Shared-store savings when >=2 orders share a store (over-bundling temptation).
   let savings = 0;
+  let sharedStoreLocal = 0; // total local-travel of shared-store groups (for the gate's local axis)
   const grouped = {};
   for (const id of bundleIds) {
     const o = byId[id];
@@ -212,6 +213,7 @@ export function scoreBundle(bundleIds, byId, startCity, travelScale = 1) {
     if (g.length >= 2) {
       const groupPick = g.reduce((s, o) => s + orderPickSeconds(o), 0);
       savings += groupPick * SHARED_STORE_PICK_SAVE_RATE;
+      sharedStoreLocal += g.reduce((s, o) => s + (Number(o.localTravelTime) || 0), 0);
     }
   }
   const time = Math.max(0.1, rawTime - savings);
@@ -224,6 +226,10 @@ export function scoreBundle(bundleIds, byId, startCity, travelScale = 1) {
     cross_city_travel_time_seconds: crossTotal,
     local_travel_time_seconds: localTotal,
     shared_item_savings_seconds: savings,
+    // Additive (NOT a FEATURE_COLUMN, does not affect score/oracle): the within-store local-travel
+    // of shared-store groups, so the sign-survival gate can vary a hypothetical local-travel
+    // reduction without re-deriving per-order grouping. Zero for singletons / no shared store.
+    shared_store_local_seconds: sharedStoreLocal,
     total_time_seconds: time,
     score: earnings / time,
     ending_city: simCity,
@@ -259,7 +265,7 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
   for (const s of stores) { byCity[s.city] = byCity[s.city] || []; byCity[s.city].push(s); }
   const cities = Object.keys(byCity);
 
-  for (let attempt = 0; attempt < 200; attempt += 1) {
+  for (let attempt = 0; attempt < 600; attempt += 1) {
     const orders = [];
     let idx = 0;
     const mkOrder = (storeObj, big) => {
@@ -564,7 +570,26 @@ const trainingSequence = (axis, bundleHeavy) => [
 // B1 presents the LOCAL payout trap (the clean direction the transfer block tests); B2 and B3
 // present a CROSS-axis trap (keeps the pooled trap battery axis-balanced so W3 stays separable
 // from a single-axis cost-neglecter). B1/B3 are bundle-heavy; B2 is over-bundle-heavy.
-const BLOCK_TRAINING = { B1: { axis: "local", bundleHeavy: true }, B2: { axis: "cross", bundleHeavy: false }, B3: { axis: "cross", bundleHeavy: true } };
+const BLOCK_TRAINING = { B1: { axis: "local", bundleHeavy: true }, B3: { axis: "cross", bundleHeavy: true } };
+
+// Coaching/held-out blocks should sit at a comparable second-best gap (~0.24 to 0.28) so difficulty
+// is matched. B1/B3 already land there; B2 (retention) ran too HARD and B4 (transfer) too EASY, so
+// ONLY those two are banded here. The round TYPE and trap AXIS are unchanged; only the gap moves.
+// The banded rounds are tuned so each block MEAN lands in 0.24 to 0.28. B2's bundle-correct r24 runs
+// gap-high and B4's triple r35 runs gap-low (both kept for their >=12% regret, not gap-banded), so
+// B2's banded rounds sit a touch LOW and B4's a touch HIGH to compensate.
+const RETUNE_GAP_BAND = { minGap: 0.24, maxGap: 0.28 };
+// The bundle-correct rounds are NOT forced into the band (they keep their >=12% single-vs-bundle
+// binding regret, enforced by BUNDLE_MIN_SINGLE_REGRET). But their second-best gap is lightly
+// bounded so it does not pull the block mean out of range: B2's pair runs gap-high (cap it) and
+// B4's triple runs gap-low (floor it).
+const B2_SEQUENCE = [
+  { stress: "route", ...RETUNE_GAP_BAND },                      // r21
+  { stress: "trap", trapAxis: "cross", ...RETUNE_GAP_BAND },    // r22 (clean cross trap, still >=12%)
+  { stress: "overbundle", count: 3, ...RETUNE_GAP_BAND },       // r23
+  { stress: "bundle", count: 2, maxGap: 0.28 },                // r24: keeps regret >=12%; gap capped
+  { stress: "overbundle", count: 2, ...RETUNE_GAP_BAND },       // r25
+];
 
 // TRANSFER-FIRST: the held-out shifted transfer block (B4) is designed first and tests all three
 // errors. Two over-bundling-regret rounds (oracle a strict subset of the max-pay over-bundle) +
@@ -572,15 +597,16 @@ const BLOCK_TRAINING = { B1: { axis: "local", bundleHeavy: true }, B2: { axis: "
 // pair/triple is the highest-scoring trip, so the transfer also probes WHEN TO BUNDLE). All on
 // novel single-store C-cities; order ids are disjoint from training.
 const TRANSFER_SUPPORT = [
-  { stress: "overbundle", count: 3, hostCity: "Emeryville" },
-  { stress: "bundle", count: 2, hostCity: "Richmond" },   // bundling correct on a far novel store
-  { ...SHIFT_LOCAL_TRAP },                                 // clean local trap (Albany), >= 12%
-  { stress: "overbundle", count: 3, hostCity: "Piedmont" },
-  { stress: "bundle", count: 3, hostCity: "Richmond" },   // bundling correct — a TRIPLE
+  { stress: "overbundle", count: 3, hostCity: "Emeryville", ...RETUNE_GAP_BAND },   // r31 (banded up)
+  { stress: "bundle", count: 2, hostCity: "Richmond", minGap: 0.16 },   // r32 pair: keeps regret >= 12%; gap floored
+  { ...SHIFT_LOCAL_TRAP, ...RETUNE_GAP_BAND },            // r33 clean local trap (Albany), banded ~0.26 (still >= 12%)
+  { stress: "overbundle", count: 3, hostCity: "Piedmont", ...RETUNE_GAP_BAND },     // r34 (banded up)
+  { stress: "bundle", count: 3, hostCity: "Richmond", minGap: 0.16 },   // r35 triple: keeps regret >= 12%; gap floored
 ];
 
 const blockSequence = (blk) => {
   if (blk.test_set === "transfer_shifted") return TRANSFER_SUPPORT.map((c) => ({ ...c, shift: true }));
+  if (blk.id === "B2") return B2_SEQUENCE.map((c) => ({ ...c, shift: false }));
   const t = BLOCK_TRAINING[blk.id] || { axis: "local", bundleHeavy: true };
   return trainingSequence(t.axis, t.bundleHeavy).map((c) => ({ ...c, shift: false }));
 };
