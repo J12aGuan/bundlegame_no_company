@@ -23,8 +23,10 @@ import { buildChiScenarioSet } from "./chiScenarioDesign.js";
 export const CHI_SCENARIO_FIELDS = [
   "block", "block_kind", "test_set", "feedback_enabled", "stress",
   "store_overlap_flag", "dispersion_flag", "shift_flag", "is_payout_trap", "trap_axis",
-  // Coachability + clean-single-axis tags the integrity check reads (must survive a round-trip).
-  "over_bundling_coachable", "payout_coachable", "trap_clean", "trap_axis_deltas",
+  // Oracle size/category + coachability + clean-single-axis tags the integrity check reads
+  // (must survive a save -> load round-trip).
+  "oracle_size", "oracle_category",
+  "over_bundling_coachable", "under_bundling_coachable", "payout_coachable", "trap_clean", "trap_axis_deltas",
   "oracle_bundle_ids", "second_best_bundle_ids", "max_earnings_bundle_ids",
   "travel_scale", "relative_gap", "score_gap", "classification",
   "candidate_bundles", "orders",
