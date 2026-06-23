@@ -15,6 +15,8 @@ These files describe the live app and should stay aligned with the current codeb
 
 | Document | Purpose |
 | --- | --- |
+| [current/EXPERIMENTS.md](current/EXPERIMENTS.md) | The three experiments (purpose, protocol, dataset, status): single source of truth |
+| [current/CODEMAP.md](current/CODEMAP.md) | What each directory and module does: a newcomer's navigation index |
 | [current/ARCHITECTURE.md](current/ARCHITECTURE.md) | Runtime structure, round flow, and timing model |
 | [current/CONFIG_AND_DATASETS.md](current/CONFIG_AND_DATASETS.md) | Firestore source of truth, dataset shape, Cities matrix, and admin behavior |
 | [current/EXPERIMENT_PROTOCOL.md](current/EXPERIMENT_PROTOCOL.md) | Canonical 50-round protocol, randomization, Qualtrics linkage, and claim gates |
