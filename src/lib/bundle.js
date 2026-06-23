@@ -28,7 +28,12 @@ const MAIN_CITIES_FILE = 'cities.json';
 
 // Default config values (must exist in Firebase; these are boot defaults only)
 let config = {
-	timeLimit: 1200,
+	// Whole-session cap (seconds), enforced by FullTimeLimit (elapsed >= limit -> finalizeTimedOutGame,
+	// NOT gated by `expire`). The CHI study is 35 rounds; 3000s (~50 min) keeps all rounds AND the
+	// transfer block reachable for slow participants (the old 1200s = ~34s/round would cut them off).
+	// NOTE: the LIVE MasterData/centralConfig.game.timeLimit overrides this default and must also be
+	// set to ~3000 to take effect in production.
+	timeLimit: 3000,
 	thinkTime: 10,
 	gridSize: 3,
 	auth: true,
@@ -285,7 +290,9 @@ export function buildUnaidedChoiceSets(uptoRound = Infinity) {
 				effective_pick_time_seconds: Number(c.effective_pick_time_seconds) || 0,
 				cross_city_travel_time_seconds: Number(c.cross_city_travel_time_seconds) || 0,
 				local_travel_time_seconds: Number(c.local_travel_time_seconds) || 0,
-				shared_item_savings_seconds: Number(c.shared_item_savings_seconds) || 0
+				shared_item_savings_seconds: Number(c.shared_item_savings_seconds) || 0,
+				// Additive: lets the sign-survival gate apply its local-travel-reduction axis.
+				shared_store_local_seconds: Number(c.shared_store_local_seconds) || 0
 			},
 			chosen: sortedIdsEqual(c.bundle_ids, chosenIds),
 			oracle: c.is_oracle === 1 || sortedIdsEqual(c.bundle_ids, oracleIds)

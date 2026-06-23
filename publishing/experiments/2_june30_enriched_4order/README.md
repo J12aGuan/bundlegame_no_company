@@ -6,18 +6,21 @@ The near-term study on the **redesigned, transfer-first menus**. Canonical detai
 | field | value |
 |---|---|
 | Timeline | **June 30 deadline** |
-| Protocol id / arms | `bundlegame_chi_dynamic_v1` **+ sign-survival gate** (diagnosis-driven; marginal / component / oracle / aggregate / control) |
-| Menus | enriched `buildChiScenarioSet` (seed 42), >= 4 orders per round |
+| Protocol id / arms | `bundlegame_chi_dynamic_v1` **+ sign-survival gate**; FOUR equal-weight arms (control / aggregate / marginal / oracle; `component` dropped), ~100/arm (~400 total) |
+| Menus | enriched `buildChiScenarioSet` (seed 42), >= 4 orders per round; B2/B4 difficulty-matched (block mean second-best gap ~0.25 to 0.28) |
 | Status | code on `main`; **NOT seeded** to Firestore |
 
-> **Binding (resolved 2026-06-24):** the dynamic protocol plus the **sign-survival gate**
-> (`src/lib/signSurvivalGate.js`), a server-side robustness layer on the diagnosis. It re-scores the
-> diagnostic-block choices under a frozen grid (gamma in {0.25,0.5,1.0}, rho in {0,0.2,0.4}; nominal
-> 1.0,0) and coaches a component only if its standardized signed attribution is sign-stable across the
-> grid AND its bootstrap (B=120) worst-case clears +/- floor (0.15 SD units, pilot-calibrated then
-> frozen); otherwise `no_target` -> the marginal arm falls back to the counterfactual rendering. The
-> per-decision gate decision persists as `sign_survival_gate` (on the round-action allowlist). See the
-> canonical [experiments map](../../../docs/current/EXPERIMENTS.md).
+> **Binding (resolved 2026-06-24):** the dynamic protocol (four arms) plus the **sign-survival gate**
+> (`src/lib/signSurvivalGate.js`), a server-side robustness layer on the diagnosis whose NOMINAL
+> scoring reproduces the study oracle scorer `scoreBundle` exactly. It re-scores the diagnostic-block
+> choices under a THREE-axis frozen grid -- savings credit {0.25, 0.5, 1.0} (nominal 1.0), within-store
+> local-travel credit {0, 0.25} (nominal 0), value curvature rho {0, 0.2, 0.4} (nominal 0); the nominal
+> (1.0, 0, 0) == scoreBundle -- and coaches a component only if its standardized signed excess
+> `beta_k = mean(chosen_k - oracle_k under V)/SD_k` is sign-stable across the grid AND its bootstrap
+> (B=120) worst-case clears +/- floor (0.15 SD units, pilot-calibrated then frozen); otherwise
+> `no_target` -> the marginal arm falls back to the counterfactual rendering. The per-decision gate
+> decision persists as `sign_survival_gate` (on the round-action allowlist). See the canonical
+> [experiments map](../../../docs/current/EXPERIMENTS.md).
 
 ## The enrichment (what changed)
 

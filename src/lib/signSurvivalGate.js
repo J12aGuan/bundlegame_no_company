@@ -8,85 +8,73 @@
  * grid AND its bootstrap worst case clears a floor. Otherwise it emits `no_target` and the
  * personalized arm falls back to the non-personalized counterfactual rendering for the block.
  *
- * NOTE ON PROVENANCE: the referenced spec `SIGN_SURVIVAL_GATE.md` is not present in this
- * repo. This implements the five pieces exactly as written in the task description; the exact
- * attribution formula below is a faithful, internally-consistent reconstruction pinned by the
- * four planted-worker acceptance tests (tests/js/sign-survival-gate.test.mjs). If a canonical
- * Part 2 differs in the attribution algebra, reconcile here; the gate STRUCTURE (frozen grid,
- * standardized signed attribution, bootstrap worst-case, sign-constancy + floor, no_target
- * fallback, deterministic) is the contract.
+ * SCORER ALIGNMENT: the gate's NOMINAL scoring is identical to the study's oracle/regret
+ * scorer `chiScenarioDesign.scoreBundle` (which bundle.js uses to define is_oracle and to
+ * score at runtime): time = pick + local + cross - shared_item_savings, score = earnings/time,
+ * where shared_item_savings = 0.25*(shared-store pick). The frozen grid has THREE axes, each a
+ * CREDIT on the study's baked saving (NOT a raw multiple of group pick):
+ *   - savings credit (on shared_item_savings_seconds): {0.25, 0.5, 1.0}; nominal 1.0 = the study rule.
+ *   - local-travel credit (on shared_store_local_seconds): {0, 0.25}; nominal 0 = the study rule.
+ *   - value curvature rho: {0, 0.2, 0.4}; nominal 0.
+ * The nominal grid point (savings 1.0, local 0, rho 0) reproduces scoreBundle exactly. Lower savings
+ * credits model "bundling saves less than assumed" (so over-bundling is MORE wrong); the local credit
+ * models a hypothetical within-store local-travel saving; curvature is V = score^(1-rho).
  *
- * The five pieces:
- *   1. Frozen scoring grid (one config constant): gamma in {0.25,0.5,1.0}, rho in {0,0.2,0.4};
- *      the nominal scoring (1.0, 0) IS a grid point. Parameterized scorer:
- *        pick_gamma = raw_pick - gamma*savings   (raw_pick = effective_pick + savings)
- *        score      = earnings / (pick_gamma + local + cross)
- *        V          = score^(1 - rho)
- *   2. Standardized signed attribution beta_k(V) per coachable component (pick=W1, earnings=W3;
- *      cross=W2 logged, never coached) over the diagnostic-block rounds, divided by the
- *      component's global SD.
- *   3. Bootstrap worst case: resample the diagnostic rounds B=120 times; per resample take the
- *      min and max of beta_k over the grid; form the 95% interval of those worst-case values.
- *   4. Gate: coach k only if its sign is constant across the whole grid AND its worst-case
- *      interval clears +/- floor (config, start 0.15 SD units). Pick the passing component with
- *      the largest robust magnitude; otherwise no_target.
- *   5. no_target: deterministic fallback to the non-personalized counterfactual rendering.
+ * beta_k(V): standardized signed excess per coachable component (pick=W1, earnings=W3; cross=W2
+ * logged, never coached) = mean over diagnostic rounds of (chosen_k - oracle_k under V) divided by
+ * the component's global SD, where the oracle under V is the V-optimal bundle. This matches the
+ * spec's unweighted-mean form. NOTE: because V is a monotone transform of score, the V-optimal is
+ * rho-invariant, so the rho axis does not move beta_k (it is kept for completeness); the savings and
+ * local rates DO move the oracle and therefore beta_k.
  *
- * Layered on the diagnosis: the attribution is read on the earnings-IDENTIFYING (spanning)
- * menus, the same observable subspace the deployed diagnosis uses (chiDiagnosis spanningRead),
- * so a strong payout-chaser's W3 leak is not confounded with the W1 over-bundling symptom it
- * also produces. `menuIdentifiesEarnings` is the canonical observability test (imported, not
- * re-derived). Otherwise pure.
+ * Layered on the diagnosis: the attribution is read on the earnings-IDENTIFYING (spanning) menus,
+ * the same observable subspace the deployed diagnosis uses, so a strong payout-chaser's W3 leak is
+ * not confounded with the W1 over-bundling symptom it also produces (`menuIdentifiesEarnings`).
  */
 import { menuIdentifiesEarnings } from "./chiDiagnosis.js";
 
-// ----- Piece 1: the frozen scoring grid (the ONE config constant) ----------------------- //
+// ----- The frozen scoring grid (the ONE config constant) -------------------------------- //
 export const SIGN_SURVIVAL_GATE = {
   grid: {
-    gamma: [0.25, 0.5, 1.0], // shared-pick-saving credit; nominal credits the full saving
-    rho: [0, 0.2, 0.4], // value concavity V = score^(1-rho); nominal is risk-neutral
+    savings: [0.25, 0.5, 1.0], // CREDIT on the baked shared_item_savings; the study rule is 1.0
+    local: [0, 0.25], // CREDIT on the within-store local travel; the study rule is 0
+    rho: [0, 0.2, 0.4], // value concavity V = score^(1-rho); the study rule is 0
   },
-  nominal: { gamma: 1.0, rho: 0 }, // MUST be a grid point (it is: 1.0 in gamma, 0 in rho)
+  nominal: { savings: 1.0, local: 0, rho: 0 }, // == the study's scoreBundle scorer
   floor: 0.15, // robust-magnitude floor, in component-SD units. Calibrate on the pilot, then FREEZE.
   alpha: 0.05, // -> 95% interval of the bootstrap worst-case values
   bootstrap: 120, // B resamples
   seed: 0x5f3759df, // fixed -> the bootstrap is deterministic (no tuning on real data)
   coachable: ["W1", "W3"], // pick (W1), earnings (W3). cross (W2) is logged, never coached.
+  minSpanning: 3, // restrict to earnings-identifying menus when at least this many exist
 };
 
-// Coachable/logged component -> the feature it reads.
-const COMPONENT_FEATURE = {
-  W1: "effective_pick_time_seconds",
-  W3: "earnings",
-  W2: "cross_city_travel_time_seconds",
-};
+const COMPONENT_FEATURE = { W1: "effective_pick_time_seconds", W3: "earnings", W2: "cross_city_travel_time_seconds" };
 const ALL_COMPONENTS = ["W1", "W3", "W2"];
 const EPS = 1e-9;
-
 const num = (x) => (Number.isFinite(Number(x)) ? Number(x) : 0);
 
-// ----- Piece 1: the parameterized scorer ------------------------------------------------ //
-// raw_pick = effective_pick + savings, so at nominal gamma=1 pick_gamma = effective_pick.
-function pickGamma(f, gamma) {
-  const rawPick = num(f.effective_pick_time_seconds) + num(f.shared_item_savings_seconds);
-  return rawPick - gamma * num(f.shared_item_savings_seconds);
+// ----- The parameterized scorer (nominal == scoreBundle) -------------------------------- //
+// savings/local are CREDITS on the study's baked saving features: at savings credit 1.0 the full
+// shared_item_savings is subtracted (== scoreBundle); lower credits subtract less.
+function timeUnder(f, savingsCredit, localCredit) {
+  const pick = num(f.effective_pick_time_seconds);
+  const local = num(f.local_travel_time_seconds);
+  const cross = num(f.cross_city_travel_time_seconds);
+  const savePick = savingsCredit * num(f.shared_item_savings_seconds);
+  const saveLocal = localCredit * num(f.shared_store_local_seconds);
+  return Math.max(EPS, pick + local + cross - savePick - saveLocal);
 }
-function totalTime(f, gamma) {
-  return pickGamma(f, gamma) + num(f.local_travel_time_seconds) + num(f.cross_city_travel_time_seconds);
+function scoreUnder(f, savingsRate, localRate) {
+  return num(f.earnings) / timeUnder(f, savingsRate, localRate);
 }
-function scoreOf(f, gamma) {
-  const t = totalTime(f, gamma);
-  return t > EPS ? num(f.earnings) / t : 0;
-}
-function valueV(f, gamma, rho) {
-  const s = scoreOf(f, gamma);
+function valueV(f, savingsRate, localRate, rho) {
+  const s = scoreUnder(f, savingsRate, localRate);
   return s > 0 ? Math.pow(s, 1 - rho) : 0;
 }
-// The signed component value entering the attribution (pick uses pick_gamma under the grid).
-function componentValue(f, k, gamma) {
-  if (k === "W1") return pickGamma(f, gamma);
-  if (k === "W3") return num(f.earnings);
-  return num(f.cross_city_travel_time_seconds); // W2
+// The signed component value entering the attribution (the raw component, per the spec).
+function componentValue(f, k) {
+  return num(f[COMPONENT_FEATURE[k]]);
 }
 
 function stddev(xs) {
@@ -95,44 +83,40 @@ function stddev(xs) {
   return Math.sqrt(xs.reduce((s, v) => s + (v - m) ** 2, 0) / xs.length);
 }
 
-// ----- Piece 2: standardized signed attribution beta_k(V) at one grid point ------------- //
-// Sign convention: positive = the participant systematically chose MORE of component k than the
-// V-optimal bundle. For a cost (pick/cross) that is neglect; for earnings that is overweighting.
-// rho enters as a per-round value weight (concavity emphasizes low-rate rounds); gamma enters via
-// pick_gamma. The signed per-round deviation is divided by the component's pooled global SD.
-function betaAt(rounds, gamma, rho) {
+// ----- Standardized signed excess beta_k at one grid point ------------------------------ //
+// beta_k = mean_r (comp_k(chosen) - comp_k(oracle-under-V)) / global SD_k. Unweighted (per spec).
+// Positive = the participant systematically chose MORE of component k than the V-optimal bundle:
+// for a cost (pick/cross) that is neglect; for earnings that is overweighting.
+function betaAt(rounds, savingsRate, localRate, rho) {
   const pooled = { W1: [], W3: [], W2: [] };
   for (const r of rounds) for (const a of r.alternatives) {
-    for (const k of ALL_COMPONENTS) pooled[k].push(componentValue(a.features, k, gamma));
+    for (const k of ALL_COMPONENTS) pooled[k].push(componentValue(a.features, k));
   }
   const sd = {};
   for (const k of ALL_COMPONENTS) sd[k] = Math.max(EPS, stddev(pooled[k]));
 
   const acc = { W1: 0, W3: 0, W2: 0 };
-  let wsum = 0;
+  let n = 0;
   for (const r of rounds) {
     const alts = r.alternatives;
     let vopt = alts[0];
     let chosen = null;
     for (const a of alts) {
-      if (valueV(a.features, gamma, rho) > valueV(vopt.features, gamma, rho)) vopt = a;
+      if (valueV(a.features, savingsRate, localRate, rho) > valueV(vopt.features, savingsRate, localRate, rho)) vopt = a;
       if (a.chosen) chosen = a;
     }
     if (!chosen) continue;
-    const w = Math.pow(Math.max(EPS, scoreOf(chosen.features, gamma)), -rho); // rho=0 -> 1 (uniform)
-    wsum += w;
-    for (const k of ALL_COMPONENTS) {
-      acc[k] += w * (componentValue(chosen.features, k, gamma) - componentValue(vopt.features, k, gamma));
-    }
+    n += 1;
+    for (const k of ALL_COMPONENTS) acc[k] += componentValue(chosen.features, k) - componentValue(vopt.features, k);
   }
   const beta = {};
-  for (const k of ALL_COMPONENTS) beta[k] = wsum > 0 ? acc[k] / wsum / sd[k] : 0;
+  for (const k of ALL_COMPONENTS) beta[k] = n > 0 ? acc[k] / n / sd[k] : 0;
   return beta;
 }
 
 function gridPoints(grid) {
   const out = [];
-  for (const gamma of grid.gamma) for (const rho of grid.rho) out.push({ gamma, rho });
+  for (const savings of grid.savings) for (const local of grid.local) for (const rho of grid.rho) out.push({ savings, local, rho });
   return out;
 }
 
@@ -163,29 +147,24 @@ function percentile(xs, p) {
   return s[lo] + (s[hi] - s[lo]) * (idx - lo);
 }
 
-// ----- Pieces 3 + 4: bootstrap worst-case + the gate ------------------------------------ //
+// ----- bootstrap worst-case + the gate -------------------------------------------------- //
 /**
  * Run the sign-survival gate over the diagnostic-block choice sets. Each choice set is
- * `{ round, alternatives: [{ features:{...}, chosen:bool }] }` (the same shape the diagnosis
- * consumes). Returns the full decision object; `chosen_target` is "W1" | "W3" | "no_target".
+ * `{ round, alternatives: [{ features:{...}, chosen:bool }] }`. Returns the full decision object;
+ * `chosen_target` is "W1" | "W3" | "no_target".
  */
 export function signSurvivalGate(choiceSets, config = SIGN_SURVIVAL_GATE) {
   const usable = (choiceSets || []).filter(
     (cs) => Array.isArray(cs?.alternatives) && cs.alternatives.length >= 2 && cs.alternatives.some((a) => a.chosen),
   );
-  // Read the attribution on the earnings-identifying (spanning) menus so the payout leak is not
-  // confounded with the over-bundling symptom; fall back to the full set when too few identify.
   const identifying = usable.filter((cs) => menuIdentifiesEarnings(cs.alternatives));
   const rounds = identifying.length >= (config.minSpanning ?? 3) ? identifying : usable;
   const spanning_used = rounds === identifying;
   const grid = gridPoints(config.grid);
-  const beta_nominal = betaAt(rounds, config.nominal.gamma, config.nominal.rho);
+  const beta_nominal = betaAt(rounds, config.nominal.savings, config.nominal.local, config.nominal.rho);
 
-  // Point-estimate beta over the full sample at every grid point (for the sign-constancy test).
-  const pointBeta = grid.map((g) => betaAt(rounds, g.gamma, g.rho));
+  const pointBeta = grid.map((g) => betaAt(rounds, g.savings, g.local, g.rho));
 
-  // Piece 3: bootstrap. Per resample, the worst case over the grid is the min and the max of
-  // beta_k; the 95% interval of those worst-case values is [pctile(mins, 2.5), pctile(maxs, 97.5)].
   const rng = mulberry32(config.seed);
   const mins = { W1: [], W3: [], W2: [] };
   const maxs = { W1: [], W3: [], W2: [] };
@@ -193,7 +172,7 @@ export function signSurvivalGate(choiceSets, config = SIGN_SURVIVAL_GATE) {
     const sample = resample(rounds, rng);
     const perK = { W1: [], W3: [], W2: [] };
     for (const g of grid) {
-      const bt = betaAt(sample, g.gamma, g.rho);
+      const bt = betaAt(sample, g.savings, g.local, g.rho);
       for (const k of ALL_COMPONENTS) perK[k].push(bt[k]);
     }
     for (const k of ALL_COMPONENTS) {
@@ -202,16 +181,13 @@ export function signSurvivalGate(choiceSets, config = SIGN_SURVIVAL_GATE) {
     }
   }
 
-  // Piece 4: per-component gate decision.
   const per_component = {};
   for (const k of ALL_COMPONENTS) {
     const signs = pointBeta.map((b) => Math.sign(b[k]));
     const sign = signs[0];
     const sign_constant = sign !== 0 && signs.every((s) => s === sign);
-    const wcLo = percentile(mins[k], (config.alpha / 2) * 100); // 2.5th pct of per-resample worst-case mins
-    const wcHi = percentile(maxs[k], (1 - config.alpha / 2) * 100); // 97.5th pct of per-resample worst-case maxes
-    // "Clears +/- floor": for a positive sign the whole worst-case interval sits above +floor
-    // (wcLo > floor); for a negative sign it sits below -floor (wcHi < -floor).
+    const wcLo = percentile(mins[k], (config.alpha / 2) * 100);
+    const wcHi = percentile(maxs[k], (1 - config.alpha / 2) * 100);
     let clears_floor = false;
     let robust_magnitude = 0;
     if (sign > 0) {
@@ -233,7 +209,6 @@ export function signSurvivalGate(choiceSets, config = SIGN_SURVIVAL_GATE) {
     };
   }
 
-  // Pick the passing coachable component with the largest robust magnitude; else no_target.
   let chosen_target = "no_target";
   let bestMag = -Infinity;
   for (const k of config.coachable) {
@@ -248,7 +223,8 @@ export function signSurvivalGate(choiceSets, config = SIGN_SURVIVAL_GATE) {
     beta_nominal,
     per_component,
     grid: {
-      gamma: config.grid.gamma,
+      savings: config.grid.savings,
+      local: config.grid.local,
       rho: config.grid.rho,
       nominal: config.nominal,
       floor: config.floor,
@@ -261,7 +237,7 @@ export function signSurvivalGate(choiceSets, config = SIGN_SURVIVAL_GATE) {
   };
 }
 
-// ----- Piece 5: the deterministic no_target fallback ------------------------------------ //
+// ----- the deterministic no_target fallback --------------------------------------------- //
 /** The robust coaching target as a weakness id, or null (no_target -> counterfactual rendering). */
 export function gatedTargetWeakness(decision) {
   const t = decision?.chosen_target;
@@ -275,9 +251,8 @@ export function isNoTarget(decision) {
 
 /**
  * Compact, Firestore-friendly view of the gate decision for the per-decision round-action log.
- * These are the fields that must be on the round-action allowlist (chosen target, beta at
- * nominal, per-component worst-case bounds + pass/fail, and the frozen grid/floor/alpha) or the
- * write is rejected by `hasOnly` and silently fails to persist.
+ * These are the fields the round-action allowlist must permit (chosen target, beta at nominal,
+ * per-component worst-case bounds + pass/fail, and the frozen grid/floor/alpha).
  */
 export function gateDecisionForLog(decision) {
   if (!decision) return null;

@@ -172,7 +172,7 @@ test("runDiagnosis attaches the sign-survival gate decision (gate_target + per-c
   assert.ok("gate_target" in d, "the gate decision is attached");
   assert.ok(["W1", "W3", "no_target"].includes(d.gate_target));
   assert.ok(d.sign_survival_gate && d.sign_survival_gate.components, "the per-component gate log is attached");
-  assert.deepEqual(d.sign_survival_gate.grid.gamma, [0.25, 0.5, 1.0], "the frozen grid is logged");
+  assert.deepEqual(d.sign_survival_gate.grid.savings, [0.25, 0.5, 1.0], "the frozen grid is logged");
   // A strong over-picker: the gate coaches W1; the diagnosis's own learning_target is preserved too.
   assert.equal(d.gate_target, "W1");
   assert.equal(d.learning_target, "W1");
