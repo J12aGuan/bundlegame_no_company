@@ -37,6 +37,17 @@ make ci
 
 `test:js` covers experiment logic, protocol validation, score exports, recommendation resolution, scenario generation, and research snapshot smoke behavior. `test-python` covers the offline analytics package and the standalone masked discrete-action offline-RL package. CI prints coverage summaries for the JS, analytics, and offline-RL test targets.
 
+## Experiments
+
+This repo holds **three distinct experiments** (different purpose, timeline, protocol, and status).
+The single source of truth is [`docs/current/EXPERIMENTS.md`](docs/current/EXPERIMENTS.md):
+
+1. **Live recommendation (mainGame)** — already run; the only one with real participant data.
+2. **Enriched 4-order (June 30)** — redesigned menus; protocol binding TBD; merged but not seeded.
+3. **CHI personalization / dynamic (September)** — personalized, diagnosis-driven; not yet live.
+
+Per-experiment artifact entry points live under [`publishing/experiments/`](publishing/experiments/).
+
 ## How The System Fits Together
 
 ```text

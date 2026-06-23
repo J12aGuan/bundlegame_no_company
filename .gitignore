@@ -31,6 +31,21 @@ __MACOSX/
 .history/
 .claude/
 .sixth/
+
+# Local-only reliability tooling (agent config + local helpers; never pushed)
+CLAUDE.md
+/scripts/print_frozen_numbers
+/scripts/print_frozen_numbers.*
+# Local-only live debug helpers (drive the production site; kept out of origin)
+/scripts/_*.mjs
+/scripts/_*.png
+# Publishing artifacts: enriched-menu design dump + generator output (regenerable; kept out of origin).
+# The per-experiment README.md files under publishing/experiments/ ARE tracked; only the generated
+# design/ artifact dir is ignored.
+/publishing/experiments/2_june30_enriched_4order/design/
+/publishing/chi_scenario_design/
+/publishing/chi_scenario_design.zip
+/scripts/dump-chi-scenarios.mjs
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
