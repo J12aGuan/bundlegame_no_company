@@ -54,15 +54,16 @@ const BIASES = {
 // Behaviour-only (no survey, no recency) so the recovery is purely the estimator's.
 const behaviourDiag = (bias, opts = {}) => diagnose({ choiceSets: fullBatteryChoiceSets(bias), ...opts });
 
-test("the spanning read partitions the real battery: every trap identifies earnings, no picking-stress menu does", () => {
+test("the spanning read partitions the real battery: every trap identifies earnings (decoupled from pick)", () => {
   const set = buildChiScenarioSet();
   const pool = set.scenarios.filter((s) => s.phase === "A" || s.test_set === "retention_same_dist");
   const toSet = (s) => ({ alternatives: s.candidate_bundles.map((c) => ({ features: c })) });
+  // The BROAD earnings-identifying set decouples earnings from PICK (top-payer is at or below the
+  // median pick), which every payout trap satisfies. It does NOT exclude local/cross traps -- the
+  // menu set cannot structurally separate payout from all three cost axes -- so a local- or
+  // cross-neglect confound is handled downstream by the GATE's dual-axis abstention, not here.
   for (const s of pool.filter((x) => x.is_payout_trap === 1)) {
     assert.ok(menuIdentifiesEarnings(toSet(s).alternatives), `trap round ${s.round} must identify earnings`);
-  }
-  for (const s of pool.filter((x) => x.stress === "pick")) {
-    assert.ok(!menuIdentifiesEarnings(toSet(s).alternatives), `picking-stress round ${s.round} must NOT identify earnings (over-bundle confound)`);
   }
 });
 

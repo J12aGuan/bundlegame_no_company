@@ -22,11 +22,16 @@ const perceived = (f, b) =>
       f.shared_item_savings_seconds,
   );
 
-function choiceSets(chooser) {
+// Default pool = the diagnostic-block rounds (Phase A) plus the same-support retention OFF block
+// (== the r25 re-diagnosis pool). Pass a poolFilter to target a specific diagnosis point.
+const POOL = {
+  r15: (s) => s.phase === "A",
+  r25: (s) => s.phase === "A" || s.block === "B2",
+  r35: (s) => s.phase === "A" || s.block === "B2" || s.block === "B4",
+};
+function choiceSets(chooser, poolFilter = (s) => s.phase === "A" || s.test_set === "retention_same_dist") {
   const set = buildChiScenarioSet();
-  // The diagnostic-block rounds (Phase A) plus the same-support retention OFF block — the full
-  // unaided battery, including the W1/W3-confounding picking-stress menus.
-  const pool = set.scenarios.filter((s) => s.phase === "A" || s.test_set === "retention_same_dist");
+  const pool = set.scenarios.filter(poolFilter);
   return pool.map((s) => {
     const cands = s.candidate_bundles;
     const chosen = chooser(cands);
@@ -58,6 +63,21 @@ const overBundler = biasedChooser({ gamma: 1.0, aPick: 0.05, aCross: 1, aLocal: 
 const payout = biasedChooser({ gamma: 3.0, aPick: 1, aCross: 1, aLocal: 1 });
 // Weak bias: a mild payout lean that deviates on a few menus but never robustly clears the floor.
 const weak = biasedChooser({ gamma: 1.3, aPick: 1, aCross: 1, aLocal: 1 });
+// Single-axis nuisance neglecters: the ONLY true bias is on an UNCOACHABLE cost axis (local travel
+// or cross-city). Each MUST never be coached the spurious W3 it can project (dual-axis abstention).
+const localNeglecter = biasedChooser({ gamma: 1.0, aPick: 1, aCross: 1, aLocal: 0.05 });
+const crossNeglecter = biasedChooser({ gamma: 1.0, aPick: 1, aCross: 0.05, aLocal: 1 });
+
+for (const [axis, chooser] of [["local-travel", localNeglecter], ["cross-city", crossNeglecter]]) {
+  test(`SAFETY: a ${axis}-neglecter is NEVER coached W3 (no_target or W1) at r15/r25/r35`, () => {
+    for (const [name, pf] of Object.entries(POOL)) {
+      const d = signSurvivalGate(choiceSets(chooser, pf));
+      const w3 = d.per_component.W3;
+      assert.notEqual(d.chosen_target, "W3", `${axis} @ ${name}: must NOT be coached W3 (got ${d.chosen_target}; W3 worst-case [${w3.worst_case[0].toFixed(3)}, ${w3.worst_case[1].toFixed(3)}] vs floor ${SIGN_SURVIVAL_GATE.floor})`);
+      assert.ok(d.chosen_target === "no_target" || d.chosen_target === "W1", `${axis} @ ${name}: expected no_target or W1, got ${d.chosen_target}`);
+    }
+  });
+}
 
 test("frozen grid: the nominal (savings 0.25, local 0, rho 0) is a grid point and equals the study rule", () => {
   assert.ok(SIGN_SURVIVAL_GATE.grid.savings.includes(SIGN_SURVIVAL_GATE.nominal.savings));

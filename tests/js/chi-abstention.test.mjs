@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { buildChiScenarioSet } from "../../src/lib/chiScenarioDesign.js";
 import { diagnose, learningIndex, ABSTAIN_MIN_LEAK } from "../../src/lib/chiDiagnosis.js";
+import { signSurvivalGate } from "../../src/lib/signSurvivalGate.js";
 
 // P2: the diagnosis surfaces per-axis identifiability and ABSTAINS (learning_target
 // "none") rather than coach a possibly-misidentified axis. With learning_target "none"
@@ -40,6 +41,7 @@ function unaidedChoiceSets(bias) {
           cross_city_travel_time_seconds: c.cross_city_travel_time_seconds,
           local_travel_time_seconds: c.local_travel_time_seconds,
           shared_item_savings_seconds: c.shared_item_savings_seconds,
+          shared_store_local_seconds: c.shared_store_local_seconds,
         },
         chosen: c === best,
         oracle: c.is_oracle === 1,
@@ -61,17 +63,17 @@ test("ACTIONABLE: a true payout-overweighter is coached W3", () => {
   assert.equal(d.abstained, false);
 });
 
-test("ACTIONABLE: a LOCAL-only neglecter's spurious W3 stays small (near the abstention floor, far below a true payout leak)", () => {
-  const local = diagnose({ choiceSets: unaidedChoiceSets(B.localNeglect) });
-  const trueW3 = diagnose({ choiceSets: unaidedChoiceSets(B.trueW3) });
-  // A local-only neglecter under-weights an UNCOACHABLE nuisance axis (local travel), which projects
-  // a small spurious payout (W3) signal. After the B2/B4 difficulty rebalance (matched to B1/B3) the
-  // projection sits just over the abstention floor (~0.23 vs 0.2), so it is no longer a hard abstain;
-  // but it stays SMALL and far below a genuine payout-overweighter's, so it is never a confident
-  // false coaching. (Pre-rebalance it abstained outright; matching the held-out difficulty costs a
-  // little local-neglect identifiability -- a reported tradeoff, see EXPERIMENTS.md.)
-  assert.ok(local.strengths.W3 < 0.30, `local-neglect spurious W3 should stay small, got ${local.strengths.W3.toFixed(2)}`);
-  assert.ok(trueW3.strengths.W3 > local.strengths.W3 * 1.8, `a genuine payout leak (${trueW3.strengths.W3.toFixed(2)}) must dwarf the local-neglect projection (${local.strengths.W3.toFixed(2)})`);
+test("STRONG GUARDRAIL: a pure LOCAL or CROSS neglecter is NEVER coached W3 (the gate's dual-axis abstention)", () => {
+  // Hard guarantee at the COACHING level. The diagnosis reads on the BROAD earnings-identifying set
+  // (preserving 93% W3 recovery), so on this menu set it can still project a spurious W3 for a pure
+  // nuisance-axis neglecter. The GATE -- the coaching authority -- is what must never coach it: its
+  // dual-axis abstention refuses W3 whenever a robust local OR cross neglect signal rivals the payout
+  // signal. A pure local- or cross-only neglecter must therefore never be coached W3.
+  for (const [name, bias] of [["local", B.localNeglect], ["cross", B.crossNeglect]]) {
+    const d = signSurvivalGate(unaidedChoiceSets(bias));
+    assert.notEqual(d.chosen_target, "W3", `${name}-neglecter must NEVER be coached W3, got ${d.chosen_target}`);
+    assert.ok(d.chosen_target === "no_target" || d.chosen_target === "W1", `${name}-neglecter: expected no_target or W1, got ${d.chosen_target}`);
+  }
 });
 
 test("ACTIONABLE: a CROSS-only neglecter is NOT coached W3 — abstains, loads its own (uncoachable) axis", () => {

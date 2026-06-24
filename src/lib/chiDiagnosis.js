@@ -199,11 +199,13 @@ export function menuIdentifiesEarnings(alternatives = []) {
   const picks = alternatives.map((a) => Number(a.features?.[PICK_FEATURE]) || 0);
   let eMax = -Infinity, eIdx = 0;
   alternatives.forEach((a, i) => { const e = Number(a.features?.earnings) || 0; if (e > eMax) { eMax = e; eIdx = i; } });
-  // Earnings is identified (decoupled from pick) when the highest-PAYING option is NOT among
-  // the high-PICK options — its pick is at or below the menu median. On a payout trap the
-  // top-payer is a fast singleton (low pick); on a picking-stress over-bundle menu the
-  // top-payer is the most pick-costly (above median, so earnings is confounded with pick).
-  // Constant pick (no over-bundle confound) is trivially identifying (pick == median).
+  // Earnings is identified (decoupled from pick) when the highest-PAYING option is NOT among the
+  // high-PICK options — its pick is at or below the menu median. This is the BROAD earnings-
+  // identifying set (it preserves W3 recovery). It does NOT exclude local/cross traps: the menu set
+  // has only one menu that separates payout from all three cost axes, so a structural exclusion
+  // cannot cover cross-city. The local- and cross-neglect confounds are handled downstream by the
+  // GATE's dual-axis abstention (it refuses to coach W3 when a robust local OR cross neglect signal
+  // rivals the payout signal), NOT by shrinking this set. Constant pick is trivially identifying.
   return picks[eIdx] <= medianOf(picks) + 1e-9;
 }
 

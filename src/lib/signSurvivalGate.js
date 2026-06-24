@@ -45,12 +45,19 @@ export const SIGN_SURVIVAL_GATE = {
   alpha: 0.05, // -> 95% interval of the bootstrap worst-case values
   bootstrap: 120, // B resamples
   seed: 0x5f3759df, // fixed -> the bootstrap is deterministic (no tuning on real data)
-  coachable: ["W1", "W3"], // pick (W1), earnings (W3). cross (W2) is logged, never coached.
+  coachable: ["W1", "W3"], // pick (W1), earnings (W3). cross (W2) + local (Wlocal) logged, never coached.
   minSpanning: 3, // restrict to earnings-identifying menus when at least this many exist
+  // DUAL-AXIS ABSTENTION: cross-city (W2) and local travel (Wlocal) are uncoachable nuisance axes.
+  // The menu set cannot structurally separate payout from all three cost axes, so the gate REFUSES to
+  // coach W3 (payout) whenever a robust NEGLECT signal on EITHER local OR cross-city reaches at least
+  // rivalRatio of W3's worst-case robust magnitude -- a pure local- or cross-neglecter is then
+  // observationally a payout-overweighter, and coaching W3 would be spurious. ONE constant; confirm
+  // on the pilot, then freeze.
+  rivalRatio: 0.75,
 };
 
-const COMPONENT_FEATURE = { W1: "effective_pick_time_seconds", W3: "earnings", W2: "cross_city_travel_time_seconds" };
-const ALL_COMPONENTS = ["W1", "W3", "W2"];
+const COMPONENT_FEATURE = { W1: "effective_pick_time_seconds", W3: "earnings", W2: "cross_city_travel_time_seconds", Wlocal: "local_travel_time_seconds" };
+const ALL_COMPONENTS = ["W1", "W3", "W2", "Wlocal"];
 const EPS = 1e-9;
 const num = (x) => (Number.isFinite(Number(x)) ? Number(x) : 0);
 
@@ -88,14 +95,14 @@ function stddev(xs) {
 // Positive = the participant systematically chose MORE of component k than the V-optimal bundle:
 // for a cost (pick/cross) that is neglect; for earnings that is overweighting.
 function betaAt(rounds, savingsRate, localRate, rho) {
-  const pooled = { W1: [], W3: [], W2: [] };
+  const pooled = Object.fromEntries(ALL_COMPONENTS.map((k) => [k, []]));
   for (const r of rounds) for (const a of r.alternatives) {
     for (const k of ALL_COMPONENTS) pooled[k].push(componentValue(a.features, k));
   }
   const sd = {};
   for (const k of ALL_COMPONENTS) sd[k] = Math.max(EPS, stddev(pooled[k]));
 
-  const acc = { W1: 0, W3: 0, W2: 0 };
+  const acc = Object.fromEntries(ALL_COMPONENTS.map((k) => [k, 0]));
   let n = 0;
   for (const r of rounds) {
     const alts = r.alternatives;
@@ -166,11 +173,11 @@ export function signSurvivalGate(choiceSets, config = SIGN_SURVIVAL_GATE) {
   const pointBeta = grid.map((g) => betaAt(rounds, g.savings, g.local, g.rho));
 
   const rng = mulberry32(config.seed);
-  const mins = { W1: [], W3: [], W2: [] };
-  const maxs = { W1: [], W3: [], W2: [] };
+  const mins = Object.fromEntries(ALL_COMPONENTS.map((k) => [k, []]));
+  const maxs = Object.fromEntries(ALL_COMPONENTS.map((k) => [k, []]));
   for (let b = 0; b < config.bootstrap; b += 1) {
     const sample = resample(rounds, rng);
-    const perK = { W1: [], W3: [], W2: [] };
+    const perK = Object.fromEntries(ALL_COMPONENTS.map((k) => [k, []]));
     for (const g of grid) {
       const bt = betaAt(sample, g.savings, g.local, g.rho);
       for (const k of ALL_COMPONENTS) perK[k].push(bt[k]);
@@ -209,17 +216,40 @@ export function signSurvivalGate(choiceSets, config = SIGN_SURVIVAL_GATE) {
     };
   }
 
-  let chosen_target = "no_target";
-  let bestMag = -Infinity;
-  for (const k of config.coachable) {
-    if (per_component[k].pass && per_component[k].robust_magnitude > bestMag) {
-      bestMag = per_component[k].robust_magnitude;
-      chosen_target = k;
+  const pickTarget = () => {
+    let t = "no_target";
+    let bestMag = -Infinity;
+    for (const k of config.coachable) {
+      if (per_component[k].pass && per_component[k].robust_magnitude > bestMag) {
+        bestMag = per_component[k].robust_magnitude;
+        t = k;
+      }
     }
+    return t;
+  };
+  let chosen_target = pickTarget();
+
+  // DUAL-AXIS ABSTENTION: cross (W2) and local (Wlocal) are uncoachable but LOGGED. If W3 was chosen
+  // but a robust NEGLECT signal on EITHER (positive, sign-stable, clears the floor, and at least
+  // rivalRatio of W3's robust magnitude) rivals it, abstain on W3 -- a pure local- or cross-neglecter
+  // cannot be distinguished from a payout-overweighter here -- and re-pick among coachable components.
+  let w3_abstained_rival = null; // which nuisance axis forced the W3 abstention (null = none)
+  if (chosen_target === "W3") {
+    const w3mag = per_component.W3.robust_magnitude;
+    for (const k of ["Wlocal", "W2"]) {
+      const c = per_component[k];
+      if (c.sign > 0 && c.clears_floor && c.robust_magnitude >= w3mag * config.rivalRatio) {
+        per_component.W3.pass = false;
+        w3_abstained_rival = k;
+        break;
+      }
+    }
+    if (w3_abstained_rival) chosen_target = pickTarget();
   }
 
   return {
     chosen_target,
+    w3_abstained_rival,
     beta_nominal,
     per_component,
     grid: {
