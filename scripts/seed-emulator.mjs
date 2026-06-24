@@ -27,6 +27,10 @@ const FULL = process.argv.slice(2).includes("--full");
 // foundational protocol (arms control/counterfactual/aggregate, diagnosis dormant). Default mode
 // remains the dynamic marginal pilot under chi_dynamic_v1.
 const FOUNDATIONAL = process.argv.slice(2).includes("--foundational");
+// Main study (--main): the FULL four-arm dynamic study (control/aggregate/marginal/oracle), NOT the
+// marginal-only pilot. This is the June 30 (Experiment 2) configuration: enriched 4-order menus +
+// the dynamic protocol + the sign-survival gate, all four arms at equal weight.
+const MAIN = process.argv.slice(2).includes("--main");
 
 const arg = (name, dflt) => {
   const hit = process.argv.slice(2).find((a) => a.startsWith(`--${name}=`));
@@ -81,12 +85,13 @@ function buildMasterData(root) {
     protocol = buildChiFoundationalStudyProtocol();
   } else {
     protocol = buildChiStudyProtocol();
-    // Force the MARGINAL pilot arm: restrict policy_arms to marginal only, so assignStudyArm
-    // (stable-hash over the weighted arms) returns marginal for EVERY participant and the
-    // counterfactual feedback renders in the ON blocks. This is the legitimate marginal-pilot
-    // configuration ("pilot = marginal only"), not a test hack.
-    const marginalArms = protocol.policy_arms.filter((a) => a.id === "marginal");
-    protocol.policy_arms = marginalArms.length ? marginalArms : protocol.policy_arms;
+    if (!MAIN) {
+      // PILOT (default): force the MARGINAL pilot arm so assignStudyArm returns marginal for EVERY
+      // participant and the counterfactual feedback renders in the ON blocks ("pilot = marginal only").
+      const marginalArms = protocol.policy_arms.filter((a) => a.id === "marginal");
+      protocol.policy_arms = marginalArms.length ? marginalArms : protocol.policy_arms;
+    }
+    // --main keeps all four arms (control/aggregate/marginal/oracle) at equal weight (June 30 study).
   }
   const protocolEntry = {
     ...protocol,
@@ -98,7 +103,7 @@ function buildMasterData(root) {
     // auth:true so needsAuth gates ON the participant persistence (saveRoundSummaryAction +
     // the CHI saves require needsAuth + a real id). The driver authenticates with
     // generateAuthToken(id), which authenticateUser validates (Auth/<token> doc).
-    game: { timeLimit: 1200, thinkTime: 0, gridSize: 3, auth: true, ordersShown: 4, roundTimeLimit: 600, penaltyTimeout: 0, tips: false, waiting: false, refresh: false, expire: false },
+    game: { timeLimit: 3000, thinkTime: 0, gridSize: 3, auth: true, ordersShown: 4, roundTimeLimit: 600, penaltyTimeout: 0, tips: false, waiting: false, refresh: false, expire: false },
     scenario_set: root,
     research_protocol: protocol,
   };
