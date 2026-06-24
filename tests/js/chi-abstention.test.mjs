@@ -57,10 +57,17 @@ const B = {
   pickNeglect: { gamma: 1.0, aPick: 0.05, aCross: 1, aLocal: 1 },
 };
 
-test("ACTIONABLE: a true payout-overweighter is coached W3", () => {
-  const d = diagnose({ choiceSets: unaidedChoiceSets(B.trueW3) });
-  assert.equal(d.learning_target, "W3");
-  assert.equal(d.abstained, false);
+test("PICKING-PRIMARY: a payout-overweighter is MEASURED but NOT coached W3 (W3 confounded with cross)", () => {
+  // The local-axis trap was dropped (it required within-city > between-city geometry). The only
+  // earnings-identifying menus left are CROSS traps (low-pick, high-pay H in a far city), where a
+  // payout-overweighter and a cross-neglecter choose identically -> W3 is confounded with W2 (cross).
+  // So the GATE safely abstains on a payout worker (no W3 coaching), and the diagnosis reads the
+  // payout leak as confounded (cross-dominant), not a clean W3. W3 stays identifiABLE (the design
+  // still probes it) but is not a coaching target -- it is a measured trait, per the pre-reg.
+  const sets = unaidedChoiceSets(B.trueW3);
+  assert.notEqual(signSurvivalGate(sets).chosen_target, "W3", "payout must NOT be coached W3 at the gate");
+  const d = diagnose({ choiceSets: sets });
+  assert.ok(Number.isFinite(d.identifiability.W3) && d.identifiability.W3 > 0, "W3 axis is still identifiable (probed by the cross traps)");
 });
 
 test("STRONG GUARDRAIL: a pure LOCAL or CROSS neglecter is NEVER coached W3 (the gate's dual-axis abstention)", () => {

@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { applicationDefault, deleteApp, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 
+import { isReservedTestId } from "../src/lib/testIdentity.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -436,9 +438,27 @@ export async function exportCollectionRecursive(collectionRef, {
   }
   const documents = [];
   let nestedDocumentCount = 0;
+  let skippedTestDocs = 0;
+  // Reserved test/QA participants (Users/<id>, LiveSessions/.../participants/<id>) are excluded from
+  // every export so admin playthroughs never enter the dataset. Skipping here also drops their
+  // subcollections (we `continue` before recursing). Single source of truth: src/lib/testIdentity.js.
+  const isParticipantCollection = collectionRef.id === "Users" || collectionRef.id === "participants";
 
   for (let index = 0; index < snap.docs.length; index += 1) {
     const docSnap = snap.docs[index];
+    if (isParticipantCollection && isReservedTestId(docSnap.id)) {
+      skippedTestDocs += 1;
+      // Loud, visible warning so a reserved-prefix collision with a REAL participant can never fail
+      // silently: a genuine id that happens to start qa-/test-/admin- would be dropped here.
+      console.warn(
+        `[export] WARNING: skipped reserved TEST id "${docSnap.id}" at ${docSnap.ref.path} (excluded from export). ` +
+          `If this is a REAL participant, rename it off the qa-/test-/admin- prefixes and re-export.`,
+      );
+      if (onProgress) {
+        onProgress({ type: "test_id_skipped", path: docSnap.ref.path, id: docSnap.id, depth });
+      }
+      continue;
+    }
     if (onProgress && (index + 1 === 1 || (index + 1) % progressEvery === 0 || index + 1 === snap.size)) {
       onProgress({
         type: "document_progress",
@@ -471,12 +491,13 @@ export async function exportCollectionRecursive(collectionRef, {
     });
   }
 
+  const keptCount = snap.size - skippedTestDocs;
   const collectionExport = {
     id: collectionRef.id,
     path: collectionRef.path,
-    document_count: snap.size,
+    document_count: keptCount,
     nested_document_count: nestedDocumentCount,
-    total_document_count: snap.size + nestedDocumentCount,
+    total_document_count: keptCount + nestedDocumentCount,
     documents,
   };
   if (onProgress) {

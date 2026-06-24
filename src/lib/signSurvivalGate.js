@@ -8,17 +8,25 @@
  * grid AND its bootstrap worst case clears a floor. Otherwise it emits `no_target` and the
  * personalized arm falls back to the non-personalized counterfactual rendering for the block.
  *
- * SCORER ALIGNMENT: the gate's NOMINAL scoring is identical to the study's oracle/regret
+ * SCORER ALIGNMENT: the gate's NOMINAL savings treatment matches the study's oracle/regret
  * scorer `chiScenarioDesign.scoreBundle` (which bundle.js uses to define is_oracle and to
- * score at runtime): time = pick + local + cross - shared_item_savings, score = earnings/time,
- * where shared_item_savings = 0.25*(shared-store pick). The frozen grid has THREE axes, each a
- * CREDIT on the study's baked saving (NOT a raw multiple of group pick):
+ * score at runtime): time = pick + local + cross - shared_item_savings, score = earnings/time.
+ * NOTE two DIFFERENT "savings" numbers: scoreBundle BAKES the feature shared_item_savings_seconds
+ * at a 0.25 RATE (= 0.25 * shared-store group pick); the gate's grid axis below is a CREDIT applied
+ * to that already-baked feature, so credit 1.0 subtracts the FULL baked saving = exactly scoreBundle.
+ * The 0.25 in the grid is a credit (subtract only a quarter of the baked saving), NOT the bake rate.
+ * The frozen grid has THREE axes, each a CREDIT on the study's baked saving (NOT a raw group pick):
  *   - savings credit (on shared_item_savings_seconds): {0.25, 0.5, 1.0}; nominal 1.0 = the study rule.
  *   - local-travel credit (on shared_store_local_seconds): {0, 0.25}; nominal 0 = the study rule.
  *   - value curvature rho: {0, 0.2, 0.4}; nominal 0.
- * The nominal grid point (savings 1.0, local 0, rho 0) reproduces scoreBundle exactly. Lower savings
- * credits model "bundling saves less than assumed" (so over-bundling is MORE wrong); the local credit
- * models a hypothetical within-store local-travel saving; curvature is V = score^(1-rho).
+ * The nominal grid point (savings credit 1.0, local 0, rho 0) reproduces scoreBundle's savings/score
+ * rule and yields the IDENTICAL V-optimal (oracle) on all 35 menus (verified). It is not bit-exact on
+ * absolute time: the gate rebuilds the pre-savings time from the pick+local+cross feature columns,
+ * whereas scoreBundle sums each order's `estimatedTime`; the three are rounded independently
+ * (round(basePick)+round(local) vs round(basePick+local)), so they can differ by <= 0.1s/order. That
+ * residual never changes the V-argmax, so it does not affect any gate decision. Lower savings credits
+ * model "bundling saves less than assumed" (over-bundling MORE wrong); the local credit models a
+ * hypothetical within-store local-travel saving; curvature is V = score^(1-rho).
  *
  * beta_k(V): standardized signed excess per coachable component (pick=W1, earnings=W3; cross=W2
  * logged, never coached) = mean over diagnostic rounds of (chosen_k - oracle_k under V) divided by
@@ -40,7 +48,7 @@ export const SIGN_SURVIVAL_GATE = {
     local: [0, 0.25], // CREDIT on the within-store local travel; the study rule is 0
     rho: [0, 0.2, 0.4], // value concavity V = score^(1-rho); the study rule is 0
   },
-  nominal: { savings: 1.0, local: 0, rho: 0 }, // == the study's scoreBundle scorer
+  nominal: { savings: 1.0, local: 0, rho: 0 }, // credit 1.0 = subtract FULL baked saving == scoreBundle's rule
   floor: 0.15, // robust-magnitude floor, in component-SD units. Calibrate on the pilot, then FREEZE.
   alpha: 0.05, // -> 95% interval of the bootstrap worst-case values
   bootstrap: 120, // B resamples

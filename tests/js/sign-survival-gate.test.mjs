@@ -102,10 +102,16 @@ test("planted worker: strong over-bundler -> pick (W1)", () => {
   assert.ok(d.per_component.W1.sign > 0, "pick attribution should be positive (neglect)");
 });
 
-test("planted worker: strong payout -> earnings (W3)", () => {
+test("planted worker: strong payout -> no_target (W3 measured, NOT coached under picking-primary)", () => {
+  // Picking-primary design (local-axis trap dropped): the spanning read separates W3 (payout) from
+  // W1 (pick), but the only earnings-identifying menus are CROSS traps (low-pick, high-pay H in a
+  // far city), where a payout-overweighter and a cross-neglecter choose identically -> W3 is
+  // confounded with W2 (cross). The gate therefore SAFELY abstains on a genuine payout worker: it
+  // cannot rule out cross-neglect. W3 stays identified (clears the floor) but is not coachable.
   const d = signSurvivalGate(choiceSets(payout));
-  assert.equal(d.chosen_target, "W3", `payout-chaser should be coached W3, got ${d.chosen_target}`);
-  assert.equal(d.per_component.W3.pass, true);
+  assert.equal(d.chosen_target, "no_target", `payout is not coachable under picking-primary, got ${d.chosen_target}`);
+  assert.equal(d.w3_abstained_rival, "W2", "the gate abstains on W3 because cross (W2) rivals it");
+  assert.ok(d.per_component.W3.clears_floor, "W3 is still IDENTIFIED (clears the floor); it is measured, not coached");
 });
 
 test("planted worker: weak bias -> no_target", () => {
@@ -128,11 +134,12 @@ test("the gate is deterministic (fixed bootstrap seed)", () => {
 });
 
 test("the log view carries the fields the Firestore allowlist needs", () => {
-  const d = signSurvivalGate(choiceSets(payout));
+  // Use the over-bundler (the coachable axis under picking-primary) so the log carries a real target.
+  const d = signSurvivalGate(choiceSets(overBundler));
   const log = gateDecisionForLog(d);
-  assert.equal(log.chosen_target, "W3");
+  assert.equal(log.chosen_target, "W1");
   assert.ok(log.components.W1 && log.components.W3 && log.components.W2);
-  assert.ok(Array.isArray(log.components.W3.worst_case) && log.components.W3.worst_case.length === 2);
+  assert.ok(Array.isArray(log.components.W1.worst_case) && log.components.W1.worst_case.length === 2);
   assert.equal(log.grid.floor, SIGN_SURVIVAL_GATE.floor);
   assert.deepEqual(log.grid.savings, [0.25, 0.5, 1.0]);
   assert.deepEqual(log.grid.local, [0, 0.25]);

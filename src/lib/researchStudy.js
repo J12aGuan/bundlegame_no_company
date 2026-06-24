@@ -910,6 +910,17 @@ export function normalizeResearchStudyProtocol(protocol = {}, fallback = {}) {
       0,
       Number(source?.main_target_n ?? fallbackSource.main_target_n ?? 240) || 0,
     ),
+    // Arm-assignment scheme. "hash" = stateless stable hash (default, back-compat); "blocked" =
+    // counter-based balanced randomization (every arm appears once per block of |arms|, so arm sizes
+    // are EXACTLY equal at every multiple of |arms|). Flip this ONE field to switch schemes; nothing
+    // else changes. See assignArmBlocked / assignDynamicArm.
+    assignment_scheme:
+      normalizeText(
+        source?.assignment_scheme,
+        fallbackSource.assignment_scheme || "hash",
+      ) === "blocked"
+        ? "blocked"
+        : "hash",
     notes: normalizeText(source?.notes, fallbackSource.notes || ""),
     phase_plan: phasePlan,
     policy_arms: policyArmInput.map((arm, index) =>
@@ -1414,6 +1425,101 @@ export function assignStudyArm(participantId = "", protocol = {}) {
   return eligibleArms[eligibleArms.length - 1];
 }
 
+/* ========================================================================== *
+ * BLOCKED (BALANCED) RANDOMIZATION
+ *
+ * Counter-based assignment: within each consecutive block of `nArms` enrollments every arm appears
+ * EXACTLY once, in a deterministic seeded permutation that varies block to block. This forces equal
+ * arm sizes at every multiple of nArms (e.g. after 4, 8, 12, ... enrollments all four arms are
+ * equal), while staying fully reproducible (seed + block index -> permutation) and pre-registerable.
+ * It is the counter-based replacement for the stateless `assignStudyArm` hash. Reversible: set the
+ * protocol's `assignment_scheme` back to "hash" and `assignDynamicArm` returns to the hash path.
+ * ========================================================================== */
+// Fixed seed -> the entire block-permutation SEQUENCE is deterministic and can be pre-registered.
+export const ARM_BLOCK_SEED = 0x9e3779b9;
+
+// Small deterministic PRNG (mulberry32); local to keep this module self-contained.
+function blockRng(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// A deterministic Fisher-Yates shuffle of `items` under `seed`.
+function seededShuffle(items, seed) {
+  const out = items.slice();
+  const rng = blockRng(seed);
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = out[i];
+    out[i] = out[j];
+    out[j] = tmp;
+  }
+  return out;
+}
+
+/**
+ * Assign an arm by ENROLLMENT INDEX (0-based) using balanced block randomization. The arm at index
+ * `i` is `perm(block)[i mod nArms]`, where `perm(block)` is a seeded permutation of the eligible
+ * arms unique to that block. Equal-weight arms are assumed (the design intent); arms with weight 0
+ * are excluded. Deterministic in (enrollmentIndex, seed, eligible arm ids).
+ */
+export function assignArmBlocked(
+  enrollmentIndex = 0,
+  protocol = {},
+  seed = ARM_BLOCK_SEED,
+) {
+  const normalizedProtocol = normalizeResearchStudyProtocol(protocol);
+  const eligibleArms = normalizedProtocol.policy_arms.filter(
+    (arm) => Math.max(0, Number(arm?.assignment_weight) || 0) > 0,
+  );
+  if (eligibleArms.length === 0) return null;
+  const nArms = eligibleArms.length;
+  const idx = Math.max(0, Math.floor(Number(enrollmentIndex) || 0));
+  const blockNumber = Math.floor(idx / nArms);
+  const within = idx % nArms;
+  // Mix the base seed with the block number so each block gets its own permutation.
+  const blockSeed = (seed ^ Math.imul(blockNumber + 1, 0x85ebca6b)) >>> 0;
+  return seededShuffle(eligibleArms, blockSeed)[within];
+}
+
+/**
+ * Unified arm resolver honoring the protocol's `assignment_scheme` flag. With "blocked" AND a finite
+ * `enrollmentIndex`, uses balanced block randomization; otherwise falls back to the stable hash.
+ * Returns { arm, method } so the caller can persist the method that was ACTUALLY used (a blocked
+ * protocol with no index available will honestly record the hash fallback).
+ */
+export function assignDynamicArm({
+  participantId = "",
+  enrollmentIndex = null,
+  protocol = buildChiStudyProtocol(),
+  seed = ARM_BLOCK_SEED,
+} = {}) {
+  const normalizedProtocol = normalizeResearchStudyProtocol(protocol);
+  const useBlocked =
+    normalizedProtocol.assignment_scheme === "blocked" &&
+    enrollmentIndex != null &&
+    Number.isFinite(Number(enrollmentIndex));
+  if (useBlocked) {
+    return {
+      arm: assignArmBlocked(enrollmentIndex, normalizedProtocol, seed),
+      method: "blocked_randomization",
+    };
+  }
+  return {
+    arm: assignStudyArm(participantId, normalizedProtocol),
+    method:
+      normalizedProtocol.assignment_scheme === "blocked"
+        ? "stable_hash_fallback"
+        : "stable_hash",
+  };
+}
+
 export function resolveScenarioStudyPhase(scenario = {}, fallback = "") {
   return normalizeText(
     scenario?.phase ??
@@ -1901,6 +2007,10 @@ export function buildChiStudyProtocol(overrides = {}) {
     legal_action_mask_version: DEFAULT_ACTION_MASK_VERSION,
     // Four arms, equal weights, target ~100 per arm (~400 total) for the main study.
     main_target_n: 400,
+    // Balanced block randomization: arm sizes are forced exactly equal at every multiple of 4, which
+    // maximizes power on the marginal-vs-aggregate primary contrast. Reversible: set "hash" to return
+    // to the stateless stable-hash scheme. Activation needs a per-enrollment index (assignDynamicArm).
+    assignment_scheme: "blocked",
     ...(overrides && typeof overrides === "object" ? overrides : {}),
   };
 }

@@ -59,11 +59,13 @@ const BIASES = {
 // per-axis confidence) then turns "near-noise W3" into "do not coach W3" — the strict
 // actionable-label assertions live in chi-abstention.test.mjs.
 
-test("heterogeneous traps: a TRUE payout-overweighter has a LARGE, dominant W3 signal", () => {
+test("PICKING-PRIMARY: a payout-overweighter separates from PICK (W3>W1) but CROSS dominates (W2>=W3)", () => {
   const { strengths } = behavioralBias(trapChoiceSets(BIASES.trueW3));
-  assert.equal(diagnose({ choiceSets: trapChoiceSets(BIASES.trueW3) }).dominant_weakness, "W3");
-  assert.ok(strengths.W3 > 0.5, `trueW3 W3 should be strong, got ${strengths.W3.toFixed(2)}`);
-  assert.ok(strengths.W3 >= strengths.W1 && strengths.W3 >= strengths.W2, "W3 is the largest axis");
+  // The 2-axis (cross+pick) battery separates payout from PICK (W3 > W1). But with the local trap
+  // dropped, the earnings-identifying menus are CROSS traps, so the payout leak co-loads cross and
+  // W2 dominates W3 -> W3 is confounded with cross and is NOT coachable (the documented finding).
+  assert.ok(strengths.W3 > strengths.W1, `payout separates from pick: W3=${strengths.W3.toFixed(2)} > W1=${strengths.W1.toFixed(2)}`);
+  assert.ok(strengths.W2 >= strengths.W3, `cross confounds/dominates W3: W2=${strengths.W2.toFixed(2)} >= W3=${strengths.W3.toFixed(2)}`);
 });
 
 test("a LOCAL-only neglecter produces only a NEAR-NOISE W3 (no large false payout signal)", () => {
@@ -85,8 +87,11 @@ test("a PICK-only neglecter reads as W1 (its own coachable axis), not W3", () =>
   assert.equal(d.dominant_weakness, "W1", `pick-neglect should read W1, got ${d.dominant_weakness}`);
 });
 
-test("trap menus span >=2 slow axes (the menu-span condition the recovery relies on)", () => {
+test("trap menus span the 2 picking-relevant slow axes (cross + pick; local dropped)", () => {
   const set = buildChiScenarioSet();
   const axes = new Set(set.scenarios.filter((s) => s.is_payout_trap === 1).map((s) => s.trap_axis));
-  assert.ok(axes.size >= 3, `expected local+cross+pick trap axes, got ${[...axes].join(",")}`);
+  // Picking-primary: the local-axis trap was dropped (it required within-city > between-city geometry).
+  // The battery spans CROSS (earnings-identifying; separates W3 from pick) and PICK (the W1 confound).
+  assert.ok(axes.has("cross") && axes.has("pick"), `expected cross+pick trap axes, got ${[...axes].join(",")}`);
+  assert.ok(!axes.has("local"), "the local-axis trap is dropped under picking-primary");
 });

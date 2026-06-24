@@ -1,0 +1,5352 @@
+{
+  "metadata": {
+    "name": "chi_confirmatory_picking_primary",
+    "seed": 42,
+    "generator": "src/lib/chiScenarioDesign.js (buildChiScenarioSet)",
+    "rounds": 35,
+    "scoring": "time = pick + local + cross - 0.25*shared-store-group-pick; score = earnings/time; pick = pilot aisle-walk + 3s/unique item",
+    "design": "picking-primary: trap battery cross+pick; W1 (over-bundling/pick) coachable; W3 (payout) measured-not-coached (confounded with cross)",
+    "emitted_from_seed": 42
+  },
+  "scenarios": [
+    {
+      "round": 1,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 1,
+      "trap_axis": "cross",
+      "relative_gap": 0.2791,
+      "oracle_bundle_ids": [
+        "chiAScenario1o1"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario1o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "grape": 1
+          },
+          "earnings": 22,
+          "pick": 4.8,
+          "localTravelTime": 6.8,
+          "estimatedTime": 11.6
+        },
+        {
+          "id": "chiAScenario1o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "watermelon": 3,
+            "banana": 2,
+            "pineapple": 2,
+            "orange": 2,
+            "pear": 3
+          },
+          "earnings": 10,
+          "pick": 23.4,
+          "localTravelTime": 5.4,
+          "estimatedTime": 28.8
+        },
+        {
+          "id": "chiAScenario1o3",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "kiwi": 2,
+            "watermelon": 2
+          },
+          "earnings": 35,
+          "pick": 8.3,
+          "localTravelTime": 5.4,
+          "estimatedTime": 13.6
+        },
+        {
+          "id": "chiAScenario1o4",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "pear": 1,
+            "kiwi": 3
+          },
+          "earnings": 13,
+          "pick": 9.3,
+          "localTravelTime": 6.1,
+          "estimatedTime": 15.4
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario1o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 22,
+          "effective_pick_time_seconds": 4.8,
+          "local_travel_time_seconds": 6.8,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 11.6,
+          "score": 1.896551724137931
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario1o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 10,
+          "effective_pick_time_seconds": 23.4,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 28.8,
+          "score": 0.3472222222222222
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario1o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 35,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.6,
+          "score": 1.3671875
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario1o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 13,
+          "effective_pick_time_seconds": 9.3,
+          "local_travel_time_seconds": 6.1,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 15.4,
+          "score": 0.8441558441558441
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario1o1",
+            "chiAScenario1o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 32,
+          "effective_pick_time_seconds": 28.2,
+          "local_travel_time_seconds": 12.2,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 7.05,
+          "total_time_seconds": 33.35,
+          "score": 0.95952023988006
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "bundle_correct",
+      "oracle_size": 2,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 1,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.3087,
+      "oracle_bundle_ids": [
+        "chiAScenario2o1",
+        "chiAScenario2o2"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario2o1",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 2,
+            "kiwi": 2
+          },
+          "earnings": 25,
+          "pick": 7.5,
+          "localTravelTime": 5,
+          "estimatedTime": 12.5
+        },
+        {
+          "id": "chiAScenario2o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "kiwi": 1,
+            "apple": 2
+          },
+          "earnings": 26,
+          "pick": 8.3,
+          "localTravelTime": 5.8,
+          "estimatedTime": 14
+        },
+        {
+          "id": "chiAScenario2o3",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "orange": 3,
+            "grape": 3
+          },
+          "earnings": 11,
+          "pick": 8.4,
+          "localTravelTime": 5.7,
+          "estimatedTime": 14.1
+        },
+        {
+          "id": "chiAScenario2o4",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "kiwi": 1,
+            "pineapple": 2
+          },
+          "earnings": 11,
+          "pick": 9,
+          "localTravelTime": 6.6,
+          "estimatedTime": 15.6
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario2o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 25,
+          "effective_pick_time_seconds": 7.5,
+          "local_travel_time_seconds": 5,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 24.5,
+          "score": 1.0204081632653061
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario2o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 26,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 5.8,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 26,
+          "score": 1
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario2o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 8.4,
+          "local_travel_time_seconds": 5.7,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 26.1,
+          "score": 0.421455938697318
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario2o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 9,
+          "local_travel_time_seconds": 6.6,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 15.6,
+          "score": 0.7051282051282052
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario2o1",
+            "chiAScenario2o2"
+          ],
+          "is_oracle": 1,
+          "earnings": 51,
+          "effective_pick_time_seconds": 15.8,
+          "local_travel_time_seconds": 10.8,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.95,
+          "total_time_seconds": 34.55,
+          "score": 1.4761215629522433
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "over_bundle",
+      "oracle_size": 1,
+      "over_bundling_coachable": 1,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2831,
+      "oracle_bundle_ids": [
+        "chiAScenario3o1"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario3o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "orange": 3,
+            "kiwi": 1
+          },
+          "earnings": 22,
+          "pick": 7.8,
+          "localTravelTime": 6,
+          "estimatedTime": 13.8
+        },
+        {
+          "id": "chiAScenario3o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "kiwi": 1,
+            "pear": 3,
+            "watermelon": 3,
+            "orange": 2,
+            "apple": 2
+          },
+          "earnings": 9,
+          "pick": 21,
+          "localTravelTime": 5.3,
+          "estimatedTime": 26.3
+        },
+        {
+          "id": "chiAScenario3o3",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "pineapple": 1,
+            "kiwi": 2,
+            "watermelon": 3,
+            "pear": 1
+          },
+          "earnings": 12,
+          "pick": 16.8,
+          "localTravelTime": 5.3,
+          "estimatedTime": 22.1
+        },
+        {
+          "id": "chiAScenario3o4",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "pineapple": 2,
+            "grape": 2
+          },
+          "earnings": 10,
+          "pick": 10.6,
+          "localTravelTime": 6.7,
+          "estimatedTime": 17.3
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario3o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 22,
+          "effective_pick_time_seconds": 7.8,
+          "local_travel_time_seconds": 6,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 13.8,
+          "score": 1.5942028985507246
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario3o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 9,
+          "effective_pick_time_seconds": 21,
+          "local_travel_time_seconds": 5.3,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 26.3,
+          "score": 0.34220532319391633
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario3o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 16.8,
+          "local_travel_time_seconds": 5.3,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 22.1,
+          "score": 0.5429864253393665
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario3o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 10,
+          "effective_pick_time_seconds": 10.6,
+          "local_travel_time_seconds": 6.7,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 17.3,
+          "score": 0.5780346820809248
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario3o1",
+            "chiAScenario3o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 31,
+          "effective_pick_time_seconds": 28.8,
+          "local_travel_time_seconds": 11.3,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 7.2,
+          "total_time_seconds": 32.9,
+          "score": 0.9422492401215806
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario3o1",
+            "chiAScenario3o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 34,
+          "effective_pick_time_seconds": 24.6,
+          "local_travel_time_seconds": 11.3,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.15,
+          "total_time_seconds": 29.750000000000007,
+          "score": 1.1428571428571426
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario3o2",
+            "chiAScenario3o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 21,
+          "effective_pick_time_seconds": 37.8,
+          "local_travel_time_seconds": 10.6,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 9.45,
+          "total_time_seconds": 38.95,
+          "score": 0.5391527599486521
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario3o1",
+            "chiAScenario3o2",
+            "chiAScenario3o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 43,
+          "effective_pick_time_seconds": 45.6,
+          "local_travel_time_seconds": 16.6,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 11.4,
+          "total_time_seconds": 50.800000000000004,
+          "score": 0.8464566929133858
+        }
+      ]
+    },
+    {
+      "round": 4,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 1,
+      "trap_axis": "cross",
+      "relative_gap": 0.2789,
+      "oracle_bundle_ids": [
+        "chiAScenario4o1"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario4o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "pear": 1
+          },
+          "earnings": 21,
+          "pick": 5.4,
+          "localTravelTime": 5.2,
+          "estimatedTime": 10.6
+        },
+        {
+          "id": "chiAScenario4o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "orange": 1,
+            "pear": 2,
+            "pineapple": 3,
+            "banana": 3
+          },
+          "earnings": 11,
+          "pick": 18,
+          "localTravelTime": 5.4,
+          "estimatedTime": 23.4
+        },
+        {
+          "id": "chiAScenario4o3",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "pineapple": 1,
+            "grape": 2
+          },
+          "earnings": 36,
+          "pick": 7.5,
+          "localTravelTime": 5.7,
+          "estimatedTime": 13.2
+        },
+        {
+          "id": "chiAScenario4o4",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "kiwi": 3,
+            "apple": 2
+          },
+          "earnings": 13,
+          "pick": 9.3,
+          "localTravelTime": 5.5,
+          "estimatedTime": 14.8
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario4o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 21,
+          "effective_pick_time_seconds": 5.4,
+          "local_travel_time_seconds": 5.2,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 10.6,
+          "score": 1.9811320754716981
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario4o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 18,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23.4,
+          "score": 0.47008547008547014
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario4o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 36,
+          "effective_pick_time_seconds": 7.5,
+          "local_travel_time_seconds": 5.7,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.2,
+          "score": 1.4285714285714286
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario4o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 13,
+          "effective_pick_time_seconds": 9.3,
+          "local_travel_time_seconds": 5.5,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14.8,
+          "score": 0.8783783783783783
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario4o1",
+            "chiAScenario4o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 32,
+          "effective_pick_time_seconds": 23.4,
+          "local_travel_time_seconds": 10.600000000000001,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 5.85,
+          "total_time_seconds": 28.15,
+          "score": 1.1367673179396094
+        }
+      ]
+    },
+    {
+      "round": 5,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "bundle_correct",
+      "oracle_size": 3,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 1,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.1037,
+      "oracle_bundle_ids": [
+        "chiAScenario5o1",
+        "chiAScenario5o2",
+        "chiAScenario5o3"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario5o1",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "grape": 3,
+            "pineapple": 3
+          },
+          "earnings": 25,
+          "pick": 8.3,
+          "localTravelTime": 6.7,
+          "estimatedTime": 14.9
+        },
+        {
+          "id": "chiAScenario5o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "kiwi": 2,
+            "pineapple": 2
+          },
+          "earnings": 23,
+          "pick": 8.3,
+          "localTravelTime": 5.1,
+          "estimatedTime": 13.4
+        },
+        {
+          "id": "chiAScenario5o3",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "pineapple": 1,
+            "watermelon": 2
+          },
+          "earnings": 25,
+          "pick": 8.3,
+          "localTravelTime": 6.9,
+          "estimatedTime": 15.2
+        },
+        {
+          "id": "chiAScenario5o4",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 1,
+            "orange": 2
+          },
+          "earnings": 12,
+          "pick": 10.8,
+          "localTravelTime": 5.9,
+          "estimatedTime": 16.7
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario5o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 25,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 6.7,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 26.9,
+          "score": 0.929368029739777
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario5o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 23,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 5.1,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.4,
+          "score": 0.9055118110236221
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario5o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 25,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 6.9,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 27.2,
+          "score": 0.9191176470588236
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario5o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 10.8,
+          "local_travel_time_seconds": 5.9,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 28.7,
+          "score": 0.4181184668989547
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario5o1",
+            "chiAScenario5o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 48,
+          "effective_pick_time_seconds": 16.6,
+          "local_travel_time_seconds": 11.8,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 4.15,
+          "total_time_seconds": 36.15,
+          "score": 1.3278008298755186
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario5o1",
+            "chiAScenario5o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 50,
+          "effective_pick_time_seconds": 16.6,
+          "local_travel_time_seconds": 13.600000000000001,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 4.15,
+          "total_time_seconds": 37.949999999999996,
+          "score": 1.3175230566534917
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario5o2",
+            "chiAScenario5o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 48,
+          "effective_pick_time_seconds": 16.6,
+          "local_travel_time_seconds": 12,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 4.15,
+          "total_time_seconds": 36.449999999999996,
+          "score": 1.3168724279835393
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario5o1",
+            "chiAScenario5o2",
+            "chiAScenario5o3"
+          ],
+          "is_oracle": 1,
+          "earnings": 73,
+          "effective_pick_time_seconds": 24.900000000000002,
+          "local_travel_time_seconds": 18.700000000000003,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 6.2250000000000005,
+          "total_time_seconds": 49.275,
+          "score": 1.4814814814814816
+        }
+      ]
+    },
+    {
+      "round": 6,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "over_bundle",
+      "oracle_size": 1,
+      "over_bundling_coachable": 1,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.277,
+      "oracle_bundle_ids": [
+        "chiAScenario6o1"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario6o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "orange": 1,
+            "pineapple": 1
+          },
+          "earnings": 21,
+          "pick": 7.8,
+          "localTravelTime": 6.6,
+          "estimatedTime": 14.4
+        },
+        {
+          "id": "chiAScenario6o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "banana": 2,
+            "apple": 1,
+            "pear": 1,
+            "orange": 2
+          },
+          "earnings": 12,
+          "pick": 17.4,
+          "localTravelTime": 5.8,
+          "estimatedTime": 23.2
+        },
+        {
+          "id": "chiAScenario6o3",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "orange": 3,
+            "watermelon": 1
+          },
+          "earnings": 9,
+          "pick": 8,
+          "localTravelTime": 6.1,
+          "estimatedTime": 14
+        },
+        {
+          "id": "chiAScenario6o4",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "grape": 2,
+            "pear": 1
+          },
+          "earnings": 10,
+          "pick": 10.5,
+          "localTravelTime": 6.2,
+          "estimatedTime": 16.7
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario6o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 21,
+          "effective_pick_time_seconds": 7.8,
+          "local_travel_time_seconds": 6.6,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14.4,
+          "score": 1.4583333333333333
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario6o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 17.4,
+          "local_travel_time_seconds": 5.8,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23.2,
+          "score": 0.5172413793103449
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario6o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 9,
+          "effective_pick_time_seconds": 8,
+          "local_travel_time_seconds": 6.1,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14,
+          "score": 0.6428571428571429
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario6o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 10,
+          "effective_pick_time_seconds": 10.5,
+          "local_travel_time_seconds": 6.2,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 28.7,
+          "score": 0.34843205574912894
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario6o1",
+            "chiAScenario6o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 33,
+          "effective_pick_time_seconds": 25.2,
+          "local_travel_time_seconds": 12.399999999999999,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.3,
+          "total_time_seconds": 31.3,
+          "score": 1.0543130990415335
+        }
+      ]
+    },
+    {
+      "round": 7,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2472,
+      "oracle_bundle_ids": [
+        "chiAScenario7o4"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario7o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "apple": 3,
+            "watermelon": 1
+          },
+          "earnings": 23,
+          "pick": 8.4,
+          "localTravelTime": 7.8,
+          "estimatedTime": 16.2
+        },
+        {
+          "id": "chiAScenario7o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 2,
+            "pear": 2
+          },
+          "earnings": 24,
+          "pick": 7.5,
+          "localTravelTime": 7.7,
+          "estimatedTime": 15.2
+        },
+        {
+          "id": "chiAScenario7o3",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "kiwi": 1
+          },
+          "earnings": 14,
+          "pick": 5,
+          "localTravelTime": 5.3,
+          "estimatedTime": 10.2
+        },
+        {
+          "id": "chiAScenario7o4",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "pear": 1
+          },
+          "earnings": 43,
+          "pick": 5.4,
+          "localTravelTime": 5.4,
+          "estimatedTime": 10.8
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario7o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 23,
+          "effective_pick_time_seconds": 8.4,
+          "local_travel_time_seconds": 7.8,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 16.2,
+          "score": 1.4197530864197532
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario7o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 24,
+          "effective_pick_time_seconds": 7.5,
+          "local_travel_time_seconds": 7.7,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 27.2,
+          "score": 0.8823529411764706
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario7o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 14,
+          "effective_pick_time_seconds": 5,
+          "local_travel_time_seconds": 5.3,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 10.2,
+          "score": 1.3725490196078431
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario7o4"
+          ],
+          "is_oracle": 1,
+          "earnings": 43,
+          "effective_pick_time_seconds": 5.4,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 22.8,
+          "score": 1.8859649122807016
+        }
+      ]
+    },
+    {
+      "round": 8,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 1,
+      "trap_axis": "cross",
+      "relative_gap": 0.2424,
+      "oracle_bundle_ids": [
+        "chiAScenario8o1"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario8o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "grape": 1
+          },
+          "earnings": 23,
+          "pick": 4.8,
+          "localTravelTime": 6.8,
+          "estimatedTime": 11.6
+        },
+        {
+          "id": "chiAScenario8o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "apple": 2,
+            "watermelon": 1,
+            "pear": 1,
+            "kiwi": 2,
+            "banana": 1
+          },
+          "earnings": 8,
+          "pick": 19.8,
+          "localTravelTime": 5.4,
+          "estimatedTime": 25.2
+        },
+        {
+          "id": "chiAScenario8o3",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "orange": 3
+          },
+          "earnings": 35,
+          "pick": 5.3,
+          "localTravelTime": 6,
+          "estimatedTime": 11.3
+        },
+        {
+          "id": "chiAScenario8o4",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "orange": 3,
+            "watermelon": 1,
+            "pear": 1
+          },
+          "earnings": 12,
+          "pick": 11.6,
+          "localTravelTime": 5.6,
+          "estimatedTime": 17.2
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario8o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 23,
+          "effective_pick_time_seconds": 4.8,
+          "local_travel_time_seconds": 6.8,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 11.6,
+          "score": 1.9827586206896552
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario8o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 8,
+          "effective_pick_time_seconds": 19.8,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.2,
+          "score": 0.31746031746031744
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario8o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 35,
+          "effective_pick_time_seconds": 5.3,
+          "local_travel_time_seconds": 6,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23.3,
+          "score": 1.502145922746781
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario8o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 11.6,
+          "local_travel_time_seconds": 5.6,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 17.2,
+          "score": 0.6976744186046512
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario8o1",
+            "chiAScenario8o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 31,
+          "effective_pick_time_seconds": 24.6,
+          "local_travel_time_seconds": 12.2,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.15,
+          "total_time_seconds": 30.65,
+          "score": 1.0114192495921697
+        }
+      ]
+    },
+    {
+      "round": 9,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "bundle_correct",
+      "oracle_size": 2,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 1,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.3047,
+      "oracle_bundle_ids": [
+        "chiAScenario9o1",
+        "chiAScenario9o2"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario9o1",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "grape": 2,
+            "orange": 3
+          },
+          "earnings": 23,
+          "pick": 8.3,
+          "localTravelTime": 6.3,
+          "estimatedTime": 14.5
+        },
+        {
+          "id": "chiAScenario9o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 2,
+            "pear": 3
+          },
+          "earnings": 22,
+          "pick": 7.5,
+          "localTravelTime": 6,
+          "estimatedTime": 13.5
+        },
+        {
+          "id": "chiAScenario9o3",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "apple": 2,
+            "pineapple": 2,
+            "banana": 1
+          },
+          "earnings": 9,
+          "pick": 12.2,
+          "localTravelTime": 5.9,
+          "estimatedTime": 18.1
+        },
+        {
+          "id": "chiAScenario9o4",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "orange": 1,
+            "apple": 3,
+            "kiwi": 1
+          },
+          "earnings": 14,
+          "pick": 10.8,
+          "localTravelTime": 5.9,
+          "estimatedTime": 16.7
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario9o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 23,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 6.3,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 26.5,
+          "score": 0.8679245283018868
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario9o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 22,
+          "effective_pick_time_seconds": 7.5,
+          "local_travel_time_seconds": 6,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.5,
+          "score": 0.8627450980392157
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario9o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 9,
+          "effective_pick_time_seconds": 12.2,
+          "local_travel_time_seconds": 5.9,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 30.1,
+          "score": 0.2990033222591362
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario9o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 14,
+          "effective_pick_time_seconds": 10.8,
+          "local_travel_time_seconds": 5.9,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 16.7,
+          "score": 0.8383233532934132
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario9o1",
+            "chiAScenario9o2"
+          ],
+          "is_oracle": 1,
+          "earnings": 45,
+          "effective_pick_time_seconds": 15.8,
+          "local_travel_time_seconds": 12.3,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.95,
+          "total_time_seconds": 36.05,
+          "score": 1.2482662968099862
+        }
+      ]
+    },
+    {
+      "round": 10,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "over_bundle",
+      "oracle_size": 1,
+      "over_bundling_coachable": 1,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2696,
+      "oracle_bundle_ids": [
+        "chiAScenario10o1"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario10o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "orange": 3,
+            "pineapple": 1
+          },
+          "earnings": 20,
+          "pick": 7.8,
+          "localTravelTime": 6.9,
+          "estimatedTime": 14.7
+        },
+        {
+          "id": "chiAScenario10o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "kiwi": 1,
+            "watermelon": 1,
+            "orange": 2,
+            "grape": 2
+          },
+          "earnings": 12,
+          "pick": 18.6,
+          "localTravelTime": 5.5,
+          "estimatedTime": 24.1
+        },
+        {
+          "id": "chiAScenario10o3",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "grape": 2,
+            "watermelon": 2,
+            "orange": 2,
+            "kiwi": 1
+          },
+          "earnings": 9,
+          "pick": 17.4,
+          "localTravelTime": 7,
+          "estimatedTime": 24.4
+        },
+        {
+          "id": "chiAScenario10o4",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "banana": 2,
+            "apple": 1,
+            "kiwi": 1
+          },
+          "earnings": 11,
+          "pick": 12.3,
+          "localTravelTime": 6.9,
+          "estimatedTime": 19.2
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario10o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 20,
+          "effective_pick_time_seconds": 7.8,
+          "local_travel_time_seconds": 6.9,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14.7,
+          "score": 1.3605442176870748
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario10o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 18.6,
+          "local_travel_time_seconds": 5.5,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 24.1,
+          "score": 0.49792531120331945
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario10o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 9,
+          "effective_pick_time_seconds": 17.4,
+          "local_travel_time_seconds": 7,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 24.4,
+          "score": 0.36885245901639346
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario10o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 12.3,
+          "local_travel_time_seconds": 6.9,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 19.2,
+          "score": 0.5729166666666667
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario10o1",
+            "chiAScenario10o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 32,
+          "effective_pick_time_seconds": 26.400000000000002,
+          "local_travel_time_seconds": 12.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.6000000000000005,
+          "total_time_seconds": 32.199999999999996,
+          "score": 0.9937888198757765
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario10o1",
+            "chiAScenario10o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 29,
+          "effective_pick_time_seconds": 25.2,
+          "local_travel_time_seconds": 13.9,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.3,
+          "total_time_seconds": 32.8,
+          "score": 0.8841463414634148
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario10o2",
+            "chiAScenario10o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 21,
+          "effective_pick_time_seconds": 36,
+          "local_travel_time_seconds": 12.5,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 9,
+          "total_time_seconds": 39.5,
+          "score": 0.5316455696202531
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario10o1",
+            "chiAScenario10o2",
+            "chiAScenario10o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 41,
+          "effective_pick_time_seconds": 43.8,
+          "local_travel_time_seconds": 19.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 10.95,
+          "total_time_seconds": 52.25,
+          "score": 0.784688995215311
+        }
+      ]
+    },
+    {
+      "round": 11,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "bundle_correct",
+      "oracle_size": 3,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 1,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.0877,
+      "oracle_bundle_ids": [
+        "chiAScenario11o1",
+        "chiAScenario11o2",
+        "chiAScenario11o3"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario11o1",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "pineapple": 2,
+            "grape": 3
+          },
+          "earnings": 22,
+          "pick": 7.5,
+          "localTravelTime": 5.6,
+          "estimatedTime": 13.1
+        },
+        {
+          "id": "chiAScenario11o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "banana": 1
+          },
+          "earnings": 23,
+          "pick": 6,
+          "localTravelTime": 6.4,
+          "estimatedTime": 12.4
+        },
+        {
+          "id": "chiAScenario11o3",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 1,
+            "kiwi": 3
+          },
+          "earnings": 22,
+          "pick": 7.5,
+          "localTravelTime": 6.6,
+          "estimatedTime": 14.1
+        },
+        {
+          "id": "chiAScenario11o4",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "apple": 3,
+            "banana": 2,
+            "watermelon": 2
+          },
+          "earnings": 13,
+          "pick": 12.2,
+          "localTravelTime": 6.3,
+          "estimatedTime": 18.5
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario11o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 22,
+          "effective_pick_time_seconds": 7.5,
+          "local_travel_time_seconds": 5.6,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.1,
+          "score": 0.8764940239043825
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario11o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 23,
+          "effective_pick_time_seconds": 6,
+          "local_travel_time_seconds": 6.4,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 24.4,
+          "score": 0.9426229508196722
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario11o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 22,
+          "effective_pick_time_seconds": 7.5,
+          "local_travel_time_seconds": 6.6,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 26.1,
+          "score": 0.842911877394636
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario11o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 13,
+          "effective_pick_time_seconds": 12.2,
+          "local_travel_time_seconds": 6.3,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 30.5,
+          "score": 0.4262295081967213
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario11o1",
+            "chiAScenario11o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 45,
+          "effective_pick_time_seconds": 13.5,
+          "local_travel_time_seconds": 12,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.375,
+          "total_time_seconds": 34.125,
+          "score": 1.3186813186813187
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario11o1",
+            "chiAScenario11o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 44,
+          "effective_pick_time_seconds": 15,
+          "local_travel_time_seconds": 12.2,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.75,
+          "total_time_seconds": 35.45,
+          "score": 1.241184767277856
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario11o2",
+            "chiAScenario11o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 45,
+          "effective_pick_time_seconds": 13.5,
+          "local_travel_time_seconds": 13,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.375,
+          "total_time_seconds": 35.125,
+          "score": 1.2811387900355873
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario11o1",
+            "chiAScenario11o2",
+            "chiAScenario11o3"
+          ],
+          "is_oracle": 1,
+          "earnings": 67,
+          "effective_pick_time_seconds": 21,
+          "local_travel_time_seconds": 18.6,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 5.25,
+          "total_time_seconds": 46.35,
+          "score": 1.4455231930960086
+        }
+      ]
+    },
+    {
+      "round": 12,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 1,
+      "trap_axis": "pick",
+      "relative_gap": 0.2456,
+      "oracle_bundle_ids": [
+        "chiAScenario12o1"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario12o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "kiwi": 3
+          },
+          "earnings": 21,
+          "pick": 4.8,
+          "localTravelTime": 5.3,
+          "estimatedTime": 10.1
+        },
+        {
+          "id": "chiAScenario12o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "pear": 3,
+            "grape": 3,
+            "kiwi": 1,
+            "watermelon": 1,
+            "pineapple": 2
+          },
+          "earnings": 11,
+          "pick": 21.6,
+          "localTravelTime": 5.5,
+          "estimatedTime": 27.1
+        },
+        {
+          "id": "chiAScenario12o3",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "kiwi": 3,
+            "grape": 2,
+            "pineapple": 3
+          },
+          "earnings": 32,
+          "pick": 14.2,
+          "localTravelTime": 6.2,
+          "estimatedTime": 20.4
+        },
+        {
+          "id": "chiAScenario12o4",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 2,
+            "pear": 3,
+            "apple": 2
+          },
+          "earnings": 10,
+          "pick": 11.3,
+          "localTravelTime": 5.6,
+          "estimatedTime": 16.8
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario12o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 21,
+          "effective_pick_time_seconds": 4.8,
+          "local_travel_time_seconds": 5.3,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 10.1,
+          "score": 2.0792079207920793
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario12o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 21.6,
+          "local_travel_time_seconds": 5.5,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 27.1,
+          "score": 0.4059040590405904
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario12o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 32,
+          "effective_pick_time_seconds": 14.2,
+          "local_travel_time_seconds": 6.2,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 20.4,
+          "score": 1.5686274509803924
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario12o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 10,
+          "effective_pick_time_seconds": 11.3,
+          "local_travel_time_seconds": 5.6,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 28.8,
+          "score": 0.3472222222222222
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario12o1",
+            "chiAScenario12o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 32,
+          "effective_pick_time_seconds": 26.400000000000002,
+          "local_travel_time_seconds": 10.8,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.6000000000000005,
+          "total_time_seconds": 30.6,
+          "score": 1.0457516339869282
+        }
+      ]
+    },
+    {
+      "round": 13,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.278,
+      "oracle_bundle_ids": [
+        "chiAScenario13o1"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario13o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "grape": 1,
+            "apple": 3
+          },
+          "earnings": 41,
+          "pick": 8.4,
+          "localTravelTime": 6.4,
+          "estimatedTime": 14.8
+        },
+        {
+          "id": "chiAScenario13o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "banana": 3
+          },
+          "earnings": 42,
+          "pick": 6,
+          "localTravelTime": 7.6,
+          "estimatedTime": 13.6
+        },
+        {
+          "id": "chiAScenario13o3",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "grape": 1,
+            "pear": 3
+          },
+          "earnings": 20,
+          "pick": 7.3,
+          "localTravelTime": 5.7,
+          "estimatedTime": 13
+        },
+        {
+          "id": "chiAScenario13o4",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 1
+          },
+          "earnings": 49,
+          "pick": 6.2,
+          "localTravelTime": 6.3,
+          "estimatedTime": 12.5
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario13o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 41,
+          "effective_pick_time_seconds": 8.4,
+          "local_travel_time_seconds": 6.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14.8,
+          "score": 2.77027027027027
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario13o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 42,
+          "effective_pick_time_seconds": 6,
+          "local_travel_time_seconds": 7.6,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.6,
+          "score": 1.640625
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario13o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 20,
+          "effective_pick_time_seconds": 7.3,
+          "local_travel_time_seconds": 5.7,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 13,
+          "score": 1.5384615384615385
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario13o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 49,
+          "effective_pick_time_seconds": 6.2,
+          "local_travel_time_seconds": 6.3,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 24.5,
+          "score": 2
+        }
+      ]
+    },
+    {
+      "round": 14,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "bundle_correct",
+      "oracle_size": 2,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 1,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.3136,
+      "oracle_bundle_ids": [
+        "chiAScenario14o1",
+        "chiAScenario14o2"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario14o1",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "kiwi": 3,
+            "orange": 1
+          },
+          "earnings": 26,
+          "pick": 8.3,
+          "localTravelTime": 5.1,
+          "estimatedTime": 13.3
+        },
+        {
+          "id": "chiAScenario14o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "banana": 2
+          },
+          "earnings": 25,
+          "pick": 6,
+          "localTravelTime": 6.3,
+          "estimatedTime": 12.3
+        },
+        {
+          "id": "chiAScenario14o3",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "orange": 2,
+            "pineapple": 1
+          },
+          "earnings": 11,
+          "pick": 10,
+          "localTravelTime": 5.9,
+          "estimatedTime": 15.9
+        },
+        {
+          "id": "chiAScenario14o4",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "watermelon": 3,
+            "apple": 1,
+            "banana": 2
+          },
+          "earnings": 11,
+          "pick": 12.6,
+          "localTravelTime": 5.9,
+          "estimatedTime": 18.5
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario14o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 26,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 5.1,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.3,
+          "score": 1.0276679841897234
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario14o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 25,
+          "effective_pick_time_seconds": 6,
+          "local_travel_time_seconds": 6.3,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 24.3,
+          "score": 1.02880658436214
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario14o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 10,
+          "local_travel_time_seconds": 5.9,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 27.9,
+          "score": 0.3942652329749104
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario14o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 12.6,
+          "local_travel_time_seconds": 5.9,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 18.5,
+          "score": 0.5945945945945946
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario14o1",
+            "chiAScenario14o2"
+          ],
+          "is_oracle": 1,
+          "earnings": 51,
+          "effective_pick_time_seconds": 14.3,
+          "local_travel_time_seconds": 11.399999999999999,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.575,
+          "total_time_seconds": 34.025,
+          "score": 1.4988978692138135
+        }
+      ]
+    },
+    {
+      "round": 15,
+      "phase": "A",
+      "block": null,
+      "test_set": null,
+      "oracle_category": "over_bundle",
+      "oracle_size": 1,
+      "over_bundling_coachable": 1,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2882,
+      "oracle_bundle_ids": [
+        "chiAScenario15o1"
+      ],
+      "orders": [
+        {
+          "id": "chiAScenario15o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "banana": 3,
+            "kiwi": 1
+          },
+          "earnings": 21,
+          "pick": 7.8,
+          "localTravelTime": 6.4,
+          "estimatedTime": 14.2
+        },
+        {
+          "id": "chiAScenario15o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "banana": 2,
+            "watermelon": 1,
+            "apple": 2,
+            "orange": 2
+          },
+          "earnings": 11,
+          "pick": 17.4,
+          "localTravelTime": 5.1,
+          "estimatedTime": 22.5
+        },
+        {
+          "id": "chiAScenario15o3",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "pear": 3,
+            "apple": 3
+          },
+          "earnings": 10,
+          "pick": 9.3,
+          "localTravelTime": 5.4,
+          "estimatedTime": 14.7
+        },
+        {
+          "id": "chiAScenario15o4",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "apple": 3,
+            "watermelon": 2
+          },
+          "earnings": 9,
+          "pick": 9.8,
+          "localTravelTime": 6.8,
+          "estimatedTime": 16.5
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiAScenario15o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 21,
+          "effective_pick_time_seconds": 7.8,
+          "local_travel_time_seconds": 6.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14.2,
+          "score": 1.4788732394366197
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario15o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 17.4,
+          "local_travel_time_seconds": 5.1,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 22.5,
+          "score": 0.4888888888888889
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario15o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 10,
+          "effective_pick_time_seconds": 9.3,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14.7,
+          "score": 0.6802721088435374
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario15o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 9,
+          "effective_pick_time_seconds": 9.8,
+          "local_travel_time_seconds": 6.8,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 28.5,
+          "score": 0.3157894736842105
+        },
+        {
+          "bundle_ids": [
+            "chiAScenario15o1",
+            "chiAScenario15o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 32,
+          "effective_pick_time_seconds": 25.2,
+          "local_travel_time_seconds": 11.5,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.3,
+          "total_time_seconds": 30.400000000000002,
+          "score": 1.0526315789473684
+        }
+      ]
+    },
+    {
+      "round": 16,
+      "phase": "B",
+      "block": "B1",
+      "test_set": null,
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.275,
+      "oracle_bundle_ids": [
+        "chiBScenario16o3"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario16o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "pineapple": 1,
+            "pear": 2
+          },
+          "earnings": 29,
+          "pick": 8.4,
+          "localTravelTime": 5.6,
+          "estimatedTime": 14
+        },
+        {
+          "id": "chiBScenario16o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 1,
+            "apple": 3
+          },
+          "earnings": 44,
+          "pick": 8.3,
+          "localTravelTime": 5.3,
+          "estimatedTime": 13.6
+        },
+        {
+          "id": "chiBScenario16o3",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "grape": 1,
+            "watermelon": 1
+          },
+          "earnings": 44,
+          "pick": 8,
+          "localTravelTime": 7.4,
+          "estimatedTime": 15.4
+        },
+        {
+          "id": "chiBScenario16o4",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "banana": 3,
+            "grape": 1
+          },
+          "earnings": 16,
+          "pick": 8.4,
+          "localTravelTime": 6.8,
+          "estimatedTime": 15.2
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario16o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 29,
+          "effective_pick_time_seconds": 8.4,
+          "local_travel_time_seconds": 5.6,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14,
+          "score": 2.0714285714285716
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario16o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 44,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 5.3,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.6,
+          "score": 1.71875
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario16o3"
+          ],
+          "is_oracle": 1,
+          "earnings": 44,
+          "effective_pick_time_seconds": 8,
+          "local_travel_time_seconds": 7.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 15.4,
+          "score": 2.857142857142857
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario16o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 16,
+          "effective_pick_time_seconds": 8.4,
+          "local_travel_time_seconds": 6.8,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 27.2,
+          "score": 0.5882352941176471
+        }
+      ]
+    },
+    {
+      "round": 17,
+      "phase": "B",
+      "block": "B1",
+      "test_set": null,
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 1,
+      "trap_axis": "cross",
+      "relative_gap": 0.2843,
+      "oracle_bundle_ids": [
+        "chiBScenario17o1"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario17o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "orange": 1,
+            "banana": 3
+          },
+          "earnings": 23,
+          "pick": 7.2,
+          "localTravelTime": 6.5,
+          "estimatedTime": 13.7
+        },
+        {
+          "id": "chiBScenario17o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "orange": 2,
+            "apple": 2,
+            "pineapple": 1,
+            "pear": 1,
+            "grape": 3
+          },
+          "earnings": 8,
+          "pick": 19.2,
+          "localTravelTime": 6.5,
+          "estimatedTime": 25.7
+        },
+        {
+          "id": "chiBScenario17o3",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "pear": 3,
+            "apple": 3
+          },
+          "earnings": 31,
+          "pick": 8.3,
+          "localTravelTime": 5.5,
+          "estimatedTime": 13.8
+        },
+        {
+          "id": "chiBScenario17o4",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "watermelon": 2,
+            "banana": 2
+          },
+          "earnings": 13,
+          "pick": 9.9,
+          "localTravelTime": 5.9,
+          "estimatedTime": 15.8
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario17o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 23,
+          "effective_pick_time_seconds": 7.2,
+          "local_travel_time_seconds": 6.5,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 13.7,
+          "score": 1.6788321167883213
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario17o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 8,
+          "effective_pick_time_seconds": 19.2,
+          "local_travel_time_seconds": 6.5,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.7,
+          "score": 0.311284046692607
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario17o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 31,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 5.5,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.8,
+          "score": 1.2015503875968991
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario17o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 13,
+          "effective_pick_time_seconds": 9.9,
+          "local_travel_time_seconds": 5.9,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 15.8,
+          "score": 0.8227848101265822
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario17o1",
+            "chiBScenario17o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 31,
+          "effective_pick_time_seconds": 26.4,
+          "local_travel_time_seconds": 13,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.6,
+          "total_time_seconds": 32.8,
+          "score": 0.9451219512195123
+        }
+      ]
+    },
+    {
+      "round": 18,
+      "phase": "B",
+      "block": "B1",
+      "test_set": null,
+      "oracle_category": "over_bundle",
+      "oracle_size": 1,
+      "over_bundling_coachable": 1,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2701,
+      "oracle_bundle_ids": [
+        "chiBScenario18o1"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario18o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "kiwi": 1,
+            "apple": 1
+          },
+          "earnings": 22,
+          "pick": 8.4,
+          "localTravelTime": 6.5,
+          "estimatedTime": 14.9
+        },
+        {
+          "id": "chiBScenario18o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "watermelon": 3,
+            "grape": 3,
+            "orange": 3,
+            "apple": 2,
+            "kiwi": 3,
+            "pear": 1
+          },
+          "earnings": 11,
+          "pick": 22.8,
+          "localTravelTime": 5.9,
+          "estimatedTime": 28.7
+        },
+        {
+          "id": "chiBScenario18o3",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "banana": 1,
+            "watermelon": 3,
+            "pear": 2,
+            "kiwi": 1
+          },
+          "earnings": 12,
+          "pick": 17.4,
+          "localTravelTime": 5.7,
+          "estimatedTime": 23.1
+        },
+        {
+          "id": "chiBScenario18o4",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "apple": 3,
+            "watermelon": 1,
+            "pear": 1
+          },
+          "earnings": 13,
+          "pick": 11.6,
+          "localTravelTime": 6.8,
+          "estimatedTime": 18.4
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario18o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 22,
+          "effective_pick_time_seconds": 8.4,
+          "local_travel_time_seconds": 6.5,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14.9,
+          "score": 1.4765100671140938
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario18o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 22.8,
+          "local_travel_time_seconds": 5.9,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 28.7,
+          "score": 0.3832752613240418
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario18o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 17.4,
+          "local_travel_time_seconds": 5.7,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23.1,
+          "score": 0.5194805194805194
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario18o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 13,
+          "effective_pick_time_seconds": 11.6,
+          "local_travel_time_seconds": 6.8,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 18.4,
+          "score": 0.7065217391304348
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario18o1",
+            "chiBScenario18o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 33,
+          "effective_pick_time_seconds": 31.200000000000003,
+          "local_travel_time_seconds": 12.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 7.800000000000001,
+          "total_time_seconds": 35.8,
+          "score": 0.9217877094972068
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario18o1",
+            "chiBScenario18o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 34,
+          "effective_pick_time_seconds": 25.799999999999997,
+          "local_travel_time_seconds": 12.2,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.449999999999999,
+          "total_time_seconds": 31.55,
+          "score": 1.0776545166402536
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario18o2",
+            "chiBScenario18o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 23,
+          "effective_pick_time_seconds": 40.2,
+          "local_travel_time_seconds": 11.600000000000001,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 10.05,
+          "total_time_seconds": 41.75,
+          "score": 0.5508982035928144
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario18o1",
+            "chiBScenario18o2",
+            "chiBScenario18o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 45,
+          "effective_pick_time_seconds": 48.6,
+          "local_travel_time_seconds": 18.1,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 12.15,
+          "total_time_seconds": 54.550000000000004,
+          "score": 0.8249312557286892
+        }
+      ]
+    },
+    {
+      "round": 19,
+      "phase": "B",
+      "block": "B1",
+      "test_set": null,
+      "oracle_category": "bundle_correct",
+      "oracle_size": 2,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 1,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2104,
+      "oracle_bundle_ids": [
+        "chiBScenario19o1",
+        "chiBScenario19o2"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario19o1",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "orange": 3
+          },
+          "earnings": 29,
+          "pick": 5.3,
+          "localTravelTime": 6.5,
+          "estimatedTime": 11.7
+        },
+        {
+          "id": "chiBScenario19o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "pineapple": 3,
+            "apple": 2
+          },
+          "earnings": 24,
+          "pick": 8.3,
+          "localTravelTime": 5.7,
+          "estimatedTime": 13.9
+        },
+        {
+          "id": "chiBScenario19o3",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "banana": 2,
+            "pear": 1,
+            "watermelon": 3
+          },
+          "earnings": 12,
+          "pick": 12.2,
+          "localTravelTime": 6.2,
+          "estimatedTime": 18.4
+        },
+        {
+          "id": "chiBScenario19o4",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "apple": 3,
+            "orange": 2
+          },
+          "earnings": 12,
+          "pick": 7.8,
+          "localTravelTime": 7,
+          "estimatedTime": 14.8
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario19o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 29,
+          "effective_pick_time_seconds": 5.3,
+          "local_travel_time_seconds": 6.5,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23.7,
+          "score": 1.2236286919831223
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario19o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 24,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 5.7,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.9,
+          "score": 0.9266409266409267
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario19o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 12.2,
+          "local_travel_time_seconds": 6.2,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 30.4,
+          "score": 0.39473684210526316
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario19o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 7.8,
+          "local_travel_time_seconds": 7,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14.8,
+          "score": 0.8108108108108107
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario19o1",
+            "chiBScenario19o2"
+          ],
+          "is_oracle": 1,
+          "earnings": 53,
+          "effective_pick_time_seconds": 13.600000000000001,
+          "local_travel_time_seconds": 12.2,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.4000000000000004,
+          "total_time_seconds": 34.2,
+          "score": 1.5497076023391811
+        }
+      ]
+    },
+    {
+      "round": 20,
+      "phase": "B",
+      "block": "B1",
+      "test_set": null,
+      "oracle_category": "bundle_correct",
+      "oracle_size": 3,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 1,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.0388,
+      "oracle_bundle_ids": [
+        "chiBScenario20o1",
+        "chiBScenario20o2",
+        "chiBScenario20o3"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario20o1",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "apple": 3
+          },
+          "earnings": 28,
+          "pick": 5.3,
+          "localTravelTime": 6.4,
+          "estimatedTime": 11.6
+        },
+        {
+          "id": "chiBScenario20o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "pineapple": 3,
+            "orange": 2
+          },
+          "earnings": 24,
+          "pick": 8.3,
+          "localTravelTime": 6.5,
+          "estimatedTime": 14.7
+        },
+        {
+          "id": "chiBScenario20o3",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "grape": 2,
+            "pineapple": 1
+          },
+          "earnings": 29,
+          "pick": 8.3,
+          "localTravelTime": 6,
+          "estimatedTime": 14.3
+        },
+        {
+          "id": "chiBScenario20o4",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "apple": 3,
+            "grape": 1
+          },
+          "earnings": 11,
+          "pick": 8.4,
+          "localTravelTime": 7,
+          "estimatedTime": 15.4
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario20o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 28,
+          "effective_pick_time_seconds": 5.3,
+          "local_travel_time_seconds": 6.4,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23.6,
+          "score": 1.1864406779661016
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario20o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 24,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 6.5,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 26.7,
+          "score": 0.898876404494382
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario20o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 29,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 6,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 26.3,
+          "score": 1.1026615969581748
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario20o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 8.4,
+          "local_travel_time_seconds": 7,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 27.4,
+          "score": 0.40145985401459855
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario20o1",
+            "chiBScenario20o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 52,
+          "effective_pick_time_seconds": 13.600000000000001,
+          "local_travel_time_seconds": 12.9,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.4000000000000004,
+          "total_time_seconds": 34.9,
+          "score": 1.4899713467048712
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario20o1",
+            "chiBScenario20o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 57,
+          "effective_pick_time_seconds": 13.600000000000001,
+          "local_travel_time_seconds": 12.4,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.4000000000000004,
+          "total_time_seconds": 34.50000000000001,
+          "score": 1.6521739130434778
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario20o2",
+            "chiBScenario20o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 53,
+          "effective_pick_time_seconds": 16.6,
+          "local_travel_time_seconds": 12.5,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 4.15,
+          "total_time_seconds": 36.85,
+          "score": 1.4382632293080053
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario20o1",
+            "chiBScenario20o2",
+            "chiBScenario20o3"
+          ],
+          "is_oracle": 1,
+          "earnings": 81,
+          "effective_pick_time_seconds": 21.900000000000002,
+          "local_travel_time_seconds": 18.9,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 5.4750000000000005,
+          "total_time_seconds": 47.12499999999999,
+          "score": 1.7188328912466846
+        }
+      ]
+    },
+    {
+      "round": 21,
+      "phase": "B",
+      "block": "B2",
+      "test_set": "retention_same_dist",
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2466,
+      "oracle_bundle_ids": [
+        "chiBScenario21o3"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario21o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "orange": 3,
+            "pear": 2
+          },
+          "earnings": 18,
+          "pick": 8.4,
+          "localTravelTime": 5.2,
+          "estimatedTime": 13.6
+        },
+        {
+          "id": "chiBScenario21o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "kiwi": 3,
+            "grape": 1
+          },
+          "earnings": 33,
+          "pick": 9,
+          "localTravelTime": 5.2,
+          "estimatedTime": 14.2
+        },
+        {
+          "id": "chiBScenario21o3",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "grape": 2,
+            "apple": 3
+          },
+          "earnings": 26,
+          "pick": 8,
+          "localTravelTime": 6.9,
+          "estimatedTime": 14.8
+        },
+        {
+          "id": "chiBScenario21o4",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 2
+          },
+          "earnings": 13,
+          "pick": 6.2,
+          "localTravelTime": 5.5,
+          "estimatedTime": 11.7
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario21o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 18,
+          "effective_pick_time_seconds": 8.4,
+          "local_travel_time_seconds": 5.2,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 13.6,
+          "score": 1.3235294117647058
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario21o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 33,
+          "effective_pick_time_seconds": 9,
+          "local_travel_time_seconds": 5.2,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 26.2,
+          "score": 1.2595419847328244
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario21o3"
+          ],
+          "is_oracle": 1,
+          "earnings": 26,
+          "effective_pick_time_seconds": 8,
+          "local_travel_time_seconds": 6.9,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14.8,
+          "score": 1.7567567567567566
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario21o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 13,
+          "effective_pick_time_seconds": 6.2,
+          "local_travel_time_seconds": 5.5,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23.7,
+          "score": 0.5485232067510548
+        }
+      ]
+    },
+    {
+      "round": 22,
+      "phase": "B",
+      "block": "B2",
+      "test_set": "retention_same_dist",
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 1,
+      "trap_axis": "cross",
+      "relative_gap": 0.2455,
+      "oracle_bundle_ids": [
+        "chiBScenario22o1"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario22o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "grape": 2
+          },
+          "earnings": 22,
+          "pick": 4.8,
+          "localTravelTime": 5.2,
+          "estimatedTime": 10
+        },
+        {
+          "id": "chiBScenario22o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "orange": 2,
+            "apple": 1,
+            "banana": 1,
+            "pineapple": 3,
+            "pear": 1
+          },
+          "earnings": 11,
+          "pick": 21,
+          "localTravelTime": 6,
+          "estimatedTime": 27
+        },
+        {
+          "id": "chiBScenario22o3",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 1,
+            "kiwi": 3
+          },
+          "earnings": 41,
+          "pick": 7.5,
+          "localTravelTime": 5.2,
+          "estimatedTime": 12.7
+        },
+        {
+          "id": "chiBScenario22o4",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "pineapple": 2,
+            "grape": 2
+          },
+          "earnings": 14,
+          "pick": 10.6,
+          "localTravelTime": 5.3,
+          "estimatedTime": 15.9
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario22o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 22,
+          "effective_pick_time_seconds": 4.8,
+          "local_travel_time_seconds": 5.2,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 10,
+          "score": 2.2
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario22o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 21,
+          "local_travel_time_seconds": 6,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 27,
+          "score": 0.4074074074074074
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario22o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 41,
+          "effective_pick_time_seconds": 7.5,
+          "local_travel_time_seconds": 5.2,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 24.7,
+          "score": 1.659919028340081
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario22o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 14,
+          "effective_pick_time_seconds": 10.6,
+          "local_travel_time_seconds": 5.3,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 15.9,
+          "score": 0.8805031446540881
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario22o1",
+            "chiBScenario22o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 33,
+          "effective_pick_time_seconds": 25.8,
+          "local_travel_time_seconds": 11.2,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.45,
+          "total_time_seconds": 30.55,
+          "score": 1.0801963993453354
+        }
+      ]
+    },
+    {
+      "round": 23,
+      "phase": "B",
+      "block": "B2",
+      "test_set": "retention_same_dist",
+      "oracle_category": "over_bundle",
+      "oracle_size": 1,
+      "over_bundling_coachable": 1,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2754,
+      "oracle_bundle_ids": [
+        "chiBScenario23o1"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario23o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "orange": 2,
+            "banana": 1
+          },
+          "earnings": 20,
+          "pick": 7.2,
+          "localTravelTime": 6.5,
+          "estimatedTime": 13.7
+        },
+        {
+          "id": "chiBScenario23o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "apple": 1,
+            "banana": 2,
+            "watermelon": 1,
+            "grape": 1
+          },
+          "earnings": 12,
+          "pick": 17.4,
+          "localTravelTime": 5.3,
+          "estimatedTime": 22.7
+        },
+        {
+          "id": "chiBScenario23o3",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "grape": 1,
+            "kiwi": 2,
+            "watermelon": 3,
+            "banana": 3
+          },
+          "earnings": 9,
+          "pick": 19.2,
+          "localTravelTime": 6.1,
+          "estimatedTime": 25.3
+        },
+        {
+          "id": "chiBScenario23o4",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "kiwi": 2,
+            "apple": 3
+          },
+          "earnings": 12,
+          "pick": 9.3,
+          "localTravelTime": 5.4,
+          "estimatedTime": 14.7
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario23o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 20,
+          "effective_pick_time_seconds": 7.2,
+          "local_travel_time_seconds": 6.5,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 13.7,
+          "score": 1.4598540145985401
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario23o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 17.4,
+          "local_travel_time_seconds": 5.3,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 22.7,
+          "score": 0.5286343612334802
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario23o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 9,
+          "effective_pick_time_seconds": 19.2,
+          "local_travel_time_seconds": 6.1,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.3,
+          "score": 0.3557312252964427
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario23o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 9.3,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14.7,
+          "score": 0.8163265306122449
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario23o1",
+            "chiBScenario23o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 32,
+          "effective_pick_time_seconds": 24.599999999999998,
+          "local_travel_time_seconds": 11.8,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.1499999999999995,
+          "total_time_seconds": 30.25,
+          "score": 1.0578512396694215
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario23o1",
+            "chiBScenario23o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 29,
+          "effective_pick_time_seconds": 26.4,
+          "local_travel_time_seconds": 12.6,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.6,
+          "total_time_seconds": 32.4,
+          "score": 0.8950617283950618
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario23o2",
+            "chiBScenario23o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 21,
+          "effective_pick_time_seconds": 36.599999999999994,
+          "local_travel_time_seconds": 11.399999999999999,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 9.149999999999999,
+          "total_time_seconds": 38.85,
+          "score": 0.5405405405405406
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario23o1",
+            "chiBScenario23o2",
+            "chiBScenario23o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 41,
+          "effective_pick_time_seconds": 43.8,
+          "local_travel_time_seconds": 17.9,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 10.95,
+          "total_time_seconds": 50.75,
+          "score": 0.8078817733990148
+        }
+      ]
+    },
+    {
+      "round": 24,
+      "phase": "B",
+      "block": "B2",
+      "test_set": "retention_same_dist",
+      "oracle_category": "bundle_correct",
+      "oracle_size": 2,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 1,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2611,
+      "oracle_bundle_ids": [
+        "chiBScenario24o1",
+        "chiBScenario24o2"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario24o1",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "pear": 3,
+            "watermelon": 3
+          },
+          "earnings": 28,
+          "pick": 8.3,
+          "localTravelTime": 6.4,
+          "estimatedTime": 14.7
+        },
+        {
+          "id": "chiBScenario24o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "banana": 3
+          },
+          "earnings": 29,
+          "pick": 6,
+          "localTravelTime": 6.6,
+          "estimatedTime": 12.6
+        },
+        {
+          "id": "chiBScenario24o3",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "kiwi": 2,
+            "apple": 2
+          },
+          "earnings": 11,
+          "pick": 8.4,
+          "localTravelTime": 5.4,
+          "estimatedTime": 13.8
+        },
+        {
+          "id": "chiBScenario24o4",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "watermelon": 2,
+            "apple": 1
+          },
+          "earnings": 12,
+          "pick": 8.4,
+          "localTravelTime": 5.2,
+          "estimatedTime": 13.6
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario24o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 28,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 6.4,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 26.7,
+          "score": 1.0486891385767791
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario24o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 29,
+          "effective_pick_time_seconds": 6,
+          "local_travel_time_seconds": 6.6,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 24.6,
+          "score": 1.178861788617886
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario24o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 8.4,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.8,
+          "score": 0.4263565891472868
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario24o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 8.4,
+          "local_travel_time_seconds": 5.2,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 13.6,
+          "score": 0.8823529411764706
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario24o1",
+            "chiBScenario24o2"
+          ],
+          "is_oracle": 1,
+          "earnings": 57,
+          "effective_pick_time_seconds": 14.3,
+          "local_travel_time_seconds": 13,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.575,
+          "total_time_seconds": 35.724999999999994,
+          "score": 1.595521343596921
+        }
+      ]
+    },
+    {
+      "round": 25,
+      "phase": "B",
+      "block": "B2",
+      "test_set": "retention_same_dist",
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 1,
+      "trap_axis": "cross",
+      "relative_gap": 0.2578,
+      "oracle_bundle_ids": [
+        "chiBScenario25o1"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario25o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "pear": 3
+          },
+          "earnings": 22,
+          "pick": 5.4,
+          "localTravelTime": 7,
+          "estimatedTime": 12.4
+        },
+        {
+          "id": "chiBScenario25o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "grape": 1,
+            "orange": 3,
+            "watermelon": 3,
+            "kiwi": 1,
+            "apple": 1
+          },
+          "earnings": 9,
+          "pick": 22.2,
+          "localTravelTime": 5.4,
+          "estimatedTime": 27.6
+        },
+        {
+          "id": "chiBScenario25o3",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "banana": 1
+          },
+          "earnings": 32,
+          "pick": 6,
+          "localTravelTime": 6.3,
+          "estimatedTime": 12.3
+        },
+        {
+          "id": "chiBScenario25o4",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "grape": 2,
+            "kiwi": 1,
+            "orange": 1
+          },
+          "earnings": 11,
+          "pick": 11.6,
+          "localTravelTime": 6.7,
+          "estimatedTime": 18.3
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario25o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 22,
+          "effective_pick_time_seconds": 5.4,
+          "local_travel_time_seconds": 7,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 12.4,
+          "score": 1.7741935483870968
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario25o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 9,
+          "effective_pick_time_seconds": 22.2,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 27.6,
+          "score": 0.32608695652173914
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario25o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 32,
+          "effective_pick_time_seconds": 6,
+          "local_travel_time_seconds": 6.3,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 24.3,
+          "score": 1.316872427983539
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario25o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 11.6,
+          "local_travel_time_seconds": 6.7,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 18.3,
+          "score": 0.6010928961748634
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario25o1",
+            "chiBScenario25o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 31,
+          "effective_pick_time_seconds": 27.6,
+          "local_travel_time_seconds": 12.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.9,
+          "total_time_seconds": 33.1,
+          "score": 0.9365558912386707
+        }
+      ]
+    },
+    {
+      "round": 26,
+      "phase": "B",
+      "block": "B3",
+      "test_set": null,
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2446,
+      "oracle_bundle_ids": [
+        "chiBScenario26o1"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario26o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "orange": 3,
+            "grape": 3
+          },
+          "earnings": 22,
+          "pick": 7.8,
+          "localTravelTime": 7.6,
+          "estimatedTime": 15.4
+        },
+        {
+          "id": "chiBScenario26o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "pineapple": 3,
+            "banana": 3
+          },
+          "earnings": 30,
+          "pick": 9,
+          "localTravelTime": 6.8,
+          "estimatedTime": 15.8
+        },
+        {
+          "id": "chiBScenario26o3",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "apple": 1,
+            "banana": 3
+          },
+          "earnings": 13,
+          "pick": 7.3,
+          "localTravelTime": 5.1,
+          "estimatedTime": 12.4
+        },
+        {
+          "id": "chiBScenario26o4",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 2
+          },
+          "earnings": 10,
+          "pick": 6.2,
+          "localTravelTime": 7.8,
+          "estimatedTime": 14
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario26o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 22,
+          "effective_pick_time_seconds": 7.8,
+          "local_travel_time_seconds": 7.6,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 15.4,
+          "score": 1.4285714285714286
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario26o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 30,
+          "effective_pick_time_seconds": 9,
+          "local_travel_time_seconds": 6.8,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 27.8,
+          "score": 1.079136690647482
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario26o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 13,
+          "effective_pick_time_seconds": 7.3,
+          "local_travel_time_seconds": 5.1,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 12.4,
+          "score": 1.0483870967741935
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario26o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 10,
+          "effective_pick_time_seconds": 6.2,
+          "local_travel_time_seconds": 7.8,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 26,
+          "score": 0.38461538461538464
+        }
+      ]
+    },
+    {
+      "round": 27,
+      "phase": "B",
+      "block": "B3",
+      "test_set": null,
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 1,
+      "trap_axis": "cross",
+      "relative_gap": 0.2655,
+      "oracle_bundle_ids": [
+        "chiBScenario27o1"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario27o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "pear": 2
+          },
+          "earnings": 23,
+          "pick": 5.4,
+          "localTravelTime": 5.2,
+          "estimatedTime": 10.6
+        },
+        {
+          "id": "chiBScenario27o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "pear": 1,
+            "pineapple": 1,
+            "grape": 2,
+            "kiwi": 2
+          },
+          "earnings": 12,
+          "pick": 18.6,
+          "localTravelTime": 5.9,
+          "estimatedTime": 24.5
+        },
+        {
+          "id": "chiBScenario27o3",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 1,
+            "pear": 3
+          },
+          "earnings": 40,
+          "pick": 7.5,
+          "localTravelTime": 5.6,
+          "estimatedTime": 13.1
+        },
+        {
+          "id": "chiBScenario27o4",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "grape": 3,
+            "pear": 1,
+            "kiwi": 3
+          },
+          "earnings": 12,
+          "pick": 12.3,
+          "localTravelTime": 6.5,
+          "estimatedTime": 18.8
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario27o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 23,
+          "effective_pick_time_seconds": 5.4,
+          "local_travel_time_seconds": 5.2,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 10.6,
+          "score": 2.169811320754717
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario27o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 18.6,
+          "local_travel_time_seconds": 5.9,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 24.5,
+          "score": 0.4897959183673469
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario27o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 40,
+          "effective_pick_time_seconds": 7.5,
+          "local_travel_time_seconds": 5.6,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.1,
+          "score": 1.593625498007968
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario27o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 12.3,
+          "local_travel_time_seconds": 6.5,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 18.8,
+          "score": 0.6382978723404255
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario27o1",
+            "chiBScenario27o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 35,
+          "effective_pick_time_seconds": 24,
+          "local_travel_time_seconds": 11.100000000000001,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6,
+          "total_time_seconds": 29.1,
+          "score": 1.2027491408934707
+        }
+      ]
+    },
+    {
+      "round": 28,
+      "phase": "B",
+      "block": "B3",
+      "test_set": null,
+      "oracle_category": "over_bundle",
+      "oracle_size": 1,
+      "over_bundling_coachable": 1,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2859,
+      "oracle_bundle_ids": [
+        "chiBScenario28o1"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario28o1",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "watermelon": 1,
+            "pineapple": 3
+          },
+          "earnings": 21,
+          "pick": 7.8,
+          "localTravelTime": 6.4,
+          "estimatedTime": 14.2
+        },
+        {
+          "id": "chiBScenario28o2",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "watermelon": 2,
+            "banana": 3,
+            "grape": 1,
+            "pear": 3
+          },
+          "earnings": 10,
+          "pick": 18,
+          "localTravelTime": 5.5,
+          "estimatedTime": 23.5
+        },
+        {
+          "id": "chiBScenario28o3",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "kiwi": 3,
+            "pear": 3,
+            "pineapple": 2,
+            "apple": 2
+          },
+          "earnings": 12,
+          "pick": 16.8,
+          "localTravelTime": 6.4,
+          "estimatedTime": 23.2
+        },
+        {
+          "id": "chiBScenario28o4",
+          "store": "Berkeley Market",
+          "city": "Berkeley",
+          "items": {
+            "pear": 3,
+            "kiwi": 1
+          },
+          "earnings": 13,
+          "pick": 9.3,
+          "localTravelTime": 6.6,
+          "estimatedTime": 15.8
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario28o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 21,
+          "effective_pick_time_seconds": 7.8,
+          "local_travel_time_seconds": 6.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 14.2,
+          "score": 1.4788732394366197
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario28o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 10,
+          "effective_pick_time_seconds": 18,
+          "local_travel_time_seconds": 5.5,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23.5,
+          "score": 0.425531914893617
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario28o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 16.8,
+          "local_travel_time_seconds": 6.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23.2,
+          "score": 0.5172413793103449
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario28o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 13,
+          "effective_pick_time_seconds": 9.3,
+          "local_travel_time_seconds": 6.6,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 15.8,
+          "score": 0.8227848101265822
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario28o1",
+            "chiBScenario28o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 31,
+          "effective_pick_time_seconds": 25.8,
+          "local_travel_time_seconds": 11.9,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.45,
+          "total_time_seconds": 31.250000000000004,
+          "score": 0.9919999999999999
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario28o1",
+            "chiBScenario28o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 33,
+          "effective_pick_time_seconds": 24.6,
+          "local_travel_time_seconds": 12.8,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 6.15,
+          "total_time_seconds": 31.25,
+          "score": 1.056
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario28o2",
+            "chiBScenario28o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 22,
+          "effective_pick_time_seconds": 34.8,
+          "local_travel_time_seconds": 11.9,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 8.7,
+          "total_time_seconds": 38,
+          "score": 0.5789473684210527
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario28o1",
+            "chiBScenario28o2",
+            "chiBScenario28o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 43,
+          "effective_pick_time_seconds": 42.6,
+          "local_travel_time_seconds": 18.3,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 10.65,
+          "total_time_seconds": 50.25000000000001,
+          "score": 0.8557213930348258
+        }
+      ]
+    },
+    {
+      "round": 29,
+      "phase": "B",
+      "block": "B3",
+      "test_set": null,
+      "oracle_category": "bundle_correct",
+      "oracle_size": 2,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 1,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.289,
+      "oracle_bundle_ids": [
+        "chiBScenario29o1",
+        "chiBScenario29o2"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario29o1",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "grape": 2,
+            "orange": 1
+          },
+          "earnings": 28,
+          "pick": 8.3,
+          "localTravelTime": 5.2,
+          "estimatedTime": 13.5
+        },
+        {
+          "id": "chiBScenario29o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "banana": 3
+          },
+          "earnings": 23,
+          "pick": 6,
+          "localTravelTime": 5.1,
+          "estimatedTime": 11.1
+        },
+        {
+          "id": "chiBScenario29o3",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 1,
+            "banana": 3
+          },
+          "earnings": 11,
+          "pick": 10.8,
+          "localTravelTime": 6,
+          "estimatedTime": 16.8
+        },
+        {
+          "id": "chiBScenario29o4",
+          "store": "Berkeley Bowl",
+          "city": "Berkeley",
+          "items": {
+            "apple": 2,
+            "grape": 2
+          },
+          "earnings": 9,
+          "pick": 7.8,
+          "localTravelTime": 5.4,
+          "estimatedTime": 13.2
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario29o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 28,
+          "effective_pick_time_seconds": 8.3,
+          "local_travel_time_seconds": 5.2,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 25.5,
+          "score": 1.0980392156862746
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario29o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 23,
+          "effective_pick_time_seconds": 6,
+          "local_travel_time_seconds": 5.1,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23.1,
+          "score": 0.9956709956709956
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario29o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 10.8,
+          "local_travel_time_seconds": 6,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 28.8,
+          "score": 0.3819444444444444
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario29o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 9,
+          "effective_pick_time_seconds": 7.8,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 0,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 13.2,
+          "score": 0.6818181818181819
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario29o1",
+            "chiBScenario29o2"
+          ],
+          "is_oracle": 1,
+          "earnings": 51,
+          "effective_pick_time_seconds": 14.3,
+          "local_travel_time_seconds": 10.3,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.575,
+          "total_time_seconds": 33.025,
+          "score": 1.5442846328538986
+        }
+      ]
+    },
+    {
+      "round": 30,
+      "phase": "B",
+      "block": "B3",
+      "test_set": null,
+      "oracle_category": "bundle_correct",
+      "oracle_size": 3,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 1,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.0764,
+      "oracle_bundle_ids": [
+        "chiBScenario30o1",
+        "chiBScenario30o2",
+        "chiBScenario30o3"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario30o1",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "banana": 2
+          },
+          "earnings": 22,
+          "pick": 6,
+          "localTravelTime": 5,
+          "estimatedTime": 11
+        },
+        {
+          "id": "chiBScenario30o2",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "banana": 3
+          },
+          "earnings": 29,
+          "pick": 6,
+          "localTravelTime": 6.4,
+          "estimatedTime": 12.4
+        },
+        {
+          "id": "chiBScenario30o3",
+          "store": "Sprouts",
+          "city": "Oakland",
+          "items": {
+            "pineapple": 2,
+            "kiwi": 2
+          },
+          "earnings": 28,
+          "pick": 7.5,
+          "localTravelTime": 5.4,
+          "estimatedTime": 12.9
+        },
+        {
+          "id": "chiBScenario30o4",
+          "store": "Oakland Grocer",
+          "city": "Oakland",
+          "items": {
+            "watermelon": 2,
+            "kiwi": 3
+          },
+          "earnings": 13,
+          "pick": 10.8,
+          "localTravelTime": 5.6,
+          "estimatedTime": 16.4
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario30o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 22,
+          "effective_pick_time_seconds": 6,
+          "local_travel_time_seconds": 5,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23,
+          "score": 0.9565217391304348
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario30o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 29,
+          "effective_pick_time_seconds": 6,
+          "local_travel_time_seconds": 6.4,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 24.4,
+          "score": 1.1885245901639345
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario30o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 28,
+          "effective_pick_time_seconds": 7.5,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 24.9,
+          "score": 1.1244979919678715
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario30o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 13,
+          "effective_pick_time_seconds": 10.8,
+          "local_travel_time_seconds": 5.6,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 28.4,
+          "score": 0.45774647887323944
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario30o1",
+            "chiBScenario30o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 51,
+          "effective_pick_time_seconds": 12,
+          "local_travel_time_seconds": 11.4,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3,
+          "total_time_seconds": 32.4,
+          "score": 1.5740740740740742
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario30o1",
+            "chiBScenario30o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 50,
+          "effective_pick_time_seconds": 13.5,
+          "local_travel_time_seconds": 10.4,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.375,
+          "total_time_seconds": 32.525,
+          "score": 1.5372790161414298
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario30o2",
+            "chiBScenario30o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 57,
+          "effective_pick_time_seconds": 13.5,
+          "local_travel_time_seconds": 11.8,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 3.375,
+          "total_time_seconds": 33.925,
+          "score": 1.6801768607221814
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario30o1",
+            "chiBScenario30o2",
+            "chiBScenario30o3"
+          ],
+          "is_oracle": 1,
+          "earnings": 79,
+          "effective_pick_time_seconds": 19.5,
+          "local_travel_time_seconds": 16.8,
+          "cross_city_travel_time_seconds": 12,
+          "shared_item_savings_seconds": 4.875,
+          "total_time_seconds": 43.425,
+          "score": 1.8192285549798504
+        }
+      ]
+    },
+    {
+      "round": 31,
+      "phase": "B",
+      "block": "B4",
+      "test_set": "transfer_shifted",
+      "oracle_category": "over_bundle",
+      "oracle_size": 1,
+      "over_bundling_coachable": 1,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.309,
+      "oracle_bundle_ids": [
+        "chiBScenario31o1"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario31o1",
+          "store": "Target",
+          "city": "Emeryville",
+          "items": {
+            "apple": 2
+          },
+          "earnings": 22,
+          "pick": 4.8,
+          "localTravelTime": 6.1,
+          "estimatedTime": 10.9
+        },
+        {
+          "id": "chiBScenario31o2",
+          "store": "Target",
+          "city": "Emeryville",
+          "items": {
+            "orange": 2,
+            "pineapple": 3,
+            "kiwi": 3,
+            "banana": 3
+          },
+          "earnings": 8,
+          "pick": 19.2,
+          "localTravelTime": 5.2,
+          "estimatedTime": 24.4
+        },
+        {
+          "id": "chiBScenario31o3",
+          "store": "Target",
+          "city": "Emeryville",
+          "items": {
+            "grape": 2,
+            "pear": 3,
+            "watermelon": 1,
+            "banana": 2
+          },
+          "earnings": 9,
+          "pick": 21,
+          "localTravelTime": 5.7,
+          "estimatedTime": 26.7
+        },
+        {
+          "id": "chiBScenario31o4",
+          "store": "Costco",
+          "city": "Richmond",
+          "items": {
+            "grape": 2,
+            "apple": 1
+          },
+          "earnings": 10,
+          "pick": 10,
+          "localTravelTime": 5.4,
+          "estimatedTime": 15.4
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario31o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 22,
+          "effective_pick_time_seconds": 4.8,
+          "local_travel_time_seconds": 6.1,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 18.9,
+          "score": 1.1640211640211642
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario31o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 8,
+          "effective_pick_time_seconds": 19.2,
+          "local_travel_time_seconds": 5.2,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 32.4,
+          "score": 0.2469135802469136
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario31o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 9,
+          "effective_pick_time_seconds": 21,
+          "local_travel_time_seconds": 5.7,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 34.7,
+          "score": 0.25936599423631124
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario31o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 10,
+          "effective_pick_time_seconds": 10,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 18,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 33.4,
+          "score": 0.29940119760479045
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario31o1",
+            "chiBScenario31o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 30,
+          "effective_pick_time_seconds": 24,
+          "local_travel_time_seconds": 11.3,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 6,
+          "total_time_seconds": 37.3,
+          "score": 0.804289544235925
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario31o1",
+            "chiBScenario31o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 31,
+          "effective_pick_time_seconds": 25.8,
+          "local_travel_time_seconds": 11.8,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 6.45,
+          "total_time_seconds": 39.14999999999999,
+          "score": 0.7918263090676886
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario31o2",
+            "chiBScenario31o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 17,
+          "effective_pick_time_seconds": 40.2,
+          "local_travel_time_seconds": 10.9,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 10.05,
+          "total_time_seconds": 49.05,
+          "score": 0.3465851172273191
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario31o1",
+            "chiBScenario31o2",
+            "chiBScenario31o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 39,
+          "effective_pick_time_seconds": 45,
+          "local_travel_time_seconds": 17,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 11.25,
+          "total_time_seconds": 58.75,
+          "score": 0.6638297872340425
+        }
+      ]
+    },
+    {
+      "round": 32,
+      "phase": "B",
+      "block": "B4",
+      "test_set": "transfer_shifted",
+      "oracle_category": "bundle_correct",
+      "oracle_size": 2,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 1,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2453,
+      "oracle_bundle_ids": [
+        "chiBScenario32o1",
+        "chiBScenario32o2"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario32o1",
+          "store": "Whole Foods",
+          "city": "Albany",
+          "items": {
+            "banana": 2
+          },
+          "earnings": 25,
+          "pick": 6.4,
+          "localTravelTime": 5.4,
+          "estimatedTime": 11.8
+        },
+        {
+          "id": "chiBScenario32o2",
+          "store": "Whole Foods",
+          "city": "Albany",
+          "items": {
+            "orange": 1
+          },
+          "earnings": 27,
+          "pick": 4.7,
+          "localTravelTime": 6.2,
+          "estimatedTime": 10.9
+        },
+        {
+          "id": "chiBScenario32o3",
+          "store": "Trader Joe's",
+          "city": "Albany",
+          "items": {
+            "apple": 3,
+            "pear": 1
+          },
+          "earnings": 11,
+          "pick": 8.8,
+          "localTravelTime": 5.7,
+          "estimatedTime": 14.4
+        },
+        {
+          "id": "chiBScenario32o4",
+          "store": "Target",
+          "city": "Emeryville",
+          "items": {
+            "orange": 2,
+            "apple": 2
+          },
+          "earnings": 12,
+          "pick": 9.6,
+          "localTravelTime": 5.8,
+          "estimatedTime": 15.4
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario32o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 25,
+          "effective_pick_time_seconds": 6.4,
+          "local_travel_time_seconds": 5.4,
+          "cross_city_travel_time_seconds": 9,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 20.8,
+          "score": 1.2019230769230769
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario32o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 27,
+          "effective_pick_time_seconds": 4.7,
+          "local_travel_time_seconds": 6.2,
+          "cross_city_travel_time_seconds": 9,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 19.9,
+          "score": 1.35678391959799
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario32o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 8.8,
+          "local_travel_time_seconds": 5.7,
+          "cross_city_travel_time_seconds": 9,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23.4,
+          "score": 0.47008547008547014
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario32o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 9.6,
+          "local_travel_time_seconds": 5.8,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 23.4,
+          "score": 0.5128205128205129
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario32o1",
+            "chiBScenario32o2"
+          ],
+          "is_oracle": 1,
+          "earnings": 52,
+          "effective_pick_time_seconds": 11.100000000000001,
+          "local_travel_time_seconds": 11.600000000000001,
+          "cross_city_travel_time_seconds": 9,
+          "shared_item_savings_seconds": 2.7750000000000004,
+          "total_time_seconds": 28.925000000000004,
+          "score": 1.7977528089887638
+        }
+      ]
+    },
+    {
+      "round": 33,
+      "phase": "B",
+      "block": "B4",
+      "test_set": "transfer_shifted",
+      "oracle_category": "single",
+      "oracle_size": 1,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 1,
+      "trap_axis": "cross",
+      "relative_gap": 0.185,
+      "oracle_bundle_ids": [
+        "chiBScenario33o1"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario33o1",
+          "store": "Target",
+          "city": "Emeryville",
+          "items": {
+            "grape": 3
+          },
+          "earnings": 21,
+          "pick": 4.8,
+          "localTravelTime": 5.2,
+          "estimatedTime": 10
+        },
+        {
+          "id": "chiBScenario33o2",
+          "store": "Target",
+          "city": "Emeryville",
+          "items": {
+            "pineapple": 1,
+            "banana": 1,
+            "kiwi": 2,
+            "pear": 2,
+            "apple": 2
+          },
+          "earnings": 8,
+          "pick": 20.4,
+          "localTravelTime": 5.1,
+          "estimatedTime": 25.5
+        },
+        {
+          "id": "chiBScenario33o3",
+          "store": "Costco",
+          "city": "Richmond",
+          "items": {
+            "grape": 1
+          },
+          "earnings": 29,
+          "pick": 6,
+          "localTravelTime": 6.5,
+          "estimatedTime": 12.5
+        },
+        {
+          "id": "chiBScenario33o4",
+          "store": "Safeway",
+          "city": "Piedmont",
+          "items": {
+            "apple": 1,
+            "banana": 1,
+            "pear": 2
+          },
+          "earnings": 12,
+          "pick": 11.1,
+          "localTravelTime": 5.3,
+          "estimatedTime": 16.4
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario33o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 21,
+          "effective_pick_time_seconds": 4.8,
+          "local_travel_time_seconds": 5.2,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 18,
+          "score": 1.1666666666666667
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario33o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 8,
+          "effective_pick_time_seconds": 20.4,
+          "local_travel_time_seconds": 5.1,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 33.5,
+          "score": 0.23880597014925373
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario33o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 29,
+          "effective_pick_time_seconds": 6,
+          "local_travel_time_seconds": 6.5,
+          "cross_city_travel_time_seconds": 18,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 30.5,
+          "score": 0.9508196721311475
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario33o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 12,
+          "effective_pick_time_seconds": 11.1,
+          "local_travel_time_seconds": 5.3,
+          "cross_city_travel_time_seconds": 14,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 30.4,
+          "score": 0.39473684210526316
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario33o1",
+            "chiBScenario33o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 29,
+          "effective_pick_time_seconds": 25.2,
+          "local_travel_time_seconds": 10.3,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 6.3,
+          "total_time_seconds": 37.2,
+          "score": 0.7795698924731183
+        }
+      ]
+    },
+    {
+      "round": 34,
+      "phase": "B",
+      "block": "B4",
+      "test_set": "transfer_shifted",
+      "oracle_category": "over_bundle",
+      "oracle_size": 1,
+      "over_bundling_coachable": 1,
+      "under_bundling_coachable": 0,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.2777,
+      "oracle_bundle_ids": [
+        "chiBScenario34o1"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario34o1",
+          "store": "Whole Foods",
+          "city": "Albany",
+          "items": {
+            "watermelon": 3
+          },
+          "earnings": 21,
+          "pick": 4.7,
+          "localTravelTime": 6.8,
+          "estimatedTime": 11.5
+        },
+        {
+          "id": "chiBScenario34o2",
+          "store": "Whole Foods",
+          "city": "Albany",
+          "items": {
+            "pear": 3,
+            "kiwi": 1,
+            "pineapple": 2,
+            "banana": 2,
+            "apple": 2
+          },
+          "earnings": 11,
+          "pick": 22.7,
+          "localTravelTime": 7,
+          "estimatedTime": 29.6
+        },
+        {
+          "id": "chiBScenario34o3",
+          "store": "Whole Foods",
+          "city": "Albany",
+          "items": {
+            "pear": 1,
+            "grape": 3,
+            "kiwi": 3,
+            "orange": 3
+          },
+          "earnings": 8,
+          "pick": 20.5,
+          "localTravelTime": 6.1,
+          "estimatedTime": 26.6
+        },
+        {
+          "id": "chiBScenario34o4",
+          "store": "Trader Joe's",
+          "city": "Albany",
+          "items": {
+            "orange": 3,
+            "pineapple": 3,
+            "watermelon": 3
+          },
+          "earnings": 9,
+          "pick": 11.2,
+          "localTravelTime": 6.1,
+          "estimatedTime": 17.3
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario34o1"
+          ],
+          "is_oracle": 1,
+          "earnings": 21,
+          "effective_pick_time_seconds": 4.7,
+          "local_travel_time_seconds": 6.8,
+          "cross_city_travel_time_seconds": 9,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 20.5,
+          "score": 1.024390243902439
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario34o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 22.7,
+          "local_travel_time_seconds": 7,
+          "cross_city_travel_time_seconds": 9,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 38.6,
+          "score": 0.2849740932642487
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario34o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 8,
+          "effective_pick_time_seconds": 20.5,
+          "local_travel_time_seconds": 6.1,
+          "cross_city_travel_time_seconds": 9,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 35.6,
+          "score": 0.2247191011235955
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario34o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 9,
+          "effective_pick_time_seconds": 11.2,
+          "local_travel_time_seconds": 6.1,
+          "cross_city_travel_time_seconds": 9,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 26.3,
+          "score": 0.34220532319391633
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario34o1",
+            "chiBScenario34o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 32,
+          "effective_pick_time_seconds": 27.4,
+          "local_travel_time_seconds": 13.8,
+          "cross_city_travel_time_seconds": 9,
+          "shared_item_savings_seconds": 6.85,
+          "total_time_seconds": 43.25,
+          "score": 0.7398843930635838
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario34o1",
+            "chiBScenario34o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 29,
+          "effective_pick_time_seconds": 25.2,
+          "local_travel_time_seconds": 12.899999999999999,
+          "cross_city_travel_time_seconds": 9,
+          "shared_item_savings_seconds": 6.3,
+          "total_time_seconds": 40.800000000000004,
+          "score": 0.7107843137254901
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario34o2",
+            "chiBScenario34o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 19,
+          "effective_pick_time_seconds": 43.2,
+          "local_travel_time_seconds": 13.1,
+          "cross_city_travel_time_seconds": 9,
+          "shared_item_savings_seconds": 10.8,
+          "total_time_seconds": 54.400000000000006,
+          "score": 0.3492647058823529
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario34o1",
+            "chiBScenario34o2",
+            "chiBScenario34o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 40,
+          "effective_pick_time_seconds": 47.9,
+          "local_travel_time_seconds": 19.9,
+          "cross_city_travel_time_seconds": 9,
+          "shared_item_savings_seconds": 11.975,
+          "total_time_seconds": 64.72500000000001,
+          "score": 0.6179992275009656
+        }
+      ]
+    },
+    {
+      "round": 35,
+      "phase": "B",
+      "block": "B4",
+      "test_set": "transfer_shifted",
+      "oracle_category": "bundle_correct",
+      "oracle_size": 3,
+      "over_bundling_coachable": 0,
+      "under_bundling_coachable": 1,
+      "is_payout_trap": 0,
+      "trap_axis": null,
+      "relative_gap": 0.0594,
+      "oracle_bundle_ids": [
+        "chiBScenario35o1",
+        "chiBScenario35o2",
+        "chiBScenario35o3"
+      ],
+      "orders": [
+        {
+          "id": "chiBScenario35o1",
+          "store": "Target",
+          "city": "Emeryville",
+          "items": {
+            "pineapple": 2,
+            "watermelon": 2
+          },
+          "earnings": 27,
+          "pick": 8.7,
+          "localTravelTime": 5.9,
+          "estimatedTime": 14.6
+        },
+        {
+          "id": "chiBScenario35o2",
+          "store": "Target",
+          "city": "Emeryville",
+          "items": {
+            "pineapple": 2,
+            "watermelon": 2
+          },
+          "earnings": 23,
+          "pick": 8.7,
+          "localTravelTime": 5,
+          "estimatedTime": 13.7
+        },
+        {
+          "id": "chiBScenario35o3",
+          "store": "Target",
+          "city": "Emeryville",
+          "items": {
+            "apple": 1,
+            "orange": 1
+          },
+          "earnings": 26,
+          "pick": 8.7,
+          "localTravelTime": 6.1,
+          "estimatedTime": 14.8
+        },
+        {
+          "id": "chiBScenario35o4",
+          "store": "Costco",
+          "city": "Richmond",
+          "items": {
+            "apple": 1,
+            "banana": 3
+          },
+          "earnings": 11,
+          "pick": 9,
+          "localTravelTime": 7,
+          "estimatedTime": 16
+        }
+      ],
+      "candidate_bundles": [
+        {
+          "bundle_ids": [
+            "chiBScenario35o1"
+          ],
+          "is_oracle": 0,
+          "earnings": 27,
+          "effective_pick_time_seconds": 8.7,
+          "local_travel_time_seconds": 5.9,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 22.6,
+          "score": 1.1946902654867255
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario35o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 23,
+          "effective_pick_time_seconds": 8.7,
+          "local_travel_time_seconds": 5,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 21.7,
+          "score": 1.0599078341013826
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario35o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 26,
+          "effective_pick_time_seconds": 8.7,
+          "local_travel_time_seconds": 6.1,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 22.8,
+          "score": 1.1403508771929824
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario35o4"
+          ],
+          "is_oracle": 0,
+          "earnings": 11,
+          "effective_pick_time_seconds": 9,
+          "local_travel_time_seconds": 7,
+          "cross_city_travel_time_seconds": 18,
+          "shared_item_savings_seconds": 0,
+          "total_time_seconds": 34,
+          "score": 0.3235294117647059
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario35o1",
+            "chiBScenario35o2"
+          ],
+          "is_oracle": 0,
+          "earnings": 50,
+          "effective_pick_time_seconds": 17.4,
+          "local_travel_time_seconds": 10.9,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 4.35,
+          "total_time_seconds": 31.949999999999996,
+          "score": 1.564945226917058
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario35o1",
+            "chiBScenario35o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 53,
+          "effective_pick_time_seconds": 17.4,
+          "local_travel_time_seconds": 12,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 4.35,
+          "total_time_seconds": 33.050000000000004,
+          "score": 1.6036308623298032
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario35o2",
+            "chiBScenario35o3"
+          ],
+          "is_oracle": 0,
+          "earnings": 49,
+          "effective_pick_time_seconds": 17.4,
+          "local_travel_time_seconds": 11.1,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 4.35,
+          "total_time_seconds": 32.15,
+          "score": 1.5241057542768275
+        },
+        {
+          "bundle_ids": [
+            "chiBScenario35o1",
+            "chiBScenario35o2",
+            "chiBScenario35o3"
+          ],
+          "is_oracle": 1,
+          "earnings": 76,
+          "effective_pick_time_seconds": 26.099999999999998,
+          "local_travel_time_seconds": 17,
+          "cross_city_travel_time_seconds": 8,
+          "shared_item_savings_seconds": 6.5249999999999995,
+          "total_time_seconds": 44.574999999999996,
+          "score": 1.7049915872125632
+        }
+      ]
+    }
+  ]
+}
