@@ -12,6 +12,8 @@ import {
     CHI_POST_PHASE_A_SURVEY,
     assertValidResearchProtocolSnapshot,
     assignStudyArm,
+    FORCE_RECOMMENDATION_ARM_FOR_TESTING,
+    firstRecommendationArm,
     mergeResearchStudyState,
     normalizeResearchModel,
     normalizeResearchStudyProtocol,
@@ -392,7 +394,11 @@ function buildDefaultStudyState(userId = '') {
 		scenario_set_version_id: get(scenarioSetVersionId),
 		legal_action_mask_version: DEFAULT_ACTION_MASK_VERSION
 	});
-	const assignedArm = userId && protocol.enabled ? assignStudyArm(userId, protocol) : null;
+	let assignedArm = userId && protocol.enabled ? assignStudyArm(userId, protocol) : null;
+	// TESTING: force every participant onto a recommendation arm (see FORCE_RECOMMENDATION_ARM_FOR_TESTING).
+	if (FORCE_RECOMMENDATION_ARM_FOR_TESTING && protocol.enabled) {
+		assignedArm = firstRecommendationArm(protocol) || assignedArm;
+	}
 	return normalizeResearchStudyState({
 		protocol_id: protocol.protocol_id,
 		dataset_root: protocol.dataset_root || getDatasetRoot(),

@@ -323,12 +323,10 @@
         && chiSurveyQuestions.some((q) => q && q.maps_to)
         && Number($currentRound) > Number(chiPhaseA?.round_end || 0)
         && !($participantStudyState?.phase_a_survey);
-    // Pre-fill the Likert with each item's default so submit is always valid.
-    $: if (chiSurveyDue && chiSurveyQuestions.length && Object.keys(chiSurveyResponses).length === 0) {
-        chiSurveyResponses = Object.fromEntries(
-            chiSurveyQuestions.map((q) => [q.id, Number(q.default_value) || Math.round((Number(q.min || 1) + Number(q.max || 5)) / 2)])
-        );
-    }
+    // Start every Likert item UNSELECTED (no preselected default) so participants must choose each
+    // answer intentionally. Submit is gated on all mapped items being answered.
+    $: chiSurveyComplete = chiSurveyQuestions.length > 0
+        && chiSurveyQuestions.every((q) => chiSurveyResponses[q?.id] != null);
     // OFF-block end rounds (e.g. 25, 35): re-diagnose after each completes.
     $: chiOffEnds = (($studyProtocol?.phase_plan || []).find((p) => p.id === 'B')?.blocks || [])
         .filter((b) => b.kind === 'off').map((b) => Number(b.round_end));
@@ -337,7 +335,7 @@
         chiSurveyResponses = { ...chiSurveyResponses, [qid]: value };
     }
     async function submitChiSurvey() {
-        if (chiSurveySubmitting) return;
+        if (chiSurveySubmitting || !chiSurveyComplete) return;
         chiSurveySubmitting = true;
         try {
             await saveChiPhaseASurvey(chiSurveyResponses);
@@ -626,10 +624,13 @@
                         </div>
                     </div>
                 {/each}
+                {#if !chiSurveyComplete}
+                    <p class="text-xs text-slate-500">Please answer every question to continue.</p>
+                {/if}
                 <button
                     type="button"
-                    class="w-full rounded-xl bg-green-600 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
-                    disabled={chiSurveySubmitting}
+                    class="w-full rounded-xl bg-green-600 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={chiSurveySubmitting || !chiSurveyComplete}
                     on:click={submitChiSurvey}
                 >{chiSurveySubmitting ? 'Preparing your session…' : 'Continue'}</button>
             </div>

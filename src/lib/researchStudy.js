@@ -1398,6 +1398,15 @@ export function mergeResearchStudyState(existing = {}, next = {}) {
   });
 }
 
+// TESTING TOGGLE: when true, the live assignment (buildDefaultStudyState) puts every participant on the
+// first recommendation arm so the recommendation UI is always exercised. Applied in the live path only,
+// NOT inside assignStudyArm, so the randomization stays pure for unit tests. Set false before the study.
+export const FORCE_RECOMMENDATION_ARM_FOR_TESTING = true;
+export function firstRecommendationArm(protocol = {}) {
+  const normalized = normalizeResearchStudyProtocol(protocol);
+  return (normalized.policy_arms || []).find((arm) => arm?.show_recommendations && Math.max(0, Number(arm?.assignment_weight) || 0) > 0) || null;
+}
+
 export function assignStudyArm(participantId = "", protocol = {}) {
   const normalizedProtocol = normalizeResearchStudyProtocol(protocol);
   const eligibleArms = normalizedProtocol.policy_arms.filter(
