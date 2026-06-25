@@ -1,3 +1,9 @@
+> **SUPERSEDED (historical).** This verifies the *pre-rewrite* `chi_dynamic_v2` (W3-coachable,
+> flat-pick menus). That design was replaced by the **picking-primary** confirmatory sequence
+> (layout-derived pick, local-axis trap dropped, W3 measured-not-coached). The authoritative spec is
+> [`publishing/experiments/2_june30_enriched_4order/frozen/README.md`](../../publishing/experiments/2_june30_enriched_4order/frozen/README.md)
+> (frozen seed-42 set, tag `chi-sim-frozen-seed42`). Kept as a point-in-time record only.
+
 # LIVE `chi_dynamic_v2` verification against the paper design
 
 Verification of the deployed Experiment 2 study (`bundling-63c10`) against the frozen design.
