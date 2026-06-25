@@ -90,11 +90,17 @@ export function queueNFixedOrders(n) {
 }
 
 /* Returns the configuration for a store */
+// Legacy datasets (tutorial / mainGame / experiment / test) name this store "Sprouts Farmers Market";
+// the re-seeded grid (CHI store layouts) calls it "Sprouts". Resolve legacy names to the grid name so
+// the in-store pick grid is never the empty fallback. (Mirrored in bundleTime.resolveStoreConfig.)
+export const STORE_NAME_ALIASES = { "Sprouts Farmers Market": "Sprouts" };
+
 export function storeConfig(store) {
+    const want = STORE_NAME_ALIASES[store] || store;
     let r = ""
     const stores = Array.isArray(default_job?.stores) ? default_job.stores : [];
     stores.forEach((e) => {
-        if (e["store"] === store) {
+        if (e["store"] === want) {
             r = e;
         }
     })

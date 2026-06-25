@@ -10,12 +10,17 @@ function normalizeItemKeys(items = {}) {
     .filter(Boolean);
 }
 
+// Legacy datasets call Sprouts "Sprouts Farmers Market"; the re-seeded grid uses "Sprouts".
+// Keep in sync with config.STORE_NAME_ALIASES (this module is import-free for unit testing).
+const STORE_NAME_ALIASES = { "Sprouts Farmers Market": "Sprouts" };
+
 function resolveStoreConfig(storeName = "", options = {}) {
   if (typeof options?.getStoreConfig === "function") {
     return options.getStoreConfig(storeName) || null;
   }
+  const want = STORE_NAME_ALIASES[storeName] || storeName;
   const stores = Array.isArray(options?.storeDataset?.stores) ? options.storeDataset.stores : [];
-  return stores.find((s) => String(s?.store || "") === String(storeName || "")) || null;
+  return stores.find((s) => String(s?.store || "") === String(want || "")) || null;
 }
 
 function manhattanDistance(a = [0, 0], b = [0, 0]) {
