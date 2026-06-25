@@ -45,17 +45,17 @@
     let surveySubmitting = false;
     let surveyMessage = '';
     let surveyRatings = {
-        trust_rating: 4,
-        usefulness_rating: 4,
-        workload_rating: 4,
+        trust_rating: null,
+        usefulness_rating: null,
+        workload_rating: null,
         notes: ''
     };
 
     $: if (latestStudySurvey) {
         surveyRatings = {
-            trust_rating: Number(latestStudySurvey.trust_rating) || 4,
-            usefulness_rating: Number(latestStudySurvey.usefulness_rating) || 4,
-            workload_rating: Number(latestStudySurvey.workload_rating) || 4,
+            trust_rating: Number(latestStudySurvey.trust_rating) || null,
+            usefulness_rating: Number(latestStudySurvey.usefulness_rating) || null,
+            workload_rating: Number(latestStudySurvey.workload_rating) || null,
             notes: latestStudySurvey.notes || ''
         };
     }
@@ -210,6 +210,11 @@
 
     async function submitStudySurvey(silent = false) {
         if (!studyProtocolId) return true;
+        // Require an explicit answer on every rating (no default is preselected).
+        if (surveyRatings.trust_rating == null || surveyRatings.usefulness_rating == null || surveyRatings.workload_rating == null) {
+            if (!silent) surveyMessage = 'Please answer all three ratings (trust, usefulness, workload) before continuing.';
+            return false;
+        }
         surveySubmitting = true;
         if (!silent) {
             surveyMessage = '';
@@ -217,9 +222,9 @@
         try {
             const response = await saveParticipantStudySurveyResponse({
                 response_scope: 'session_end',
-                trust_rating: Number(surveyRatings.trust_rating) || 4,
-                usefulness_rating: Number(surveyRatings.usefulness_rating) || 4,
-                workload_rating: Number(surveyRatings.workload_rating) || 4,
+                trust_rating: Number(surveyRatings.trust_rating),
+                usefulness_rating: Number(surveyRatings.usefulness_rating),
+                workload_rating: Number(surveyRatings.workload_rating),
                 notes: String(surveyRatings.notes || '').trim()
             });
             if (!response) {
@@ -449,6 +454,7 @@
                             <label class="text-sm font-medium text-slate-700">
                                 Trust
                                 <select bind:value={surveyRatings.trust_rating} class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+                                    <option value={null} disabled>Select a rating</option>
                                     {#each [1,2,3,4,5,6,7] as value}
                                         <option value={value}>{value}</option>
                                     {/each}
@@ -457,6 +463,7 @@
                             <label class="text-sm font-medium text-slate-700">
                                 Usefulness
                                 <select bind:value={surveyRatings.usefulness_rating} class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+                                    <option value={null} disabled>Select a rating</option>
                                     {#each [1,2,3,4,5,6,7] as value}
                                         <option value={value}>{value}</option>
                                     {/each}
@@ -465,6 +472,7 @@
                             <label class="text-sm font-medium text-slate-700">
                                 Workload
                                 <select bind:value={surveyRatings.workload_rating} class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+                                    <option value={null} disabled>Select a rating</option>
                                     {#each [1,2,3,4,5,6,7] as value}
                                         <option value={value}>{value}</option>
                                     {/each}
