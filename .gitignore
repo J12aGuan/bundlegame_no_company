@@ -1,7 +1,9 @@
 # Raw pilot per-decision exports: contain raw participant ids (bot-sim input only).
-# Pseudonymize via the publication-safe export before sharing.
+# The _pseudo.csv copies (opaque tokens) are safe to share and are NOT ignored.
 publishing/export_for_analysis/pilot_decisions.csv
 publishing/export_for_analysis/pilot_surveys.csv
+# Re-identification map (token -> raw id): never share, never commit.
+publishing/export_for_analysis/pilot_pseudonym_map.csv
 
 # Dependencies
 /node_modules/
