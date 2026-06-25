@@ -142,6 +142,12 @@ const NONTRIVIAL_SCORE_GAP = 0.03;        // best must beat second by this ratio
 // (no ~100s+ bundles). Scales kept at 1.0; raise only if a stronger time-shift is wanted later.
 const PHASE_C_TRAVEL_SCALE = 1.0;
 const PHASE_C_PICK_SCALE = 1.0;
+// Uniform comfort scale on ALL time components (pick, local, cross). Applied identically so it CANCELS
+// in earnings/time: every rate, oracle, gap, regret and diagnosis ratio is invariant (score -> score/k),
+// it just makes rounds shorter (worst cross hop 18s -> 12s, typical ~7s). It is uniform precisely so the
+// cross traps are NOT distorted (scaling cross alone would shift them). Local is scaled in lockstep, so
+// the within-city < cross invariant is preserved by construction.
+const TIME_COMFORT_SCALE = 2 / 3;
 // A CLEAN single-axis trap: H's slowness vs the oracle is concentrated on ONE cost axis.
 // The named axis must carry >= CLEAN_AXIS_SHARE of the H-vs-oracle time delta and each OTHER
 // cost axis < CLEAN_OTHER_SHARE of it. A trap flagged `clean` must also clear CLEAN_TRAP_MIN_GAP
@@ -220,7 +226,7 @@ export function createSeededRandom(seed = 1) {
 
 function crossCity(from, to, scale = 1) {
   const v = CHI_CITY_TRAVEL[from]?.[to];
-  return (typeof v === "number" ? v : 0) * scale;
+  return (typeof v === "number" ? v : 0) * scale * TIME_COMFORT_SCALE;
 }
 
 function ordersById(orders) {
@@ -360,11 +366,13 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
       const fruits = fruitsForTargetPick(storeObj.store, targetPick, rng);
       const items = {};
       for (const f of fruits) items[f] = 1 + Math.floor(rng() * 3);
-      return { items, pick: layoutPickSeconds(storeObj.store, fruits) };
+      return { items, pick: TIME_COMFORT_SCALE * layoutPickSeconds(storeObj.store, fruits) };
     };
-    // Comfortable within-city local travel (5-8s), varying so W_local stays estimable for the gate's
-    // dual-axis abstention (local is a SPAN dimension; there is no clean local-stress trap any more).
-    const localSeconds = () => 5 + 3 * rng();
+    // Within-city local travel, varying so W_local stays estimable for the gate's dual-axis abstention
+    // (local is a SPAN dimension; there is no clean local-stress trap any more). Raw 5-8s scaled in
+    // lockstep with cross (uniform -> ratios invariant); the scaled max (<5.34s) stays strictly below
+    // the smallest scaled cross leg (8*K = 5.33s rounds to a stored local <= 5.3 < cross 5.33).
+    const localSeconds = () => TIME_COMFORT_SCALE * (5 + 3 * rng());
     const mkOrder = (storeObj, big) => {
       const targetPick = (big ? 16 : 7) * pickScale * (0.8 + 0.5 * rng());
       const local = localSeconds();
@@ -386,6 +394,7 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
     const mkAt = (storeObj, basePickRaw, localRaw, earn) => {
       const targetPick = basePickRaw * pickScale;
       const { items, pick } = mkItems(storeObj, targetPick);
+      const local = TIME_COMFORT_SCALE * localRaw;   // scale local in lockstep with pick + cross
       idx += 1;
       return {
         id: `${scenarioId}o${idx}`,
@@ -393,9 +402,9 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
         city: storeObj.city,
         earnings: Math.round(earn),
         items,
-        estimatedTime: Math.round((pick + localRaw) * 10) / 10,
+        estimatedTime: Math.round((pick + local) * 10) / 10,
         pick: Math.round(pick * 10) / 10,
-        localTravelTime: Math.round(localRaw * 10) / 10,
+        localTravelTime: Math.round(local * 10) / 10,
       };
     };
     // b1 / b2 (fast optimal, high-pick bait).

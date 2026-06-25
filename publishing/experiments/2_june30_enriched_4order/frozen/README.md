@@ -9,7 +9,11 @@ node scripts/emit-frozen-scenario-set.mjs
 ```
 
 It is deterministic: `buildChiScenarioSet({seed:42})` (a seeded LCG + the pure `scoreBundle`)
-produces byte-identical output on every run (sha256 of the JSON is stable).
+produces byte-identical output on every run. Current JSON sha256:
+
+```
+6cf127d24fe20f57f1136fc27b2dafbeaa8da751d53d1a7aaecb29c430557823
+```
 
 ## Task model (mirrors the validated pilot)
 
@@ -19,8 +23,14 @@ produces byte-identical output on every run (sha256 of the JSON is stable).
 - **Pick derives from the layout**: pilot rule = sequential aisle walk from the Entrance
   (`Σ manhattan × cellDistance/1000`) + 3 s handling per unique fruit. Orders carry real fruit items.
 - **Scoring**: `time = pick + local + cross − 0.25·(shared-store group pick)`, `score = earnings/time`.
-- **Travel**: within-city local 5–7 s, cross-city 8–18 s scaled by map distance (nearer cheaper),
-  same-city = 0. No within-city > between-city anywhere; max 4-order bundle ≈ 50 s.
+- **Travel (comfort-scaled)**: a single uniform `TIME_COMFORT_SCALE = 2/3` multiplies every time
+  component (pick, local, cross) so rounds are shorter for UX. Raw geometry: within-city local 5 to 8 s,
+  cross-city 8 to 18 s scaled by map distance (nearer cheaper), same-city 0. After the comfort scale the
+  scored values are local 3.3 to 5.3 s and cross 5.3 to 12 s (worst hop 12 s, median 8 s, no leg over
+  12 s). The scale is uniform so it cancels in earnings/time: every oracle, gap, regret and diagnosis
+  ratio is invariant (oracle-stability 35/35 vs the pre-scale set; controlled-gap means unchanged).
+  Within-city stays strictly below between-city (max local 5.2 s < min cross 5.33 s); max 4-order
+  bundle about 40 s.
 
 ## Design (picking-primary)
 
