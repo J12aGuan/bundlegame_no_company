@@ -102,3 +102,6 @@ venv/
 env/
 *.egg-info/
 **/*.egg-info/
+
+# Section-5 bot-sim reproduction harness (reads the raw pilot CSV; _repro-bots.json carries raw ids)
+scripts/_repro-*
