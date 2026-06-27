@@ -12,9 +12,21 @@ move.
 | `src/` | The SvelteKit app: routes (pages) and `lib/` (all logic). |
 | `scripts/` | Standalone CLI tools: tests, exports, seeding, simulations, migrations. See [`scripts/README.md`](../../scripts/README.md). |
 | `tests/` | JS test suites (`tests/js/*.test.mjs`, run by `npm run test:js`). |
+| `static/` | Static assets served verbatim (favicon and image assets). |
 | `docs/` | Documentation. `current/` = live app; `archive/` = historical. |
 | `publishing/` | Research artifacts, exports, and paper materials, organized by experiment. See [`publishing/README.md`](../../publishing/README.md). |
-| `functions/`, `firestore.rules`, `firebase*.json` | Firebase backend config and security rules. |
+| `analysis/` | Standalone Section 5 simulation pipeline (`analysis/sim/`): the worker model + the policy feedback experiment over the frozen pilot data. See [`SIMULATION.md`](../../analysis/sim/SIMULATION.md). |
+| `offline_rl/`, `offline_rl_deep/` | Standalone Python offline-RL packages (masked discrete-action; `_deep` is the PyTorch variant). Tested via `make test-python`. |
+| `firestore.rules`, `firebase*.json`, `.firebaserc` | Firebase config and Firestore security rules. The backend is Firestore + rules only (no Cloud Functions). |
+| `Makefile`, `package.json`, `vite.config.js`, `svelte.config.js` | Build, test, and CI entry points. |
+
+### The three analysis locations (do not confuse them)
+
+| Path | Purpose |
+| --- | --- |
+| `analysis/sim/` | Section 5 paper **simulation**: 85 pilot bots + the five-policy feedback experiment over the frozen pilot data. One command: `python analysis/sim/run_all.py`. See [`analysis/sim/SIMULATION.md`](../../analysis/sim/SIMULATION.md). |
+| `publishing/analysis/` | Study **planning**: power analysis and the confirmatory-study plan (`power_analysis.py`, `confirmatory_plan.py`). |
+| `publishing/data_analysis/` | The **analytics pipeline**: the `analytics_v1` Python package, fixtures, and Firestore export tooling that turns live data into model-ready tables. |
 
 ## `src/lib/` — application logic
 
