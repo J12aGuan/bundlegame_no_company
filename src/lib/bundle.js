@@ -22,6 +22,7 @@ import {
 } from './researchStudy.js';
 
 import { switchJob, setPenaltyTimeout } from './config';
+import { isReservedTestId } from './testIdentity.js';
 import { feedbackForDecision, roundContext, diagnoseTrigger, runDiagnosis } from './chiStudyRuntime.js';
 import { enumerateLegalBundles, scoreBundle, sortedIdsEqual, CHI_STARTING_CITY } from './chiScenarioDesign.js';
 
@@ -395,8 +396,9 @@ function buildDefaultStudyState(userId = '') {
 		legal_action_mask_version: DEFAULT_ACTION_MASK_VERSION
 	});
 	let assignedArm = userId && protocol.enabled ? assignStudyArm(userId, protocol) : null;
-	// TESTING: force every participant onto a recommendation arm (see FORCE_RECOMMENDATION_ARM_FOR_TESTING).
-	if (FORCE_RECOMMENDATION_ARM_FOR_TESTING && protocol.enabled) {
+	// Admin/QA ids (reserved like "admin-...") always run the AIDED study (recommendation arm), regardless
+	// of their hash. FORCE_RECOMMENDATION_ARM_FOR_TESTING additionally forces it for every id during testing.
+	if (protocol.enabled && (FORCE_RECOMMENDATION_ARM_FOR_TESTING || isReservedTestId(userId))) {
 		assignedArm = firstRecommendationArm(protocol) || assignedArm;
 	}
 	return normalizeResearchStudyState({

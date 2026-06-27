@@ -1,12 +1,17 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, getScenarioStudyRecommendation, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, notifyTutorialRoundProgress, finalizeMainGameSession, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction, participantStudyState, studyProtocol, updateChiStudyFeedback, clearChiStudyFeedback, getCandidatesForScenario } from "$lib/bundle.js"
+    import { game, id, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, getScenarioStudyRecommendation, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, notifyTutorialRoundProgress, finalizeMainGameSession, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction, participantStudyState, studyProtocol, updateChiStudyFeedback, clearChiStudyFeedback, getCandidatesForScenario } from "$lib/bundle.js"
+    import { isReservedTestId } from "$lib/testIdentity.js"
     import { WEAKNESS_LABEL } from "$lib/chiDiagnosis.js"
     import { decisionLogRecord } from "$lib/chiStudyRuntime.js"
     import { scoreBundle } from "$lib/analysis/engine.js";
     import { storeConfig, getActiveCitiesDataset, getActiveStoreDataset, getCityTravelInfo } from "$lib/config.js";
-    
+
+    // Admin/QA playthrough (reserved id like "admin-..."): skip every aisle-walk and delivery wait so the
+    // whole 35-round sequence can be run instantly. Real participants keep the real timing.
+    $: adminInstant = isReservedTestId($id);
+
     let config = {}; // Will be set properly in onMount()
     let GameState = 0; // 0:Start, 1:Picking, 2:Moving, 3:Success, 4:Error, 5:Delivery
     let curLocation = [0, 0];
@@ -269,7 +274,7 @@
         curLocation[1] = col;
         GameState = 2;
         
-        const travelTime = dist * config["cellDistance"];
+        const travelTime = adminInstant ? 0 : dist * config["cellDistance"];
         addScenarioTime(activeScenarioId, 'aisleTravelTime', travelTime / 1000);
         pendingAisleAction = {
             scenarioId: activeScenarioId,
@@ -629,7 +634,7 @@
             alert(`Missing city travel route from ${breakdown.originCity} to ${breakdown.destination}. Update Admin > Cities before delivering this order.`);
             return;
         }
-        const travelTime = breakdown.total;
+        const travelTime = adminInstant ? 0 : breakdown.total;
         addScenarioTime(activeScenarioId, 'cityTravelTime', breakdown.crossCity);
         addScenarioTime(activeScenarioId, 'localDeliveryTime', breakdown.localTravel);
 
