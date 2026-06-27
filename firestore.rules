@@ -44,6 +44,11 @@ service cloud.firestore {
         'round_index',
         'scenario_id',
         'phase',
+        // Paired pilot->35 calibration study: the cohort id and the part marker that links a
+        // participant's two parts (pilot_unaided / enriched35_aided). Distinct from `phase` (the CHI
+        // within-set block A/B). Without these on the allowlist the row is rejected by hasOnly.
+        'study_id',
+        'study_part',
         'classification',
         'study_protocol_id',
         'policy_arm',
