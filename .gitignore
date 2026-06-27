@@ -5,6 +5,12 @@ publishing/export_for_analysis/pilot_surveys.csv
 # Re-identification map (token -> raw id): never share, never commit.
 publishing/export_for_analysis/pilot_pseudonym_map.csv
 
+# Generated Section-5 simulation outputs (regenerate via analysis/sim/run_all.py)
+analysis/sim/*.pdf
+analysis/sim/*.png
+analysis/sim/*.npz
+analysis/sim/tables.md
+
 # Dependencies
 /node_modules/
 
