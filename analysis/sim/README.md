@@ -5,6 +5,10 @@ One command regenerates every paper figure and table:
 
     python run_all.py
 
+See `SIMULATION.md` for a plain-language walkthrough of what the simulation does (the two
+parts, the menu split, the five policies, and the honest caveat). For a one-screen summary of
+scale, run `python describe_simulation.py`.
+
 ## Frozen-data dependency (read-only ground truth)
 Reads from the committed frozen data at `publishing/export_for_analysis/` (commit `2d69642`):
 `pilot_decisions_deployed.csv`, `frozen_bundle_menu_data.csv`, `reconstructed_cities_matrix.csv`,
@@ -37,6 +41,8 @@ STOP and diagnose path/data drift rather than proceeding.
 - `make_core_figures.py`, `make_mechanism_figure.py`, `make_partial_learning_figure.py`,
   `make_shift_figure.py`, `make_picking_channel_figure.py` — figure generators
 - `run_all.py`         — master runner
+- `describe_simulation.py` — one-screen summary of scale (85 bots, 22 trap menus split 13/9, 1700 runs); no side effects
+- `SIMULATION.md`      — plain-language reference for the whole pipeline
 
 ## Determinism
 Fixed seeds throughout; matplotlib PDF metadata pinned (`CreationDate=2024-01-01`, `pdf.fonttype=42`).
