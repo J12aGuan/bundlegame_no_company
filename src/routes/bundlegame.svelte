@@ -762,6 +762,11 @@
                     console.error('paired phase transition failed', err);
                 }
                 if (advanced) {
+                    // Re-enter the selection screen so the aided Round 1 renders (the data is loaded by
+                    // advancePairedPhase; without this the game stays on the delivery screen and the aided
+                    // phase — and its Phase-A survey — never appear).
+                    $orders = [];
+                    exit();
                     roundCompletionInProgress = false;
                     return;
                 }

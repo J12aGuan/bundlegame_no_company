@@ -68,6 +68,10 @@ async function main() {
   const aidedPayload = buildChiSeedPayload({ versionId: AIDED_SET });
   const aidedEntry = buildSeededEntry(aidedPayload);
   aidedEntry.metadata = { ...(aidedEntry.metadata || {}), scenarioSetVersionId: AIDED_SET, skip_protocol_validation: true, researchStudy: aidedProtocol };
+  // EMBED the CHI cities/grid in the aided dataset too, so the aided phase is self-contained and does
+  // NOT depend on the production global store/cities docs (which belong to the live study).
+  aidedEntry.cities = { startinglocation: CHI_STARTING_CITY, travelTimes: CHI_CITY_TRAVEL, distances: {} };
+  aidedEntry.stores = chiStores();
 
   const centralConfig = {
     game: { timeLimit: 3000, thinkTime: 0, gridSize: 3, auth: true, ordersShown: 4, roundTimeLimit: 600, penaltyTimeout: 0, tips: false, waiting: false, refresh: false, expire: false },
