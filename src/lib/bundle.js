@@ -22,7 +22,7 @@ import {
 } from './researchStudy.js';
 
 import { switchJob, setPenaltyTimeout } from './config';
-import { PAIRED_STUDY_ID, partForScenarioSet, nextPart } from './pairedCalibration.js';
+import { PAIRED_STUDY_ID, partForScenarioSet, nextPart, isFinalPart } from './pairedCalibration.js';
 import { isReservedTestId } from './testIdentity.js';
 import { feedbackForDecision, roundContext, diagnoseTrigger, runDiagnosis } from './chiStudyRuntime.js';
 import { enumerateLegalBundles, scoreBundle, sortedIdsEqual, CHI_STARTING_CITY } from './chiScenarioDesign.js';
@@ -2547,6 +2547,14 @@ export async function createNewUser(id, mode = 'main', scenarioSetOverride = nul
 		}
 		await flushPendingProgressSave();
 		await loadSavedScenarioState(id);
+		// Paired calibration: if the participant already FINISHED this part in a prior sitting (e.g. the
+		// pilot), advance to the next part on LOGIN so they resume at the aided phase instead of replaying.
+		// Their prior data is preserved (advancePairedPhase only loads the next part's dataset + progress).
+		let _pairedResumeGuard = 0;
+		while (partForScenarioSet(getDatasetRoot()) && !isFinalPart(getDatasetRoot())
+			&& get(scenarios).length > 0 && get(uniqueSets) >= get(scenarios).length && _pairedResumeGuard++ < 5) {
+			if (!(await advancePairedPhase(id))) break;
+		}
 		if (currentLiveSessionParticipation?.sessionId) {
 			try {
 				await syncLiveSessionParticipantState(id, {
