@@ -2518,8 +2518,8 @@ export async function advancePairedPhase(id) {
 	return true;
 }
 
-export async function createNewUser(id, mode = 'main') {
-	let n = await loadGame(mode)
+export async function createNewUser(id, mode = 'main', scenarioSetOverride = null) {
+	let n = await loadGame(mode, scenarioSetOverride)
 	await createUser(id, n)
 	if (mode !== 'tutorial') {
 		const activeLiveSession = await getActiveLiveSession();
