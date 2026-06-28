@@ -18,6 +18,12 @@ export const PAIRED_STUDY_ID = "paired_calibration_v1";
 export const PAIRED_PART_PILOT = "pilot_unaided";
 export const PAIRED_PART_AIDED = "enriched35_aided";
 
+// Straight-lining floor on per-decision deliberation time (thinkingTime), in seconds: flag (NEVER
+// delete) decisions faster than this. Calibrated from the recovered pilot distribution (85
+// participants / 1261 decisions; median 9.64s, ~0.08% under 2s, confirming the 10.8s ground truth).
+// 3.0s is the 1st percentile of that distribution (the fastest ~1% of deliberations).
+export const STRAIGHT_LINE_FLOOR_SECONDS = 3.0;
+
 // Ordered plan: pilot first, then the aided 35-round set, in one continuous sitting.
 export const PAIRED_PLAN = [
   {
@@ -141,7 +147,7 @@ export function pairedIntegrity(rows = []) {
  * -time distribution (a low percentile). The floor is passed in so this stays pure; calibrate it once
  * from the pilot durations, then freeze.
  */
-export function flagStraightLining(rows = [], { minSecondsPerRound = 0 } = {}) {
+export function flagStraightLining(rows = [], { minSecondsPerRound = STRAIGHT_LINE_FLOOR_SECONDS } = {}) {
   if (!(minSecondsPerRound > 0)) return [];
   return rows
     .filter((r) => Number.isFinite(Number(r?.duration)) && Number(r.duration) < minSecondsPerRound)

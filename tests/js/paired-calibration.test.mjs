@@ -14,6 +14,7 @@ import {
   joinPairedByToken,
   pairedIntegrity,
   flagStraightLining,
+  STRAIGHT_LINE_FLOOR_SECONDS,
 } from "../../src/lib/pairedCalibration.js";
 
 // --- the two-phase plan --------------------------------------------------- //
@@ -117,11 +118,13 @@ test("a row missing study_part is counted as unmarked (write would be rejected l
   assert.equal(rep.clean, false);
 });
 
-test("straight-lining flags only sub-threshold durations; zero threshold is a no-op", () => {
+test("straight-lining: default floor is the baked 3.0s; explicit 0 is a no-op", () => {
   const rows = [
     tagPairedRoundAction({ participant_token: "p1", round_index: 1, duration: 0.5 }, { part: PAIRED_PART_PILOT }),
     tagPairedRoundAction({ participant_token: "p1", round_index: 2, duration: 9 }, { part: PAIRED_PART_PILOT }),
   ];
+  assert.equal(STRAIGHT_LINE_FLOOR_SECONDS, 3.0); // calibrated 1st pct of pilot thinkingTime
+  assert.equal(flagStraightLining(rows).length, 1); // default 3.0s flags the 0.5s deliberation
   assert.equal(flagStraightLining(rows, { minSecondsPerRound: 2 }).length, 1);
-  assert.equal(flagStraightLining(rows, {}).length, 0);
+  assert.equal(flagStraightLining(rows, { minSecondsPerRound: 0 }).length, 0); // explicit no-op
 });
