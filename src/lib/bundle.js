@@ -22,7 +22,7 @@ import {
 } from './researchStudy.js';
 
 import { switchJob, setPenaltyTimeout } from './config';
-import { PAIRED_STUDY_ID, partForScenarioSet } from './pairedCalibration.js';
+import { PAIRED_STUDY_ID, partForScenarioSet, nextPart } from './pairedCalibration.js';
 import { isReservedTestId } from './testIdentity.js';
 import { feedbackForDecision, roundContext, diagnoseTrigger, runDiagnosis } from './chiStudyRuntime.js';
 import { enumerateLegalBundles, scoreBundle, sortedIdsEqual, CHI_STARTING_CITY } from './chiScenarioDesign.js';
@@ -2410,14 +2410,19 @@ export async function loadConfigByName(fileName) {
   return null;
 }
 
-export async function loadGame(mode = 'main') {
+export async function loadGame(mode = 'main', scenarioSetOverride = null) {
 	if (!firebaseInitialized || initializedMode !== mode) {
 		await initializeFromFirebase(mode);
 	}
 	ensurePendingProgressListener();
 	void flushPendingProgressSave();
 	try {
-		const datasetId = config.scenario_set || 'experiment';
+		// scenarioSetOverride lets the paired-calibration sequencer load part 2 (the aided 35-round set)
+		// mid-session without rewriting central config; normal loads fall back to the configured set.
+		const datasetId = String(scenarioSetOverride || '').trim() || config.scenario_set || 'experiment';
+		// An override switches the ACTIVE in-memory set for the rest of the session (not central config),
+		// so getDatasetRoot() and the paired hooks read part 2 after the transition.
+		if (String(scenarioSetOverride || '').trim()) config.scenario_set = datasetId;
 		const datasetBundle = await getScenarioDatasetBundle(datasetId);
 		activeScenarioSetName = String(datasetBundle?.metadata?.datasetName || datasetId || '').trim() || String(datasetId || '');
 		activeScenarioSetVersionId = String(datasetBundle?.metadata?.scenarioSetVersionId || '').trim();
@@ -2486,6 +2491,31 @@ export async function loadGame(mode = 'main') {
 	
 	switchJob(orderConfigs, storeConfigs)
 	return 0
+}
+
+// Paired calibration: when the current part finishes, advance to the next part (pilot -> aided) under
+// the SAME participant id, instead of ending the session. Returns true if it advanced (caller should
+// continue the game), false if the active set is not a paired set or is the final part (caller ends the
+// session as usual). loadGame() resets the round stores; part 2 has its own per-version progress, so the
+// player lands at round 1 of the aided set; buildDefaultStudyState now forces the marginal arm.
+export async function advancePairedPhase(id) {
+	const next = nextPart(getDatasetRoot());
+	if (!next) return false;
+	await loadGame('main', next.scenario_set);
+	if (get(gameMode) !== 'tutorial') {
+		const studyState = buildDefaultStudyState(id);
+		participantStudyState.set(studyState);
+		await initializeUserProgress(id, {
+			scenarioSetVersionId: get(scenarioSetVersionId),
+			scenarioSetName: activeScenarioSetName || next.scenario_set,
+			totalRounds: get(scenarios).length,
+			researchStudy: studyState,
+			...getLiveSessionMetadata(new Date().toISOString())
+		});
+		await flushPendingProgressSave();
+		await loadSavedScenarioState(id);
+	}
+	return true;
 }
 
 export async function createNewUser(id, mode = 'main') {
