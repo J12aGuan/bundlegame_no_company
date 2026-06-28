@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { buildChiScenarioSet } from "../../src/lib/chiScenarioDesign.js";
 import { diagnose, menuIdentifiesEarnings } from "../../src/lib/chiDiagnosis.js";
+import { signSurvivalGate } from "../../src/lib/signSurvivalGate.js";
 
 // The C2 estimator fix (docs/IDENTIFIABILITY_THEORY.md §6): the deployed diagnosis reads
 // the bias on the earnings-IDENTIFYING (observable/spanning) menus, so a payout leak is
@@ -36,6 +37,7 @@ function fullBatteryChoiceSets(bias) {
           cross_city_travel_time_seconds: c.cross_city_travel_time_seconds,
           local_travel_time_seconds: c.local_travel_time_seconds,
           shared_item_savings_seconds: c.shared_item_savings_seconds,
+          shared_store_local_seconds: c.shared_store_local_seconds,
         },
         chosen: c === best,
         oracle: c.is_oracle === 1,
@@ -67,25 +69,29 @@ test("the spanning read partitions the real battery: every trap identifies earni
   }
 });
 
-test("HEADLINE: a pure payout-overweighter is recovered as W3 from behaviour on the full battery", () => {
-  const d = behaviourDiag(BIASES.trueW3);
-  // The full battery now includes over-bundling-regret menus in the same-support retention block,
-  // on which a payout-chaser ALSO over-bundles (the W1/W3 collinearity). So the RAW dominant axis
-  // can be the W1 symptom; the point of the spanning read is that it still recovers W3 as the
-  // coachable ROOT (the learning target). That recovery is the headline guarantee.
-  assert.equal(d.learning_target, "W3", `payout-chaser should be coached W3, got ${d.learning_target}`);
-  assert.ok(d.spanning_used, "the read should have restricted to the spanning subspace");
-  assert.equal(d.strengths.W3 > 0.4, true, `the spanning W3 signal should be substantial, got ${d.strengths.W3.toFixed(2)}`);
+test("PICKING-PRIMARY HEADLINE: the spanning read separates W3 from W1/pick, but NOT from W2/cross", () => {
+  // The local-axis trap was dropped, so the earnings-identifying (spanning) menus are all CROSS
+  // traps (low-pick, high-pay H in a far city). On those, a payout-overweighter and a PICK-neglecter
+  // choose DIFFERENTLY (W3 separates from W1 -> picking is cleanly coachable), but a payout-
+  // overweighter and a CROSS-neglecter choose the SAME (W3 confounded with W2). This split (high
+  // payout/cross agreement, low payout/pick agreement) is exactly why W1 is coachable and W3 is not.
+  const set = buildChiScenarioSet();
+  const spanningMenus = set.scenarios.filter((s) => menuIdentifiesEarnings(s.candidate_bundles.map((c) => ({ features: c }))));
+  const pick = (b) => (cands) => { let x = cands[0]; for (const c of cands) if (perceived(c, b) > perceived(x, b)) x = c; return x; };
+  const choices = (b) => spanningMenus.map((s) => pick(b)(s.candidate_bundles));
+  const payoutCh = choices(BIASES.trueW3), crossCh = choices(BIASES.crossNeglect), pickCh = choices(BIASES.pickNeglect);
+  const agree = (a, b) => a.filter((x, i) => x === b[i]).length / a.length;
+  const vsCross = agree(payoutCh, crossCh), vsPick = agree(payoutCh, pickCh);
+  assert.ok(vsCross > vsPick + 0.3, `W3 confounded with cross (agree ${vsCross.toFixed(2)}) but separable from pick (agree ${vsPick.toFixed(2)})`);
+  assert.ok(vsPick < 0.6, `payout and pick-neglecter must diverge on spanning menus (W3 separates from W1), got ${vsPick.toFixed(2)}`);
 });
 
-test("the pooled read FAILS to recover the payout-overweighter as W3 (the confound the spanning fix resolves)", () => {
-  const pooled = behaviourDiag(BIASES.trueW3, { spanningRead: false });
-  const spanning = behaviourDiag(BIASES.trueW3);
-  // The pooled read CANNOT recover the payout leak as W3 on the confounded battery: it either
-  // misfires to the W1 over-bundling symptom or abstains (after the B2/B4 rebalance it abstains).
-  // Either way it gets the wrong (or no) coachable target; only the spanning read recovers W3.
-  assert.notEqual(pooled.learning_target, "W3", `pooled read must NOT recover W3, got ${pooled.learning_target}`);
-  assert.equal(spanning.learning_target, "W3", "the spanning read recovers W3");
+test("PICKING-PRIMARY: W1 is the cleanly-coachable axis; W3 is not recovered as coachable under either read", () => {
+  // Under the picking-primary design neither read recovers a clean coachable W3 (it is confounded
+  // with cross). The PICK error (W1) is the clean, coachable axis the study now anchors on.
+  assert.notEqual(behaviourDiag(BIASES.trueW3).learning_target, "W3", "spanning read no longer yields a coachable W3");
+  assert.notEqual(behaviourDiag(BIASES.trueW3, { spanningRead: false }).learning_target, "W3", "pooled read does not yield W3 either");
+  assert.equal(behaviourDiag(BIASES.pickNeglect).learning_target, "W1", "the pick-neglecter IS cleanly coached W1");
 });
 
 test("a pure pick-neglecter still reads W1 on the full battery", () => {
@@ -94,15 +100,23 @@ test("a pure pick-neglecter still reads W1 on the full battery", () => {
   assert.equal(d.learning_target, "W1");
 });
 
-test("single-axis nuisance/uncoachable neglecters are NOT coached W3 (abstain)", () => {
+test("single-axis nuisance/uncoachable neglecters are NOT COACHED W3 (the gate's dual-axis abstention)", () => {
+  // The COACHING safety guarantee binds at the GATE (the layer feedbackForDecision consults), not at
+  // the raw diagnosis learning_target (analysis-only, never coached). The B2 payout traps strengthen
+  // the retune W3 read on purpose; that can make the RAW diagnosis label a strong nuisance-neglecter
+  // W3, but the gate's dual-axis abstention refuses to COACH W3 when a rival cost axis rivals it. So
+  // assert the guarantee where it actually decides what the participant is coached.
+  const localGate = signSurvivalGate(fullBatteryChoiceSets(BIASES.localNeglect));
+  const crossGate = signSurvivalGate(fullBatteryChoiceSets(BIASES.crossNeglect));
+  assert.notEqual(localGate.chosen_target, "W3", `local-neglect must NOT be coached W3, got ${localGate.chosen_target}`);
+  assert.notEqual(crossGate.chosen_target, "W3", `cross-neglect must NOT be coached W3, got ${crossGate.chosen_target}`);
+  // And even the raw diagnosis signal for a nuisance neglecter stays well below a true payout leak's,
+  // so the two are never confusable on magnitude.
   const local = behaviourDiag(BIASES.localNeglect);
-  const trueW3 = behaviourDiag(BIASES.trueW3);
   const cross = behaviourDiag(BIASES.crossNeglect);
-  assert.equal(local.learning_target, "none", `local-neglect must not be coached, got ${local.learning_target}`);
-  // The actionable guarantee is abstention; the raw dominant axis over a near-zero strength vector
-  // is just noise. What matters is that a local-neglecter's payout signal stays NEAR NOISE -- far
-  // below a genuine payout-overweighter's -- so it can never be coached as W3.
-  assert.ok(local.strengths.W3 < 0.25, `local-neglect false W3 should be near noise, got ${local.strengths.W3.toFixed(2)}`);
-  assert.ok(trueW3.strengths.W3 > 2 * Math.max(0.01, local.strengths.W3), "a true payout leak is multiples larger than local-neglect's");
-  assert.equal(cross.learning_target, "none", `cross-neglect must abstain, got ${cross.learning_target}`);
+  const trueW3 = behaviourDiag(BIASES.trueW3);
+  assert.ok(
+    trueW3.strengths.W3 > 2 * Math.max(0.01, local.strengths.W3, cross.strengths.W3),
+    `a true payout leak (${trueW3.strengths.W3.toFixed(2)}) must dwarf nuisance W3 (local ${local.strengths.W3.toFixed(2)}, cross ${cross.strengths.W3.toFixed(2)})`,
+  );
 });

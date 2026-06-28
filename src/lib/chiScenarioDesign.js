@@ -48,20 +48,106 @@ export const CHI_C_STORES = [
   { store: "Trader Joe's", city: "Albany" },
 ];
 
-// Cross-city travel time (seconds). Phase C scales this up (longer routes).
+// Cross-city travel time (seconds), symmetric, scaled by map distance (nearer cities cheaper).
+// Every leg is 8..18s, so a comfortable within-city local (5-7s) is ALWAYS cheaper than leaving the
+// city (no "within-city slower than between-city" defect). A wide near->far spread (e.g. Berkeley 0
+// to Richmond 18) gives the CROSS payout trap its clean delta. Same-city = 0. Albany is an ordinary
+// peripheral city (no special geometry, since the local-axis trap was dropped).
 export const CHI_CITY_TRAVEL = {
-  Berkeley: { Berkeley: 0, Oakland: 10, Emeryville: 7, Richmond: 12, Piedmont: 11, Albany: 6 },
-  Oakland: { Berkeley: 10, Oakland: 0, Emeryville: 6, Richmond: 16, Piedmont: 5, Albany: 13 },
-  Emeryville: { Berkeley: 7, Oakland: 6, Emeryville: 0, Richmond: 14, Piedmont: 9, Albany: 8 },
-  Richmond: { Berkeley: 12, Oakland: 16, Emeryville: 14, Richmond: 0, Piedmont: 18, Albany: 9 },
-  Piedmont: { Berkeley: 11, Oakland: 5, Emeryville: 9, Richmond: 18, Piedmont: 0, Albany: 16 },
-  Albany: { Berkeley: 6, Oakland: 13, Emeryville: 8, Richmond: 9, Piedmont: 16, Albany: 0 },
+  Berkeley:   { Berkeley: 0,  Oakland: 12, Emeryville: 8,  Richmond: 18, Piedmont: 14, Albany: 9  },
+  Oakland:    { Berkeley: 12, Oakland: 0,  Emeryville: 8,  Richmond: 16, Piedmont: 8,  Albany: 15 },
+  Emeryville: { Berkeley: 8,  Oakland: 8,  Emeryville: 0,  Richmond: 14, Piedmont: 10, Albany: 11 },
+  Richmond:   { Berkeley: 18, Oakland: 16, Emeryville: 14, Richmond: 0,  Piedmont: 18, Albany: 10 },
+  Piedmont:   { Berkeley: 14, Oakland: 8,  Emeryville: 10, Richmond: 18, Piedmont: 0,  Albany: 16 },
+  Albany:     { Berkeley: 9,  Oakland: 15, Emeryville: 11, Richmond: 10, Piedmont: 16, Albany: 0  },
 };
+
+// ----- Per-store aisle layouts + the pilot's layout-derived pick model ------------------- //
+// Mirrors the validated pilot (publishing/paper/raw_materials/data/time_model.json,
+// src/lib/scripts/scenarioTime.js): each store is a 3x3 aisle grid with an Entrance and a
+// per-store cell-crossing speed (cellDistance ms -> seconds_per_cell = cellDistance/1000), and the
+// SAME 8 fruits are shelved in DIFFERENT cells per store, so identical items cost different pick
+// time at different stores. The 4 pilot stores keep their cited rates (Berkeley Bowl 0.6, Target
+// 0.9, Sprouts 0.75, Safeway 0.7 s/cell); the 5 new confirmatory stores get distinct rates.
+const CHI_FRUITS = ["apple", "banana", "grape", "orange", "kiwi", "pear", "watermelon", "pineapple"];
+const PICK_SECONDS_PER_UNIQUE_ITEM = 3; // pilot grabSecondsPerUniqueItem
+// grid: rows of cell labels; "Entrance" marks the start cell. cellDistance in ms.
+export const CHI_STORE_LAYOUTS = {
+  "Berkeley Bowl":  { city: "Berkeley",   cellDistance: 600, grid: [["Entrance","Pineapple","Watermelon"],["Orange","Apple","Grape"],["Banana","Kiwi","Pear"]] },
+  "Berkeley Market":{ city: "Berkeley",   cellDistance: 650, grid: [["Entrance","Apple","Banana"],["Grape","Orange","Kiwi"],["Pear","Watermelon","Pineapple"]] },
+  "Sprouts":        { city: "Oakland",    cellDistance: 750, grid: [["Entrance","Watermelon","Pear"],["Pineapple","Kiwi","Apple"],["Grape","Orange","Banana"]] },
+  "Oakland Grocer": { city: "Oakland",    cellDistance: 800, grid: [["Entrance","Grape","Orange"],["Apple","Banana","Pear"],["Kiwi","Pineapple","Watermelon"]] },
+  "Target":         { city: "Emeryville", cellDistance: 900, grid: [["Entrance","Watermelon","Apple"],["Pineapple","Grape","Orange"],["Banana","Kiwi","Pear"]] },
+  "Costco":         { city: "Richmond",   cellDistance: 1000,grid: [["Entrance","Pear","Pineapple"],["Watermelon","Apple","Banana"],["Orange","Grape","Kiwi"]] },
+  "Safeway":        { city: "Piedmont",   cellDistance: 700, grid: [["Entrance","Apple","Orange"],["Watermelon","Banana","Grape"],["Pineapple","Pear","Kiwi"]] },
+  "Whole Foods":    { city: "Albany",     cellDistance: 850, grid: [["Entrance","Kiwi","Pear"],["Apple","Watermelon","Pineapple"],["Orange","Grape","Banana"]] },
+  "Trader Joe's":   { city: "Albany",     cellDistance: 550, grid: [["Entrance","Banana","Grape"],["Orange","Pineapple","Apple"],["Watermelon","Pear","Kiwi"]] },
+};
+
+function manhattanCells(a, b) { return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]); }
+function gridEntrance(layout) {
+  for (let r = 0; r < layout.grid.length; r += 1) for (let c = 0; c < layout.grid[r].length; c += 1) {
+    if (String(layout.grid[r][c]).toLowerCase() === "entrance") return [r, c];
+  }
+  return [0, 0];
+}
+function fruitCell(layout, fruit) {
+  const needle = String(fruit).toLowerCase();
+  for (let r = 0; r < layout.grid.length; r += 1) for (let c = 0; c < layout.grid[r].length; c += 1) {
+    if (String(layout.grid[r][c]).toLowerCase() === needle) return [r, c];
+  }
+  return null;
+}
+// Pilot pick: sequential walk from Entrance to each fruit's cell (nearest), then +3s per unique fruit.
+function layoutPickSeconds(storeName, fruits) {
+  const layout = CHI_STORE_LAYOUTS[storeName];
+  if (!layout) return 0;
+  const secondsPerCell = layout.cellDistance / 1000;
+  let cur = gridEntrance(layout);
+  let steps = 0;
+  const unique = new Set();
+  for (const f of fruits) {
+    unique.add(String(f).toLowerCase());
+    const pos = fruitCell(layout, f);
+    if (!pos) continue;
+    steps += manhattanCells(cur, pos);
+    cur = pos;
+  }
+  return steps * secondsPerCell + unique.size * PICK_SECONDS_PER_UNIQUE_ITEM;
+}
+// Choose a SET of distinct fruits whose layout pick lands near a target (handling 3s/item dominates,
+// so the fruit COUNT sets the scale; the walk tunes within a count). Deterministic in rng.
+function fruitsForTargetPick(storeName, targetPick, rng) {
+  const layout = CHI_STORE_LAYOUTS[storeName];
+  const all = CHI_FRUITS.filter((f) => fruitCell(layout, f));
+  let best = null, bestErr = Infinity;
+  // try counts around target/itemCost, a few random orderings each, keep the closest pick.
+  for (let n = 1; n <= Math.min(all.length, 8); n += 1) {
+    for (let t = 0; t < 6; t += 1) {
+      const pool = all.slice();
+      for (let i = pool.length - 1; i > 0; i -= 1) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+      const pick = pool.slice(0, n);
+      const sec = layoutPickSeconds(storeName, pick);
+      const err = Math.abs(sec - targetPick);
+      if (err < bestErr) { bestErr = err; best = pick; }
+    }
+  }
+  return best || [all[0]];
+}
 
 const SHARED_STORE_PICK_SAVE_RATE = 0.25; // mirrors LOCAL_TRAVEL_BUNDLE_SAVE_RATE
 const NONTRIVIAL_SCORE_GAP = 0.03;        // best must beat second by this ratio
-const PHASE_C_TRAVEL_SCALE = 1.6;         // longer cross-city routes in the shift
-const PHASE_C_PICK_SCALE = 1.5;           // heavier pick loads in the shift
+// Phase C (transfer) shift is carried by NOVEL stores/cities (disjoint from training), not by
+// inflating times: travel + pick stay at the comfortable scale so a 4-order bundle never blows up
+// (no ~100s+ bundles). Scales kept at 1.0; raise only if a stronger time-shift is wanted later.
+const PHASE_C_TRAVEL_SCALE = 1.0;
+const PHASE_C_PICK_SCALE = 1.0;
+// Uniform comfort scale on ALL time components (pick, local, cross). Applied identically so it CANCELS
+// in earnings/time: every rate, oracle, gap, regret and diagnosis ratio is invariant (score -> score/k),
+// it just makes rounds shorter (worst cross hop 18s -> 12s, typical ~7s). It is uniform precisely so the
+// cross traps are NOT distorted (scaling cross alone would shift them). Local is scaled in lockstep, so
+// the within-city < cross invariant is preserved by construction.
+const TIME_COMFORT_SCALE = 2 / 3;
 // A CLEAN single-axis trap: H's slowness vs the oracle is concentrated on ONE cost axis.
 // The named axis must carry >= CLEAN_AXIS_SHARE of the H-vs-oracle time delta and each OTHER
 // cost axis < CLEAN_OTHER_SHARE of it. A trap flagged `clean` must also clear CLEAN_TRAP_MIN_GAP
@@ -83,23 +169,24 @@ const CLEAN_TRAP_MAX_GAP = 0.30; // keep a clean trap powerful but not trivially
 // tempting only to a pick-neglecter. So W3 chases H while W1 over-bundles {b1,b2}
 // — different choices, so the two biases become separately identifiable.
 // b1 (optimal) is fast; b2 carries the high pick (the W1 bundling bait).
+// pick values are TARGET layout-pick seconds (realized by selecting fruits); local is comfortable 5-7s.
 const TRAP_ROLE_RANGES = {
-  fast: { pick: [5, 7], local: [2, 3], earn: [18, 24] },    // b1 = the score-optimal singleton (fast)
-  bait: { pick: [15, 19], local: [2, 4], earn: [8, 12] },   // b2 = high-PICK, low-pay over-bundle bait
+  fast: { pick: [5, 7], local: [5, 7], earn: [20, 24] },    // b1 = the score-optimal singleton (fast, few near fruits)
+  bait: { pick: [17, 23], local: [5, 7], earn: [8, 12] },   // b2 = high-PICK, low-pay over-bundle bait (many fruits)
 };
 // A modest singleton dropped into a SECOND city to add dispersion to an over-bundle menu
 // (o1d1) without ever becoming the oracle or the max-earnings bundle: low-ish pay, mid speed.
-const OVERBUNDLE_DISTRACTOR = { pick: [6, 9], local: [3, 5], earn: [13, 18] };
+const OVERBUNDLE_DISTRACTOR = { pick: [6, 9], local: [5, 7], earn: [13, 18] };
 // A NEUTRAL filler singleton used to raise every menu to >= 4 distinct orders. Low pay + a
 // moderate pick so its score sits BELOW the design's key alternative (the trap's H, the
 // over-bundle's b1, the bundle's best single), so padding never changes the oracle, the trap
 // axis/cleanliness, or the over-bundle regret. Placed at an UNUSED store so it cannot bundle.
-const DISTRACTOR_ROLE = { pick: [8, 12], local: [3, 5], earn: [9, 14] };
+const DISTRACTOR_ROLE = { pick: [8, 12], local: [5, 7], earn: [9, 14] };
 // A BALANCED order where bundling PAYS: good earnings, moderate pick, so a same-store pair/triple
 // (the shared-pick saving + the amortized start->store cross leg) is the highest-scoring feasible
 // trip and any single order is a strictly worse UNDER-bundling choice. The building block of the
 // bundling-correct rounds that fix the single-order-oracle dominance.
-const BUNDLE_ROLE = { pick: [6, 9], local: [2, 4], earn: [22, 30] };
+const BUNDLE_ROLE = { pick: [6, 9], local: [5, 7], earn: [22, 30] };
 const BUNDLE_MIN_SINGLE_REGRET = 0.12; // the best single order must be >= 12% worse than the bundle
 // The high-pay singleton H is the trap. CRUCIAL identifiability point: H must be made
 // sub-optimal via DIFFERENT cost axes across the trap menus, NOT always the same one.
@@ -113,29 +200,33 @@ const BUNDLE_MIN_SINGLE_REGRET = 0.12; // the best single order must be >= 12% w
 // single-axis cost-neglecter to that axis (local/cross/pick), not to W3. This is the
 // theorem's menu-span condition made concrete: the trap action set must span the
 // earnings x {each cost axis} subspace, not just earnings x pick.
-const TRAP_PAY_EARN = [38, 44];
+// Trap battery is now TWO axes (the local-axis clean trap was dropped: under the pick-dominated
+// scale it could not clear 12% without distorting Albany's geography, so local is kept only as a
+// varying SPAN feature). CROSS is the clean earnings-identifying trap (H is LOW-pick, so the
+// top-payer sits at/below median pick -> menuIdentifiesEarnings); PICK is the W1/W3-confounding
+// menu (H is HIGH-pick). H pay is per-axis: cross traps (oracle in the near/home city, H far) can
+// carry a higher pay window; pick traps (same city, no cross) a lower one.
 const TRAP_PAY_AXES = {
-  // LOCAL is the clean axis: low pick (so dPick is small) and a local penalty large enough to
-  // make H sub-optimal but only by ~14% (a moderate gap, so a planted payout-overweighter still
-  // CHOOSES H and reveals the leak; too large a gap and even a biased participant takes the
-  // oracle, erasing the W3 signal). The SHIFTED transfer trap overrides `local` with a bigger
-  // range (cell.payLocal) because its fixed start->city cross leg compresses the gap.
-  local: { pick: [5, 8], local: [12, 16] },   // slow via LOCAL travel (low pick, same city -> no cross)
-  pick: { pick: [14, 18], local: [2, 4] },    // slow via PICK time (high pick, low local)
-  cross: { pick: [5, 8], local: [2, 4] },     // slow via CROSS-CITY travel (placed in a far city)
+  pick:  { pick: [14, 18], local: [5, 7], earn: [30, 40] }, // slow via PICK time (high pick, same city)
+  cross: { pick: [5, 8],   local: [5, 7], earn: [30, 44] }, // slow via CROSS-CITY (low pick, far city)
 };
 
 export function createSeededRandom(seed = 1) {
   let s = seed >>> 0;
-  return function next() {
+  const next = function next() {
     s = (s * 1664525 + 1013904223) >>> 0;
     return s / 4294967296;
   };
+  // State snapshot/restore (output is unchanged; these only expose the LCG cursor). Used by the
+  // builder to rewind the stream after an rng-isolated round so later rounds stay byte-identical.
+  next.getState = () => s;
+  next.setState = (value) => { s = value >>> 0; };
+  return next;
 }
 
 function crossCity(from, to, scale = 1) {
   const v = CHI_CITY_TRAVEL[from]?.[to];
-  return (typeof v === "number" ? v : 0) * scale;
+  return (typeof v === "number" ? v : 0) * scale * TIME_COMFORT_SCALE;
 }
 
 function ordersById(orders) {
@@ -268,10 +359,24 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
   for (let attempt = 0; attempt < 600; attempt += 1) {
     const orders = [];
     let idx = 0;
+    // Realize a target pick by selecting fruits at the store, so `pick` DERIVES from the store's
+    // aisle layout + the items' positions (the pilot model), not a flat range. Qty (1-3) is cosmetic
+    // (the pick walk visits each UNIQUE fruit once). Same target items cost different time per store.
+    const mkItems = (storeObj, targetPick) => {
+      const fruits = fruitsForTargetPick(storeObj.store, targetPick, rng);
+      const items = {};
+      for (const f of fruits) items[f] = 1 + Math.floor(rng() * 3);
+      return { items, pick: TIME_COMFORT_SCALE * layoutPickSeconds(storeObj.store, fruits) };
+    };
+    // Within-city local travel, varying so W_local stays estimable for the gate's dual-axis abstention
+    // (local is a SPAN dimension; there is no clean local-stress trap any more). Raw 5-8s scaled in
+    // lockstep with cross (uniform -> ratios invariant); the scaled max (<5.34s) stays strictly below
+    // the smallest scaled cross leg (8*K = 5.33s rounds to a stored local <= 5.3 < cross 5.33).
+    const localSeconds = () => TIME_COMFORT_SCALE * (5 + 3 * rng());
     const mkOrder = (storeObj, big) => {
-      const basePick = (big ? 16 : 7) * pickScale * (0.8 + 0.5 * rng());
-      const local = (3 + 6 * rng());
-      const estimatedTime = Math.round((basePick + local) * 10) / 10;
+      const targetPick = (big ? 16 : 7) * pickScale * (0.8 + 0.5 * rng());
+      const local = localSeconds();
+      const { items, pick } = mkItems(storeObj, targetPick);
       const earnings = Math.round((10 + 40 * rng()) * (big ? 1.25 : 1));
       idx += 1;
       return {
@@ -279,24 +384,27 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
         store: storeObj.store,
         city: storeObj.city,
         earnings,
-        estimatedTime,
-        pick: Math.round(basePick * 10) / 10,
+        items,
+        estimatedTime: Math.round((pick + local) * 10) / 10,
+        pick: Math.round(pick * 10) / 10,
         localTravelTime: Math.round(local * 10) / 10,
       };
     };
     const span = (a, b) => a + (b - a) * rng();
     const mkAt = (storeObj, basePickRaw, localRaw, earn) => {
-      const basePick = basePickRaw * pickScale;
-      const estimatedTime = Math.round((basePick + localRaw) * 10) / 10;
+      const targetPick = basePickRaw * pickScale;
+      const { items, pick } = mkItems(storeObj, targetPick);
+      const local = TIME_COMFORT_SCALE * localRaw;   // scale local in lockstep with pick + cross
       idx += 1;
       return {
         id: `${scenarioId}o${idx}`,
         store: storeObj.store,
         city: storeObj.city,
         earnings: Math.round(earn),
-        estimatedTime,
-        pick: Math.round(basePick * 10) / 10,
-        localTravelTime: Math.round(localRaw * 10) / 10,
+        items,
+        estimatedTime: Math.round((pick + local) * 10) / 10,
+        pick: Math.round(pick * 10) / 10,
+        localTravelTime: Math.round(local * 10) / 10,
       };
     };
     // b1 / b2 (fast optimal, high-pick bait).
@@ -308,9 +416,11 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
     // may override the local-penalty range (cell.payLocal) for the shifted transfer trap, which
     // needs a bigger local cost to stay sub-optimal under its fixed start->city cross leg.
     const mkPay = (storeObj, axis) => {
-      const r = TRAP_PAY_AXES[axis] || TRAP_PAY_AXES.local;
-      const localRange = (axis === "local" && cell.payLocal) ? cell.payLocal : r.local;
-      return mkAt(storeObj, span(r.pick[0], r.pick[1]), span(localRange[0], localRange[1]), span(TRAP_PAY_EARN[0], TRAP_PAY_EARN[1]));
+      const r = TRAP_PAY_AXES[axis] || TRAP_PAY_AXES.cross;
+      // cell.payEarn overrides H's pay window (the shifted transfer cross trap needs a lower window
+      // because its oracle already sits in a C-city ~8s from start, which compresses the score gap).
+      const earn = Array.isArray(cell.payEarn) ? cell.payEarn : r.earn;
+      return mkAt(storeObj, span(r.pick[0], r.pick[1]), span(r.local[0], r.local[1]), span(earn[0], earn[1]));
     };
 
     // Neutral filler + bundling-correct building blocks.
@@ -338,7 +448,7 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
       // (local/pick keep H in b1's city -> dCross 0; cross places H in the farthest city). The
       // pad distractor is a far singleton that never touches the H-vs-b1 delta, so the single
       // slow axis and its cleanliness are preserved (only the menu's dispersion flag may flip).
-      const axis = cell.trapAxis || "local";
+      const axis = cell.trapAxis || "cross";
       let homeCity, s1, s2;
       if (axis === "cross") {
         const sorted = cities.slice().sort((a, b) => crossCity(CHI_STARTING_CITY, a) - crossCity(CHI_STARTING_CITY, b));
@@ -408,9 +518,20 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
     const { best, second } = bestTwo(scored);
     if (!second) continue;
     const gap = (best.score - second.score) / best.score;
-    const minGap = cell.minGap || NONTRIVIAL_SCORE_GAP;
+    // Default second-best-gap band for the CONTROLLED round types (trap / over-bundle), whose
+    // second-best IS the plausible wrong choice: keep them at a matched, moderate difficulty
+    // (~0.18-0.32) so the per-block second-best-gap mean lands in band and the hot traps (0.4-0.5)
+    // are narrowed. Cells with an explicit band (B2 retune, transfer) keep theirs. Bundle-correct
+    // and route rounds keep the bare 0.03 floor (bundles are controlled by best-vs-single instead).
+    // Controlled round types = those whose SECOND-BEST is a plausible wrong choice (trap, over-bundle,
+    // route singles). Band them to a matched ~0.18-0.32 so the per-block second-best-gap mean lands
+    // in 0.246-0.280. Bundle-correct rounds are NOT controlled this way (their second-best is a near-
+    // optimal pair); they are controlled by best-vs-single regret (>= 0.12) instead.
+    const isControlled = cell.stress === "trap" || cell.stress === "overbundle" || cell.stress === "route";
+    const minGap = cell.minGap || (isControlled ? 0.24 : NONTRIVIAL_SCORE_GAP);
+    const maxGap = cell.maxGap || (isControlled ? 0.29 : null);
     if (!(gap >= minGap)) continue;                          // non-trivial (or per-cell minimum) gap
-    if (cell.maxGap && gap > cell.maxGap) continue;          // keep banded traps from getting trivially easy
+    if (maxGap && gap > maxGap) continue;                    // keep traps from getting trivially easy
     // unique oracle (no tie at the top)
     if (Math.abs(best.score - second.score) < 1e-9) continue;
 
@@ -424,7 +545,7 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
     const dLocal = maxEarn.local_travel_time_seconds - best.local_travel_time_seconds;
     const dTime = maxEarn.total_time_seconds - best.total_time_seconds;
     const axisDelta = { local: dLocal, cross: dCross, pick: dPick };
-    const namedAxis = cell.trapAxis || "local";
+    const namedAxis = cell.trapAxis || "cross";
     const cleanSingleAxis = dTime > 0
       && axisDelta[namedAxis] >= CLEAN_AXIS_SHARE * dTime
       && Object.entries(axisDelta).every(([k, v]) => k === namedAxis || v < CLEAN_OTHER_SHARE * dTime);
@@ -482,7 +603,7 @@ function buildMenu(scenarioId, round, phase, cell, rng) {
       shift_flag: cell.shift ? 1 : 0,
       stress: cell.stress,
       is_payout_trap: cell.stress === "trap" ? 1 : 0,
-      trap_axis: cell.stress === "trap" ? (cell.trapAxis || "local") : null,
+      trap_axis: cell.stress === "trap" ? (cell.trapAxis || "cross") : null,
       // Oracle size + category (the single-order-dominance fix reads these to balance the mix).
       oracle_size: oracleSize,
       oracle_category: oracleCategory,
@@ -530,28 +651,30 @@ export const CHI_PHASE_B_BLOCK_LAYOUT = [
 // (W2). Every menu carries >= 4 distinct orders. Cycled to `diagnosticRounds`; the runtime
 // randomizes the order. (overlap/dispersion are realized from the orders, not declared.)
 const DIAGNOSTIC_CELLS = [
-  { stress: "trap", trapAxis: "local" },   // W3 single-order oracle, H slow via local
+  { stress: "trap", trapAxis: "cross" },   // W3 single-order oracle, H slow via cross (clean, earnings-identifying)
   { stress: "bundle", count: 2 },          // bundling correct — a PAIR oracle (under-bundling wrong)
   { stress: "overbundle", count: 3 },      // over-bundling regret (oracle a strict subset)
   { stress: "trap", trapAxis: "cross" },   // W3, H slow via cross-city
   { stress: "bundle", count: 3 },          // bundling correct — a TRIPLE oracle
   { stress: "overbundle", count: 2 },      // over-bundling regret
   { stress: "route" },                     // W2 cross-city, single-order oracle
-  { stress: "trap", trapAxis: "pick" },    // W3, H slow via pick
+  { stress: "trap", trapAxis: "cross" },   // W3, H slow via cross (added cross density for the spanning read)
   { stress: "bundle", count: 2 },          // bundling correct — pair
   { stress: "overbundle", count: 3 },      // over-bundling regret
   { stress: "bundle", count: 3 },          // bundling correct — triple
-  { stress: "trap", trapAxis: "local" },   // W3, H slow via local
+  { stress: "trap", trapAxis: "pick" },    // W1/W3-confounding picking-stress menu (H slow via pick)
   { stress: "route" },                     // W2 cross-city
   { stress: "bundle", count: 2 },          // bundling correct — pair
   { stress: "overbundle", count: 2 },      // over-bundling regret
 ];
-// The SHIFTED transfer trap (B4): a clean single-axis LOCAL payout trap. H is the 2nd Albany
-// store, slow via local travel alone (dCross = 0, low pick); a larger local penalty (payLocal)
-// keeps it sub-optimal under the fixed start->city cross leg, banded to [12%, 30%].
-const SHIFT_LOCAL_TRAP = {
-  stress: "trap", trapAxis: "local", clean: true,
-  minGap: CLEAN_TRAP_MIN_GAP, maxGap: CLEAN_TRAP_MAX_GAP, payLocal: [26, 36],
+// The SHIFTED transfer trap (B4): a clean single-axis CROSS payout trap on novel stores. H is a
+// LOW-pick high-pay order in a FAR shifted city; the oracle is a faster order in a nearer shifted
+// city, so the H-vs-oracle delta is carried by cross-city travel alone (clean), banded to [12%, 30%].
+// (The local-axis trap was dropped: it can't clear 12% under the pick-dominated scale without
+// distorting the map, so the transfer re-diagnoses payout via the same clean cross axis as training.)
+const SHIFT_CROSS_TRAP = {
+  stress: "trap", trapAxis: "cross", clean: true,
+  minGap: 0.18, maxGap: 0.22, payEarn: [26, 29],
 };
 
 // The training support, shared by the ON coaching blocks (B1, B3) AND the same-distribution
@@ -570,7 +693,7 @@ const trainingSequence = (axis, bundleHeavy) => [
 // B1 presents the LOCAL payout trap (the clean direction the transfer block tests); B2 and B3
 // present a CROSS-axis trap (keeps the pooled trap battery axis-balanced so W3 stays separable
 // from a single-axis cost-neglecter). B1/B3 are bundle-heavy; B2 is over-bundle-heavy.
-const BLOCK_TRAINING = { B1: { axis: "local", bundleHeavy: true }, B3: { axis: "cross", bundleHeavy: true } };
+const BLOCK_TRAINING = { B1: { axis: "cross", bundleHeavy: true }, B3: { axis: "cross", bundleHeavy: true } };
 
 // Coaching/held-out blocks should sit at a comparable second-best gap (~0.24 to 0.28) so difficulty
 // is matched. B1/B3 already land there; B2 (retention) ran too HARD and B4 (transfer) too EASY, so
@@ -583,12 +706,20 @@ const RETUNE_GAP_BAND = { minGap: 0.24, maxGap: 0.28 };
 // binding regret, enforced by BUNDLE_MIN_SINGLE_REGRET). But their second-best gap is lightly
 // bounded so it does not pull the block mean out of range: B2's pair runs gap-high (cap it) and
 // B4's triple runs gap-low (floor it).
+// B2 carries TWO payout traps on DIFFERENT clean axes (cross r22 + local r25). Both place the
+// high-payer at low pick, so each cleanly identifies earnings/W3 (decoupled from W1); spanning the
+// cross AND local axes lets the retune read separate payout from EITHER cost axis (a single-axis
+// neglecter takes only one trap and leaks its own axis, which the gate's dual-axis abstention then
+// catches), instead of the old single-cross-trap retune read where the W3 signal sat near the floor.
+// r23 (over-bundle) and r24 (bundle-correct) keep W1 identifiable in both leak directions.
 const B2_SEQUENCE = [
   { stress: "route", ...RETUNE_GAP_BAND },                      // r21
   { stress: "trap", trapAxis: "cross", ...RETUNE_GAP_BAND },    // r22 (clean cross trap, still >=12%)
-  { stress: "overbundle", count: 3, ...RETUNE_GAP_BAND },       // r23
-  { stress: "bundle", count: 2, maxGap: 0.28 },                // r24: keeps regret >=12%; gap capped
-  { stress: "overbundle", count: 2, ...RETUNE_GAP_BAND },       // r25
+  { stress: "overbundle", count: 3, ...RETUNE_GAP_BAND },       // r23 (W1 over-bundling)
+  { stress: "bundle", count: 2, maxGap: 0.28 },                // r24: bundle-correct (W1 under); gap capped
+  // r25: a second clean CROSS payout trap (with r22) so the A+B2 retune read carries enough W3
+  // signal to separate payout from the cost axes (the full-regeneration drops the old rng_compat).
+  { stress: "trap", trapAxis: "cross", ...RETUNE_GAP_BAND },
 ];
 
 // TRANSFER-FIRST: the held-out shifted transfer block (B4) is designed first and tests all three
@@ -596,18 +727,21 @@ const B2_SEQUENCE = [
 // ONE clean single-axis LOCAL payout trap (>= 12%) + TWO bundling-CORRECT rounds (a genuine
 // pair/triple is the highest-scoring trip, so the transfer also probes WHEN TO BUNDLE). All on
 // novel single-store C-cities; order ids are disjoint from training.
+// The transfer's comfortable C-city cross legs (8-18s) sit in every bundle's time and dilute the
+// RELATIVE regret, so transfer gaps run a touch lower than the A/B blocks; the band is widened here.
+const TRANSFER_GAP_BAND = { minGap: 0.27, maxGap: 0.31 };
 const TRANSFER_SUPPORT = [
-  { stress: "overbundle", count: 3, hostCity: "Emeryville", ...RETUNE_GAP_BAND },   // r31 (banded up)
-  { stress: "bundle", count: 2, hostCity: "Richmond", minGap: 0.16 },   // r32 pair: keeps regret >= 12%; gap floored
-  { ...SHIFT_LOCAL_TRAP, ...RETUNE_GAP_BAND },            // r33 clean local trap (Albany), banded ~0.26 (still >= 12%)
-  { stress: "overbundle", count: 3, hostCity: "Piedmont", ...RETUNE_GAP_BAND },     // r34 (banded up)
-  { stress: "bundle", count: 3, hostCity: "Richmond", minGap: 0.16 },   // r35 triple: keeps regret >= 12%; gap floored
+  { stress: "overbundle", count: 3, hostCity: "Emeryville", ...TRANSFER_GAP_BAND },   // r31 (near C-city: less cross dilution)
+  { stress: "bundle", count: 2, hostCity: "Albany", minGap: 0.06 },   // r32 pair: under-bundling regret >= 12%; gap floored
+  { ...SHIFT_CROSS_TRAP },                                // r33 clean CROSS trap (oracle near C-city, H far C-city)
+  { stress: "overbundle", count: 3, hostCity: "Albany", ...TRANSFER_GAP_BAND },     // r34 (near C-city)
+  { stress: "bundle", count: 3, hostCity: "Emeryville", minGap: 0.05 },   // r35 triple: regret >= 12%; triple-vs-pair gap is inherently small
 ];
 
 const blockSequence = (blk) => {
   if (blk.test_set === "transfer_shifted") return TRANSFER_SUPPORT.map((c) => ({ ...c, shift: true }));
   if (blk.id === "B2") return B2_SEQUENCE.map((c) => ({ ...c, shift: false }));
-  const t = BLOCK_TRAINING[blk.id] || { axis: "local", bundleHeavy: true };
+  const t = BLOCK_TRAINING[blk.id] || { axis: "cross", bundleHeavy: true };
   return trainingSequence(t.axis, t.bundleHeavy).map((c) => ({ ...c, shift: false }));
 };
 
@@ -627,11 +761,26 @@ export function buildChiScenarioSet({ diagnosticRounds = 15, blockSize = 5, seed
 
   const emit = (phase, cell, meta) => {
     round += 1;
+    // RNG ISOLATION (cell.rng_compat): build this round's REAL menu at the current stream position,
+    // then REWIND the LCG and replay the ORIGINAL cell (rng_compat) so EVERY later round draws
+    // exactly the rng it did before this round's content changed. This lets a single round be
+    // swapped (here B2 r25: over-bundle -> local payout trap) while A / B1 / B3 / B4 stay
+    // byte-identical. Reversible: drop rng_compat and the real cell builds normally on the stream.
+    const startState = cell.rng_compat ? rng.getState() : null;
     let menu = null;
     for (let r = 0; r < 50 && !menu; r += 1) {
       menu = buildMenu(`chi${phase}Scenario${round}`, round, phase, cell, rng);
     }
     if (!menu) throw new Error(`failed to build menu for round ${round} (cell ${JSON.stringify(cell)})`);
+    if (cell.rng_compat) {
+      rng.setState(startState);
+      const compatCell = { ...cell.rng_compat, shift: cell.shift };
+      let compat = null;
+      for (let r = 0; r < 50 && !compat; r += 1) {
+        compat = buildMenu(`__rngcompat${round}`, round, phase, compatCell, rng);
+      }
+      if (!compat) throw new Error(`rng-compat replay failed for round ${round}`);
+    }
     scenarios.push({ ...menu, ...meta });
   };
 

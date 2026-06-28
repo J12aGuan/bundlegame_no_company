@@ -22,6 +22,7 @@ import {
 } from './researchStudy.js';
 
 import { switchJob, setPenaltyTimeout } from './config';
+import { PAIRED_STUDY_ID, partForScenarioSet, nextPart } from './pairedCalibration.js';
 import { isReservedTestId } from './testIdentity.js';
 import { feedbackForDecision, roundContext, diagnoseTrigger, runDiagnosis } from './chiStudyRuntime.js';
 import { enumerateLegalBundles, scoreBundle, sortedIdsEqual, CHI_STARTING_CITY } from './chiScenarioDesign.js';
@@ -400,6 +401,13 @@ function buildDefaultStudyState(userId = '') {
 	// of their hash. FORCE_RECOMMENDATION_ARM_FOR_TESTING additionally forces it for every id during testing.
 	if (protocol.enabled && (FORCE_RECOMMENDATION_ARM_FOR_TESTING || isReservedTestId(userId))) {
 		assignedArm = firstRecommendationArm(protocol) || assignedArm;
+	}
+	// Paired calibration: the aided part forces the directed-teaching (marginal) arm for EVERY
+	// participant, so the within-person link is to directed teaching rather than a random arm. The
+	// pilot part has forced_arm null (unaided), so this is a no-op there.
+	const pairedPart = partForScenarioSet(getDatasetRoot());
+	if (protocol.enabled && pairedPart?.forced_arm) {
+		assignedArm = (protocol.policy_arms || []).find((arm) => arm?.id === pairedPart.forced_arm) || assignedArm;
 	}
 	return normalizeResearchStudyState({
 		protocol_id: protocol.protocol_id,
@@ -2197,6 +2205,11 @@ export const saveScenarioProgress = (progress) => {
 			// scenario_set name (the dataset root the app loaded) alongside the version id, so
 			// every Action doc is self-identifying for data segregation.
 			scenario_set: getDatasetRoot(),
+			// Paired calibration: stamp the cohort id + the part marker on every row so the pilot and
+			// aided parts join by token with zero orphans. Inert (omitted) for every other dataset.
+			...(partForScenarioSet(getDatasetRoot())
+				? { study_id: PAIRED_STUDY_ID, study_part: partForScenarioSet(getDatasetRoot()).part }
+				: {}),
 			round_index: Math.max(1, Number(progress?.roundIndex) || 1),
 			scenario_id: scenarioId,
 			phase: String(progress?.phase ?? '').trim(),
@@ -2397,14 +2410,19 @@ export async function loadConfigByName(fileName) {
   return null;
 }
 
-export async function loadGame(mode = 'main') {
+export async function loadGame(mode = 'main', scenarioSetOverride = null) {
 	if (!firebaseInitialized || initializedMode !== mode) {
 		await initializeFromFirebase(mode);
 	}
 	ensurePendingProgressListener();
 	void flushPendingProgressSave();
 	try {
-		const datasetId = config.scenario_set || 'experiment';
+		// scenarioSetOverride lets the paired-calibration sequencer load part 2 (the aided 35-round set)
+		// mid-session without rewriting central config; normal loads fall back to the configured set.
+		const datasetId = String(scenarioSetOverride || '').trim() || config.scenario_set || 'experiment';
+		// An override switches the ACTIVE in-memory set for the rest of the session (not central config),
+		// so getDatasetRoot() and the paired hooks read part 2 after the transition.
+		if (String(scenarioSetOverride || '').trim()) config.scenario_set = datasetId;
 		const datasetBundle = await getScenarioDatasetBundle(datasetId);
 		activeScenarioSetName = String(datasetBundle?.metadata?.datasetName || datasetId || '').trim() || String(datasetId || '');
 		activeScenarioSetVersionId = String(datasetBundle?.metadata?.scenarioSetVersionId || '').trim();
@@ -2444,7 +2462,17 @@ export async function loadGame(mode = 'main') {
 					.map((entry = {}) => [String(entry?.scenario_id ?? '').trim(), entry])
 					.filter(([scenarioId]) => scenarioId.length > 0)
 			);
-			storeConfigs = {
+			// Dataset-scoped scoring inputs: a bundle may EMBED its own cities/stores (the paired-calibration
+			// pilot embeds the exact frozen pilot-era inputs, so it scores identically to the frozen
+			// artifact regardless of the drifted global config). Prefer embedded; else the global docs.
+			const embeddedStores = Array.isArray(datasetBundle?.stores) ? datasetBundle.stores : null;
+			const embeddedCities = datasetBundle?.cities && typeof datasetBundle.cities === "object" ? datasetBundle.cities : null;
+			storeConfigs = (embeddedStores || embeddedCities) ? {
+				stores: embeddedStores ?? storeFile.stores ?? [],
+				startinglocation: embeddedCities?.startinglocation ?? cityFile?.startinglocation ?? storeFile.startinglocation ?? "Berkeley",
+				travelTimes: embeddedCities?.travelTimes ?? cityFile?.travelTimes ?? {},
+				distances: embeddedCities?.distances ?? storeFile.distances ?? {}
+			} : {
 				stores: storeFile.stores || [],
 				// Prefer new cities doc, fallback to legacy fields inside store doc
 				startinglocation: cityFile?.startinglocation ?? storeFile.startinglocation ?? "Berkeley",
@@ -2465,8 +2493,33 @@ export async function loadGame(mode = 'main') {
 	return 0
 }
 
-export async function createNewUser(id, mode = 'main') {
-	let n = await loadGame(mode)
+// Paired calibration: when the current part finishes, advance to the next part (pilot -> aided) under
+// the SAME participant id, instead of ending the session. Returns true if it advanced (caller should
+// continue the game), false if the active set is not a paired set or is the final part (caller ends the
+// session as usual). loadGame() resets the round stores; part 2 has its own per-version progress, so the
+// player lands at round 1 of the aided set; buildDefaultStudyState now forces the marginal arm.
+export async function advancePairedPhase(id) {
+	const next = nextPart(getDatasetRoot());
+	if (!next) return false;
+	await loadGame('main', next.scenario_set);
+	if (get(gameMode) !== 'tutorial') {
+		const studyState = buildDefaultStudyState(id);
+		participantStudyState.set(studyState);
+		await initializeUserProgress(id, {
+			scenarioSetVersionId: get(scenarioSetVersionId),
+			scenarioSetName: activeScenarioSetName || next.scenario_set,
+			totalRounds: get(scenarios).length,
+			researchStudy: studyState,
+			...getLiveSessionMetadata(new Date().toISOString())
+		});
+		await flushPendingProgressSave();
+		await loadSavedScenarioState(id);
+	}
+	return true;
+}
+
+export async function createNewUser(id, mode = 'main', scenarioSetOverride = null) {
+	let n = await loadGame(mode, scenarioSetOverride)
 	await createUser(id, n)
 	if (mode !== 'tutorial') {
 		const activeLiveSession = await getActiveLiveSession();

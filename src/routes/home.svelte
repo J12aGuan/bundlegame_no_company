@@ -516,47 +516,20 @@
             <div class="space-y-2">
                 <h2 class="text-base font-semibold text-slate-800">Available Orders</h2>
 
-                {#if recommendationContext?.study_protocol_id}
-                    <div class={`rounded-2xl border p-4 shadow-sm ${
-                        shownRecommendationIds.length > 0
-                            ? 'border-cyan-200 bg-cyan-50'
-                            : 'border-slate-200 bg-slate-50'
-                    }`}>
-                        <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div>
-                                <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Study Arm</p>
-                                <h3 class="mt-1 text-sm font-semibold text-slate-900">
-                                    {$participantStudyState?.assigned_arm || 'unassigned'} · {recommendationContext.policy_name || 'control'}
-                                </h3>
-                                <p class="mt-1 text-xs text-slate-600">
-                                    Phase {recommendationContext.phase || scenario?.phase || 'Unknown'}
-                                    {#if recommendationContext.policy_version}
-                                        · {recommendationContext.policy_version}
-                                    {/if}
+                <!-- Recommendation card: shown only on rounds that actually carry a recommendation.
+                     No-recommendation rounds render nothing here (no grey "without recommendation"
+                     banner), so the order list reads naturally for those conditions. -->
+                {#if recommendationContext?.study_protocol_id && shownRecommendationIds.length > 0}
+                    <div class="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3">
+                        <div class="flex items-baseline justify-between gap-2">
+                            <p class="text-xs font-medium text-cyan-700">Suggested bundle</p>
+                            {#if shownRankedBundles.length > 1}
+                                <p class="text-[11px] text-slate-500">
+                                    or {shownRankedBundles.slice(1).map((bundle) => bundle.join(' + ')).join(' · ')}
                                 </p>
-                            </div>
-                            <div class="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white">
-                                {shownRecommendationIds.length > 0 ? 'Recommendation Shown' : 'No Recommendation'}
-                            </div>
+                            {/if}
                         </div>
-
-                        {#if shownRecommendationIds.length > 0}
-                            <div class="mt-3 grid gap-2">
-                                <div class="rounded-xl bg-white px-3 py-2 border border-cyan-100">
-                                    <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700">Top Bundle</p>
-                                    <p class="mt-1 text-sm font-medium text-slate-900">{shownRecommendationIds.join(' + ')}</p>
-                                </div>
-                                {#if shownRankedBundles.length > 1}
-                                    <div class="text-xs text-slate-600">
-                                        Alternate bundles: {shownRankedBundles.slice(1).map((bundle) => bundle.join(' + ')).join(' | ')}
-                                    </div>
-                                {/if}
-                            </div>
-                        {:else}
-                            <p class="mt-3 text-xs text-slate-600">
-                                This round is running without a displayed recommendation for your assigned study condition.
-                            </p>
-                        {/if}
+                        <p class="mt-0.5 text-sm font-semibold text-slate-900">{shownRecommendationIds.join(' + ')}</p>
                     </div>
                 {/if}
                 

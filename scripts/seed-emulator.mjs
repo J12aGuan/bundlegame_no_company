@@ -19,7 +19,7 @@
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { buildChiSeedPayload, buildSeededEntry, rehydrateScenariosFromEntry } from "../src/lib/chiSeed.js";
-import { validateChiScenarioSet, CHI_CITY_TRAVEL, CHI_STARTING_CITY, CHI_AB_STORES, CHI_C_STORES } from "../src/lib/chiScenarioDesign.js";
+import { validateChiScenarioSet, CHI_CITY_TRAVEL, CHI_STARTING_CITY, CHI_AB_STORES, CHI_C_STORES, CHI_STORE_LAYOUTS } from "../src/lib/chiScenarioDesign.js";
 import { buildChiStudyProtocol, buildChiFoundationalStudyProtocol } from "../src/lib/researchStudy.js";
 
 const FULL = process.argv.slice(2).includes("--full");
@@ -107,15 +107,28 @@ function buildMasterData(root) {
     scenario_set: root,
     research_protocol: protocol,
   };
-  // Each store needs a pickable aisle grid: an Entrance + the default item cells (orders with
-  // empty items get {Apple:1, Banana:2} from home.svelte). Firestore can't nest arrays, so each
-  // grid row is encoded {cells:[...]} (getStoresData.decodeStore reverses it). Small cellDistance
-  // keeps the aisle-travel countdown fast for the headless drive.
-  const STORE_GRID = [{ cells: ["Entrance", "Apple", "Banana"] }];
-  const stores = [...CHI_AB_STORES, ...CHI_C_STORES].map((s, i) => ({
-    store: s.store, city: s.city, id: `store_${i}`,
-    Entrance: [0, 0], cellDistance: 30, locations: STORE_GRID,
-  }));
+  // Each store carries its REAL aisle grid from CHI_STORE_LAYOUTS so the in-store picking UI
+  // renders the actual 3x3 layout and every fruit an order lists is findable, and the runtime's
+  // aisle-walk pick time matches the design's layout-derived pick (cellDistance in ms; pick =
+  // walk*cellDistance/1000 + 3s/unique item). Firestore can't nest arrays, so each grid row is
+  // encoded {cells:[...]} (getStoresData.decodeStore reverses it).
+  const entranceOf = (grid) => {
+    for (let r = 0; r < grid.length; r += 1) for (let c = 0; c < grid[r].length; c += 1) {
+      if (String(grid[r][c]).toLowerCase() === "entrance") return [r, c];
+    }
+    return [0, 0];
+  };
+  const FALLBACK_GRID = [["Entrance", "Apple", "Banana"]];
+  const stores = [...CHI_AB_STORES, ...CHI_C_STORES].map((s, i) => {
+    const layout = CHI_STORE_LAYOUTS[s.store];
+    const grid = layout?.grid || FALLBACK_GRID;
+    return {
+      store: s.store, city: s.city, id: `store_${i}`,
+      Entrance: entranceOf(grid),
+      cellDistance: layout?.cellDistance ?? 700,
+      locations: grid.map((row) => ({ cells: row })),
+    };
+  });
   const cities = { startinglocation: CHI_STARTING_CITY, travelTimes: CHI_CITY_TRAVEL };
   return { protocol, protocolEntry, centralConfig, stores, cities };
 }

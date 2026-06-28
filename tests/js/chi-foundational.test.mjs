@@ -120,17 +120,18 @@ test("seed payload under chi_foundational_v1 is separable from chi_dynamic_v1 an
   assert.equal(found.metadata.scenarioSetVersionId, CHI_FOUNDATIONAL_SCENARIO_SET_VERSION_ID, "the field the app reads to tag records");
   assert.notEqual(found.metadata.scenarioSetVersionId, dyn.metadata.scenarioSetVersionId, "separable from chi_dynamic_v1");
   assert.equal(found.scenarios.length, 35);
-  // The transfer block (B4) carries at least one CLEAN single-axis LOCAL payout trap clearing
-  // the 12% floor. Find it by its tags rather than a hardcoded round, since the transfer-first
-  // schedule can shift which round holds the trap.
+  // The transfer block (B4) carries at least one CLEAN single-axis CROSS payout trap clearing the
+  // 12% floor. (Picking-primary: the local-axis trap was dropped because it required within-city >
+  // between-city geometry; the transfer re-diagnoses via the same clean cross axis as training.)
+  // Find it by its tags rather than a hardcoded round, since the transfer-first schedule can shift it.
   const transferTraps = found.scenarios.filter(
     (s) => s.test_set === "transfer_shifted" && s.is_payout_trap === 1,
   );
   assert.ok(transferTraps.length >= 1, "transfer block must keep a payout trap");
   for (const s of transferTraps) {
-    assert.equal(s.trap_axis, "local", "transfer trap slow-axis is local");
+    assert.equal(s.trap_axis, "cross", "transfer trap slow-axis is cross (local dropped under picking-primary)");
     assert.equal(s.trap_clean, 1, "transfer trap is clean single-axis");
-    assert.ok(s.relative_gap >= 0.12, `r${s.round} clean local trap must clear the 12% floor`);
+    assert.ok(s.relative_gap >= 0.12, `r${s.round} clean cross trap must clear the 12% floor`);
   }
 });
 

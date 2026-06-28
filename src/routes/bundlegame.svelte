@@ -1,7 +1,7 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, id, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, getScenarioStudyRecommendation, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, notifyTutorialRoundProgress, finalizeMainGameSession, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction, participantStudyState, studyProtocol, updateChiStudyFeedback, clearChiStudyFeedback, getCandidatesForScenario } from "$lib/bundle.js"
+    import { game, id, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, getScenarioStudyRecommendation, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, notifyTutorialRoundProgress, finalizeMainGameSession, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction, participantStudyState, studyProtocol, updateChiStudyFeedback, clearChiStudyFeedback, getCandidatesForScenario, advancePairedPhase } from "$lib/bundle.js"
     import { isReservedTestId } from "$lib/testIdentity.js"
     import { WEAKNESS_LABEL } from "$lib/chiDiagnosis.js"
     import { decisionLogRecord } from "$lib/chiStudyRuntime.js"
@@ -752,6 +752,20 @@
         
         // 3. Immediately advance to next round (no Round Complete screen)
         if (completedGame) {
+            // Paired calibration: if a non-final part just finished (the pilot), advance to the aided
+            // part under the SAME token and keep playing, instead of ending the session.
+            if ($gameMode !== 'tutorial') {
+                let advanced = false;
+                try {
+                    advanced = await advancePairedPhase(String(get(id) ?? '').trim());
+                } catch (err) {
+                    console.error('paired phase transition failed', err);
+                }
+                if (advanced) {
+                    roundCompletionInProgress = false;
+                    return;
+                }
+            }
             console.log("Final round complete - ending session");
             try {
                 if ($gameMode !== 'tutorial') {

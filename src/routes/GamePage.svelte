@@ -1,0 +1,700 @@
+<script>
+    import Bundlegame from "./bundlegame.svelte";
+    import ChiFeedbackPanel from "./ChiFeedbackPanel.svelte";
+    import { game, resetTimer, earned, currLocation, id, GameOver, authUser, orderList, ordersShown, startTimer, completedOrdersCount, createNewUser, needsAuth, loadGame, participantStudyState, remainingTime, FullTimeLimit, participantResultUrl, currentRound, scenarios, saveParticipantStudySurveyResponse, saveProgressAndEndSession, resumeElapsedSeconds, completionState, recordResultCodeVerification, retryFinalResultsSave, resendRecoveryCompletionPayload, resendCompletionHandoff, chiFeedback, studyProtocol, saveChiPhaseASurvey, runChiDiagnosisForRound } from "$lib/bundle.js";
+	import Home from "./home.svelte";
+	import { onMount } from "svelte";
+    import { queueNFixedOrders } from "$lib/config.js";
+    import '../app.css';
+
+    // Optional: force a specific scenario_set for this mount. The /june paired-study route passes the
+    // paired pilot set; the default / route leaves it null and reads the global central config, so the
+    // live study is unchanged.
+    export let scenarioSetOverride = null;
+
+    $: inSelect = $game.inSelect;
+	$: inStore = $game.inStore;
+    $: bundled = $game.bundled;
+    $: canSaveProgress = started && inSelect && !$game.penaltyTriggered && !$GameOver && !savingProgress;
+    $: completionPhase = $completionState?.phase || 'idle';
+    $: completionPayload = $completionState?.payload || {};
+    $: completionReason = $completionState?.reason || '';
+    $: resultCode = displayResultCode($participantResultUrl);
+    $: copyVerificationMethod = completionPayload.copyVerificationMethod || 'none';
+    $: studyProtocolId = $participantStudyState?.protocol_id || '';
+    $: latestStudySurvey = Array.isArray($participantStudyState?.survey_responses) && $participantStudyState.survey_responses.length > 0
+        ? $participantStudyState.survey_responses[$participantStudyState.survey_responses.length - 1]
+        : null;
+    $: if (!resultCode || completionPhase === 'saving') {
+        copyStatus = 'idle';
+        copyErrorMessage = '';
+        copyActionMessage = '';
+    }
+    $: if (copyVerificationMethod !== 'none' && copyStatus === 'idle') {
+        copyStatus = 'confirmed';
+    }
+    let userInput = '';
+    let userPass = '';
+
+    let started = false;
+    let authResolved = false;
+    let savingProgress = false;
+    let copyStatus = 'idle';
+    let copyErrorMessage = '';
+    let copyActionMessage = '';
+    let resultCodeField;
+    let recordingCode = false;
+    let retryingFinalSave = false;
+    let resendingBackup = false;
+    let advancingSurvey = false;
+    let surveySubmitting = false;
+    let surveyMessage = '';
+    let surveyRatings = {
+        trust_rating: null,
+        usefulness_rating: null,
+        workload_rating: null,
+        notes: ''
+    };
+
+    $: if (latestStudySurvey) {
+        surveyRatings = {
+            trust_rating: Number(latestStudySurvey.trust_rating) || null,
+            usefulness_rating: Number(latestStudySurvey.usefulness_rating) || null,
+            workload_rating: Number(latestStudySurvey.workload_rating) || null,
+            notes: latestStudySurvey.notes || ''
+        };
+    }
+
+    function focusResultCodeField() {
+        resultCodeField?.focus?.();
+        resultCodeField?.select?.();
+    }
+    
+    async function copyResultCode() {
+        if (!resultCode) return;
+        copyStatus = 'copying';
+        copyErrorMessage = '';
+        copyActionMessage = '';
+        try {
+            await navigator.clipboard.writeText(resultCode);
+            copyStatus = 'copied';
+            copyActionMessage = 'Result code copied. Please still keep it as a backup.';
+            await recordResultCodeVerification('clipboard_success');
+        } catch (err) {
+            copyStatus = 'manual_required';
+            copyErrorMessage = 'Copy was blocked by Qualtrics or browser permissions. Please copy the code manually from the field below.';
+            focusResultCodeField();
+        }
+    }
+
+    function displayResultCode(url) {
+        if (!url) return '';
+        const queryIndex = url.indexOf('?');
+        return queryIndex >= 0 ? url.slice(queryIndex + 1) : url;
+    }
+
+    async function confirmResultCodeRecorded() {
+        if (!resultCode) return;
+        recordingCode = true;
+        copyErrorMessage = '';
+        copyActionMessage = '';
+        try {
+            await recordResultCodeVerification(copyStatus === 'copied' ? 'clipboard_success' : 'manual_confirm');
+            copyStatus = 'confirmed';
+            copyActionMessage = 'Thanks. We recorded that you kept the result code.';
+        } catch (err) {
+            copyErrorMessage = err?.message || 'Unable to store the verification signal right now, but you can still continue with the code shown above.';
+        } finally {
+            recordingCode = false;
+        }
+    }
+
+    async function retryFinalSave() {
+        retryingFinalSave = true;
+        copyErrorMessage = '';
+        copyActionMessage = '';
+        try {
+            await retryFinalResultsSave();
+        } catch (err) {
+            copyErrorMessage = err?.message || 'Retrying the final Firebase save failed.';
+        } finally {
+            retryingFinalSave = false;
+        }
+    }
+
+    async function resendBackupPayload() {
+        resendingBackup = true;
+        copyErrorMessage = '';
+        copyActionMessage = '';
+        try {
+            await resendRecoveryCompletionPayload();
+            copyActionMessage = 'Backup completion payload sent to the parent survey again.';
+        } catch (err) {
+            copyErrorMessage = err?.message || 'Unable to resend the backup completion payload right now.';
+        } finally {
+            resendingBackup = false;
+        }
+    }
+
+    async function continueToQualtrics() {
+        advancingSurvey = true;
+        copyErrorMessage = '';
+        copyActionMessage = '';
+        try {
+            if (studyProtocolId && !latestStudySurvey) {
+                const saved = await submitStudySurvey(true);
+                if (!saved) {
+                    copyErrorMessage = 'Please save the short research survey before continuing.';
+                    return;
+                }
+            }
+            if (resultCode && copyVerificationMethod === 'none' && copyStatus !== 'confirmed') {
+                await recordResultCodeVerification(copyStatus === 'copied' ? 'clipboard_success' : 'manual_confirm');
+                copyStatus = 'confirmed';
+            }
+            await resendCompletionHandoff({ advanceRequested: true });
+            copyActionMessage = 'Handoff sent to Qualtrics again. If the survey still does not move forward, the Qualtrics page script needs to show or click Next when it receives the game completion message.';
+        } catch (err) {
+            copyErrorMessage = err?.message || 'Unable to resend the Qualtrics handoff right now. Keep the result code visible as your backup.';
+        } finally {
+            advancingSurvey = false;
+        }
+    }
+
+    function returnToSignIn() {
+        userInput = '';
+        userPass = '';
+        started = false;
+        authResolved = true;
+        savingProgress = false;
+        copyStatus = 'idle';
+        copyErrorMessage = '';
+        copyActionMessage = '';
+        recordingCode = false;
+        retryingFinalSave = false;
+        resendingBackup = false;
+        advancingSurvey = false;
+        participantResultUrl.set('');
+        id.set('');
+        surveySubmitting = false;
+        surveyMessage = '';
+        surveyRatings = {
+            trust_rating: 4,
+            usefulness_rating: 4,
+            workload_rating: 4,
+            notes: ''
+        };
+        completionState.set({
+            phase: 'idle',
+            reason: '',
+            saveStatus: '',
+            saveAttempts: 0,
+            error: '',
+            payload: null,
+            retryRequest: null,
+            recoveryPosted: false
+        });
+        GameOver.set(false);
+    }
+
+    async function saveAndExit() {
+        if (!inSelect || $game.penaltyTriggered) {
+            alert("Progress can only be saved from the main order selection screen when no penalty is active.");
+            return;
+        }
+        try {
+            savingProgress = true;
+            await saveProgressAndEndSession();
+        } catch (err) {
+            console.error('Save progress failed:', err);
+            alert(`Unable to save progress: ${err?.message || 'Unknown error'}`);
+        } finally {
+            savingProgress = false;
+        }
+    }
+
+    async function submitStudySurvey(silent = false) {
+        if (!studyProtocolId) return true;
+        // Require an explicit answer on every rating (no default is preselected).
+        if (surveyRatings.trust_rating == null || surveyRatings.usefulness_rating == null || surveyRatings.workload_rating == null) {
+            if (!silent) surveyMessage = 'Please answer all three ratings (trust, usefulness, workload) before continuing.';
+            return false;
+        }
+        surveySubmitting = true;
+        if (!silent) {
+            surveyMessage = '';
+        }
+        try {
+            const response = await saveParticipantStudySurveyResponse({
+                response_scope: 'session_end',
+                trust_rating: Number(surveyRatings.trust_rating),
+                usefulness_rating: Number(surveyRatings.usefulness_rating),
+                workload_rating: Number(surveyRatings.workload_rating),
+                notes: String(surveyRatings.notes || '').trim()
+            });
+            if (!response) {
+                if (!silent) surveyMessage = 'Unable to save the research survey right now.';
+                return false;
+            }
+            if (!silent) {
+                surveyMessage = 'Research survey saved.';
+            }
+            return true;
+        } catch (err) {
+            if (!silent) {
+                surveyMessage = err?.message || 'Unable to save the research survey right now.';
+            }
+            return false;
+        } finally {
+            surveySubmitting = false;
+        }
+    }
+    
+    $: formattedRemaining = formatTime($remainingTime ?? $FullTimeLimit);
+
+    function formatTime(seconds) {
+        const numeric = Number(seconds);
+        const safe = Number.isFinite(numeric) ? Math.max(0, numeric) : 0;
+        const wholeSeconds = Math.floor(safe);
+        const mins = Math.floor(wholeSeconds / 60);
+        const secs = wholeSeconds % 60;
+        return `${mins}:${secs.toString().padStart(2, "0")}`;
+    }
+
+    function statusTone(type = '') {
+        if (type === 'success') return 'text-emerald-700 bg-emerald-50 border border-emerald-200';
+        if (type === 'warning') return 'text-amber-800 bg-amber-50 border border-amber-200';
+        return 'text-slate-700 bg-slate-50 border border-slate-200';
+    }
+    
+    async function start() {
+        try {
+            const auth = await authUser(userInput, userPass)
+            if (auth === 1) {
+                const user = await createNewUser(userInput, 'main', scenarioSetOverride)
+                if (user != -1) {
+                    startTimer();
+                    resetTimer($resumeElapsedSeconds);
+                    game.update((g) => ({ ...g, inSelect: true, inStore: false }));
+                    $id = userInput
+                    started = true;
+                    $orderList = queueNFixedOrders($ordersShown)
+                    return;
+                }
+            }
+            alert("id and token do not match")
+        } catch (err) {
+            console.error("Start failed:", err);
+            alert(`Unable to enter simulation: ${err?.message || "Unknown error"}`);
+        }
+    }
+
+    async function startNoAuth() {
+        try {
+            const user = await loadGame('main', scenarioSetOverride)
+            if (user != -1) {
+                startTimer();
+                resetTimer();
+                game.update((g) => ({ ...g, inSelect: true, inStore: false }));
+                started = true;
+                $orderList = queueNFixedOrders($ordersShown)
+                return;
+            }
+            alert("Unable to load game configuration.");
+        } catch (err) {
+            console.error("Start (no auth) failed:", err);
+            alert(`Unable to enter simulation: ${err?.message || "Unknown error"}`);
+        }
+    }
+
+    onMount(() => {
+        // Preload main config so auth gate reflects Firebase before rendering login UI.
+        loadGame('main', scenarioSetOverride)
+            .catch((err) => console.error("Main preload failed:", err))
+            .finally(() => {
+                authResolved = true;
+            });
+    })
+
+    // --- CHI dynamic-feedback: Phase-A survey gate + diagnosis triggers (W2/W3) ---
+    let chiSurveyResponses = {};
+    let chiSurveySubmitting = false;
+    $: chiPhaseA = ($studyProtocol?.phase_plan || []).find((p) => p.id === 'A') || null;
+    $: chiSurveyQuestions = Array.isArray($studyProtocol?.survey_questions) ? $studyProtocol.survey_questions : [];
+    // The strategy survey is due once Phase A is complete and not yet submitted (CHI
+    // only: gated on Phase A's survey_after flag + the W1/W2/W3-mapped items).
+    $: chiSurveyDue = started && !$GameOver
+        && Boolean(chiPhaseA?.survey_after)
+        && chiSurveyQuestions.some((q) => q && q.maps_to)
+        && Number($currentRound) > Number(chiPhaseA?.round_end || 0)
+        && !($participantStudyState?.phase_a_survey);
+    // Start every Likert item UNSELECTED (no preselected default) so participants must choose each
+    // answer intentionally. Submit is gated on all mapped items being answered.
+    $: chiSurveyComplete = chiSurveyQuestions.length > 0
+        && chiSurveyQuestions.every((q) => chiSurveyResponses[q?.id] != null);
+    // OFF-block end rounds (e.g. 25, 35): re-diagnose after each completes.
+    $: chiOffEnds = (($studyProtocol?.phase_plan || []).find((p) => p.id === 'B')?.blocks || [])
+        .filter((b) => b.kind === 'off').map((b) => Number(b.round_end));
+
+    function chiSetSurvey(qid, value) {
+        chiSurveyResponses = { ...chiSurveyResponses, [qid]: value };
+    }
+    async function submitChiSurvey() {
+        if (chiSurveySubmitting || !chiSurveyComplete) return;
+        chiSurveySubmitting = true;
+        try {
+            await saveChiPhaseASurvey(chiSurveyResponses);
+            // Initial diagnosis uses the survey prior (Phase A choices are already recorded).
+            await runChiDiagnosisForRound(Number(chiPhaseA?.round_end || 15));
+        } finally {
+            chiSurveySubmitting = false;
+        }
+    }
+    // Re-tune (r25) and final (r35) diagnoses fire as the OFF blocks finish; idempotent,
+    // so re-running the reactive is safe. Game-over keeps currentRound at the last round.
+    $: if (started) {
+        const r = Number($currentRound);
+        if (chiOffEnds.includes(r - 1)) runChiDiagnosisForRound(r - 1);
+        else if ($GameOver && chiOffEnds.includes(r)) runChiDiagnosisForRound(r);
+    }
+</script>
+
+{#if !started && !$GameOver}
+    <!-- Login Screen - Full screen delivery app style -->
+    <main class="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 md:p-10 w-full max-w-md">
+            <h1 class="text-center text-2xl font-semibold text-slate-900 mb-6">
+                User Access
+            </h1>
+            
+            {#if !authResolved}
+                <p class="text-sm text-slate-600 text-center">Loading configuration...</p>
+            {:else if $needsAuth}
+                <div class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700" for="main-user-id">User ID</label>
+                        <input
+                            id="main-user-id"
+                            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+                            type="text"
+                            bind:value={userInput}
+                            placeholder="Enter user ID"
+                        />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700" for="main-user-token">Token (include dashes)</label>
+                        <input
+                            id="main-user-token"
+                            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+                            type="password"
+                            bind:value={userPass}
+                            placeholder="XXXX-XXXX-XXXX"
+                        />
+                    </div>
+
+                    <button
+                        id="start"
+                        on:click={start}
+                        class="mt-4 w-full rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
+                    >
+                        Enter Simulation
+                    </button>
+
+                </div>
+            {:else}
+                <button
+                    id="start"
+                    on:click={startNoAuth}
+                    class="w-full rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-green-700 transition"
+                >
+                    Enter Simulation
+                </button>
+            {/if}
+        </div>
+    </main>
+{:else}
+    <!-- Game View or Game Over -->
+    {#if $GameOver}
+        <div class="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+            <div class="max-w-xl w-full p-6 bg-white rounded-2xl shadow-md text-center space-y-6">
+                {#if completionPhase === 'saving'}
+                    <h3 class="text-2xl font-bold text-slate-900">Saving Final Results</h3>
+                    <p class="text-sm leading-6 text-slate-600">
+                        Please keep this page open while we confirm the final Firebase save and survey handoff.
+                    </p>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-left">
+                        <p class="text-sm text-slate-700">
+                            Attempt {$completionState?.saveAttempts || 0} of 3 in progress.
+                        </p>
+                    </div>
+                {:else}
+                    <h3 class="text-2xl font-bold {completionPhase === 'recovery' ? 'text-amber-700' : 'text-red-600'}">
+                        {completionPhase === 'recovery'
+                            ? 'Backup Submission Ready'
+                            : completionReason === 'all_rounds_complete'
+                                ? 'Results Saved'
+                                : 'Game Over!'}
+                    </h3>
+
+                    <div>
+                        <h4 class="text-xl font-semibold text-gray-800">Your Stats:</h4>
+                        <ul class="list-disc list-inside text-left text-gray-700 mt-2 space-y-1">
+                        <li><span class="font-medium">Earnings:</span> ${$earned}</li>
+                        <li><span class="font-medium">Finished Orders:</span> {$completedOrdersCount}</li>
+                        </ul>
+                    </div>
+
+                    {#if studyProtocolId}
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-left space-y-3">
+                        <div>
+                            <h3 class="text-lg font-semibold text-slate-900">Research Survey</h3>
+                            <p class="text-sm text-slate-600">
+                                Please rate the recommendation experience for the study before you continue.
+                            </p>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-3">
+                            <label class="text-sm font-medium text-slate-700">
+                                Trust
+                                <select bind:value={surveyRatings.trust_rating} class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+                                    <option value={null} disabled>Select a rating</option>
+                                    {#each [1,2,3,4,5,6,7] as value}
+                                        <option value={value}>{value}</option>
+                                    {/each}
+                                </select>
+                            </label>
+                            <label class="text-sm font-medium text-slate-700">
+                                Usefulness
+                                <select bind:value={surveyRatings.usefulness_rating} class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+                                    <option value={null} disabled>Select a rating</option>
+                                    {#each [1,2,3,4,5,6,7] as value}
+                                        <option value={value}>{value}</option>
+                                    {/each}
+                                </select>
+                            </label>
+                            <label class="text-sm font-medium text-slate-700">
+                                Workload
+                                <select bind:value={surveyRatings.workload_rating} class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
+                                    <option value={null} disabled>Select a rating</option>
+                                    {#each [1,2,3,4,5,6,7] as value}
+                                        <option value={value}>{value}</option>
+                                    {/each}
+                                </select>
+                            </label>
+                        </div>
+                        <label class="block text-sm font-medium text-slate-700">
+                            Notes
+                            <textarea
+                                bind:value={surveyRatings.notes}
+                                class="mt-1 w-full min-h-[88px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                placeholder="Optional notes about trust, usefulness, or workload"
+                            ></textarea>
+                        </label>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                class="rounded-lg bg-slate-900 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition disabled:opacity-60"
+                                on:click={() => submitStudySurvey(false)}
+                                disabled={surveySubmitting}
+                            >
+                                {surveySubmitting ? 'Saving Survey...' : (latestStudySurvey ? 'Update Research Survey' : 'Save Research Survey')}
+                            </button>
+                            {#if latestStudySurvey}
+                                <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                                    Saved {latestStudySurvey.submitted_at}
+                                </div>
+                            {/if}
+                        </div>
+                        {#if surveyMessage}
+                            <p class={`text-sm ${latestStudySurvey ? 'text-emerald-700' : 'text-amber-700'}`}>{surveyMessage}</p>
+                        {/if}
+                    </div>
+                    {/if}
+
+                    <div class={`rounded-xl p-4 text-left ${statusTone(completionPhase === 'recovery' ? 'warning' : 'success')}`}>
+                        <p class="text-sm font-semibold">
+                            {completionPhase === 'recovery'
+                                ? 'We could not fully confirm the final Firebase save. A backup completion payload has been prepared for Qualtrics.'
+                                : completionPhase === 'ready'
+                                    ? 'Firebase save confirmed. Qualtrics handoff can happen automatically, and the code below remains as your backup.'
+                                    : 'Keep the result code below for your survey submission.'}
+                        </p>
+                        {#if completionPayload?.saveError}
+                            <p class="mt-2 text-xs leading-5">
+                                Last save error: {completionPayload.saveError}
+                            </p>
+                        {/if}
+                    </div>
+
+                    {#if resultCode}
+                    <div class="bg-slate-100 p-4 rounded-xl border border-slate-200 text-left space-y-3">
+                        <div>
+                            <h3 class="text-lg font-semibold text-slate-900 mb-2">Participant Result Code</h3>
+                            <p class="text-sm text-slate-600">
+                                Keep this code as a second verification, even if Qualtrics receives the result automatically.
+                            </p>
+                        </div>
+                        <textarea
+                            bind:this={resultCodeField}
+                            class="w-full min-h-[88px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                            readonly
+                            on:focus={focusResultCodeField}
+                            on:click={focusResultCodeField}
+                        >{resultCode}</textarea>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                class="rounded-lg bg-slate-900 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition"
+                                on:click={copyResultCode}
+                            >
+                                {copyStatus === 'copying' ? 'Copying...' : 'Copy Result Code'}
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-lg border border-slate-300 bg-white py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition disabled:opacity-60"
+                                on:click={confirmResultCodeRecorded}
+                                disabled={recordingCode || copyVerificationMethod !== 'none' || copyStatus === 'confirmed'}
+                            >
+                                {recordingCode
+                                    ? 'Recording...'
+                                    : copyVerificationMethod !== 'none' || copyStatus === 'confirmed'
+                                        ? 'Code Recorded'
+                                        : 'I Recorded This Code'}
+                            </button>
+                        </div>
+                        {#if copyActionMessage}
+                            <p class="text-sm text-emerald-700">{copyActionMessage}</p>
+                        {/if}
+                        {#if copyErrorMessage}
+                            <p class="text-sm text-amber-700">{copyErrorMessage}</p>
+                        {/if}
+                    </div>
+                    {/if}
+
+                    {#if completionPhase === 'recovery'}
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                class="rounded-lg bg-amber-600 py-2 text-sm font-semibold text-white hover:bg-amber-700 transition"
+                                on:click={retryFinalSave}
+                            >
+                                {retryingFinalSave ? 'Retrying Save...' : 'Retry Firebase Save'}
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-lg border border-slate-300 bg-white py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition"
+                                on:click={resendBackupPayload}
+                            >
+                                {resendingBackup ? 'Sending Backup...' : 'Send Backup Again'}
+                            </button>
+                        </div>
+                    {/if}
+
+                    <button
+                        type="button"
+                        class="w-full rounded-lg bg-green-600 py-2 text-sm font-semibold text-white hover:bg-green-700 transition disabled:opacity-60"
+                        on:click={continueToQualtrics}
+                        disabled={advancingSurvey || completionPhase === 'saving'}
+                    >
+                        {advancingSurvey ? 'Sending to Qualtrics...' : 'Continue to Qualtrics'}
+                    </button>
+
+                    <button
+                        type="button"
+                        class="w-full rounded-lg border border-slate-300 bg-white py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition"
+                        on:click={returnToSignIn}
+                    >
+                        Back to Sign In
+                    </button>
+                {/if}
+            </div>
+        </div>
+    {:else if chiSurveyDue}
+        <!-- W2: post-Phase-A strategy survey (blocks entry to Phase B until submitted) -->
+        <main class="min-h-screen bg-slate-950 flex items-center justify-center px-4 py-8">
+            <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg space-y-5">
+                <h2 class="text-xl font-semibold text-slate-900">A few quick questions</h2>
+                <p class="text-sm text-slate-600">Before the next part, tell us how you approached the orders. There are no right answers.</p>
+                {#each chiSurveyQuestions as q}
+                    <div class="space-y-2">
+                        <p class="text-sm font-medium text-slate-800">{q.prompt || q.label}</p>
+                        <div class="flex gap-2">
+                            {#each Array.from({ length: Number(q.max || 5) - Number(q.min || 1) + 1 }) as _unused, i}
+                                <button
+                                    type="button"
+                                    class="flex-1 rounded-lg border px-3 py-2 text-sm transition {chiSurveyResponses[q.id] === (Number(q.min || 1) + i) ? 'border-green-500 bg-green-50 text-green-700 font-semibold' : 'border-slate-200 text-slate-600 hover:border-slate-300'}"
+                                    on:click={() => chiSetSurvey(q.id, Number(q.min || 1) + i)}
+                                >{Number(q.min || 1) + i}</button>
+                            {/each}
+                        </div>
+                    </div>
+                {/each}
+                {#if !chiSurveyComplete}
+                    <p class="text-xs text-slate-500">Please answer every question to continue.</p>
+                {/if}
+                <button
+                    type="button"
+                    class="w-full rounded-xl bg-green-600 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={chiSurveySubmitting || !chiSurveyComplete}
+                    on:click={submitChiSurvey}
+                >{chiSurveySubmitting ? 'Preparing your session…' : 'Continue'}</button>
+            </div>
+        </main>
+    {:else}
+        <!-- Main Game View with sticky header -->
+        <div class="min-h-screen bg-slate-50">
+            <header class="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-slate-100">
+                <div class="flex items-center justify-between px-4 py-3 text-xs sm:text-sm text-slate-700 flex-wrap gap-2">
+                    <span class="font-semibold text-red-600">Please do not refresh or close the page!</span>
+                    <div class="flex flex-wrap gap-4">
+                        <span><span class="font-semibold text-slate-900">Round:</span> {$currentRound} / {$scenarios.length || 0}</span>
+                        <span><span class="font-semibold text-slate-900">Time left:</span> {formattedRemaining}</span>
+                        <span><span class="font-semibold text-slate-900">Earned:</span> ${$earned}</span>
+                        <span><span class="font-semibold text-slate-900">Location:</span> {$currLocation}</span>
+                        <!-- Save Progress button temporarily hidden.
+                             Keep the saveAndExit flow intact so we can re-enable this UI later if needed. -->
+                        <!--
+                        <button
+                            id="saveprogress"
+                            type="button"
+                            class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 transition disabled:opacity-50"
+                            on:click={saveAndExit}
+                            disabled={!canSaveProgress}
+                            title={!inSelect || $game.penaltyTriggered ? 'Return to the main order selection screen after penalty to save progress' : ''}
+                        >
+                            {savingProgress ? 'Saving...' : 'Save Progress'}
+                        </button>
+                        -->
+                    </div>
+                </div>
+            </header>
+            
+            <div class="min-h-screen bg-slate-50 py-4">
+                {#if inSelect}
+                    {#if $chiFeedback}
+                        <div class="mx-auto max-w-3xl px-4 pb-2">
+                            <ChiFeedbackPanel feedback={$chiFeedback} />
+                        </div>
+                    {/if}
+                    <Home />
+                {:else if inStore}
+                    <Bundlegame />
+                {/if}
+            </div>
+
+            {#if completionPhase === 'saving'}
+                <div class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 px-4">
+                    <div class="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl text-center space-y-4">
+                        <h2 class="text-2xl font-bold text-slate-900">Saving Final Results</h2>
+                        <p class="text-sm leading-6 text-slate-600">
+                            Please keep this page open while we confirm the final Firebase save and prepare the Qualtrics handoff.
+                        </p>
+                        <p class="text-sm font-medium text-slate-700">
+                            Attempt {$completionState?.saveAttempts || 0} of 3
+                        </p>
+                    </div>
+                </div>
+            {/if}
+        </div>
+    {/if}
+{/if}
