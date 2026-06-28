@@ -22,6 +22,7 @@ import {
 } from './researchStudy.js';
 
 import { switchJob, setPenaltyTimeout } from './config';
+import { PAIRED_STUDY_ID, partForScenarioSet } from './pairedCalibration.js';
 import { isReservedTestId } from './testIdentity.js';
 import { feedbackForDecision, roundContext, diagnoseTrigger, runDiagnosis } from './chiStudyRuntime.js';
 import { enumerateLegalBundles, scoreBundle, sortedIdsEqual, CHI_STARTING_CITY } from './chiScenarioDesign.js';
@@ -400,6 +401,13 @@ function buildDefaultStudyState(userId = '') {
 	// of their hash. FORCE_RECOMMENDATION_ARM_FOR_TESTING additionally forces it for every id during testing.
 	if (protocol.enabled && (FORCE_RECOMMENDATION_ARM_FOR_TESTING || isReservedTestId(userId))) {
 		assignedArm = firstRecommendationArm(protocol) || assignedArm;
+	}
+	// Paired calibration: the aided part forces the directed-teaching (marginal) arm for EVERY
+	// participant, so the within-person link is to directed teaching rather than a random arm. The
+	// pilot part has forced_arm null (unaided), so this is a no-op there.
+	const pairedPart = partForScenarioSet(getDatasetRoot());
+	if (protocol.enabled && pairedPart?.forced_arm) {
+		assignedArm = (protocol.policy_arms || []).find((arm) => arm?.id === pairedPart.forced_arm) || assignedArm;
 	}
 	return normalizeResearchStudyState({
 		protocol_id: protocol.protocol_id,
@@ -2197,6 +2205,11 @@ export const saveScenarioProgress = (progress) => {
 			// scenario_set name (the dataset root the app loaded) alongside the version id, so
 			// every Action doc is self-identifying for data segregation.
 			scenario_set: getDatasetRoot(),
+			// Paired calibration: stamp the cohort id + the part marker on every row so the pilot and
+			// aided parts join by token with zero orphans. Inert (omitted) for every other dataset.
+			...(partForScenarioSet(getDatasetRoot())
+				? { study_id: PAIRED_STUDY_ID, study_part: partForScenarioSet(getDatasetRoot()).part }
+				: {}),
 			round_index: Math.max(1, Number(progress?.roundIndex) || 1),
 			scenario_id: scenarioId,
 			phase: String(progress?.phase ?? '').trim(),
@@ -2444,7 +2457,17 @@ export async function loadGame(mode = 'main') {
 					.map((entry = {}) => [String(entry?.scenario_id ?? '').trim(), entry])
 					.filter(([scenarioId]) => scenarioId.length > 0)
 			);
-			storeConfigs = {
+			// Dataset-scoped scoring inputs: a bundle may EMBED its own cities/stores (the paired-calibration
+			// pilot embeds the exact frozen pilot-era inputs, so it scores identically to the frozen
+			// artifact regardless of the drifted global config). Prefer embedded; else the global docs.
+			const embeddedStores = Array.isArray(datasetBundle?.stores) ? datasetBundle.stores : null;
+			const embeddedCities = datasetBundle?.cities && typeof datasetBundle.cities === "object" ? datasetBundle.cities : null;
+			storeConfigs = (embeddedStores || embeddedCities) ? {
+				stores: embeddedStores ?? storeFile.stores ?? [],
+				startinglocation: embeddedCities?.startinglocation ?? cityFile?.startinglocation ?? storeFile.startinglocation ?? "Berkeley",
+				travelTimes: embeddedCities?.travelTimes ?? cityFile?.travelTimes ?? {},
+				distances: embeddedCities?.distances ?? storeFile.distances ?? {}
+			} : {
 				stores: storeFile.stores || [],
 				// Prefer new cities doc, fallback to legacy fields inside store doc
 				startinglocation: cityFile?.startinglocation ?? storeFile.startinglocation ?? "Berkeley",
