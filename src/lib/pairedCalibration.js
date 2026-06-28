@@ -119,9 +119,13 @@ export function pairedIntegrity(rows = []) {
     if (hasPilot && hasAided) completers++;
     else { incomplete.push(tok); orphans.push(tok); }
     for (const part of ["pilot", "enriched35"]) {
+      // Sort first: Firestore read-back order is lexicographic by doc id, NOT round order, so the real
+      // invariant is "no DUPLICATE round_index within a part" (a round saved twice), which after sorting
+      // shows up as a non-strictly-increasing step. Read order is irrelevant.
       const idx = e[part]
         .map((r) => Number(r.round_index))
-        .filter((n) => Number.isFinite(n));
+        .filter((n) => Number.isFinite(n))
+        .sort((a, b) => a - b);
       for (let i = 1; i < idx.length; i++) {
         if (idx[i] <= idx[i - 1]) { nonMonotonic.push(`${tok}:${part}`); break; }
       }

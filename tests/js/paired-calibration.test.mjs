@@ -108,6 +108,16 @@ test("non-monotonic round indices within a part are caught", () => {
   assert.equal(rep.clean, false);
 });
 
+test("out-of-order read (lexicographic Firestore doc ids) with no dup is clean after sort", () => {
+  // admin read-back returns docs by id order (1,10,11,2,3,...), NOT round order; that must not flag.
+  const order = [1, 10, 11, 12, 2, 3, 27, 4];
+  const rows = order
+    .map((i) => tagPairedRoundAction({ participant_token: "p1", round_index: i }, { part: PAIRED_PART_PILOT }))
+    .concat(tagPairedRoundAction({ participant_token: "p1", round_index: 1 }, { part: PAIRED_PART_AIDED }));
+  const rep = pairedIntegrity(rows);
+  assert.deepEqual(rep.non_monotonic, []); // read order must not matter; only true duplicates do
+});
+
 test("a row missing study_part is counted as unmarked (write would be rejected live)", () => {
   const rows = [
     tagPairedRoundAction({ participant_token: "p1", round_index: 1 }, { part: PAIRED_PART_PILOT }),
