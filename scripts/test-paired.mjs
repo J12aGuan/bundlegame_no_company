@@ -10,10 +10,12 @@
  * auto-advances to the aided 35-round set under the SAME id -> directed-teaching feedback only on
  * aided rounds 16-20 and 26-30.
  */
-import { spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import { existsSync, readFileSync, writeFileSync, renameSync, unlinkSync } from "fs";
+import net from "net";
 import { generateAuthToken } from "../src/lib/authToken.js";
 
+const isWin = process.platform === "win32";
 const ENVL = ".env.local";
 const BAK = ".env.local.testbak";
 let createdFresh = false;
@@ -29,11 +31,37 @@ if (existsSync(ENVL)) {
 }
 function restoreEnv() {
   try {
-    if (existsSync(BAK)) { renameSync(BAK, ENVL); }
-    else if (createdFresh && existsSync(ENVL)) { unlinkSync(ENVL); }
+    if (existsSync(BAK)) renameSync(BAK, ENVL);
+    else if (createdFresh && existsSync(ENVL)) unlinkSync(ENVL);
   } catch {}
 }
+
+const children = [];
+function killTree(pid) {
+  if (!pid) return;
+  if (isWin) { try { spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore" }); } catch {} }
+  else { try { process.kill(pid, "SIGTERM"); } catch {} }
+}
+let shuttingDown = false;
+function shutdown(code = 0) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  for (const c of children) killTree(c.pid);
+  restoreEnv();
+  process.exit(code);
+}
+process.on("SIGINT", () => shutdown(0));
 process.on("exit", restoreEnv);
+
+const waitForPort = (port, ms = 60000) => new Promise((resolve, reject) => {
+  const t0 = Date.now();
+  const tick = () => {
+    const s = net.connect(port, "127.0.0.1");
+    s.once("connect", () => { s.destroy(); resolve(); });
+    s.once("error", () => { s.destroy(); Date.now() - t0 > ms ? reject(new Error("emulator did not start on " + port)) : setTimeout(tick, 500); });
+  };
+  tick();
+});
 
 // 2. print the login up front.
 const ID = "test-1";
@@ -47,12 +75,19 @@ console.log(`  Expect: pilot Round 1/27 (unaided) -> auto-advance to aided 35-ro
 console.log(`  same id -> directed-teaching feedback only on aided rounds 16-20 & 26-30.`);
 console.log(`  Ctrl+C stops everything and restores your env.\n${bar}\n`);
 
-// 3. one managed process: firebase-tools brings up the emulator, runs (seed && dev), and tears the
-//    emulator down when dev exits (Ctrl+C). No extra terminals.
-const inner = "node scripts/seed-emulator-paired.mjs && npm run dev";
-const child = spawn(
-  "npx",
-  ["-y", "firebase-tools", "emulators:exec", "--only", "firestore,auth", "--config", "firebase.emulator.json", "--project", "demo-bundlegame", inner],
-  { stdio: "inherit", shell: true },
-);
-child.on("exit", (code) => process.exit(code ?? 0));
+// 3. start the emulator, wait for it, seed, then run the dev server.
+console.log("[1/3] starting Firestore + Auth emulator ...");
+const emu = spawn("npx", ["-y", "firebase-tools", "emulators:start", "--only", "firestore,auth", "--config", "firebase.emulator.json", "--project", "demo-bundlegame"], { stdio: ["ignore", "inherit", "inherit"], shell: true });
+children.push(emu);
+emu.on("exit", (code) => { if (!shuttingDown) { console.error(`emulator exited (code ${code}). If port 8080 is busy, close the other emulator and retry.`); shutdown(code ?? 1); } });
+
+try { await waitForPort(8080); } catch (e) { console.error(e.message); shutdown(1); }
+
+console.log("\n[2/3] seeding both phases ...");
+const seed = spawnSync("node", ["scripts/seed-emulator-paired.mjs"], { stdio: "inherit", shell: true });
+if (seed.status !== 0) { console.error("seeding failed."); shutdown(1); }
+
+console.log("\n[3/3] starting the dev app (emulator mode). Open the Local URL below and log in.\n");
+const dev = spawn("npm", ["run", "dev"], { stdio: ["ignore", "inherit", "inherit"], shell: true });
+children.push(dev);
+dev.on("exit", (code) => shutdown(code ?? 0));
