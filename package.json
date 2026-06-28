@@ -15,6 +15,7 @@
 		"test:models": "node scripts/test-model-registry.mjs",
 		"test:python": "make test-python",
 		"token": "node scripts/generate-auth-token.mjs",
+		"test:paired": "node scripts/test-paired.mjs",
 		"qualtrics:sync": "node scripts/sync-qualtrics-responses.mjs",
 		"scores:export": "node scripts/export-admin-scores.mjs",
 		"firestore:connection:check": "node scripts/firestore-connection-check.mjs",
