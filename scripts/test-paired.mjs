@@ -67,7 +67,9 @@ const waitForPort = (port, ms = 60000) => new Promise((resolve, reject) => {
 const ID = "test-1";
 const bar = "=".repeat(64);
 console.log(`\n${bar}\n  PAIRED GAME TEST — launching emulator + seed + dev (one command)\n${bar}`);
-console.log(`  When you see "Local:  http://localhost:5173/", open it and log in:`);
+console.log(`  When you see "Local:  http://localhost:5173/", open the paired route:`);
+console.log(`      ->  http://localhost:5173/june`);
+console.log(`  and log in:`);
 console.log(`      User ID:  ${ID}`);
 console.log(`      Token:    ${generateAuthToken(ID)}`);
 console.log(`  (a test-* id plays INSTANTLY — no picking/delivery wait)\n`);
