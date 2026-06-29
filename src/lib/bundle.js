@@ -2515,6 +2515,13 @@ export async function advancePairedPhase(id) {
 		await flushPendingProgressSave();
 		await loadSavedScenarioState(id);
 	}
+	// Each paired part gets its own time budget (the aided phase = 40 min), independent of how long the
+	// pilot took: reset the session clock + overall cap so this part's timer starts fresh.
+	if (Number(next.time_limit_seconds) > 0) {
+		config.timeLimit = Number(next.time_limit_seconds);
+		FullTimeLimit.set(Number(next.time_limit_seconds));
+		resetTimer();
+	}
 	return true;
 }
 

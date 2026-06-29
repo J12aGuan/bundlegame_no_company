@@ -41,6 +41,7 @@ export const PAIRED_PLAN = [
     forced_arm: "marginal", // directed teaching for EVERY participant (Gate B)
     reuse_comprehension_from: null, // comprehension is gated once, before part 1
     reuse_exit_survey_from: "pilot",
+    time_limit_seconds: 2400, // the aided 35-round phase gets its own 40-minute budget
   },
 ];
 
