@@ -2520,6 +2520,7 @@ export async function advancePairedPhase(id) {
 	if (Number(next.time_limit_seconds) > 0) {
 		config.timeLimit = Number(next.time_limit_seconds);
 		FullTimeLimit.set(Number(next.time_limit_seconds));
+		resumeElapsedSeconds.set(0); // so the login resetTimer($resumeElapsedSeconds) starts this part fresh
 		resetTimer();
 	}
 	return true;
