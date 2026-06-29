@@ -4,6 +4,11 @@ publishing/export_for_analysis/pilot_decisions.csv
 publishing/export_for_analysis/pilot_surveys.csv
 # Re-identification map (token -> raw id): never share, never commit.
 publishing/export_for_analysis/pilot_pseudonym_map.csv
+# Participant login tokens (deterministic auth tokens): local only, never commit.
+june_participant_tokens.csv
+# Live-export analysis (raw decision rows + findings + export tooling pulled from Firestore):
+# local only, never publish. Bundled for sharing under publishing/bundles/ (also ignored).
+analysis/real_aided/
 
 # Generated Section-5 simulation outputs (regenerate via analysis/sim/run_all.py)
 analysis/sim/*.pdf
