@@ -487,6 +487,13 @@ function normalizeRoundSummaryAction(existing = {}, payload = {}) {
         scenarioSetVersionId: String(payload?.scenarioSetVersionId ?? existing?.scenarioSetVersionId ?? '').trim(),
         // scenario_set name (dataset root), kept alongside the version id for data segregation.
         scenario_set: String(payload?.scenario_set ?? existing?.scenario_set ?? '').trim(),
+        // Paired-calibration identity marker. This sanitizer rebuilds the persisted doc from an explicit
+        // allowlist, so study_id/study_part MUST be listed here or they are stripped before the write
+        // (the row then persists with no part marker and the pilot/aided join finds zero matches). Both
+        // are on the firestore.rules participantRoundActionWrite allowlist. Left undefined (and dropped by
+        // removeUndefinedDeep) for non-paired datasets, so this is inert everywhere else.
+        study_id: payload?.study_id ?? existing?.study_id,
+        study_part: payload?.study_part ?? existing?.study_part,
         round_index: Math.max(1, Number(payload?.round_index ?? existing?.round_index) || 1),
         scenario_id: String(payload?.scenario_id ?? existing?.scenario_id ?? '').trim(),
         phase: String(payload?.phase ?? existing?.phase ?? '').trim(),
