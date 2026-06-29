@@ -848,6 +848,7 @@
         const chiArm = get(participantStudyState).assigned_arm;
         const chiCandidates = getCandidatesForScenario(scenarioId);
         const chiChosen = chiCandidates.find((c) => sortedIdsEqual(c.bundle_ids, chosenOrderIds)) || null;
+        try { console.log('[DBG-CHI]', JSON.stringify({ round: get(currentRound), scenarioId, arm: chiArm, chosen: chosenOrderIds, candCount: chiCandidates.length, candIds: chiCandidates.map((c) => c.bundle_ids), matched: !!chiChosen })); } catch (e) {}
         const chiOracle = chiCandidates.find((c) => sortedIdsEqual(c.bundle_ids, optimal?.best_bundle_ids)) || null;
         const chiDiagnosis = (get(participantStudyState).diagnosis_history ?? []).at(-1) ?? null;
         const chiFeedbackResult = updateChiStudyFeedback({
