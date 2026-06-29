@@ -851,6 +851,13 @@
         try { console.log('[DBG-CHI]', JSON.stringify({ round: get(currentRound), scenarioId, arm: chiArm, chosen: chosenOrderIds, candCount: chiCandidates.length, candIds: chiCandidates.map((c) => c.bundle_ids), matched: !!chiChosen })); } catch (e) {}
         const chiOracle = chiCandidates.find((c) => sortedIdsEqual(c.bundle_ids, optimal?.best_bundle_ids)) || null;
         const chiDiagnosis = (get(participantStudyState).diagnosis_history ?? []).at(-1) ?? null;
+        // Label orders by what the player sees on the cards (store + items), not the internal order id.
+        const orderLabelFor = (oid) => {
+            const o = (scenario?.orders || []).find((x) => String(x?.id ?? '') === String(oid ?? ''));
+            if (!o) return String(oid ?? '');
+            const items = Object.keys(o.items || {}).slice(0, 3).join(', ');
+            return o.store ? `the ${o.store} order${items ? ` (${items})` : ''}` : String(oid ?? '');
+        };
         const chiFeedbackResult = updateChiStudyFeedback({
             protocol: chiProtocol,
             round: get(currentRound),
@@ -858,7 +865,7 @@
             chosenBundle: chiChosen,
             legalBundles: chiCandidates,
             diagnosis: chiDiagnosis,
-            labelFor: WEAKNESS_LABEL,
+            labelFor: orderLabelFor,
         });
         const chiDecision = decisionLogRecord({
             protocol: chiProtocol,
