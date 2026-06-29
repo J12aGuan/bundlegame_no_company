@@ -24,6 +24,22 @@ Mistake taxonomy (per Nicholas's professor's spec)
   under_inclusion  : the best single move is to ADD an order   (bundled too little)
   wrong_composition: the best single move is a one-for-one SWAP (right size, wrong mix)
   no_clean_onestep : even the best single move closes < THRESH of the regret gap
+
+Frozen definition behind the paper's add/drop/swap table (do NOT change)
+------------------------------------------------------------------------
+  * one-step gains are in SCORE units: gain = neighbor.score - chosen_score,
+    where score is the deployed rate ($ per second). Not regret, not $.
+  * ties are broken DROP > ADD > SWAP (prefer the simplest correction).
+  * a move is a "clean fix" only if it closes >= NO_CLEAN_ONESTEP_THRESHOLD
+    (= 0.50) of the regret gap; otherwise the decision is no_clean_onestep.
+    The 0.50 is an intended, frozen value, not a placeholder.
+  * exceeds_oracle: on ~5 decisions a single move beats the STORED oracle
+    (the stored oracle is the generation-time best_bundle_ids, not the
+    per-decision argmax). This does NOT affect the reported shares, because
+    classification uses the recomputed best neighbor (best_move), not the
+    stored oracle.
+  Reproduces: over_inclusion 47.2 / under 8.8 / wrong_composition 8.4 /
+  no_clean_onestep 35.6; mean regret closed by a single move 66.4%.
 """
 
 from __future__ import annotations

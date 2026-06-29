@@ -149,6 +149,22 @@ def main():
 
     recs = decompose(menus, mu, sd, a, H)
     print(f"\n  suboptimal decisions decomposed: {len(recs)}")
+
+    # ----------------------------------------------------------------------- #
+    # HOW THE PAPER TABLE IS GROUPED (lock this; do not re-derive by eye).
+    # The five shares printed below are the per-decision DOMINANT reversal
+    # component from this module. The manuscript's mechanism table (88/12/0)
+    # groups them as:
+    #     TIME    = picking_overconfidence + local_neglect + routing_neglect
+    #     OVERLAP = overlap_confusion
+    #     PAYOUT  = pay_chasing
+    # So: all suboptimal -> TIME 88% / OVERLAP 12% / PAYOUT 0% (deployed,
+    # payout-anchored); over-bundling subset -> 93 / 7 / 0. Pay-chasing is
+    # 0.0% deployed and 8.7% only when payout is left unanchored (printed at
+    # the end as the robustness check). NB: the SIMULATION.md "time-underpricing
+    # 97%" summary uses a DIFFERENT grouping (picking+local+overlap, routing
+    # pulled out) -- it is the same five numbers, not a second result.
+    # ----------------------------------------------------------------------- #
     print("\n  MECHANISM SHARES (participant-clustered bootstrap 95% CI):")
     for mname in ["picking_overconfidence", "routing_neglect", "local_neglect", "overlap_confusion", "pay_chasing"]:
         pt, lo, hi = cluster_share(recs, "mech", mname)
