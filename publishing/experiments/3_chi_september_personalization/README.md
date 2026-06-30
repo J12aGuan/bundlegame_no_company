@@ -1,7 +1,7 @@
 # Experiment 3 — CHI personalization / dynamic (September)
 
 The **personalized, diagnosis-driven** CHI study for the September submission. Canonical details:
-[`docs/current/EXPERIMENTS.md`](../../../docs/current/EXPERIMENTS.md).
+[`docs/shared/EXPERIMENTS.md`](../../../docs/shared/EXPERIMENTS.md).
 
 | field | value |
 |---|---|
@@ -25,7 +25,7 @@ diagnosis dormant; this one runs it live.
 - Diagnosis: [`src/lib/chiDiagnosis.js`](../../../src/lib/chiDiagnosis.js) (ridge conditional logit,
   spanning-subspace read, abstention gate).
 - Runtime gating: [`src/lib/chiStudyRuntime.js`](../../../src/lib/chiStudyRuntime.js).
-- Pre-registration: [`docs/PREREGISTRATION_DYNAMIC.md`](../../../docs/PREREGISTRATION_DYNAMIC.md).
+- Pre-registration: [`docs/study2_chi35_undergrad_prize/PREREGISTRATION_DYNAMIC.md`](../../../docs/study2_chi35_undergrad_prize/PREREGISTRATION_DYNAMIC.md).
 
 ## Design artifacts
 

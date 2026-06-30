@@ -13,7 +13,7 @@ diagnosis assumes (`src/lib/chiDiagnosis.js`). They are *design-adequacy* result
 the menus and the estimator on **planted** biases in simulation, not evidence about
 people. Where the model is wrong (choice noise, a misspecified value function) the
 recovery degrades; that degradation is measured in `scripts/stress-chi-identifiability.mjs`
-(documented in `docs/MODEL_NOTES.md` §2). The human pilot is the only test of whether
+(documented in `docs/study2_chi35_undergrad_prize/MODEL_NOTES.md` §2). The human pilot is the only test of whether
 people carry separable leaks at all.
 
 ## 1. The model and the latent state
@@ -168,7 +168,7 @@ principled information-weighted read is the cleanest closure.
   particular makes an unbiased participant look biased, a failure the abstention gate does
   not catch.
 - **Not addressed here:** whether real people carry stable, separable per-attribute leaks at
-  all. That is the marginal-arm pilot's job (`docs/PREREGISTRATION_DYNAMIC.md`), and it is
+  all. That is the marginal-arm pilot's job (`docs/study2_chi35_undergrad_prize/PREREGISTRATION_DYNAMIC.md`), and it is
   the only thing that turns this theorem about a simulated learner into a claim about humans.
 
 ## 8. Identifiability is V-relative (the boundary of the claim)

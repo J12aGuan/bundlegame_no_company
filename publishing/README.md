@@ -2,7 +2,7 @@
 
 This tree holds the design artifacts, exports, and paper materials. It is organized around the
 **three experiments** in this repo. The canonical description (protocols, datasets, status) lives in
-[`docs/current/EXPERIMENTS.md`](../docs/current/EXPERIMENTS.md); start there.
+[`docs/shared/EXPERIMENTS.md`](../docs/shared/EXPERIMENTS.md); start there.
 
 ## Per-experiment entry points
 

@@ -182,7 +182,7 @@ function direction(beta) {
 // The pooled read pools picking-stress menus where the highest-PAYING bundle is  //
 // also the most pick-COSTLY (the over-bundle), so a payout-overweighter's choice  //
 // is observationally identical to a pick-neglecter's: earnings is collinear with  //
-// pick and the W3 leak is mis-read as W1 (see docs/IDENTIFIABILITY_THEORY.md §6   //
+// pick and the W3 leak is mis-read as W1 (see docs/study2_chi35_undergrad_prize/IDENTIFIABILITY_THEORY.md §6   //
 // and scripts/demo-observability.mjs). A menu IDENTIFIES the earnings axis (spans  //
 // earnings x pick) exactly when its highest-paying candidate is NOT its most       //
 // pick-costly one — true on the payout traps (the high-pay bundle is a fast        //
@@ -303,7 +303,7 @@ export const DEFAULT_IMPORTANCE = { W1: 1.0, W2: 0.4, W3: 1.0 };
 // for v11's G_ik(n) = W_k (a_k - h_ik,0)^2 [phi_k(n)^2 - phi_k(n+1)^2]: the      //
 // squared current bias stands in for (a_k - h)^2; W_k = importance x phi (the    //
 // measured per-axis identifiability), so a leak the data cannot pin is not       //
-// chased. See docs/MODEL_NOTES.md for the approximation and its limits.          //
+// chased. See docs/study2_chi35_undergrad_prize/MODEL_NOTES.md for the approximation and its limits.          //
 // --------------------------------------------------------------------------- //
 export function learningIndex(strengths = {}, {
   weights = DEFAULT_LEARNING_WEIGHTS,

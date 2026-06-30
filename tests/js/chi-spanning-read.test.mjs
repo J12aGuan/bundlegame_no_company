@@ -5,7 +5,7 @@ import { buildChiScenarioSet } from "../../src/lib/chiScenarioDesign.js";
 import { diagnose, menuIdentifiesEarnings } from "../../src/lib/chiDiagnosis.js";
 import { signSurvivalGate } from "../../src/lib/signSurvivalGate.js";
 
-// The C2 estimator fix (docs/IDENTIFIABILITY_THEORY.md §6): the deployed diagnosis reads
+// The C2 estimator fix (docs/study2_chi35_undergrad_prize/IDENTIFIABILITY_THEORY.md §6): the deployed diagnosis reads
 // the bias on the earnings-IDENTIFYING (observable/spanning) menus, so a payout leak is
 // recovered as W3 from BEHAVIOUR ALONE on the FULL battery — not only via the survey or the
 // recency re-tune. Without it, the picking-stress menus (where the highest-paying bundle is

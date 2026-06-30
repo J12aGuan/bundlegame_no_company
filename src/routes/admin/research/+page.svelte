@@ -1394,7 +1394,7 @@
 					<div class="wf-panel-heading"><h2>Workflow Docs</h2></div>
 					<p><strong>Research Playbook</strong><br /><span class="wf-muted">Internal workflow notes</span></p>
 					<p><strong>Analysis Workflow</strong><br /><span class="wf-muted">Internal workflow notes</span></p>
-					<p><strong>Analytics and Model Exports</strong><br /><span class="wf-muted">docs/current/ANALYTICS_AND_RL_EXPORTS.md</span></p>
+					<p><strong>Analytics and Model Exports</strong><br /><span class="wf-muted">docs/shared/ANALYTICS_AND_RL_EXPORTS.md</span></p>
 					<p><strong>Model Roadmap</strong><br /><span class="wf-muted">Internal workflow notes</span></p>
 					<p><strong>Scoring Notes</strong><br /><span class="wf-muted">Internal workflow notes</span></p>
 				</div>
@@ -2038,11 +2038,11 @@
 				<section class="panel-grid">
 					<div class="panel">
 						<div class="panel-header"><h3>Workflow Docs</h3></div>
-						<p><strong>Research Playbook</strong><br /><span class="muted">docs/current/RESEARCH_PLAYBOOK.md</span></p>
-						<p><strong>Paper Analysis Workflow</strong><br /><span class="muted">docs/current/PAPER_ANALYSIS_WORKFLOW.md</span></p>
-						<p><strong>Analytics and Model Exports</strong><br /><span class="muted">docs/current/ANALYTICS_AND_RL_EXPORTS.md</span></p>
-						<p><strong>Study Roadmap</strong><br /><span class="muted">docs/current/FULL_PAPER_READY_STUDY_ROADMAP.md</span></p>
-						<p><strong>Positioning and Scoring</strong><br /><span class="muted">docs/current/VENUE_POSITIONING_AND_SCORING.md</span></p>
+						<p><strong>Research Playbook</strong><br /><span class="muted">docs/study1_pilot_working_paper/RESEARCH_PLAYBOOK.md</span></p>
+						<p><strong>Paper Analysis Workflow</strong><br /><span class="muted">docs/study1_pilot_working_paper/PAPER_ANALYSIS_WORKFLOW.md</span></p>
+						<p><strong>Analytics and Model Exports</strong><br /><span class="muted">docs/shared/ANALYTICS_AND_RL_EXPORTS.md</span></p>
+						<p><strong>Study Roadmap</strong><br /><span class="muted">docs/study1_pilot_working_paper/FULL_PAPER_READY_STUDY_ROADMAP.md</span></p>
+						<p><strong>Positioning and Scoring</strong><br /><span class="muted">docs/archive/planning-2026-04/VENUE_POSITIONING_AND_SCORING.md</span></p>
 					</div>
 
 					<div class="panel">

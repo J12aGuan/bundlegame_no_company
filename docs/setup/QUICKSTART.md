@@ -52,9 +52,9 @@ make PYTHON=python3.11 test-python
 ## Useful Follow-Up Docs
 
 - Project overview: [../../README.md](../../README.md)
-- Runtime architecture: [../current/ARCHITECTURE.md](../current/ARCHITECTURE.md)
-- Firestore config and timing rules: [../current/CONFIG_AND_DATASETS.md](../current/CONFIG_AND_DATASETS.md)
-- Analytics and exports: [../current/ANALYTICS_AND_RL_EXPORTS.md](../current/ANALYTICS_AND_RL_EXPORTS.md)
+- Runtime architecture: [../shared/ARCHITECTURE.md](../shared/ARCHITECTURE.md)
+- Firestore config and timing rules: [../shared/CONFIG_AND_DATASETS.md](../shared/CONFIG_AND_DATASETS.md)
+- Analytics and exports: [../shared/ANALYTICS_AND_RL_EXPORTS.md](../shared/ANALYTICS_AND_RL_EXPORTS.md)
 - Reproducible artifacts: [../../ARTIFACTS.md](../../ARTIFACTS.md)
 - Data schema: [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md)
 
@@ -66,4 +66,4 @@ make PYTHON=python3.11 test-python
 
 ## Working Rule
 
-When a behavior change ships, update the relevant file in `docs/current/`, [../../ARTIFACTS.md](../../ARTIFACTS.md), or [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md) if the change affects reproducibility or schemas.
+When a behavior change ships, update the relevant file under `docs/` (`docs/shared/` or the relevant study folder), [../../ARTIFACTS.md](../../ARTIFACTS.md), or [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md) if the change affects reproducibility or schemas.

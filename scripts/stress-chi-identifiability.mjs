@@ -1,7 +1,7 @@
 /**
  * Identifiability stress test (C1) — the empirical face of the ICML identifiability
  * theorem, pressure-tested under the two conditions the menu-span check does NOT cover
- * (docs/MODEL_NOTES.md §2 open item):
+ * (docs/study2_chi35_undergrad_prize/MODEL_NOTES.md §2 open item):
  *
  *   (a) MEASUREMENT NOISE on the choice data — the participant chooses with a finite
  *       logit temperature plus a uniform lapse rate, so the revealed weights are read

@@ -1,5 +1,5 @@
 # Raw Firestore pull contains restricted, re-identifiable participant data.
-# Never commit it. (See docs/current/DATA_GOVERNANCE.md.)
+# Never commit it. (See docs/shared/DATA_GOVERNANCE.md.)
 _raw_pull/
 
 # The de-identified analysis CSVs are derived from human-subject data. Keep them

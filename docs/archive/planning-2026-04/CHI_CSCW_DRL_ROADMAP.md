@@ -2,8 +2,8 @@
 
 This file is archived planning context from April 2026. It is not the live implementation guide. Use these current docs instead:
 
-- [../../current/EXPERIMENT_PROTOCOL.md](../../current/EXPERIMENT_PROTOCOL.md)
-- [../../current/MODELS.md](../../current/MODELS.md)
+- ../../current/EXPERIMENT_PROTOCOL.md
+- ../../current/MODELS.md
 - [../../../ARTIFACTS.md](../../../ARTIFACTS.md)
 
 ## Positioning

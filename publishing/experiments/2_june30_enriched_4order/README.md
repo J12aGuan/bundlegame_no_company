@@ -1,7 +1,7 @@
 # Experiment 2 — Enriched 4-order (June 30)
 
 The near-term study on the **redesigned, transfer-first menus**. Canonical details:
-[`docs/current/EXPERIMENTS.md`](../../../docs/current/EXPERIMENTS.md).
+[`docs/shared/EXPERIMENTS.md`](../../../docs/shared/EXPERIMENTS.md).
 
 | field | value |
 |---|---|
@@ -20,7 +20,7 @@ The near-term study on the **redesigned, transfer-first menus**. Canonical detai
 > (B=120) worst-case clears +/- floor (0.15 SD units, pilot-calibrated then frozen); otherwise
 > `no_target` -> the marginal arm falls back to the counterfactual rendering. The per-decision gate
 > decision persists as `sign_survival_gate` (on the round-action allowlist). See the canonical
-> [experiments map](../../../docs/current/EXPERIMENTS.md).
+> [experiments map](../../../docs/shared/EXPERIMENTS.md).
 
 ## The enrichment (what changed)
 

@@ -320,10 +320,10 @@ Uploaded snapshots are still exportable, but they are marked offline-only and ar
 
 See also:
 
-- [RESEARCH_PLAYBOOK.md](RESEARCH_PLAYBOOK.md)
-- [PAPER_ANALYSIS_WORKFLOW.md](PAPER_ANALYSIS_WORKFLOW.md)
-- [FULL_PAPER_READY_STUDY_ROADMAP.md](FULL_PAPER_READY_STUDY_ROADMAP.md)
-- [EXPERIMENT_PROTOCOL.md](EXPERIMENT_PROTOCOL.md)
+- [RESEARCH_PLAYBOOK.md](../study1_pilot_working_paper/RESEARCH_PLAYBOOK.md)
+- [PAPER_ANALYSIS_WORKFLOW.md](../study1_pilot_working_paper/PAPER_ANALYSIS_WORKFLOW.md)
+- [FULL_PAPER_READY_STUDY_ROADMAP.md](../study1_pilot_working_paper/FULL_PAPER_READY_STUDY_ROADMAP.md)
+- [EXPERIMENT_PROTOCOL.md](../study1_pilot_working_paper/EXPERIMENT_PROTOCOL.md)
 - [MODELS.md](MODELS.md)
 - [../../ARTIFACTS.md](../../ARTIFACTS.md)
 - [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md)

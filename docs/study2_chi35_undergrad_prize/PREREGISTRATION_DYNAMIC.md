@@ -3,7 +3,7 @@
 **Status:** DRAFT to be registered BEFORE the marginal pilot. Build/validation only; no
 human data collected yet. This locks the diagnosis constants and the primary outcome in
 advance so the recency/abstention choices cannot be read as fit after the fact. It
-supersedes `docs/PREREGISTRATION.md` (the older 30-round scaffolding design) for the
+supersedes `docs/study1_pilot_working_paper/PREREGISTRATION.md` (the older 30-round scaffolding design) for the
 35-round dynamic study. The constants below are **simulation-calibrated** (design
 adequacy on planted biases); the pilot CONFIRMS or RE-FITS them per §6.
 
@@ -85,4 +85,4 @@ the menus + diagnosis CAN separate W1 from W3 (and from single-axis cost neglect
 simulation, and that the system re-targets-or-abstains rather than misfires. They are NOT
 evidence the intervention changes human behavior — that is exactly what this study tests.
 The identifiability-theorem framing (ICML) additionally requires the noise / misspecified-V
-stress tests noted in `docs/MODEL_NOTES.md §2` before it is committed.
+stress tests noted in `docs/study2_chi35_undergrad_prize/MODEL_NOTES.md §2` before it is committed.

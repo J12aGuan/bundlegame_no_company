@@ -225,7 +225,7 @@ src/
 
 **When to edit**: Changing any game parameters
 
-**See**: [docs/configuration/CENTRALIZED_CONFIG.md](../configuration/CENTRALIZED_CONFIG.md)
+**See**: docs/configuration/CENTRALIZED_CONFIG.md
 
 ### `src/lib/bundle_experiment_50_rounds_short_times.json`
 **Purpose**: All 50 experiment rounds
@@ -239,7 +239,7 @@ src/
 
 **When to edit**: Modifying experiment design
 
-**See**: [docs/configuration/PARAMETERS.md](../configuration/PARAMETERS.md)
+**See**: docs/configuration/PARAMETERS.md
 
 ### `src/lib/configs/stores1.json`
 **Purpose**: Store layouts and distances
@@ -338,7 +338,7 @@ const orders = scenario.orders;                      // Orders for this round
 1. Edit `src/lib/centralConfig.json`
 2. Import in relevant file: `import centralConfig from '$lib/centralConfig.json'`
 3. Access: `centralConfig.game.yourNewOption`
-4. Document in [docs/configuration/](../configuration/)
+4. Document in docs/configuration/
 
 ### Modify Game Logic
 1. Find relevant function in `src/lib/bundle.js`
@@ -359,7 +359,7 @@ const orders = scenario.orders;                      // Orders for this round
 - **Full file tree**: [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
 - **Architecture**: [OVERVIEW.md](OVERVIEW.md)
 - **File explanations**: [FILE_EXPLANATIONS.md](FILE_EXPLANATIONS.md)
-- **Configuration**: [docs/configuration/OVERVIEW.md](../configuration/OVERVIEW.md)
+- **Configuration**: docs/configuration/OVERVIEW.md
 
 ---
 

@@ -20,7 +20,7 @@ This module reads the *derived* attribute columns produced by
 ``publishing/export_for_analysis/export.py`` (candidates table), so it runs directly on the
 verified pilot export. It collects **no** new participant data.
 
-Design choices (see ``DESIGN_NOTES.md``):
+Design choices (see ``docs/shared/DESIGN_NOTES.md``):
 * Features are z-scored over the analysis pool so weights are comparable across
   workers and attributes; the bias argmax is therefore scale-free.
 * Reference weights come from a conditional logit fit to the per-round oracle

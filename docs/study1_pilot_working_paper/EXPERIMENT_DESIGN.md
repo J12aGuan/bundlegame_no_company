@@ -1,6 +1,6 @@
 # Experiment Design
 
-This is the human-readable study design summary. The implementation source of truth is [../current/EXPERIMENT_PROTOCOL.md](../current/EXPERIMENT_PROTOCOL.md) and `src/lib/researchStudy.js`.
+This is the human-readable study design summary. The implementation source of truth is [EXPERIMENT_PROTOCOL.md](EXPERIMENT_PROTOCOL.md) and `src/lib/researchStudy.js`.
 
 ## Task
 
