@@ -5,7 +5,7 @@
 // change, and keeps flagging a leak that persists), not whether feedback helps real people.
 //
 // Prereqs: firebase emulators:start (firebase.emulator.json), seed-emulator.mjs --full applied,
-// and the dev app running with VITE_USE_FIREBASE_EMULATOR=true (see docs/EMULATOR_SMOKE.md).
+// and the dev app running with VITE_USE_FIREBASE_EMULATOR=true (see docs/shared/EMULATOR_SMOKE.md).
 //
 // Usage: node scripts/chi-participant-probe.mjs --type=mix|overbundler|payout --learn=true|false [--id=<id>]
 //   type=mix         : over-bundles AND chases payout (ranks bundles by total earnings, pairs allowed)

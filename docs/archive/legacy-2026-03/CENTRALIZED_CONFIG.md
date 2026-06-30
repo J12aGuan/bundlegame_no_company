@@ -6,7 +6,7 @@ All game settings are now consolidated in a single file for easy management.
 
 ## 📍 Location
 
-**File:** [src/lib/centralConfig.json](src/lib/centralConfig.json)
+**File:** src/lib/centralConfig.json
 
 This single JSON file contains all configurable game parameters, store layouts, and city distances.
 
@@ -60,15 +60,15 @@ This single JSON file contains all configurable game parameters, store layouts, 
 
 ### Files Updated to Use Central Config:
 
-1. **[src/lib/bundle.js](src/lib/bundle.js:47)**
+1. **src/lib/bundle.js**
    - Imports: `ordersShown`, `timeLimit`, `thinkTime`, etc.
    - Used for game logic and round management
 
-2. **[src/lib/config.js](src/lib/config.js:10)**
+2. **src/lib/config.js**
    - Imports: `PENALTY_TIMEOUT`
    - Used for penalty calculations
 
-3. **[src/routes/bundlegame.svelte](src/routes/bundlegame.svelte:50)**
+3. **src/routes/bundlegame.svelte**
    - Imports: `ROUND_TIME_LIMIT`
    - Used for round countdown timer
 
@@ -173,7 +173,7 @@ jq . src/lib/centralConfig.json
 
 ## 📚 Related Files
 
-- **Experiment Rounds**: [src/lib/bundle_experiment_50_rounds_short_times.json](src/lib/bundle_experiment_50_rounds_short_times.json)
+- **Experiment Rounds**: src/lib/bundle_experiment_50_rounds_short_times.json
   - Contains all 50 round scenarios (separate from config)
   - Edit this for order details, earnings, AI recommendations
 

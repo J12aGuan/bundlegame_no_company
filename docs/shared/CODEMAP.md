@@ -1,7 +1,7 @@
 # Code map — what each part of the repo does
 
 A newcomer's index to the codebase: where to find what, one line per module. For runtime concepts
-(round flow, timing) see [ARCHITECTURE.md](ARCHITECTURE.md); for the three studies see
+(round flow, timing) see [ARCHITECTURE.md](ARCHITECTURE.md); for the two studies and their papers see
 [EXPERIMENTS.md](EXPERIMENTS.md). This map should stay aligned with the tree; update it when modules
 move.
 
@@ -13,7 +13,7 @@ move.
 | `scripts/` | Standalone CLI tools: tests, exports, seeding, simulations, migrations. See [`scripts/README.md`](../../scripts/README.md). |
 | `tests/` | JS test suites (`tests/js/*.test.mjs`, run by `npm run test:js`). |
 | `static/` | Static assets served verbatim (favicon and image assets). |
-| `docs/` | Documentation. `current/` = live app; `archive/` = historical. |
+| `docs/` | Documentation, organized by study: `study1_pilot_working_paper/`, `study2_chi35_undergrad_prize/`, `shared/` (cross-study), `setup/`, `archive/` (historical). |
 | `publishing/` | Research artifacts, exports, and paper materials, organized by experiment. See [`publishing/README.md`](../../publishing/README.md). |
 | `analysis/` | Standalone Section 5 simulation pipeline (`analysis/sim/`): the worker model + the policy feedback experiment over the frozen pilot data. See [`SIMULATION.md`](../../analysis/sim/SIMULATION.md). |
 | `offline_rl/`, `offline_rl_deep/` | Standalone Python offline-RL packages (masked discrete-action; `_deep` is the PyTorch variant). Tested via `make test-python`. |

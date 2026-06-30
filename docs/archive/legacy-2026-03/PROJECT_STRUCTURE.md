@@ -159,7 +159,7 @@ bundlegame_no_company/
 
 **...change the experiment rounds/orders:**
 → Edit: `src/lib/bundle_experiment_50_rounds_short_times.json`
-→ See: [README.md](README.md) section "Changing Order Structures"
+→ See: README.md section "Changing Order Structures"
 
 **...adjust round timer:**
 → Edit: `src/routes/bundlegame.svelte` (line ~50, `ROUND_TIME_LIMIT`)
@@ -171,14 +171,14 @@ bundlegame_no_company/
 → Edit: `src/routes/bundlegame.svelte` (main game page)
 
 **...secure the Firebase database:**
-→ See: [SECURITY.md](SECURITY.md) for security overview and Firebase rules deployment
+→ See: SECURITY.md for security overview and Firebase rules deployment
 
 **...download experiment data:**
 → Visit: `/downloader` page (enter password)
 → Code: `src/routes/downloader/+page.svelte`
 
 **...understand the experiment design:**
-→ Read: [docs/experiment/EXPERIMENT_DESIGN.md](docs/experiment/EXPERIMENT_DESIGN.md)
+→ Read: docs/experiment/EXPERIMENT_DESIGN.md
 
 **...analyze collected data:**
 → Use: Jupyter notebooks in `data analysis/`
@@ -209,7 +209,7 @@ bundlegame_no_company/
 - `src/lib/firebaseDB.js` - All database operations (review regularly)
 - `src/routes/downloader/+page.svelte` - Password-protected data export
 
-**See**: [SECURITY.md](SECURITY.md) for security documentation
+**See**: SECURITY.md for security documentation
 
 ---
 
@@ -342,8 +342,8 @@ data analysis/.ipynb_checkpoints/
 5. **Visit**: http://localhost:5173
 
 6. **Read this first**:
-   - [README.md](README.md) - Main documentation
-   - [docs/experiment/EXPERIMENT_DESIGN.md](docs/experiment/EXPERIMENT_DESIGN.md) - Understand the experiment
+   - README.md - Main documentation
+   - docs/experiment/EXPERIMENT_DESIGN.md - Understand the experiment
 
 ---
 

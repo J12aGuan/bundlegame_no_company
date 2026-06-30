@@ -76,7 +76,7 @@ Example:
 
 ## Notes
 
-- `docs/current/CONFIG_AND_DATASETS.md` is the best reference for Firestore document shapes and admin editing behavior.
+- `docs/shared/CONFIG_AND_DATASETS.md` is the best reference for Firestore document shapes and admin editing behavior.
 - `DATA_SCHEMA.md` is the schema reference for reviewers and export consumers.
 - `ARTIFACTS.md` is the artifact regeneration guide.
 - Legacy documentation from the pre-`MasterData` era is archived under `docs/archive/legacy-2026-03/`.

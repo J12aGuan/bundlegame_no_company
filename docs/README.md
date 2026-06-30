@@ -1,34 +1,64 @@
-# BundleGame Documentation
+# BundleGame documentation
 
-This directory is the documentation index for the current BundleGame codebase. Root-level reviewer artifacts live in [../ARTIFACTS.md](../ARTIFACTS.md) and [../DATA_SCHEMA.md](../DATA_SCHEMA.md).
+Documentation is organized by **study**. Each study maps to one INFORMS BEST submission. Cross-study
+infrastructure lives in `shared/`, local setup in `setup/`, and superseded material in `archive/`.
 
-## Start Here
+Project overview: [../README.md](../README.md). Root reviewer artifacts: [../ARTIFACTS.md](../ARTIFACTS.md),
+[../DATA_SCHEMA.md](../DATA_SCHEMA.md).
 
-- Project overview: [../README.md](../README.md)
-- Reproducible artifacts: [../ARTIFACTS.md](../ARTIFACTS.md)
-- Data schema and governance summary: [../DATA_SCHEMA.md](../DATA_SCHEMA.md)
-- Local setup: [setup/QUICKSTART.md](setup/QUICKSTART.md)
+## Studies and papers
 
-## Current Docs
+| Study | Folder | Paper |
+| --- | --- | --- |
+| Study 1 (Pilot): 50-round A/B/C recommendation on the `mainGame` task; the only study with real participant data. | [study1_pilot_working_paper/](study1_pilot_working_paper/README.md) | INFORMS Best Working Paper submission |
+| Study 2 (CHI 35-round): dynamic counterfactual-feedback on the 35-round `buildChiScenarioSet` (seed 42) menus; diagnosis-driven. | [study2_chi35_undergrad_prize/](study2_chi35_undergrad_prize/README.md) | INFORMS Best Undergraduate Research Prize |
 
-These files describe the live app and should stay aligned with the current codebase.
+The repo carries three experiment configurations operationally (Study 2 spans the "enriched 4-order"
+and "CHI personalization" lineage); the engineering map is [shared/EXPERIMENTS.md](shared/EXPERIMENTS.md).
+
+## Study 1: pilot (working paper)
+
+Folder: [study1_pilot_working_paper/](study1_pilot_working_paper/README.md)
 
 | Document | Purpose |
 | --- | --- |
-| [current/EXPERIMENTS.md](current/EXPERIMENTS.md) | The three experiments (purpose, protocol, dataset, status): single source of truth |
-| [current/CODEMAP.md](current/CODEMAP.md) | What each directory and module does: a newcomer's navigation index |
-| [current/ARCHITECTURE.md](current/ARCHITECTURE.md) | Runtime structure, round flow, and timing model |
-| [current/CONFIG_AND_DATASETS.md](current/CONFIG_AND_DATASETS.md) | Firestore source of truth, dataset shape, Cities matrix, and admin behavior |
-| [current/EXPERIMENT_PROTOCOL.md](current/EXPERIMENT_PROTOCOL.md) | Canonical 50-round protocol, randomization, Qualtrics linkage, and claim gates |
-| [current/ANALYTICS_AND_RL_EXPORTS.md](current/ANALYTICS_AND_RL_EXPORTS.md) | Admin analytics dashboard, modeled-time interpretation, and RL export contract |
-| [current/MODELS.md](current/MODELS.md) | Recommendation resolver, model registry, baseline ladder, and offline-RL artifact rules |
-| [current/REPRODUCIBILITY.md](current/REPRODUCIBILITY.md) | Clean build, CI, fixture reproduction, and snapshot discipline |
-| [current/DATA_GOVERNANCE.md](current/DATA_GOVERNANCE.md) | Human-subjects data categories, anonymization, and sharing checklist |
-| [current/FULL_PAPER_READY_STUDY_ROADMAP.md](current/FULL_PAPER_READY_STUDY_ROADMAP.md) | Step-by-step readiness path from pilot data to full study package |
-| [current/PAPER_ANALYSIS_WORKFLOW.md](current/PAPER_ANALYSIS_WORKFLOW.md) | Analysis workflow notes; use [../ARTIFACTS.md](../ARTIFACTS.md) for exact regeneration commands |
-| [experiment/EXPERIMENT_DESIGN.md](experiment/EXPERIMENT_DESIGN.md) | Human-readable experiment design summary aligned to the current protocol |
+| [EXPERIMENT_PROTOCOL.md](study1_pilot_working_paper/EXPERIMENT_PROTOCOL.md) | Canonical 50-round A/B/C protocol, randomization, Qualtrics linkage, claim gates |
+| [EXPERIMENT_DESIGN.md](study1_pilot_working_paper/EXPERIMENT_DESIGN.md) | Human-readable design summary |
+| [PREREGISTRATION.md](study1_pilot_working_paper/PREREGISTRATION.md) | Pilot pre-registration |
+| [RESEARCH_PLAYBOOK.md](study1_pilot_working_paper/RESEARCH_PLAYBOOK.md) | How to use the data without overstating claims |
+| [PAPER_ANALYSIS_WORKFLOW.md](study1_pilot_working_paper/PAPER_ANALYSIS_WORKFLOW.md) | Analysis workflow checklist |
+| [FULL_PAPER_READY_STUDY_ROADMAP.md](study1_pilot_working_paper/FULL_PAPER_READY_STUDY_ROADMAP.md) | Readiness path from pilot data to full study package |
 
-## Setup Docs
+## Study 2: CHI 35-round (undergraduate research prize)
+
+Folder: [study2_chi35_undergrad_prize/](study2_chi35_undergrad_prize/README.md)
+
+| Document | Purpose |
+| --- | --- |
+| [PREREGISTRATION_DYNAMIC.md](study2_chi35_undergrad_prize/PREREGISTRATION_DYNAMIC.md) | Pre-registration for the dynamic counterfactual-feedback study |
+| [MODEL_NOTES.md](study2_chi35_undergrad_prize/MODEL_NOTES.md) | The diagnosis model: scope, identifiability, learning-index approximation |
+| [IDENTIFIABILITY_THEORY.md](study2_chi35_undergrad_prize/IDENTIFIABILITY_THEORY.md) | Formal identifiability statements behind the diagnosis |
+| [LIVE_CHI_DYNAMIC_V2_VERIFICATION.md](study2_chi35_undergrad_prize/LIVE_CHI_DYNAMIC_V2_VERIFICATION.md) | Live deployment verification of the dynamic v2 protocol |
+
+## Shared (cross-study infrastructure)
+
+| Document | Purpose |
+| --- | --- |
+| [shared/EXPERIMENTS.md](shared/EXPERIMENTS.md) | Engineering map: the three experiment configurations and how they map to the two studies |
+| [shared/ARCHITECTURE.md](shared/ARCHITECTURE.md) | Runtime structure, round flow, timing model |
+| [shared/CODEMAP.md](shared/CODEMAP.md) | What each directory and module does |
+| [shared/CONFIG_AND_DATASETS.md](shared/CONFIG_AND_DATASETS.md) | Firestore source of truth, dataset shape, Cities matrix, admin behavior |
+| [shared/MODELS.md](shared/MODELS.md) | Recommendation resolver, model registry, baseline ladder, offline-RL artifact rules |
+| [shared/ANALYTICS_AND_RL_EXPORTS.md](shared/ANALYTICS_AND_RL_EXPORTS.md) | Admin analytics dashboard, modeled-time interpretation, RL export contract |
+| [shared/DATA_GOVERNANCE.md](shared/DATA_GOVERNANCE.md) | Human-subjects data categories, anonymization, sharing checklist |
+| [shared/REPRODUCIBILITY.md](shared/REPRODUCIBILITY.md) | Clean build, CI, fixture reproduction, snapshot discipline |
+| [shared/DEPLOY.md](shared/DEPLOY.md) | Deployment and seeding safety |
+| [shared/EMULATOR_SMOKE.md](shared/EMULATOR_SMOKE.md) | Local Firestore emulator smoke-test |
+| [shared/WIRING_TASKS.md](shared/WIRING_TASKS.md) | Engineering wiring tasks |
+| [shared/DESIGN_NOTES.md](shared/DESIGN_NOTES.md) | Cross-study design decisions and assumptions |
+| [shared/RELEASING.md](shared/RELEASING.md) | Release process |
+
+## Setup
 
 | Document | Purpose |
 | --- | --- |
@@ -37,13 +67,12 @@ These files describe the live app and should stay aligned with the current codeb
 
 ## Archive
 
-Archived material lives under [archive/README.md](archive/README.md). Treat anything there as historical reference unless a current doc links to it explicitly.
+Historical material lives under [archive/README.md](archive/README.md). Treat anything there as
+historical reference unless a current doc links to it explicitly.
 
-The old venue-positioning and early roadmap notes are archived under `archive/planning-2026-04/` because they are planning context, not live implementation documentation.
+## Maintenance rules
 
-## Maintenance Rules
-
-- Update the relevant file in `docs/current/` whenever runtime behavior changes.
-- Prefer linking to an existing current doc instead of repeating the same explanation in multiple files.
+- Put study-specific docs in the matching study folder; put cross-study infrastructure in `shared/`.
+- Update the relevant doc whenever runtime behavior changes; do not duplicate explanations across files.
 - Keep links relative so they work both locally and on GitHub.
-- If a document conflicts with the current code, update it immediately or move it under `docs/archive/` with an archival note.
+- If a document conflicts with the current code, update it or move it under `archive/` with a note.

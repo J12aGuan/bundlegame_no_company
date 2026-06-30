@@ -4183,10 +4183,10 @@ function buildPaperManifest({
       "paper_manifest.json",
     ],
     docs: [
-      "docs/current/RESEARCH_PLAYBOOK.md",
-      "docs/current/PAPER_ANALYSIS_WORKFLOW.md",
-      "docs/current/ANALYTICS_AND_RL_EXPORTS.md",
-      "docs/current/FULL_PAPER_READY_STUDY_ROADMAP.md",
+      "docs/study1_pilot_working_paper/RESEARCH_PLAYBOOK.md",
+      "docs/study1_pilot_working_paper/PAPER_ANALYSIS_WORKFLOW.md",
+      "docs/shared/ANALYTICS_AND_RL_EXPORTS.md",
+      "docs/study1_pilot_working_paper/FULL_PAPER_READY_STUDY_ROADMAP.md",
     ],
     figure_checklist: [
       "Round attrition by dataset and split",

@@ -89,7 +89,7 @@ Confirm, in the running app + the Emulator UI (http://127.0.0.1:4000):
 
 What this proves: the browser wiring (reactive diagnosis triggers, Firestore persistence,
 feedback gating) works against real Firestore semantics. It is NOT efficacy evidence — that
-is the human pilot (`docs/PREREGISTRATION_DYNAMIC.md`).
+is the human pilot (`docs/study2_chi35_undergrad_prize/PREREGISTRATION_DYNAMIC.md`).
 
 ## Verified procedure (2026-06-21) and what it caught
 
@@ -194,4 +194,4 @@ actually corrects picking under coaching, which the scripted driver does not.
 Same dataset, real project: seed via the project's writer path (not `seed-emulator.mjs`,
 which is emulator-only), set `scenario_set` in central config, smoke the production game,
 then `firebase deploy`. Requires credentials and an explicit go; see the deploy notes in
-`docs/MODEL_NOTES.md` and the handoff brief.
+`docs/study2_chi35_undergrad_prize/MODEL_NOTES.md` and the handoff brief.

@@ -37,16 +37,20 @@ make ci
 
 `test:js` covers experiment logic, protocol validation, score exports, recommendation resolution, scenario generation, and research snapshot smoke behavior. `test-python` covers the offline analytics package and the standalone masked discrete-action offline-RL package. CI prints coverage summaries for the JS, analytics, and offline-RL test targets.
 
-## Experiments
+## Studies and papers
 
-This repo holds **three distinct experiments** (different purpose, timeline, protocol, and status).
-The single source of truth is [`docs/current/EXPERIMENTS.md`](docs/current/EXPERIMENTS.md):
+This repo backs **two studies**, each targeting a different INFORMS BEST submission. Documentation is
+organized by study under [`docs/`](docs/README.md).
 
-1. **Live recommendation (mainGame)** — already run; the only one with real participant data.
-2. **Enriched 4-order (June 30)** — redesigned menus; protocol binding TBD; merged but not seeded.
-3. **CHI personalization / dynamic (September)** — personalized, diagnosis-driven; not yet live.
+| Study | What it is | Paper |
+| --- | --- | --- |
+| **Study 1 (Pilot)** | The live recommendation study on the 50-round A/B/C `mainGame` task. The only study with real participant data. | **INFORMS Best Working Paper submission**. Docs: [`docs/study1_pilot_working_paper/`](docs/study1_pilot_working_paper/README.md). |
+| **Study 2 (CHI 35-round)** | The dynamic counterfactual-feedback study on the 35-round `buildChiScenarioSet` (seed 42) menus. Diagnosis-driven, deployed and instrumented. | **INFORMS Best Undergraduate Research Prize**. Docs: [`docs/study2_chi35_undergrad_prize/`](docs/study2_chi35_undergrad_prize/README.md). |
 
-Per-experiment artifact entry points live under [`publishing/experiments/`](publishing/experiments/).
+Operationally the code carries three experiment configurations (Study 2 spans the "enriched 4-order"
+and "CHI personalization" lineage); the full engineering map is
+[`docs/shared/EXPERIMENTS.md`](docs/shared/EXPERIMENTS.md). Per-experiment artifact entry points are
+under [`publishing/experiments/`](publishing/experiments/).
 
 ## How The System Fits Together
 
@@ -65,7 +69,7 @@ Runtime data is loaded from Firestore `MasterData`, not local static JSON:
 - `MasterData/cities`: cross-city travel matrix
 - `MasterData/datasets`: grouped scenario, order, optimal, and candidate-bundle metadata
 
-The canonical experiment protocol lives in `src/lib/researchStudy.js`: 50 rounds, Phase A rounds 1-15, Phase B rounds 16-35, Phase C rounds 36-50. Runtime loading, dataset saves, protocol saves, and analytics reject mismatched protocol snapshots.
+Study 1's canonical protocol lives in `src/lib/researchStudy.js`: 50 rounds, Phase A rounds 1-15, Phase B rounds 16-35, Phase C rounds 36-50. Study 2 uses the 35-round dynamic protocol (`bundlegame_chi_dynamic_v1`). Runtime loading, dataset saves, protocol saves, and analytics reject mismatched protocol snapshots.
 
 ## Reproduce Analyses
 
@@ -125,11 +129,13 @@ Detailed artifact regeneration: [ARTIFACTS.md](ARTIFACTS.md)
 
 | Audience | Start Here |
 | --- | --- |
-| New developers | [docs/setup/QUICKSTART.md](docs/setup/QUICKSTART.md), [docs/current/ARCHITECTURE.md](docs/current/ARCHITECTURE.md) |
-| Reviewers and reproducers | [ARTIFACTS.md](ARTIFACTS.md), [DATA_SCHEMA.md](DATA_SCHEMA.md), [docs/current/REPRODUCIBILITY.md](docs/current/REPRODUCIBILITY.md) |
-| Study operators | [docs/current/EXPERIMENT_PROTOCOL.md](docs/current/EXPERIMENT_PROTOCOL.md), [docs/current/CONFIG_AND_DATASETS.md](docs/current/CONFIG_AND_DATASETS.md) |
-| Analysts and model builders | [docs/current/ANALYTICS_AND_RL_EXPORTS.md](docs/current/ANALYTICS_AND_RL_EXPORTS.md), [docs/current/MODELS.md](docs/current/MODELS.md) |
-| Data stewards | [docs/current/DATA_GOVERNANCE.md](docs/current/DATA_GOVERNANCE.md), [SECURITY.md](SECURITY.md) |
+| New developers | [docs/setup/QUICKSTART.md](docs/setup/QUICKSTART.md), [docs/shared/ARCHITECTURE.md](docs/shared/ARCHITECTURE.md) |
+| Reviewers and reproducers | [ARTIFACTS.md](ARTIFACTS.md), [DATA_SCHEMA.md](DATA_SCHEMA.md), [docs/shared/REPRODUCIBILITY.md](docs/shared/REPRODUCIBILITY.md) |
+| Study 1 (pilot) operators | [docs/study1_pilot_working_paper/README.md](docs/study1_pilot_working_paper/README.md), [docs/study1_pilot_working_paper/EXPERIMENT_PROTOCOL.md](docs/study1_pilot_working_paper/EXPERIMENT_PROTOCOL.md) |
+| Study 2 (CHI 35-round) operators | [docs/study2_chi35_undergrad_prize/README.md](docs/study2_chi35_undergrad_prize/README.md), [docs/study2_chi35_undergrad_prize/PREREGISTRATION_DYNAMIC.md](docs/study2_chi35_undergrad_prize/PREREGISTRATION_DYNAMIC.md) |
+| Config and datasets | [docs/shared/CONFIG_AND_DATASETS.md](docs/shared/CONFIG_AND_DATASETS.md) |
+| Analysts and model builders | [docs/shared/ANALYTICS_AND_RL_EXPORTS.md](docs/shared/ANALYTICS_AND_RL_EXPORTS.md), [docs/shared/MODELS.md](docs/shared/MODELS.md) |
+| Data stewards | [docs/shared/DATA_GOVERNANCE.md](docs/shared/DATA_GOVERNANCE.md), [SECURITY.md](SECURITY.md) |
 
 The full documentation index is [docs/README.md](docs/README.md). Historical notes are under [docs/archive/](docs/archive/README.md) and are not authoritative for the current runtime.
 
@@ -137,7 +143,7 @@ The full documentation index is [docs/README.md](docs/README.md). Historical not
 
 Before collecting participant data, publish [`firestore.rules`](firestore.rules), use Firebase Auth users with the `admin: true` custom claim for admin/downloader access, and keep script credentials in non-`VITE_` variables. Do not put Qualtrics tokens, admin passwords, or publication pseudonym salts in browser-exposed variables.
 
-Publication exports must use pseudonymous participant IDs and exclude direct identifiers such as names, result codes, Qualtrics response IDs, match keys, and raw survey payloads. See [DATA_SCHEMA.md](DATA_SCHEMA.md) and [docs/current/DATA_GOVERNANCE.md](docs/current/DATA_GOVERNANCE.md).
+Publication exports must use pseudonymous participant IDs and exclude direct identifiers such as names, result codes, Qualtrics response IDs, match keys, and raw survey payloads. See [DATA_SCHEMA.md](DATA_SCHEMA.md) and [docs/shared/DATA_GOVERNANCE.md](docs/shared/DATA_GOVERNANCE.md).
 
 ## License And Data Scope
 

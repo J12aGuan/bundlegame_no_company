@@ -128,6 +128,6 @@ and is **not** treatment-aware by this gate.
   (`buildChiStudyProtocol`, `validateChiStudyProtocol`).
 - Scenario design: `src/lib/chiScenarioDesign.js` (+ `tests/js/scenario-design.test.mjs`).
 - Power: `publishing/analysis/power_analysis.py`; confirmatory plan: `publishing/analysis/confirmatory_plan.py`.
-- Gate: `analytics/qa/treatment_gate.py`. Decisions/assumptions: `DESIGN_NOTES.md`.
+- Gate: `analytics/qa/treatment_gate.py`. Decisions/assumptions: `docs/shared/DESIGN_NOTES.md`.
 
 *Any deviation from this plan will be reported with justification in the paper.*

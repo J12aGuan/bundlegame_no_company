@@ -1164,7 +1164,7 @@ the modeled chosen/oracle components), both sources are usable.
 
 ## Treatment-awareness
 **Treatment-aware dataset (Phase B with real recommendations shown): {"PRESENT" if treatment_aware else "ABSENT"}.**
-{"" if treatment_aware else "This is a **baseline / unaided-only** export: no rows carry a `policy_arm`, a non-`none` `recommendation_source`, or non-empty `shown_recommendation_bundle_ids`. Per `docs/current/EXPERIMENT_PROTOCOL.md`, do **not** make recommendation-treatment claims from this dataset. It is suitable for Phase-A unaided behavior, excess-time decomposition, per-worker bias logit, clustering, and order-level routing analysis."}
+{"" if treatment_aware else "This is a **baseline / unaided-only** export: no rows carry a `policy_arm`, a non-`none` `recommendation_source`, or non-empty `shown_recommendation_bundle_ids`. Per `docs/study1_pilot_working_paper/EXPERIMENT_PROTOCOL.md`, do **not** make recommendation-treatment claims from this dataset. It is suitable for Phase-A unaided behavior, excess-time decomposition, per-worker bias logit, clustering, and order-level routing analysis."}
 """
     (out_dir / "QUALITY_REPORT.md").write_text(text, encoding="utf-8")
 

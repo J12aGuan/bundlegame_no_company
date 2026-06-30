@@ -58,7 +58,7 @@ unit tests, using the verified pilot export and clearly-labeled synthetic fixtur
 | C9 | Tests: bundle invariant; matched targets diagnosed, mismatched doesn't | **Done** | `scaffolding.test.mjs` | `node --test` |
 | D10 | Four between-subjects arms; pre-gameplay stable assignment; diagnosis→slate | **Done** | `researchStudy.js` (`BUNDLEGAME_CHI_SCAFFOLD_ARMS`, `assignScaffoldArm`) | `scaffolding.test.mjs` |
 | E11 | Logging fields + snapshot gate blocking "treatment-aware" | **Done** | `analytics/qa/treatment_gate.py` (+ scaffold log record) | `test_treatment_gate.py` |
-| F12 | Pre-registration | **Done** | `docs/PREREGISTRATION.md` | doc |
+| F12 | Pre-registration | **Done** | `docs/study1_pilot_working_paper/PREREGISTRATION.md` | doc |
 | F13 | Power analysis from pilot effect sizes | **Done** | `publishing/analysis/power_analysis.py` | runs on pilot export |
 | F14 | Confirmatory H1–H5 on fixtures | **Done** | `publishing/analysis/confirmatory_plan.py` | 5/5 planted effects recovered |
 

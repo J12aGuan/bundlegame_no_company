@@ -1368,10 +1368,10 @@ def _build_paper_manifest(
             "paper_manifest.json",
         ],
         "docs": [
-            "docs/current/RESEARCH_PLAYBOOK.md",
-            "docs/current/PAPER_ANALYSIS_WORKFLOW.md",
-            "docs/current/ANALYTICS_AND_RL_EXPORTS.md",
-            "docs/current/CHI_CSCW_DRL_ROADMAP.md",
+            "docs/study1_pilot_working_paper/RESEARCH_PLAYBOOK.md",
+            "docs/study1_pilot_working_paper/PAPER_ANALYSIS_WORKFLOW.md",
+            "docs/shared/ANALYTICS_AND_RL_EXPORTS.md",
+            "docs/archive/planning-2026-04/CHI_CSCW_DRL_ROADMAP.md",
         ],
         "figure_checklist": [
             "Round attrition by dataset and split",

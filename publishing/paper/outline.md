@@ -36,7 +36,7 @@ Evidence mapping:
 
 | Evidence | Source | Status |
 | --- | --- | --- |
-| Task protocol and route-aware action space | `docs/current/EXPERIMENT_PROTOCOL.md`, `DATA_SCHEMA.md` | Supported now |
+| Task protocol and route-aware action space | `docs/study1_pilot_working_paper/EXPERIMENT_PROTOCOL.md`, `DATA_SCHEMA.md` | Supported now |
 | Reproducible artifact pipeline | `ARTIFACTS.md`, `publishing/paper_artifacts/` | Supported now |
 | Treatment effect of recommendations | `study_randomization.csv`, `human_policy_eval.csv` | Supported after new study |
 
@@ -53,7 +53,7 @@ Evidence mapping:
 
 | Evidence | Source | Status |
 | --- | --- | --- |
-| Canonical protocol | `src/lib/researchStudy.js`, `docs/current/EXPERIMENT_PROTOCOL.md` | Supported now |
+| Canonical protocol | `src/lib/researchStudy.js`, `docs/study1_pilot_working_paper/EXPERIMENT_PROTOCOL.md` | Supported now |
 | Candidate bundle metadata | `optimal[].candidate_bundles[]`, `DATA_SCHEMA.md` | Supported now for generated datasets |
 | Protocol validation | JS tests under `tests/js/` | Supported now |
 

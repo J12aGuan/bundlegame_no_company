@@ -3,7 +3,7 @@ export const DEFAULT_ACTION_MASK_VERSION = "legal_bundle_mask_v1";
 // =============================================================================================
 // EXPERIMENT 1 of 3 — Live recommendation (mainGame). The A/B/C recommendation study that has
 // already run (the only one with real participant data; scenario set mainGame_2026_03_20_14_26_36).
-// See docs/current/EXPERIMENTS.md for how the three experiments map.
+// See docs/shared/EXPERIMENTS.md for how the three experiments map.
 // =============================================================================================
 export const BUNDLEGAME_STUDY_PROTOCOL_VERSION = "bundlegame_abc_50_round_v1";
 export const BUNDLEGAME_STUDY_PROTOCOL_ID = "bundlegame_abc_recommendation_v1";
@@ -1863,7 +1863,7 @@ export function resolveRecommendationSlate({
 // =============================================================================================
 // EXPERIMENT 3 of 3 — CHI personalization / dynamic (September). Personalized, diagnosis-driven:
 // the diagnosis runs at r15/r25/r35 and re-targets; arms are diagnosis-informed. Scenario set
-// chi_dynamic_v1. See docs/current/EXPERIMENTS.md.
+// chi_dynamic_v1. See docs/shared/EXPERIMENTS.md.
 // =============================================================================================
 export const CHI_STUDY_PROTOCOL_ID = "bundlegame_chi_dynamic_v1";
 export const CHI_STUDY_PROTOCOL_VERSION = "bundlegame_chi_dynamic_counterfactual_35_round_v1";
@@ -2055,7 +2055,7 @@ export function assignScaffoldArm(participantId = "", protocol = buildChiStudyPr
 // the enriched buildChiScenarioSet menus; its protocol/arm binding is UNIDENTIFIED (TBD). This
 // non-personalized foundational protocol (diagnosis dormant) currently EXISTS and chi_foundational_v1
 // is what centralConfig points to live, but whether June 30 reuses it is undecided. See the open
-// questions in docs/current/EXPERIMENTS.md.
+// questions in docs/shared/EXPERIMENTS.md.
 export const CHI_FOUNDATIONAL_PROTOCOL_ID = "bundlegame_chi_foundational_v1";
 export const CHI_FOUNDATIONAL_PROTOCOL_VERSION = "bundlegame_chi_foundational_35_round_v1";
 export const CHI_FOUNDATIONAL_SCENARIO_SET_VERSION_ID = "chi_foundational_v1";

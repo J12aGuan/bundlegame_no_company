@@ -6,7 +6,7 @@ Understanding how game configuration works and where to find settings.
 
 ## 🎯 Quick Summary
 
-**All game settings live in ONE place**: [`src/lib/centralConfig.json`](../../src/lib/centralConfig.json)
+**All game settings live in ONE place**: `src/lib/centralConfig.json`
 
 This includes:
 - Game timers (round limits, penalties)
@@ -14,7 +14,7 @@ This includes:
 - Store layouts and distances
 - Feature flags (auth, tips, etc.)
 
-**Experiment rounds** (50 rounds with order details) are in a separate file: [`src/lib/bundle_experiment_50_rounds_short_times.json`](../../src/lib/bundle_experiment_50_rounds_short_times.json)
+**Experiment rounds** (50 rounds with order details) are in a separate file: `src/lib/bundle_experiment_50_rounds_short_times.json`
 
 ---
 
@@ -22,10 +22,10 @@ This includes:
 
 | File | Purpose | Edit Frequency |
 |------|---------|----------------|
-| [`centralConfig.json`](../../src/lib/centralConfig.json) | Main game settings | Medium |
-| [`bundle_experiment_50_rounds_short_times.json`](../../src/lib/bundle_experiment_50_rounds_short_times.json) | Experiment rounds | Low |
-| [`src/config.json`](../../src/config.json) | Legacy config (compatibility) | Rare |
-| [`src/lib/configs/stores1.json`](../../src/lib/configs/stores1.json) | Alternative store config | Rare |
+| `centralConfig.json` | Main game settings | Medium |
+| `bundle_experiment_50_rounds_short_times.json` | Experiment rounds | Low |
+| `src/config.json` | Legacy config (compatibility) | Rare |
+| `src/lib/configs/stores1.json` | Alternative store config | Rare |
 
 ---
 
@@ -335,15 +335,15 @@ Participants see new settings on next visit
 
 - **Detailed config reference**: [CENTRALIZED_CONFIG.md](CENTRALIZED_CONFIG.md)
 - **Parameter guide**: [PARAMETERS.md](PARAMETERS.md)
-- **Architecture**: [../architecture/OVERVIEW.md](../architecture/OVERVIEW.md)
-- **Code organization**: [../architecture/CODEMAP.md](../architecture/CODEMAP.md)
+- **Architecture**: ../architecture/OVERVIEW.md
+- **Code organization**: ../architecture/CODEMAP.md
 
 ---
 
 ## 📞 Questions?
 
 - **Config issues**: Contact Nicholas Chen: nchen06@berkeley.edu
-- **Experiment design**: See [../experiment/EXPERIMENT_DESIGN.md](../experiment/EXPERIMENT_DESIGN.md)
+- **Experiment design**: See ../experiment/EXPERIMENT_DESIGN.md
 
 ---
 

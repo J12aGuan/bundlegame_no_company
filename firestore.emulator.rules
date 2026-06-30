@@ -1,5 +1,5 @@
 rules_version = '2';
-// EMULATOR-ONLY permissive rules for the local smoke-test (docs/EMULATOR_SMOKE.md). The
+// EMULATOR-ONLY permissive rules for the local smoke-test (docs/shared/EMULATOR_SMOKE.md). The
 // production firestore.rules are admin/participant-gated; for a local unauthenticated smoke
 // we allow all so the seeder and the auth-less game can read/write the LOCAL emulator. This
 // file is NEVER used for deploy (firebase.json still points at firestore.rules).

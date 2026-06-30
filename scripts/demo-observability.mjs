@@ -1,6 +1,6 @@
 /**
  * Observability & controllability of the bias state (C2) — the numerical companion to
- * docs/IDENTIFIABILITY_THEORY.md. Recasts the participant's per-attribute weight-bias as a
+ * docs/study2_chi35_undergrad_prize/IDENTIFIABILITY_THEORY.md. Recasts the participant's per-attribute weight-bias as a
  * LATENT STATE and demonstrates, on the deployed CHI menus, the theorem's three claims:
  *
  *   1. OBSERVABILITY (structural). The counterfactual per-attribute observation map over a
@@ -216,7 +216,7 @@ function run() {
 
   console.log("DESIGN-ADEQUACY in the linear-logit model. Degradation under choice noise + a misspecified value");
   console.log("function: scripts/stress-chi-identifiability.mjs. The human pilot is the only test of whether people");
-  console.log("carry separable leaks at all. See docs/IDENTIFIABILITY_THEORY.md for the formal statements.\n");
+  console.log("carry separable leaks at all. See docs/study2_chi35_undergrad_prize/IDENTIFIABILITY_THEORY.md for the formal statements.\n");
 
   // light self-check so the demo fails loudly if the core claims regress.
   const okObservable = channels[0][1].lambda_min > 1e-6 && channels[2][1].lambda_min < 1e-6;

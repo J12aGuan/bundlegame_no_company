@@ -12,7 +12,7 @@
  * app reads via getExperimentScenarios. Only the dataset doc path + root-id resolver are
  * replicated here (a small, stable contract verified by tests/js/chi-seed-roundtrip).
  *
- * Run (with `firebase emulators:start` already running — see docs/EMULATOR_SMOKE.md):
+ * Run (with `firebase emulators:start` already running — see docs/shared/EMULATOR_SMOKE.md):
  *   node scripts/seed-emulator.mjs
  *   node scripts/seed-emulator.mjs --version=chi_dynamic_v1 --host=127.0.0.1 --port=8080
  */
@@ -50,7 +50,7 @@ const resolveDatasetRoot = (id = "") => String(id || "").trim().replace(/\.json$
 
 // Target selection. DEFAULT is the LOCAL emulator: route the Admin SDK to it before init, and
 // refuse any non-local host. --live targets the REAL project and is strongly guarded so it
-// cannot run by accident (see docs/DEPLOY.md): it requires CHI_SEED_LIVE=1, a non-demo
+// cannot run by accident (see docs/shared/DEPLOY.md): it requires CHI_SEED_LIVE=1, a non-demo
 // --project, and ambient admin credentials (gcloud application-default login, or
 // GOOGLE_APPLICATION_CREDENTIALS). In --live mode FIRESTORE_EMULATOR_HOST is left unset so the
 // admin SDK writes to the real project.
@@ -191,7 +191,7 @@ async function main() {
     if (!md) console.log("      (use --full to also seed centralConfig/protocol/stores/cities so the production game boots.)\n");
   } catch (err) {
     console.error("\nSEED FAILED:", err?.message || err);
-    console.error("Start the emulator first:  firebase emulators:start   (see docs/EMULATOR_SMOKE.md)\n");
+    console.error("Start the emulator first:  firebase emulators:start   (see docs/shared/EMULATOR_SMOKE.md)\n");
     process.exit(1);
   }
   process.exit(0);

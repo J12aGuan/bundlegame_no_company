@@ -25,7 +25,7 @@ const firebaseConfig = {
 // emulator (project bundling-63c10 is not touched). This is the unblock for the pilot
 // smoke-test: run `firebase emulators:start`, import build/<version>.seed.json via the admin
 // masterdata UI, point central config scenario_set at it, then play the real game locally.
-// See docs/EMULATOR_SMOKE.md.
+// See docs/shared/EMULATOR_SMOKE.md.
 const USE_EMULATOR = import.meta.env.VITE_USE_FIREBASE_EMULATOR === "true";
 const EMU_HOST = import.meta.env.VITE_FIREBASE_EMULATOR_HOST || "127.0.0.1";
 const EMU_FIRESTORE_PORT = Number(import.meta.env.VITE_FIREBASE_EMULATOR_FIRESTORE_PORT || 8080);

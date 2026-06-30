@@ -41,13 +41,13 @@ Shared libraries (imported, not run directly): `firestore-admin-export-common.mj
 | file | purpose |
 | --- | --- |
 | `check-menu-span.mjs` | menu span / observability check |
-| `demo-observability.mjs` | observability demo (see docs/IDENTIFIABILITY_THEORY.md) |
+| `demo-observability.mjs` | observability demo (see docs/study2_chi35_undergrad_prize/IDENTIFIABILITY_THEORY.md) |
 | `stress-chi-identifiability.mjs` | identifiability stress test |
-| `sweep-chi-rediagnosis.mjs` | re-diagnosis tuning sweep (see docs/PREREGISTRATION_DYNAMIC.md) |
+| `sweep-chi-rediagnosis.mjs` | re-diagnosis tuning sweep (see docs/study2_chi35_undergrad_prize/PREREGISTRATION_DYNAMIC.md) |
 | `simulate-chi-study.mjs` | study-level simulation |
 | `simulate-chi-dynamic.mjs` | dynamic-arm simulation |
 | `simulate-chi-gameplay.mjs` | realistic noisy-population gameplay sandbox |
-| `chi-participant-probe.mjs` | scripted-participant emulator probe (see docs/EMULATOR_SMOKE.md) |
+| `chi-participant-probe.mjs` | scripted-participant emulator probe (see docs/shared/EMULATOR_SMOKE.md) |
 
 ## Seeding + emulator smoke (manual)
 
@@ -55,8 +55,8 @@ Shared libraries (imported, not run directly): `firestore-admin-export-common.mj
 | --- | --- |
 | `seed-emulator.mjs` | Admin-SDK seeder (`--foundational`, `--live` + `CHI_SEED_LIVE=1` for production) |
 | `seed-chi-dataset.mjs` | CHI dataset seed helper (used by `seed-emulator.mjs`) |
-| `drive-emulator-game.mjs` | drive the game on the emulator (docs/EMULATOR_SMOKE.md) |
-| `readback-emulator.mjs` | read back emulator state (docs/EMULATOR_SMOKE.md) |
+| `drive-emulator-game.mjs` | drive the game on the emulator (docs/shared/EMULATOR_SMOKE.md) |
+| `readback-emulator.mjs` | read back emulator state (docs/shared/EMULATOR_SMOKE.md) |
 
 ## Local-only helpers (gitignored)
 

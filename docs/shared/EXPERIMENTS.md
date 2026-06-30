@@ -5,6 +5,20 @@ but differ in purpose, timeline, protocol, arms, and status. This page is the ca
 other doc disagrees, this one wins. Last reconciled against live Firestore (`bundling-63c10`) on
 **2026-06-23**.
 
+## Mapping to the two studies and papers
+
+The three experiment configurations roll up into **two studies**, each targeting one INFORMS BEST
+submission:
+
+| Study | Paper | Experiment configuration(s) below |
+| --- | --- | --- |
+| **Study 1 (Pilot)** | INFORMS Best Working Paper submission | Experiment 1 (Live recommendation, `mainGame`) |
+| **Study 2 (CHI 35-round)** | INFORMS Best Undergraduate Research Prize | Experiment 2 (enriched 4-order) and Experiment 3 (CHI personalization), which share the 35-round dynamic protocol |
+
+Study docs: [../study1_pilot_working_paper/README.md](../study1_pilot_working_paper/README.md) and
+[../study2_chi35_undergrad_prize/README.md](../study2_chi35_undergrad_prize/README.md). The
+per-experiment operational detail (timeline, seeding state, arms) follows below.
+
 | # | Experiment | Timeline | Protocol id | Scenario set | Personalized? | Status |
 |---|---|---|---|---|---|---|
 | 1 | **Live recommendation (mainGame)** | already run | `bundlegame_abc_recommendation_v1` | `mainGame_2026_03_20_14_26_36` | no (A/B/C recommendation) | **has real data** |

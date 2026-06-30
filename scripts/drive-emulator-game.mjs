@@ -1,5 +1,5 @@
 // Drive the PRODUCTION game (+page.svelte) headless for 35 rounds with a planted bias against
-// the local Firestore emulator (docs/EMULATOR_SMOKE.md). Authenticates via generateAuthToken(id),
+// the local Firestore emulator (docs/shared/EMULATOR_SMOKE.md). Authenticates via generateAuthToken(id),
 // selects per bias, completes store-pick + delivery, answers the r15 survey at midpoint so
 // diagnosis_history reflects BEHAVIOUR + the live spanning estimator. Read back with
 // scripts/readback-emulator.mjs.  Usage: node scripts/drive-emulator-game.mjs <id> <bias>

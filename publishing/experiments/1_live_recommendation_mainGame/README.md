@@ -1,7 +1,7 @@
 # Experiment 1 — Live recommendation (mainGame)
 
 The A/B/C recommendation study that has **already run**. This is the only experiment with real
-participant data. Canonical details: [`docs/current/EXPERIMENTS.md`](../../../docs/current/EXPERIMENTS.md).
+participant data. Canonical details: [`docs/shared/EXPERIMENTS.md`](../../../docs/shared/EXPERIMENTS.md).
 
 | field | value |
 |---|---|

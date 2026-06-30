@@ -1,6 +1,6 @@
 # Full-Paper-Ready Study Roadmap
 
-This roadmap is planning guidance. For current executable commands and schemas, use [../../ARTIFACTS.md](../../ARTIFACTS.md), [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md), [EXPERIMENT_PROTOCOL.md](EXPERIMENT_PROTOCOL.md), and [MODELS.md](MODELS.md).
+This roadmap is planning guidance. For current executable commands and schemas, use [../../ARTIFACTS.md](../../ARTIFACTS.md), [../../DATA_SCHEMA.md](../../DATA_SCHEMA.md), [EXPERIMENT_PROTOCOL.md](EXPERIMENT_PROTOCOL.md), and [MODELS.md](../shared/MODELS.md).
 
 ## Current State
 

@@ -71,7 +71,7 @@ High-level overview of the Bundle Game architecture, technology stack, and desig
 **Trade-off**: API keys visible in client code (mitigated by Firebase domain restrictions)
 
 ### 3. Centralized Configuration
-**Decision**: Single [`src/lib/centralConfig.json`](../../src/lib/centralConfig.json) for all game settings
+**Decision**: Single `src/lib/centralConfig.json` for all game settings
 
 **Rationale**:
 - Easy to find and modify settings
@@ -210,7 +210,7 @@ Contains:
 - Optimal solutions
 - AI recommendations
 
-**Config docs**: [docs/configuration/](../configuration/)
+**Config docs**: docs/configuration/
 
 ---
 
@@ -314,7 +314,7 @@ git push origin main → GitHub webhook
 
 - **Code structure**: [CODEMAP.md](CODEMAP.md)
 - **File details**: [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
-- **Configuration**: [docs/configuration/OVERVIEW.md](../configuration/OVERVIEW.md)
+- **Configuration**: docs/configuration/OVERVIEW.md
 
 ---
 
