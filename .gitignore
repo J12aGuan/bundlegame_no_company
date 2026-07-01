@@ -47,11 +47,9 @@ firestore-debug*.log
 .DS_Store
 __MACOSX/
 .history/
-.claude/
 .sixth/
 
-# Local-only reliability tooling (agent config + local helpers; never pushed)
-CLAUDE.md
+# Local-only reliability tooling (local helpers; never pushed)
 /scripts/print_frozen_numbers
 /scripts/print_frozen_numbers.*
 # Local-only live debug helpers (drive the production site; kept out of origin)
@@ -65,7 +63,6 @@ CLAUDE.md
 /publishing/chi_scenario_design.zip
 /scripts/dump-chi-scenarios.mjs
 .vscode/*
-!.vscode/settings.json
 !.vscode/extensions.json
 
 # Temporary experiment files
