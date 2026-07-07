@@ -82,7 +82,7 @@ per-experiment operational detail (timeline, seeding state, arms) follows below.
   (~400 total; `main_target_n = 400`), **plus the sign-survival gate** as a server-side robustness
   layer on the diagnosis.
 - **Menus**: the transfer-first enriched `buildChiScenarioSet` (seed 42): every menu >= 4 distinct
-  orders; balanced oracle mix (13 single / 12 bundling-correct / 10 over-bundle); clean single-axis
+  orders; balanced oracle mix (realized seed-42 set: 14 single / 12 bundling-correct / 9 over-bundle); clean single-axis
   payout traps preserved; bundling-correct rounds appear transfer-first. The coaching/held-out blocks
   are difficulty-matched: each block's mean second-best gap is ~0.25 to 0.28 (A 0.27, B1 0.28,
   B2 0.27, B3 0.25, B4 0.26) after the B2 (was 0.39) and B4 (was 0.15) rebalance.
