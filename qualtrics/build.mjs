@@ -21,8 +21,27 @@ function arg(name, dflt) {
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : dflt;
 }
 
-const EXPORT_DIR = arg('export',
-  path.join(HERE, '..', 'data analysis', 'firestore_raw_export', '2026-08-08T23-05-09-456Z', 'collections'));
+// The repo reorganised `data analysis/` into `publishing/data_analysis/`.
+// Resolve whichever exists, newest snapshot first, so the build works on any
+// checkout without a hand-edited path.
+function findExportDir(here) {
+  const roots = [
+    path.join(here, '..', 'publishing', 'data_analysis', 'firestore_raw_export'),
+    path.join(here, '..', 'data analysis', 'firestore_raw_export')
+  ];
+  for (const root of roots) {
+    if (!fs.existsSync(root)) continue;
+    const snaps = fs.readdirSync(root)
+      .filter(d => /^\d{4}-\d{2}-\d{2}T/.test(d) && fs.existsSync(path.join(root, d, 'collections')))
+      .sort();
+    if (snaps.length) return path.join(root, snaps[snaps.length - 1], 'collections');
+  }
+  return null;
+}
+
+const EXPORT_DIR = arg('export', findExportDir(HERE));
+if (!EXPORT_DIR) { console.error('  ! no Firestore export found. Run: npm run firestore:export:raw'); process.exit(1); }
+
 let WANTED = arg('datasets', 'mainGame').split(',').map(s => s.trim()).filter(Boolean);
 // The warm-up dataset must ship too, or TUTORIAL_ROUNDS silently does nothing.
 const TUT = arg('tutorial', 'tutorial');
