@@ -17,6 +17,13 @@
 		"token": "node scripts/generate-auth-token.mjs",
 		"test:paired": "node scripts/test-paired.mjs",
 		"qualtrics:sync": "node scripts/sync-qualtrics-responses.mjs",
+		"qualtrics:build": "node qualtrics/build.mjs",
+		"qualtrics:test": "node --test qualtrics/test/*.test.mjs",
+		"qualtrics:harness": "node -e \"console.log('open file://' + require('path').resolve('qualtrics/test/harness.html'))\"",
+		"qualtrics:survey": "node qualtrics/make-survey.mjs",
+		"qualtrics:import": "python3 qualtrics/import_qualtrics_export.py",
+		"qualtrics:sizing": "node qualtrics/test/payload-sizing.mjs",
+		"qualtrics:verify": "npm run qualtrics:surveys && npm run qualtrics:test",
 		"scores:export": "node scripts/export-admin-scores.mjs",
 		"firestore:connection:check": "node scripts/firestore-connection-check.mjs",
 		"firestore:export:raw": "node scripts/export-firestore-research.mjs",
@@ -26,7 +33,10 @@
 		"research:summary": "node scripts/research-data-summary.mjs",
 		"research:worker": "node scripts/research-worker.mjs --once",
 		"lint": "prettier --plugin-search-dir . --check .",
-		"format": "prettier --plugin-search-dir . --write ."
+		"format": "prettier --plugin-search-dir . --write .",
+		"qualtrics:build:control": "node qualtrics/build.mjs --datasets chi_dynamic_v2,paired_enriched35_aided_v1,mainGame --default chi_dynamic_v2 --set TUTORIAL_ROUNDS=0 --set SHOW_INSTRUCTIONS=false --set PARTICIPANT_ID_FIELD='userID' --arm control --out bundlegame.control.js",
+		"qualtrics:build:treated": "node qualtrics/build.mjs --datasets chi_dynamic_v2,paired_enriched35_aided_v1,mainGame --default chi_dynamic_v2 --set TUTORIAL_ROUNDS=0 --set SHOW_INSTRUCTIONS=false --set PARTICIPANT_ID_FIELD='userID' --with-oracle --arm counterfactual --out bundlegame.treated.js",
+		"qualtrics:surveys": "npm run qualtrics:build:control && npm run qualtrics:build:treated && node qualtrics/make-survey.mjs --name \"BundleGame Control\" --js qualtrics/dist/bundlegame.control.js && node qualtrics/make-survey.mjs --name \"BundleGame Treated\" --js qualtrics/dist/bundlegame.treated.js --arms counterfactual,aggregate"
 	},
 	"type": "module",
 	"dependencies": {

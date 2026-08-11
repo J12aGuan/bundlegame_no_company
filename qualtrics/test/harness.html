@@ -1,0 +1,87 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>BundleGame — local harness</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #f8fafc; }
+  header { background: #0f172a; color: #fff; padding: 10px 16px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  header label { font-size: 12px; display: flex; gap: 5px; align-items: center; }
+  header select, header input { font-size: 12px; padding: 3px 6px; border-radius: 5px; border: 1px solid #475569; background: #1e293b; color: #fff; }
+  header button { font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 0; background: #2563eb; color: #fff; cursor: pointer; }
+  main { padding: 22px; }
+  #stage { background: #fff; border-radius: 12px; padding: 22px; max-width: 900px; margin: 0 auto 20px; }
+  #ed { max-width: 900px; margin: 0 auto; background: #0f172a; color: #a5f3fc; border-radius: 12px; padding: 14px; }
+  #ed h2 { font-size: 12px; margin: 0 0 8px; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+  #ed pre { margin: 0; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 320px; overflow: auto; }
+</style>
+
+<header>
+  <h1>BundleGame — local harness</h1>
+  <label>dataset <select id="ds"></select></label>
+  <label>arm <select id="arm">
+    <option>control</option><option>oracle</option><option>counterfactual</option><option>aggregate</option>
+  </select></label>
+  <label>rounds <input id="rounds" type="number" value="5" min="1" style="width:60px"></label>
+  <label>session s <input id="sess" type="number" value="0" min="0" style="width:70px"></label>
+  <button id="run">Restart</button>
+  <span style="font-size:12px;color:#94a3b8">stubs Qualtrics — nothing is sent anywhere</span>
+</header>
+
+<main>
+  <div id="stage"></div>
+  <div id="ed"><h2>Embedded data that would be written to Qualtrics</h2><pre id="edout">(play a round)</pre></div>
+</main>
+
+<script>
+  // ---- Qualtrics stub -------------------------------------------------------
+  var EMBEDDED = {};
+  window.Qualtrics = {
+    SurveyEngine: {
+      addOnload: function (fn) { window.__onload = fn; },
+      addOnUnload: function () { },
+      getEmbeddedData: function (k) { return k in EMBEDDED ? EMBEDDED[k] : null; },
+      setEmbeddedData: function (k, v) { EMBEDDED[k] = v; paint(); }
+    }
+  };
+  function paint() {
+    var keys = Object.keys(EMBEDDED).sort();
+    document.getElementById('edout').textContent = keys.map(function (k) {
+      var v = String(EMBEDDED[k]);
+      var shown = v.length > 260 ? v.slice(0, 260) + ' …(' + v.length + ' chars)' : v;
+      return k + ' = ' + shown;
+    }).join('\n') || '(nothing yet)';
+  }
+</script>
+
+<script src="../dist/bundlegame.treated.js"></script>
+
+<script>
+  // The built file ends with addOnload(); the stub captured it. Drive it manually
+  // with a fake question object so the same code path runs as in Qualtrics.
+  var sel = document.getElementById('ds');
+  Object.keys(BUNDLEGAME_DATA.datasets).forEach(function (k) {
+    var o = document.createElement('option'); o.value = o.textContent = k;
+    if (k === BUNDLEGAME_CONFIG.DATASET) o.selected = true;
+    sel.appendChild(o);
+  });
+
+  function start() {
+    EMBEDDED = {};
+    EMBEDDED.bg_DATASET = sel.value;
+    EMBEDDED.bg_ARM = document.getElementById('arm').value;
+    EMBEDDED.bg_TOTAL_ROUNDS = document.getElementById('rounds').value;
+    EMBEDDED.bg_SESSION_TIME_LIMIT = document.getElementById('sess').value;
+    EMBEDDED.ResponseID = 'harness_' + Date.now();
+    paint();
+
+    var stage = document.getElementById('stage');
+    stage.innerHTML = '';
+    var fake = {
+      hideNextButton: function () { }, showNextButton: function () { },
+      getQuestionContainer: function () { return stage; }
+    };
+    window.__onload.call(fake);
+  }
+  document.getElementById('run').addEventListener('click', start);
+  start();
+</script>

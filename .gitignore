@@ -113,3 +113,15 @@ env/
 
 # Section-5 bot-sim reproduction harness (reads the raw pilot CSV; _repro-bots.json carries raw ids)
 scripts/_repro-*
+
+# Qualtrics build outputs — GENERATED, and they embed the Firebase web config,
+# the MapTiler key and (for the treated build) the oracle answer key.
+# Never commit these: this repository is public. Rebuild with `npm run qualtrics:verify`.
+/qualtrics/dist/
+/qualtrics/embed/dist/
+/qualtrics/test/tmp/
+
+# local scratch
+bgtest-tmp.mjs
+fb-verify-tmp.mjs
+fb-clean-tmp.mjs

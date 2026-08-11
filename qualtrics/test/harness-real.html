@@ -1,0 +1,49 @@
+<!doctype html><meta charset="utf-8"><title>BundleGame — REAL bundle harness</title>
+<style>
+ body{font-family:system-ui;margin:0;background:#f8fafc}
+ header{background:#0f172a;color:#fff;padding:10px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+ header h1{font-size:15px;margin:0}
+ header select,header input{font-size:12px;padding:3px 6px;border-radius:5px;border:1px solid #475569;background:#1e293b;color:#fff}
+ header button{font-size:12px;padding:4px 10px;border-radius:6px;border:0;background:#2563eb;color:#fff;cursor:pointer}
+ #stage{padding:16px}
+ #ed{max-width:1100px;margin:16px auto;background:#0f172a;color:#a5f3fc;border-radius:12px;padding:12px}
+ #ed pre{margin:0;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow:auto}
+ #err{background:#7f1d1d;color:#fff;padding:8px 16px;font:12px/1.4 monospace;display:none;white-space:pre-wrap}
+</style>
+<header>
+ <h1>REAL Svelte bundle — running the actual app</h1>
+ <label>dataset <select id="ds"></select></label>
+ <label>arm <select id="arm"><option>control</option><option>counterfactual</option><option>aggregate</option></select></label>
+ <label>rounds <input id="rounds" type="number" value="35" style="width:60px"></label>
+ <button id="run">Restart</button>
+ <span style="font-size:12px;color:#94a3b8">Qualtrics stubbed · Firebase off</span>
+</header>
+<div id="err"></div>
+<div id="stage"></div>
+<div id="ed"><pre id="edout">(play to see embedded data)</pre></div>
+<script>
+ window.onerror = function(m,s,l,c,e){ var d=document.getElementById('err'); d.style.display='block';
+   d.textContent += 'ERROR: '+m+'\n'+(e&&e.stack?e.stack:'')+'\n'; };
+ var EMB={};
+ window.Qualtrics={SurveyEngine:{addOnload:function(f){window.__onload=f},addOnUnload:function(){},
+   getEmbeddedData:function(k){return k in EMB?EMB[k]:null},
+   setEmbeddedData:function(k,v){EMB[k]=v;paint()}}};
+ function paint(){document.getElementById('edout').textContent=
+   Object.keys(EMB).sort().map(function(k){var v=String(EMB[k]);return k+' = '+(v.length>200?v.slice(0,200)+' …':v)}).join('\n')||'(nothing)'}
+</script>
+<script src="../dist/bundlegame.real.js"></script>
+<script>
+ var sel=document.getElementById('ds');
+ Object.keys(BUNDLEGAME_DATA.datasets).forEach(function(k){var o=document.createElement('option');o.value=o.textContent=k;
+   if(k===BUNDLEGAME_CONFIG.DATASET)o.selected=true;sel.appendChild(o)});
+ function start(){
+   document.getElementById('err').style.display='none'; document.getElementById('err').textContent='';
+   EMB={ userID:'harness_'+Date.now(), bg_DATASET:sel.value, bg_ARM:document.getElementById('arm').value,
+         bg_TOTAL_ROUNDS:document.getElementById('rounds').value, bg_FIREBASE_ENABLED:'false' };
+   paint();
+   var stage=document.getElementById('stage'); stage.innerHTML='';
+   window.__onload.call({hideNextButton:function(){},showNextButton:function(){},clickNextButton:function(){},
+     getQuestionContainer:function(){return stage}});
+ }
+ document.getElementById('run').addEventListener('click',start); start();
+</script>
