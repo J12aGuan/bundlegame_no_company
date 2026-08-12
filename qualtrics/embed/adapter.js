@@ -39,7 +39,7 @@
     return out;
   }
 
-  function boot(target, payload, baseConfig, page) {
+  async function boot(target, payload, baseConfig, page) {
     var cfg = resolveConfig(baseConfig);
     cfg.__participantId = String(qxGet(cfg.PARTICIPANT_ID_FIELD) || qxGet('userID') || qxGet('ResponseID') || ('anon_' + Date.now()));
 
@@ -47,10 +47,11 @@
     qxSet('bg_dataset', cfg.DATASET);
     qxSet('bg_arm', cfg.ARM);
     qxSet('bg_ui', 'real_svelte_bundle');
+    qxSet('bg_fallback_url', 'https://bundlegame-no-company.vercel.app');
 
     var handle;
     try {
-      handle = global.BundleGameReal.mountGame(target, payload, cfg);
+      handle = await global.BundleGameReal.mountGame(target, payload, cfg, qxSet);
     } catch (e) {
       qxSet('bg_mount_error', String((e && e.message) || e));
       target.innerHTML = '<p style="color:#b91c1c">The game failed to load. Please contact the researcher.</p>';
