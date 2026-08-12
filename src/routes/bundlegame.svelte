@@ -1,7 +1,7 @@
 <script>
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
-    import { game, id, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, getScenarioStudyRecommendation, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, notifyTutorialRoundProgress, finalizeMainGameSession, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction, participantStudyState, studyProtocol, updateChiStudyFeedback, clearChiStudyFeedback, getCandidatesForScenario, advancePairedPhase } from "$lib/bundle.js"
+    import { game, gameText, id, orders, finishedOrders, failedOrders, earned, currLocation, elapsed, uniqueSets, completeOrder, numCols, currentRound, roundStartTime, getCurrentScenario, getOptimalForScenario, getScenarioStudyRecommendation, saveScenarioProgress, scenarioSetProgress, scenarios, emojisMap, roundTimeLimit, gameMode, notifyTutorialRoundProgress, finalizeMainGameSession, incrementOptimalChoices, saveCurrentProgress, optimalChoices, addScenarioTime, setScenarioInProgress, startScenarioPhase, stopScenarioPhase, recordDetailedAction, participantStudyState, studyProtocol, updateChiStudyFeedback, clearChiStudyFeedback, getCandidatesForScenario, advancePairedPhase } from "$lib/bundle.js"
     import { isReservedTestId } from "$lib/testIdentity.js"
     import { WEAKNESS_LABEL } from "$lib/chiDiagnosis.js"
     import { decisionLogRecord } from "$lib/chiStudyRuntime.js"
